@@ -83,19 +83,11 @@ const ratingByCustomerSchema = new mongoose.Schema(
   }
 );
 
-const merchantSchema = new mongoose.Schema(
+const merchantDetailSchema = new mongoose.Schema(
   {
-    username: {
-      type: String,
-      required: true,
-    },
-    email: {
-      type: String,
-      required: true,
-    },
-    phoneNumber: {
-      type: String,
-      required: true,
+    merchantId: {
+      type: mongoose.Schema.ObjectId,
+      ref: "Admin",
     },
     merchantName: {
       type: String,
@@ -218,5 +210,5 @@ const merchantSchema = new mongoose.Schema(
   }
 );
 
-const Merchant = mongoose.model("Merchant", merchantSchema);
-module.exports = Merchant;
+const MerchantDetail = mongoose.model("MerchantDetail", merchantDetailSchema);
+module.exports = MerchantDetail;

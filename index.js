@@ -1,7 +1,10 @@
 const express = require("express");
+const cookieParser = require("cookie-parser");
 const cors = require("cors");
 
 const globalErrorHandler = require("./middlewares/globalErrorHandler");
+
+const merchanrRoute = require("./routes/merchantRoute/merchantRoute");
 
 require("dotenv").config();
 require("./config/dbConnect");
@@ -10,15 +13,12 @@ const app = express();
 
 //middlewares
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(
-  cors({
-    origin: "*",
-    methods: ["*"],
-  })
-);
+app.use(cookieParser());
+app.use(express.urlencoded({ extended: false }));
+app.use(cors());
 
 //routers
+app.use("/api/v1/merchants", merchanrRoute);
 
 //global errors
 app.use(globalErrorHandler);
