@@ -4,7 +4,8 @@ const cors = require("cors");
 
 const globalErrorHandler = require("./middlewares/globalErrorHandler");
 
-const merchanrRoute = require("./routes/merchantRoute/merchantRoute");
+const authRoute = require("./routes/authRoute/authRoute");
+const merchantRoute = require("./routes/merchantRoute/merchantRoute");
 
 require("dotenv").config();
 require("./config/dbConnect");
@@ -18,7 +19,8 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cors());
 
 //routers
-app.use("/api/v1/merchants", merchanrRoute);
+app.use("/api/v1/auth", authRoute);
+app.use("/api/v1/merchants", merchantRoute);
 
 //global errors
 app.use(globalErrorHandler);

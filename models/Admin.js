@@ -22,6 +22,10 @@ const adminSchema = new mongoose.Schema(
       type: String,
       default: "Merchant",
     },
+    isApproved: {
+      type: Boolean,
+      default: false
+    }
   },
   {
     timestamps: true,
