@@ -55,8 +55,8 @@ const loginController = async (req, res) => {
       return res.status(400).json({ error: "Invalid credentials" });
     }
 
-    if(merchant.isApproved){
-      
+    if(!merchant.isApproved){
+    
      if(merchantDetails.isBlocked){
       res.status(400).json({
        message: "Account is Blocked"
@@ -87,12 +87,32 @@ const loginController = async (req, res) => {
 const blockMerchant= async (req, res)=>{
 
   try{
-
-  }catch(err){
+    const merchantId = req.params.merchantId
+    const {reasonForBlocking} = req.body
     
+    const merchantDetail = await MerchantDetail.findOne({merchantId})
+    
+    if(merchantDetail.isBlocked){
+      merchantDetail.isBlocked = false
+      merchantDetail.reasonForBlockingOrDeleting = null
+      await  merchantDetail.save()
+      res.status(200).json({
+        message: "Merchant Unblocked"
+      })
+    }else{
+      merchantDetail.isBlocked = true
+      merchantDetail.reasonForBlockingOrDeleting = reasonForBlocking
+      await  merchantDetail.save()
+      res.status(200).json({
+        message: "Merchant blocked"
+      })
+    }
+  }catch(err){
+    res.status(500).json({ error: err.message });
+    console.log("Error in blockMerchant", err.message);
   }
 }
 
 
 
-module.exports = { registerController, loginController };
+module.exports = { registerController, loginController, blockMerchant };
