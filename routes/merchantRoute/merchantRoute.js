@@ -9,6 +9,7 @@ const isAuthenticated = require("../../middlewares/isAuthenticated");
 
 const merchantRoute = express.Router();
 
+//TODO: Need to add authentication middlewaress
 merchantRoute.post(
   "/add-merchant",
   upload.fields([
@@ -18,11 +19,12 @@ merchantRoute.post(
     { name: "FSSAIImage", maxCount: 1 },
     { name: "aadharImage", maxCount: 1 },
   ]),
-  isAuthenticated,
-  isAdmin,
+  // isAuthenticated,
+  // isAdmin,
   addMerchantController
 );
 
+//TODO: Need to add authentication middlewaress
 merchantRoute.put(
   "/edit-merchant/:merchantId",
   upload.fields([
@@ -32,8 +34,8 @@ merchantRoute.put(
     { name: "FSSAIImage", maxCount: 1 },
     { name: "aadharImage", maxCount: 1 },
   ]),
-  isAuthenticated,
-  isAdmin,
+  // isAuthenticated,
+  // isAdmin,
   editMerchantController
 );
 
