@@ -5,6 +5,10 @@ const categorySchema = mongoose.Schema({
   //     type: mongoose.Types.ObjectId,
   //     ref: "BussnessCategory",
   //   },
+  //   merchantId: {
+  //     type: mongoose.Types.ObjectId,
+  //     ref: "Admin",
+  //   },
   categoryName: {
     type: String,
     required: true,

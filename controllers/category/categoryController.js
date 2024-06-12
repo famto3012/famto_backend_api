@@ -29,8 +29,8 @@ const addCategoryController = async (req, res, next) => {
 
     let categoryImageURL = "";
 
-    if (req.file) {
-      const { categoryImage } = req.file;
+    if (req.files) {
+      const { categoryImage } = req.files;
 
       categoryImageURL = await uploadToFirebase(
         categoryImage,
