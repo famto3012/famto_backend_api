@@ -15,7 +15,7 @@ const daySchema = new mongoose.Schema(
       default: false,
     },
     startTime: {
-      type: String, // Store times as strings in "HH:MM" format
+      type: String,
       validate: {
         validator: function (v) {
           return /^([01]\d|2[0-3]):?([0-5]\d)$/.test(v);
