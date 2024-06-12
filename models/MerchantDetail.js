@@ -189,10 +189,6 @@ const merchantDetailSchema = new mongoose.Schema(
     status: {
       type: String,
     },
-    isApproved: {
-      type: Boolean,
-      default: false,
-    },
     isBlocked: {
       type: Boolean,
       default: false,
