@@ -21,6 +21,7 @@ merchantRoute.post(
     { name: "aadharImage", maxCount: 1 },
   ]),
   [
+    body("merchantId").trim().notEmpty().withMessage("Merchant is required"),
     body("merchantName")
       .trim()
       .notEmpty()

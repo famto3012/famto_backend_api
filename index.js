@@ -7,6 +7,7 @@ const globalErrorHandler = require("./middlewares/globalErrorHandler");
 const categoryRoute = require("./routes/categoryRoute/categoryRoute");
 const authRoute = require("./routes/authRoute/authRoute");
 const merchantRoute = require("./routes/merchantRoute/merchantRoute");
+const productRoute = require("./routes/productRoute/productRoute");
 
 require("dotenv").config();
 require("./config/dbConnect");
@@ -23,7 +24,7 @@ app.use(cors());
 app.use("/api/v1/categories", categoryRoute);
 app.use("/api/v1/auth", authRoute);
 app.use("/api/v1/merchants", merchantRoute);
-
+app.use("/api/v1/products", productRoute);
 
 //global errors
 app.use(globalErrorHandler);

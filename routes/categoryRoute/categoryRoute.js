@@ -3,12 +3,16 @@ const {
   addCategoryController,
   editCategoryController,
   deleteCategoryController,
+  getCategoriesOfMerchant,
 } = require("../../controllers/category/categoryController");
 const { upload } = require("../../utils/imageOperation");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const { body, check } = require("express-validator");
 
 const categoryRoute = express.Router();
+
+//TODO: Need to add Role based Authentication
+categoryRoute.get("/:merchantId", getCategoriesOfMerchant);
 
 //TODO: Need to add Role based Authentication
 categoryRoute.post(
@@ -30,8 +34,8 @@ categoryRoute.post(
       .withMessage("Description is required"),
     body("type").trim().notEmpty().withMessage("Type is required"),
     check("categoryImage").custom((value, { req }) => {
-      if (!req.file || !req.file.categoryImage) {
-        throw new Error("Category image is required");
+      if (!req.file) {
+        throw new Error("Merchant image is required");
       }
       return true;
     }),
@@ -60,10 +64,7 @@ categoryRoute.put(
       .withMessage("Description is required"),
     body("type").trim().notEmpty().withMessage("Type is required"),
     check("categoryImage").custom((value, { req }) => {
-      if (
-        !req.body.categoryImageURL &&
-        (!req.file || !req.file.categoryImage)
-      ) {
+      if (!req.body.categoryImageURL && !req.file) {
         throw new Error("Category image is required");
       }
       return true;

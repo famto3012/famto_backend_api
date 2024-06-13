@@ -6,6 +6,22 @@ const {
   deleteFromFirebase,
 } = require("../../utils/imageOperation");
 
+const getCategoriesOfMerchant = async (req, res, next) => {
+  try {
+    const merchantId = req.params.merchantId;
+
+    const categoriesOfMerchant = await Category.find({ merchantId }).populate(
+      "bussinessCategoryId"
+    );
+
+    res
+      .status(200)
+      .json({ message: "Categories of merchant", data: categoriesOfMerchant });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 const addCategoryController = async (req, res, next) => {
   const { bussinessCategoryId, merchantId, categoryName, description, type } =
     req.body;
@@ -60,7 +76,8 @@ const addCategoryController = async (req, res, next) => {
 };
 
 const editCategoryController = async (req, res, next) => {
-  const { bussinessCategory, categoryName, description, type } = req.body;
+  const { bussinessCategoryId, merchantId, categoryName, description, type } =
+    req.body;
 
   const errors = validationResult(req);
 
@@ -94,7 +111,8 @@ const editCategoryController = async (req, res, next) => {
     await Category.findByIdAndUpdate(
       req.params.categoryId,
       {
-        bussinessCategory,
+        bussinessCategoryId,
+        merchantId,
         categoryName,
         description,
         type,
@@ -112,16 +130,6 @@ const editCategoryController = async (req, res, next) => {
 };
 
 const deleteCategoryController = async (req, res, next) => {
-  const errors = validationResult(req);
-
-  let formattedErrors = {};
-  if (!errors.isEmpty()) {
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
-    return res.status(500).json({ errors: formattedErrors });
-  }
-
   try {
     const categoryToDelete = await Category.findById(req.params.categoryId);
 
@@ -146,6 +154,7 @@ const deleteCategoryController = async (req, res, next) => {
 };
 
 module.exports = {
+  getCategoriesOfMerchant,
   addCategoryController,
   editCategoryController,
   deleteCategoryController,
