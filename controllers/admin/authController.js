@@ -1,6 +1,6 @@
 const appError = require("../../utils/appError");
 const Merchant = require("../../models/Admin");
-const generateToken = require("../../utils/generateToken")
+const generateToken = require("../../utils/generateToken");
 const bcrypt = require("bcryptjs");
 const MerchantDetail = require("../../models/MerchantDetail");
 
@@ -45,7 +45,9 @@ const loginController = async (req, res) => {
     const { email, password } = req.body;
 
     const merchant = await Merchant.findOne({ email });
-    const merchantDetails = await MerchantDetail.findOne({merchantId: merchant.id})
+    const merchantDetails = await MerchantDetail.findOne({
+      merchantId: merchant.id,
+    });
     const isPasswordCorrect = await bcrypt.compare(
       password,
       merchant?.password || ""
@@ -55,64 +57,57 @@ const loginController = async (req, res) => {
       return res.status(400).json({ error: "Invalid credentials" });
     }
 
-    if(!merchant.isApproved){
-    
-     if(merchantDetails.isBlocked){
+    if (!merchant.isApproved) {
+      if (merchantDetails.isBlocked) {
+        res.status(400).json({
+          message: "Account is Blocked",
+        });
+      } else {
+        res.status(200).json({
+          _id: merchant.id,
+          fullName: merchant.fullName,
+          email: merchant.email,
+          token: generateToken(merchant._id, merchant.role),
+          role: merchant.role,
+        });
+      }
+    } else {
       res.status(400).json({
-       message: "Account is Blocked"
-      });
-     }else{
-      res.status(200).json({
-        _id: merchant.id,
-        fullName: merchant.fullName,
-        email: merchant.email,
-        token:  generateToken(merchant._id, merchant.role),
-        role: merchant.role
-      });
-     }
-   
-    }else{
-      res.status(400).json({
-       message: "Registration not approved"
+        message: "Registration not approved",
       });
     }
-
-   
   } catch (err) {
     res.status(500).json({ error: err.message });
     console.log("Error in loginUser", err.message);
   }
 };
 
-const blockMerchant= async (req, res)=>{
+const blockMerchant = async (req, res) => {
+  try {
+    const merchantId = req.params.merchantId;
+    const { reasonForBlocking } = req.body;
 
-  try{
-    const merchantId = req.params.merchantId
-    const {reasonForBlocking} = req.body
-    
-    const merchantDetail = await MerchantDetail.findOne({merchantId})
-    
-    if(merchantDetail.isBlocked){
-      merchantDetail.isBlocked = false
-      merchantDetail.reasonForBlockingOrDeleting = null
-      await  merchantDetail.save()
+    const merchantDetail = await MerchantDetail.findOne({ merchantId });
+
+    if (merchantDetail.isBlocked) {
+      merchantDetail.isBlocked = false;
+      merchantDetail.reasonForBlockingOrDeleting = null;
+      await merchantDetail.save();
       res.status(200).json({
-        message: "Merchant Unblocked"
-      })
-    }else{
-      merchantDetail.isBlocked = true
-      merchantDetail.reasonForBlockingOrDeleting = reasonForBlocking
-      await  merchantDetail.save()
+        message: "Merchant Unblocked",
+      });
+    } else {
+      merchantDetail.isBlocked = true;
+      merchantDetail.reasonForBlockingOrDeleting = reasonForBlocking;
+      await merchantDetail.save();
       res.status(200).json({
-        message: "Merchant blocked"
-      })
+        message: "Merchant blocked",
+      });
     }
-  }catch(err){
+  } catch (err) {
     res.status(500).json({ error: err.message });
     console.log("Error in blockMerchant", err.message);
   }
-}
-
-
+};
 
 module.exports = { registerController, loginController, blockMerchant };
