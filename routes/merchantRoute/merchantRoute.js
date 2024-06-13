@@ -6,6 +6,7 @@ const {
 const { upload } = require("../../utils/imageOperation");
 const isAdmin = require("../../middlewares/isAdmin");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
+const { body, check } = require("express-validator");
 
 const merchantRoute = express.Router();
 

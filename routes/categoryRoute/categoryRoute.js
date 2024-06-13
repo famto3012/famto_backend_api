@@ -6,7 +6,7 @@ const {
 } = require("../../controllers/category/categoryController");
 const { upload } = require("../../utils/imageOperation");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
-const { body } = require("express-validator");
+const { body, check } = require("express-validator");
 
 const categoryRoute = express.Router();
 
