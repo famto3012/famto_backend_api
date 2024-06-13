@@ -1,14 +1,14 @@
 const { validationResult } = require("express-validator");
 
 const appError = require("../../utils/appError");
-const { uploadToFirebase } = require("../../utils/imageOperation");
-const Merchant = require("../../models/MerchantDetail");
+const {
+  uploadToFirebase,
+  deleteFromFirebase,
+} = require("../../utils/imageOperation");
+const MerchantDetails = require("../../models/MerchantDetail");
 
 const addMerchantController = async (req, res, next) => {
   const {
-    username,
-    email,
-    phoneNumber,
     merchantName,
     displayAddress,
     description,
@@ -22,7 +22,18 @@ const addMerchantController = async (req, res, next) => {
     deliveryOption,
     deliveryTime,
     servingArea,
+    availability,
   } = req.body;
+
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(500).json({ errors: formattedErrors });
+  }
 
   try {
     let merchantImageURL = "";
@@ -31,29 +42,39 @@ const addMerchantController = async (req, res, next) => {
     let FSSAIImageURL = "";
     let aadharImageURL = "";
 
-    if (req.file) {
+    if (req.files) {
       const {
         merchantImage,
         pancardImage,
         GSTINImage,
         FSSAIImage,
         aadharImage,
-      } = req.file;
+      } = req.files;
 
-      merchantImageURL = await uploadToFirebase(
-        merchantImage,
-        "merchantImages"
-      );
-      pancardImageURL = await uploadToFirebase(pancardImage, "PancardImages");
-      GSTINImageURL = await uploadToFirebase(GSTINImage, "GSTINImages");
-      FSSAIImageURL = await uploadToFirebase(FSSAIImage, "FSSAIImages");
-      aadharImageURL = await uploadToFirebase(aadharImage, "AadharImages");
+      if (merchantImage) {
+        merchantImageURL = await uploadToFirebase(
+          merchantImage[0],
+          "merchantImages"
+        );
+      }
+      if (pancardImage) {
+        pancardImageURL = await uploadToFirebase(
+          pancardImage[0],
+          "PancardImages"
+        );
+      }
+      if (GSTINImage) {
+        GSTINImageURL = await uploadToFirebase(GSTINImage[0], "GSTINImages");
+      }
+      if (FSSAIImage) {
+        FSSAIImageURL = await uploadToFirebase(FSSAIImage[0], "FSSAIImages");
+      }
+      if (aadharImage) {
+        aadharImageURL = await uploadToFirebase(aadharImage[0], "AadharImages");
+      }
     }
 
-    const newMerchant = await Merchant.create({
-      username,
-      email,
-      phoneNumber,
+    const newMerchant = await MerchantDetails.create({
       merchantName,
       merchantImageURL,
       displayAddress,
@@ -72,6 +93,7 @@ const addMerchantController = async (req, res, next) => {
       GSTINImageURL,
       FSSAIImageURL,
       aadharImageURL,
+      availability,
     });
 
     if (!newMerchant) {
@@ -86,7 +108,7 @@ const addMerchantController = async (req, res, next) => {
   }
 };
 
-const updateMerchantController = async (req, res, next) => {
+const editMerchantController = async (req, res, next) => {
   const {
     username,
     email,
@@ -104,6 +126,7 @@ const updateMerchantController = async (req, res, next) => {
     deliveryOption,
     deliveryTime,
     servingArea,
+    availability,
   } = req.body;
 
   const errors = validationResult(req);
@@ -117,7 +140,9 @@ const updateMerchantController = async (req, res, next) => {
   }
 
   try {
-    const merchantToUpdate = await Merchant.findById(req.params.merchantId);
+    const merchantToUpdate = await MerchantDetails.findById(
+      req.params.merchantId
+    );
 
     if (!merchantToUpdate) {
       return next(appError("Merchant not found", 404));
@@ -130,48 +155,100 @@ const updateMerchantController = async (req, res, next) => {
     let aadharImageURL = merchantToUpdate.aadharImageURL;
 
     // Check for changes in images
-    if (req.file && req.file.merchantImage) {
+    if (req.files && req.files.merchantImage) {
       // Delete old merchant image
       await deleteFromFirebase(merchantToUpdate.merchantImageURL);
-      // Upload new merchant image
-      merchantToUpdate.merchantImageURL = await uploadToFirebase(
-        req.file.merchantImage,
-        "merchantImages"
-      );
     }
     // Check for changes in images
-    if (req.file && req.file.pancardImage) {
+    if (req.files && req.files.pancardImage) {
       // Delete old merchant image
       await deleteFromFirebase(merchantToUpdate.pancardImageURL);
-      // Upload new merchant image
-      merchantToUpdate.pancardImageURL = await uploadToFirebase(
-        req.file.pancardImage,
-        "merchantImages"
-      );
     }
     // Check for changes in images
-    if (req.file && req.file.GSTINImage) {
+    if (req.files && req.files.GSTINImage) {
       // Delete old merchant image
       await deleteFromFirebase(merchantToUpdate.GSTINImageURL);
-      // Upload new merchant image
-      merchantToUpdate.GSTINImageURL = await uploadToFirebase(
-        req.file.GSTINImage,
-        "merchantImages"
-      );
     }
     // Check for changes in images
-    if (req.file && req.file.FSSAIImage) {
+    if (req.files && req.files.FSSAIImage) {
       // Delete old merchant image
       await deleteFromFirebase(merchantToUpdate.FSSAIImageURL);
-      // Upload new merchant image
-      merchantToUpdate.FSSAIImageURL = await uploadToFirebase(
-        req.file.FSSAIImage,
-        "merchantImages"
-      );
     }
+    // Check for changes in images
+    if (req.files && req.files.aadharImage) {
+      // Delete old merchant image
+      await deleteFromFirebase(merchantToUpdate.aadharImageURL);
+    }
+
+    if (req?.files) {
+      const {
+        merchantImage,
+        pancardImage,
+        GSTINImage,
+        FSSAIImage,
+        aadharImage,
+      } = req?.files;
+
+      if (merchantImage) {
+        merchantImageURL = await uploadToFirebase(
+          merchantImage[0],
+          "merchantImages"
+        );
+      }
+      if (pancardImage) {
+        pancardImageURL = await uploadToFirebase(
+          pancardImage[0],
+          "PancardImages"
+        );
+      }
+      if (GSTINImage) {
+        GSTINImageURL = await uploadToFirebase(GSTINImage[0], "GSTINImages");
+      }
+      if (FSSAIImage) {
+        FSSAIImageURL = await uploadToFirebase(FSSAIImage[0], "FSSAIImages");
+      }
+      if (aadharImage) {
+        aadharImageURL = await uploadToFirebase(aadharImage[0], "AadharImages");
+      }
+    }
+
+    await MerchantDetails.findByIdAndUpdate(
+      req.params.merchantId,
+      {
+        merchantName,
+        merchantImageURL,
+        displayAddress,
+        description,
+        geofence,
+        location,
+        pricing,
+        pancardNumber,
+        GSTINNumber,
+        FSSAINumber,
+        aadharNumber,
+        deliveryOption,
+        deliveryTime,
+        servingArea,
+        pancardImageURL,
+        GSTINImageURL,
+        FSSAIImageURL,
+        aadharImageURL,
+        availability,
+        username,
+        email,
+        phoneNumber,
+      },
+      {
+        new: true,
+      }
+    );
+
+    res.status(200).json({
+      message: "Merchant updated successfully",
+    });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
-module.exports = { addMerchantController };
+module.exports = { addMerchantController, editMerchantController };

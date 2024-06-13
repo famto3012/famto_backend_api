@@ -4,6 +4,7 @@ const cors = require("cors");
 
 const globalErrorHandler = require("./middlewares/globalErrorHandler");
 
+const categoryRoute = require("./routes/categoryRoute/categoryRoute");
 const authRoute = require("./routes/authRoute/authRoute");
 const merchantRoute = require("./routes/merchantRoute/merchantRoute");
 
@@ -19,8 +20,10 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cors());
 
 //routers
+app.use("/api/v1/categories", categoryRoute);
 app.use("/api/v1/auth", authRoute);
 app.use("/api/v1/merchants", merchantRoute);
+
 
 //global errors
 app.use(globalErrorHandler);

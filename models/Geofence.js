@@ -24,5 +24,5 @@ const geofenceSchema = new mongoose.Schema(
   }
 );
 
-const geofence = mongoose.model("geofence", geofenceSchema);
-module.exports = geofence;
+const Geofence = mongoose.model("Geofence", geofenceSchema);
+module.exports = Geofence;
