@@ -18,7 +18,9 @@ categoryRoute.post(
     body("bussinessCategoryId")
       .trim()
       .notEmpty()
-      .withMessage("Bussinesss category is required"),
+
+      .withMessage("Bussiness Category is required"),
+
     body("merchantId").trim().notEmpty().withMessage("Merchant is required"),
     body("categoryName")
       .trim()
@@ -28,9 +30,10 @@ categoryRoute.post(
       .trim()
       .notEmpty()
       .withMessage("Description is required"),
-    body("type").trim().notEmpty().withMessage("type is required"),
+
+    body("type").trim().notEmpty().withMessage("Type is required"),
     check("categoryImage").custom((value, { req }) => {
-      if (!req.file) {
+      if (!req.file || !req.file.categoryImage) {
         throw new Error("Category image is required");
       }
       return true;
@@ -44,6 +47,31 @@ categoryRoute.post(
 categoryRoute.put(
   "/edit-category/:categoryId",
   upload.single("categoryImage"),
+  [
+    body("bussinessCategoryId")
+      .trim()
+      .notEmpty()
+      .withMessage("Bussiness Category is required"),
+    body("merchantId").trim().notEmpty().withMessage("Merchant is required"),
+    body("categoryName")
+      .trim()
+      .notEmpty()
+      .withMessage("Category name is required"),
+    body("description")
+      .trim()
+      .notEmpty()
+      .withMessage("Description is required"),
+    body("type").trim().notEmpty().withMessage("Type is required"),
+    check("categoryImage").custom((value, { req }) => {
+      if (
+        !req.body.categoryImageURL &&
+        (!req.file || !req.file.categoryImage)
+      ) {
+        throw new Error("Category image is required");
+      }
+      return true;
+    }),
+  ],
   // isAuthenticated,
   editCategoryController
 );
