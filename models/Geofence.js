@@ -18,6 +18,10 @@ const geofenceSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    manager: {
+      type: String,
+      required: true
+    }
   },
   {
     timestamps: true,

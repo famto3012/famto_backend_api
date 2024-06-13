@@ -27,12 +27,13 @@ const ratingByAgentSchema = new mongoose.Schema(
     {
       customerImageURL: {
         type: String,
-        required: true,
+      },
+      location: {
+        type: [[Number]]
       },
       geofence: {
         type: mongoose.Schema.ObjectId,
         ref: "Geofence",
-        required: true,
       },
       ratings: [ratingByAgentSchema],
       status: {
