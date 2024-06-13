@@ -7,7 +7,8 @@ const {
 } = require("../../utils/imageOperation");
 
 const addCategoryController = async (req, res, next) => {
-  const { bussinessCategory, categoryName, description, type } = req.body;
+  const { bussinessCategoryId, merchantId, categoryName, description, type } =
+    req.body;
 
   const errors = validationResult(req);
 
@@ -21,7 +22,7 @@ const addCategoryController = async (req, res, next) => {
 
   try {
     const existingCategory = await Category.findOne({
-      bussinessCategory,
+      bussinessCategoryId,
       categoryName,
     });
 
@@ -38,7 +39,8 @@ const addCategoryController = async (req, res, next) => {
     }
 
     const newCategory = await Category.create({
-      bussinessCategory,
+      bussinessCategoryId,
+      merchantId,
       categoryName,
       description,
       type,
