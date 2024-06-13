@@ -7,15 +7,15 @@ const {
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const isAdmin = require("../../middlewares/isAdmin");
 
-const router = express.Router();
+const authRoute = express.Router();
 
-router.post("/register", registerController);
-router.post("/sign-in", loginController);
-router.put(
+authRoute.post("/register", registerController);
+authRoute.post("/sign-in", loginController);
+authRoute.put(
   "/block-merchant/:merchantId",
   isAuthenticated,
   isAdmin,
   blockMerchant
 );
 
-module.exports = router;
+module.exports = authRoute;

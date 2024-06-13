@@ -8,6 +8,7 @@ const categoryRoute = require("./routes/categoryRoute/categoryRoute");
 const authRoute = require("./routes/authRoute/authRoute");
 const merchantRoute = require("./routes/merchantRoute/merchantRoute");
 const productRoute = require("./routes/productRoute/productRoute");
+const customerRoute = require("./routes/customerRoute/customerRoute");
 
 require("dotenv").config();
 require("./config/dbConnect");
@@ -25,6 +26,7 @@ app.use("/api/v1/categories", categoryRoute);
 app.use("/api/v1/auth", authRoute);
 app.use("/api/v1/merchants", merchantRoute);
 app.use("/api/v1/products", productRoute);
+app.use("/api/v1/customers", customerRoute);
 
 //global errors
 app.use(globalErrorHandler);
