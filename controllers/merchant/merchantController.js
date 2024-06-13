@@ -9,6 +9,7 @@ const MerchantDetails = require("../../models/MerchantDetail");
 
 const addMerchantController = async (req, res, next) => {
   const {
+    merchantId,
     merchantName,
     displayAddress,
     description,
@@ -75,6 +76,7 @@ const addMerchantController = async (req, res, next) => {
     }
 
     const newMerchant = await MerchantDetails.create({
+      merchantId,
       merchantName,
       merchantImageURL,
       displayAddress,
