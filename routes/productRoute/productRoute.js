@@ -7,6 +7,7 @@ const {
   deleteProductDetailsController,
   getProductController,
   searchProductController,
+  getProductByCategory,
 } = require("../../controllers/product/productController");
 const { body, check } = require("express-validator");
 const { upload } = require("../../utils/imageOperation");
@@ -176,5 +177,9 @@ productRoute.delete(
   "/:productId/delete-product-details",
   deleteProductDetailsController
 );
+
+//TODO: Need to add authorization
+//Get Product by category
+productRoute.get("/product-by-category/:categoryId", getProductByCategory);
 
 module.exports = productRoute;

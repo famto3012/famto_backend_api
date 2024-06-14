@@ -9,6 +9,7 @@ const authRoute = require("./routes/authRoute/authRoute");
 const merchantRoute = require("./routes/merchantRoute/merchantRoute");
 const productRoute = require("./routes/productRoute/productRoute");
 const customerRoute = require("./routes/customerRoute/customerRoute");
+const agentRoute = require("./routes/agentRoute/agentRoute");
 
 require("dotenv").config();
 require("./config/dbConnect");
@@ -27,6 +28,7 @@ app.use("/api/v1/auth", authRoute);
 app.use("/api/v1/merchants", merchantRoute);
 app.use("/api/v1/products", productRoute);
 app.use("/api/v1/customers", customerRoute);
+app.use("/api/v1/agents", agentRoute);
 
 //global errors
 app.use(globalErrorHandler);
