@@ -13,9 +13,9 @@ const isAdmin = async (req, res, next) => {
   req.userAuth = decodedUser.id;
 
   //Find the user in DB
-  const user = await Admin.findById(decodedUser.id);
+ // const user = await Admin.findById(decodedUser.id);
   //Check if the user is Admin or not
-  if (user.role === "Admin") {
+  if (decodedUser.role === "Admin") {
     return next();
   } else {
     return next(appError("Access denied, Admin only!", 403));

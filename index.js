@@ -10,6 +10,8 @@ const merchantRoute = require("./routes/merchantRoute/merchantRoute");
 const productRoute = require("./routes/productRoute/productRoute");
 const customerRoute = require("./routes/customerRoute/customerRoute");
 const agentRoute = require("./routes/agentRoute/agentRoute");
+const geofenceRoute = require("./routes/authRoute/geofenceRoute/geofenceRoute");
+const notificationRoute = require("./routes/authRoute/notificationRoute/notificationRoute");
 
 require("dotenv").config();
 require("./config/dbConnect");
@@ -29,6 +31,8 @@ app.use("/api/v1/merchants", merchantRoute);
 app.use("/api/v1/products", productRoute);
 app.use("/api/v1/customers", customerRoute);
 app.use("/api/v1/agents", agentRoute);
+app.use("/api/v1/auth/geofence", geofenceRoute);
+app.use("/api/v1/auth/notification", notificationRoute);
 
 //global errors
 app.use(globalErrorHandler);
