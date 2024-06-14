@@ -1,22 +1,54 @@
 const express = require("express");
-const { body } = require('express-validator');
+const { body } = require("express-validator");
 const {
   registerController,
   loginController,
   blockMerchant,
-  addGeofence,
-  addPushNotificationController,
-  editPushNotificationController,
-  deletePushNotificationController,
+  blockCustomer,
 } = require("../../controllers/admin/authController");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const isAdmin = require("../../middlewares/isAdmin");
 
 const authRoute = express.Router();
 
-authRoute.post("/register", registerController);
+authRoute.post(
+  "/register",
+  [
+    body("fullName").trim().notEmpty().withMessage("Full Name is required"),
+    body("email").trim().notEmpty().withMessage("Email is required"),
+    body("phoneNumber")
+      .trim()
+      .notEmpty()
+      .withMessage("Phone number is required"),
+    body("password")
+      .trim()
+      .notEmpty()
+      .withMessage("Password is required")
+      .isLength({ min: 6 })
+      .withMessage("Password should have minimum of 6 characters"),
+    body("confirmPassword")
+      .trim()
+      .notEmpty()
+      .withMessage("Confirmation password is required")
+      .custom((value, { req }) => {
+        if (req.body.password !== value) {
+          throw new Error("Passwords do not match");
+        }
 
-authRoute.post("/sign-in", loginController);
+        return true;
+      }),
+  ],
+  registerController
+);
+
+authRoute.post(
+  "/sign-in",
+  [
+    body("email").trim().notEmpty().withMessage("Email is required"),
+    body("password").trim().notEmpty().withMessage("Password is required"),
+  ],
+  loginController
+);
 
 authRoute.put(
   "/block-merchant/:merchantId",
@@ -24,39 +56,11 @@ authRoute.put(
   isAdmin,
   blockMerchant
 );
-
-authRoute.post('/add-geofence', [
-  body('name').trim().notEmpty().withMessage('Name is required'),
-  body('color').trim().notEmpty().withMessage('Color is required'),
-  body('manager').trim().notEmpty().withMessage('Manager is required'),
-  body('description').trim().notEmpty().withMessage('Description is required'),
-  body('coordinates').isArray().withMessage('Coordinates should be an array')
-],
- isAuthenticated,
- isAdmin,
- addGeofence);
-
- authRoute.post(
-  "/push-notification",
-  [
-    body("event").notEmpty().withMessage("Event is required"),
-    body("description").notEmpty().withMessage("Description is required")
-  ],
-  isAuthenticated,
-  isAdmin,
-  addPushNotificationController
-);
-
 authRoute.put(
-  "/push-notification/:id",
+  "/block-customer/:customerId",
   isAuthenticated,
   isAdmin,
-  editPushNotificationController
+  blockCustomer
 );
-
-authRoute.delete("/push-notification/:id",
-  isAuthenticated,
-  isAdmin,
-  deletePushNotificationController);
 
 module.exports = authRoute;
