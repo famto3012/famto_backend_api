@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const pushNotificationSchema = new mongoose.Schema(
   {
-    event: {
+    title: {
       type: String,
       required: true,
     },
@@ -10,9 +10,14 @@ const pushNotificationSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    admin: {
-      type: Boolean,
-      default: false,
+    geofence: {
+        type: mongoose.Schema.ObjectId,
+        ref: "Geofence",
+        required: true,
+    },
+    imageUrl: {
+      type: String,
+      required: true
     },
     merchant: {
       type: Boolean,
@@ -25,18 +30,6 @@ const pushNotificationSchema = new mongoose.Schema(
     customer: {
       type: Boolean,
       default: false
-    },
-    whatsapp: {
-      type: Boolean,
-      default: false,
-    },
-    sms: {
-      type: Boolean,
-      default: false,
-    },
-    email: {
-      type: Boolean,
-      default: false,
     },
   },
   {
