@@ -2,11 +2,16 @@ const mongoose = require("mongoose");
 
 const vehicleSchema = mongoose.Schema(
   {
+    vehicleStatus: { type: Boolean, default: false },
     model: { type: String, required: true },
-    type: { type: String, required: true },
+    type: {
+      type: String,
+      enum: ["Two-wheeler", "Three-wheeler", "Four-wheeler"],
+      required: true,
+    },
     licensePlate: { type: String, required: true },
-    vehicleFrontImageURL: { type: String, required: true },
-    vehicleBackImageURL: { type: String, required: true },
+    rcFrontImageURL: { type: String, required: true },
+    rcBackImageURL: { type: String, required: true },
   },
   { _id: false }
 );
@@ -53,9 +58,8 @@ const bankDetailSchema = mongoose.Schema(
 
 const workStructureSchema = mongoose.Schema(
   {
-    manager: { type: String, required: true },
     salaryStructure: { type: String, required: true },
-    geofence: { type: String, required: true },
+
     tag: { type: String, enum: ["tag1", "tag2"], required: true },
   },
   { _id: false }
@@ -94,14 +98,22 @@ const agentSchema = mongoose.Schema(
       type: [Number],
       required: true,
     },
+    geofenceId: {
+      type: mongoose.Schema.ObjectId,
+      ref: "Geofence",
+    },
+    manager: {
+      type: String,
+      required: true,
+    },
     role: {
       type: String,
       default: "Agent",
     },
-    // agentImageURL: {
-    //   type: String,
-    //   required: true,
-    // },
+    agentImageURL: {
+      type: String,
+      required: true,
+    },
     status: {
       type: Boolean,
       default: false,

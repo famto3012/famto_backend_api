@@ -4,7 +4,6 @@ const generateToken = require("../../utils/generateToken");
 const bcrypt = require("bcryptjs");
 const os = require("os");
 const Customer = require("../../models/Customer");
-const Geofence = require("../../models/Geofence"); // Assuming you have a Geofence model
 const { validationResult } = require("express-validator");
 const geoLocation = require("../../utils/getGeoLocation");
 

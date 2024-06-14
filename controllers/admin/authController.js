@@ -58,7 +58,7 @@ const loginController = async (req, res) => {
       return res.status(400).json({ error: "Invalid credentials" });
     }
 
-    if(merchant.role === "Admin"){
+    if (merchant.role === "Admin") {
       res.status(200).json({
         _id: merchant.id,
         fullName: merchant.fullName,
@@ -66,8 +66,7 @@ const loginController = async (req, res) => {
         token: generateToken(merchant._id, merchant.role),
         role: merchant.role,
       });
-    }else{
-
+    } else {
       if (merchant.isApproved) {
         if (merchantDetails.isBlocked) {
           res.status(400).json({
@@ -88,7 +87,6 @@ const loginController = async (req, res) => {
         });
       }
     }
-
   } catch (err) {
     res.status(500).json({ error: err.message });
     console.log("Error in loginUser", err.message);
@@ -129,7 +127,7 @@ const blockCustomer = async (req, res) => {
     const { reasonForBlocking } = req.body;
 
     const customer = await Customer.findOne({ _id: customerId });
-    const customerDetail = customer.customerDetails
+    const customerDetail = customer.customerDetails;
 
     if (customerDetail.isBlocked) {
       customerDetail.isBlocked = false;
@@ -150,7 +148,9 @@ const blockCustomer = async (req, res) => {
     res.status(500).json({ error: err.message });
     console.log("Error in blockMerchant", err.message);
   }
-}; 
+};
+
+
 
 module.exports = { 
    registerController,
@@ -158,3 +158,4 @@ module.exports = {
    blockMerchant,
    blockCustomer,
    };
+

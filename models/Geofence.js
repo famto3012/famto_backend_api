@@ -24,7 +24,7 @@ const geofenceSchema = new mongoose.Schema(
     },
     orderManager: {
       type: String,
-      required: true
+      required: true,
     },
     //ToDo: other manager
     // otherManager: [{
