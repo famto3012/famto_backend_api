@@ -61,7 +61,7 @@ const loginController = async (req, res) => {
       return res.status(400).json({ error: "Invalid credentials" });
     }
 
-    if(merchant.role === "Admin"){
+    if (merchant.role === "Admin") {
       res.status(200).json({
         _id: merchant.id,
         fullName: merchant.fullName,
@@ -69,8 +69,7 @@ const loginController = async (req, res) => {
         token: generateToken(merchant._id, merchant.role),
         role: merchant.role,
       });
-    }else{
-
+    } else {
       if (merchant.isApproved) {
         if (merchantDetails.isBlocked) {
           res.status(400).json({
@@ -91,7 +90,6 @@ const loginController = async (req, res) => {
         });
       }
     }
-
   } catch (err) {
     res.status(500).json({ error: err.message });
     console.log("Error in loginUser", err.message);
@@ -132,7 +130,7 @@ const blockCustomer = async (req, res) => {
     const { reasonForBlocking } = req.body;
 
     const customer = await Customer.findOne({ _id: customerId });
-    const customerDetail = customer.customerDetails
+    const customerDetail = customer.customerDetails;
 
     if (customerDetail.isBlocked) {
       customerDetail.isBlocked = false;
@@ -153,7 +151,7 @@ const blockCustomer = async (req, res) => {
     res.status(500).json({ error: err.message });
     console.log("Error in blockMerchant", err.message);
   }
-}; 
+};
 
 const addGeofence = async (req, res, next) => {
   const errors = validationResult(req);
@@ -170,8 +168,14 @@ const addGeofence = async (req, res, next) => {
     const { name, color, description, coordinates, manager } = req.body;
 
     // Validate coordinates format
-    if (!Array.isArray(coordinates) || !coordinates.every(coord => Array.isArray(coord) && coord.length === 2)) {
-      return res.status(400).json({ error: "Invalid coordinates format. Coordinates should be an array of [longitude, latitude] pairs." });
+    if (
+      !Array.isArray(coordinates) ||
+      !coordinates.every((coord) => Array.isArray(coord) && coord.length === 2)
+    ) {
+      return res.status(400).json({
+        error:
+          "Invalid coordinates format. Coordinates should be an array of [latitude, longitude] pairs.",
+      });
     }
 
     const newGeofence = new Geofence({
@@ -179,14 +183,14 @@ const addGeofence = async (req, res, next) => {
       color,
       description,
       coordinates,
-      manager
+      manager,
     });
 
     await newGeofence.save();
 
     res.status(201).json({
       success: "Geofence added successfully",
-      geofence: newGeofence
+      geofence: newGeofence,
     });
   } catch (err) {
     next(appError(err.message));
@@ -214,7 +218,7 @@ const addPushNotificationController = async (req, res, next) => {
       customer,
       whatsapp,
       sms,
-      email
+      email,
     } = req.body;
 
     const newPushNotification = new PushNotification({
@@ -226,14 +230,14 @@ const addPushNotificationController = async (req, res, next) => {
       customer,
       whatsapp,
       sms,
-      email
+      email,
     });
 
     await newPushNotification.save();
 
     res.status(201).json({
       success: "Push notification created successfully",
-      data: newPushNotification
+      data: newPushNotification,
     });
   } catch (err) {
     next(appError(err.message));
@@ -261,7 +265,7 @@ const editPushNotificationController = async (req, res, next) => {
       customer,
       whatsapp,
       sms,
-      email
+      email,
     } = req.body;
 
     const updatedPushNotification = await PushNotification.findByIdAndUpdate(
@@ -275,8 +279,8 @@ const editPushNotificationController = async (req, res, next) => {
         customer,
         whatsapp,
         sms,
-        email
-      },
+        email,
+      }
     );
 
     if (!updatedPushNotification) {
@@ -285,37 +289,38 @@ const editPushNotificationController = async (req, res, next) => {
 
     res.status(200).json({
       success: "Push notification updated successfully",
-      data: updatedPushNotification
+      data: updatedPushNotification,
     });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
-
 const deletePushNotificationController = async (req, res, next) => {
   try {
-    const deletedPushNotification = await PushNotification.findByIdAndDelete(req.params.id);
+    const deletedPushNotification = await PushNotification.findByIdAndDelete(
+      req.params.id
+    );
 
     if (!deletedPushNotification) {
       return res.status(404).json({ error: "Push notification not found" });
     }
 
     res.status(200).json({
-      success: "Push notification deleted successfully"
+      success: "Push notification deleted successfully",
     });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
-module.exports = { 
-   registerController,
-   loginController,
-   blockMerchant,
-   blockCustomer,
-   addGeofence,
-   addPushNotificationController,
-   editPushNotificationController,
-   deletePushNotificationController,
-   };
+module.exports = {
+  registerController,
+  loginController,
+  blockMerchant,
+  blockCustomer,
+  addGeofence,
+  addPushNotificationController,
+  editPushNotificationController,
+  deletePushNotificationController,
+};

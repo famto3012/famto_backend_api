@@ -10,7 +10,6 @@ const { body, check } = require("express-validator");
 
 const merchantRoute = express.Router();
 
-//TODO: Need to add authentication middlewaress
 merchantRoute.post(
   "/add-merchant",
   upload.fields([
@@ -127,12 +126,11 @@ merchantRoute.post(
         return true;
       }),
   ],
-  // isAuthenticated,
-  // isAdmin,
+  isAuthenticated,
+  isAdmin,
   addMerchantController
 );
 
-//TODO: Need to add authentication middlewaress
 merchantRoute.put(
   "/edit-merchant/:merchantId",
   upload.fields([
@@ -246,8 +244,8 @@ merchantRoute.put(
       }),
   ],
 
-  // isAuthenticated,
-  // isAdmin,
+  isAuthenticated,
+  isAdmin,
   editMerchantController
 );
 
