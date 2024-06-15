@@ -11,7 +11,7 @@ const productRoute = require("./routes/adminRoute/merchantRoute/productRoute/pro
 const customerRoute = require("./routes/customerRoute/customerRoute");
 const agentRoute = require("./routes/agentRoute/agentRoute");
 const geofenceRoute = require("./routes/adminRoute/geofenceRoute/geofenceRoute");
-const notificationRoute = require("./routes/adminRoute/notificationRoute/notificationRoute");
+const adminNotificationRoute = require("./routes/adminRoute/notificationRoute/notificationRoute");
 
 require("dotenv").config();
 require("./config/dbConnect");
@@ -31,7 +31,7 @@ app.use("/api/v1/admin/merchants", merchantRoute);   //can be used by both admin
 app.use("/api/v1/admin/geofence", geofenceRoute);
 app.use("/api/v1/categories", categoryRoute);    //can be used by both admin and merchant
 app.use("/api/v1/products", productRoute);    //can be used by both admin and merchant
-app.use("/api/v1/admin/notification", notificationRoute);
+app.use("/api/v1/admin/notification", adminNotificationRoute);
 //agent
 app.use("/api/v1/agents", agentRoute);
 //customer

@@ -2,6 +2,7 @@ const express = require("express");
 const { body } = require("express-validator");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const isAdmin = require("../../../middlewares/isAdmin");
+const { upload } = require("../../../utils/imageOperation");
 const {
   addNotificationSettingController,
   editNotificationSettingController,
@@ -9,17 +10,19 @@ const {
   getAllNotificationSettingController,
   searchNotificationSettingController,
   getNotificationSettingController,
+} = require("../../../controllers/admin/notification/notificationSetting/notificationSettingController");
+const {
   addPushNotificationController,
   deletePushNotificationController,
   searchPushNotificationController,
   getAllPushNotificationController,
   fetchPushNotificationController,
-} = require("../../../controllers/admin/notification/notificationController");
-const { upload } = require("../../../utils/imageOperation");
+} = require("../../../controllers/admin/notification/pushNotification/pushNotificationController");
+const { addAlertNotificationController } = require("../../../controllers/admin/notification/alertNotification/alertNotificationController");
 
-const notificationRoute = express.Router();
+const adminNotificationRoute = express.Router();
 
-notificationRoute.post(
+adminNotificationRoute.post(
   "/notification-setting",
   [
     body("event").notEmpty().withMessage("Event is required"),
@@ -30,42 +33,42 @@ notificationRoute.post(
   addNotificationSettingController
 );
 
-notificationRoute.put(
+adminNotificationRoute.put(
   "/notification-setting/:id",
   isAuthenticated,
   isAdmin,
   editNotificationSettingController
 );
 
-notificationRoute.delete(
+adminNotificationRoute.delete(
   "/notification-setting/:id",
   isAuthenticated,
   isAdmin,
   deleteNotificationSettingController
 );
 
-notificationRoute.get(
+adminNotificationRoute.get(
   "/notification-setting",
   isAuthenticated,
   isAdmin,
   getAllNotificationSettingController
 );
 
-notificationRoute.get(
+adminNotificationRoute.get(
   "/notification-setting-search",
   isAuthenticated,
   isAdmin,
   searchNotificationSettingController
 );
 
-notificationRoute.get(
+adminNotificationRoute.get(
   "/notification-setting/:notificationSettingId",
   isAuthenticated,
   isAdmin,
   getNotificationSettingController
 );
 
-notificationRoute.post(
+adminNotificationRoute.post(
   "/push-notification",
   upload.single("pushNotificationImage"),
   [
@@ -78,33 +81,46 @@ notificationRoute.post(
   addPushNotificationController
 );
 
-notificationRoute.delete(
+adminNotificationRoute.delete(
   "/push-notification/:id",
   isAuthenticated,
   isAdmin,
   deletePushNotificationController
 );
 
-notificationRoute.get(
+adminNotificationRoute.get(
   "/push-notification-search",
   isAuthenticated,
   isAdmin,
   searchPushNotificationController
 );
 
-notificationRoute.get(
+adminNotificationRoute.get(
   "/push-notification",
   isAuthenticated,
   isAdmin,
   getAllPushNotificationController
 );
 
-notificationRoute.get(
+adminNotificationRoute.get(
   "/push-notification-type",
   isAuthenticated,
   isAdmin,
   fetchPushNotificationController
 );
 
+adminNotificationRoute.post(
+  "/alert-notification",
+  upload.single("alertNotificationImage"),
+  [
+    body("title").notEmpty().withMessage("Title is required"),
+    body("description").notEmpty().withMessage("Description is required"),
+    body("id").notEmpty().withMessage("Id is required"),
+  ],
+  isAuthenticated,
+  isAdmin,
+  addAlertNotificationController
+);
 
-module.exports = notificationRoute;
+
+module.exports = adminNotificationRoute;
