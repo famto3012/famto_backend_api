@@ -18,7 +18,7 @@ const {
   getAllPushNotificationController,
   fetchPushNotificationController,
 } = require("../../../controllers/admin/notification/pushNotification/pushNotificationController");
-const { addAlertNotificationController } = require("../../../controllers/admin/notification/alertNotification/alertNotificationController");
+const { addAlertNotificationController, deleteAlertNotificationController, getAllAlertNotificationsController, getAlertNotificationsByUserTypeController, searchAlertNotificationsByTitleController } = require("../../../controllers/admin/notification/alertNotification/alertNotificationController");
 
 const adminNotificationRoute = express.Router();
 
@@ -122,5 +122,32 @@ adminNotificationRoute.post(
   addAlertNotificationController
 );
 
+adminNotificationRoute.delete(
+  "/alert-notification/:id",
+  isAuthenticated,
+  isAdmin,
+  deleteAlertNotificationController
+);
+
+adminNotificationRoute.get(
+  "/alert-notification",
+  isAuthenticated,
+  isAdmin,
+  getAllAlertNotificationsController
+);
+
+adminNotificationRoute.get(
+  "/alert-notification/:userType",
+  isAuthenticated,
+  isAdmin,
+  getAlertNotificationsByUserTypeController
+);
+
+adminNotificationRoute.get(
+  "/search-alert-notification",
+  isAuthenticated,
+  isAdmin,
+  searchAlertNotificationsByTitleController
+);
 
 module.exports = adminNotificationRoute;
