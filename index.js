@@ -6,7 +6,7 @@ const globalErrorHandler = require("./middlewares/globalErrorHandler");
 
 const categoryRoute = require("./routes/categoryRoute/categoryRoute");
 const authRoute = require("./routes/adminRoute/authRoute");
-const merchantRoute = require("./routes/merchantRoute/merchantRoute");
+const merchantRoute = require("./routes/adminRoute/merchantRoute/merchantRoute");
 const productRoute = require("./routes/productRoute/productRoute");
 const customerRoute = require("./routes/customerRoute/customerRoute");
 const agentRoute = require("./routes/agentRoute/agentRoute");
