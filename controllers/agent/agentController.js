@@ -432,7 +432,28 @@ const getBankDetailController = async (req, res, next) => {
   }
 };
 
-//TODO: Edit agent by admin
+//Check is Approved
+const checkIsApprovedController = async (req, res, next) => {
+  try {
+    const currentAgent = await Agent.findById(req.userAuth);
+
+    const status = currentAgent.isApproved;
+
+    let message = "";
+    if (status === true) {
+      message = "Agent is approved";
+    } else {
+      message = "Agent is not approved";
+    }
+
+    res.status(200).json({
+      message: message,
+      data: status,
+    });
+  } catch (err) {
+    next(appError);
+  }
+};
 
 module.exports = {
   registerAgentController,
@@ -444,4 +465,5 @@ module.exports = {
   addAgentBankDetailController,
   editAgentBankDetailController,
   getBankDetailController,
+  checkIsApprovedController,
 };
