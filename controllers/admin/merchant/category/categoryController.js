@@ -1,10 +1,10 @@
 const { validationResult } = require("express-validator");
-const Category = require("../../models/Category");
-const appError = require("../../utils/appError");
+const Category = require("../../../../models/Category");
+const appError = require("../../../../utils/appError");
 const {
   uploadToFirebase,
   deleteFromFirebase,
-} = require("../../utils/imageOperation");
+} = require("../../../../utils/imageOperation");
 
 const getCategoriesOfMerchant = async (req, res, next) => {
   try {

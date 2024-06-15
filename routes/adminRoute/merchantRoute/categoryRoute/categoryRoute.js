@@ -4,9 +4,9 @@ const {
   editCategoryController,
   deleteCategoryController,
   getCategoriesOfMerchant,
-} = require("../../controllers/category/categoryController");
-const { upload } = require("../../utils/imageOperation");
-const isAuthenticated = require("../../middlewares/isAuthenticated");
+} = require("../../../../controllers/admin/merchant/category/categoryController");
+const { upload } = require("../../../../utils/imageOperation");
+const isAuthenticated = require("../../../../middlewares/isAuthenticated");
 const { body, check } = require("express-validator");
 
 const categoryRoute = express.Router();

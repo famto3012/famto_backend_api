@@ -1,11 +1,11 @@
 const { validationResult } = require("express-validator");
 
-const appError = require("../../utils/appError");
+const appError = require("../../../utils/appError");
 const {
   uploadToFirebase,
   deleteFromFirebase,
-} = require("../../utils/imageOperation");
-const MerchantDetails = require("../../models/MerchantDetail");
+} = require("../../../utils/imageOperation");
+const MerchantDetails = require("../../../models/MerchantDetail");
 
 const addMerchantController = async (req, res, next) => {
   const {

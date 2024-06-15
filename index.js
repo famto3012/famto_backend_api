@@ -4,10 +4,10 @@ const cors = require("cors");
 
 const globalErrorHandler = require("./middlewares/globalErrorHandler");
 
-const categoryRoute = require("./routes/categoryRoute/categoryRoute");
+const categoryRoute = require("./routes/adminRoute/merchantRoute/categoryRoute/categoryRoute");
 const authRoute = require("./routes/adminRoute/authRoute");
 const merchantRoute = require("./routes/adminRoute/merchantRoute/merchantRoute");
-const productRoute = require("./routes/productRoute/productRoute");
+const productRoute = require("./routes/adminRoute/merchantRoute/productRoute/productRoute");
 const customerRoute = require("./routes/customerRoute/customerRoute");
 const agentRoute = require("./routes/agentRoute/agentRoute");
 const geofenceRoute = require("./routes/adminRoute/geofenceRoute/geofenceRoute");
@@ -25,14 +25,17 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
 //routers
-app.use("/api/v1/categories", categoryRoute);
+//admin
 app.use("/api/v1/auth", authRoute);
 app.use("/api/v1/merchants", merchantRoute);
-app.use("/api/v1/products", productRoute);
-app.use("/api/v1/customers", customerRoute);
-app.use("/api/v1/agents", agentRoute);
 app.use("/api/v1/auth/geofence", geofenceRoute);
+app.use("/api/v1/categories", categoryRoute);
+app.use("/api/v1/products", productRoute);
 app.use("/api/v1/auth/notification", notificationRoute);
+//agent
+app.use("/api/v1/agents", agentRoute);
+//customer
+app.use("/api/v1/customers", customerRoute);
 
 //global errors
 app.use(globalErrorHandler);

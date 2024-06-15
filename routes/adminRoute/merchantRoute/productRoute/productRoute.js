@@ -8,9 +8,9 @@ const {
   getProductController,
   searchProductController,
   getProductByCategory,
-} = require("../../controllers/product/productController");
+} = require("../../../../controllers/admin/merchant/product/productController");
 const { body, check } = require("express-validator");
-const { upload } = require("../../utils/imageOperation");
+const { upload } = require("../../../../utils/imageOperation");
 const productRoute = express.Router();
 
 //TODO: Need to add authorization

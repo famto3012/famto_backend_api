@@ -1,10 +1,10 @@
 const { validationResult } = require("express-validator");
-const Product = require("../../models/Product");
-const appError = require("../../utils/appError");
+const Product = require("../../../../models/Product");
+const appError = require("../../../../utils/appError");
 const {
   uploadToFirebase,
   deleteFromFirebase,
-} = require("../../utils/imageOperation");
+} = require("../../../../utils/imageOperation");
 
 const getProductController = async (req, res, next) => {
   try {

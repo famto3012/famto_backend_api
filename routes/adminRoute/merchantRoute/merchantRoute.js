@@ -2,10 +2,10 @@ const express = require("express");
 const {
   addMerchantController,
   editMerchantController,
-} = require("../../controllers/merchant/merchantController");
-const { upload } = require("../../utils/imageOperation");
-const isAdmin = require("../../middlewares/isAdmin");
-const isAuthenticated = require("../../middlewares/isAuthenticated");
+} = require("../../../controllers/admin/merchant/merchantController");
+const { upload } = require("../../../utils/imageOperation");
+const isAdmin = require("../../../middlewares/isAdmin");
+const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const { body, check } = require("express-validator");
 
 const merchantRoute = express.Router();
