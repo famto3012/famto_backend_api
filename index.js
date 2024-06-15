@@ -26,12 +26,12 @@ app.use(cors());
 
 //routers
 //admin
-app.use("/api/v1/auth", authRoute);
-app.use("/api/v1/merchants", merchantRoute);
-app.use("/api/v1/auth/geofence", geofenceRoute);
-app.use("/api/v1/categories", categoryRoute);
-app.use("/api/v1/products", productRoute);
-app.use("/api/v1/auth/notification", notificationRoute);
+app.use("/api/v1/auth", authRoute);   //can be used by both admin and merchant
+app.use("/api/v1/admin/merchants", merchantRoute);   //can be used by both admin and merchant
+app.use("/api/v1/admin/geofence", geofenceRoute);
+app.use("/api/v1/categories", categoryRoute);    //can be used by both admin and merchant
+app.use("/api/v1/products", productRoute);    //can be used by both admin and merchant
+app.use("/api/v1/admin/notification", notificationRoute);
 //agent
 app.use("/api/v1/agents", agentRoute);
 //customer
