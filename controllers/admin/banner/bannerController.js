@@ -1,6 +1,7 @@
 const { validationResult } = require("express-validator");
 const Banner = require("../../../models/Banner");
-const { uploadToFirebase } = require("../../../utils/imageOperation");
+const { uploadToFirebase, deleteFromFirebase } = require("../../../utils/imageOperation");
+const appError = require("../../../utils/appError");
 
 
 const addBannerController = async(req,res)=>{
@@ -42,5 +43,43 @@ const addBannerController = async(req,res)=>{
     }
 }
 
+const editBannerController = async (req, res, next) => {
+  
+    try {
+      const { id } = req.params;
+      const { name, merchantId, geofence } = req.body;
 
-module.exports = { addBannerController }
+      const banner = await Banner.findOne({_id: id})
+
+      await deleteFromFirebase(banner.imageUrl)
+  
+      let imageUrl = "";
+      if (req.file) {
+        imageUrl = await uploadToFirebase(req.file, "AdBannerImages");
+      }
+  
+      // Find the banner by ID and update it with the new data
+      const updatedBanner = await Banner.findByIdAndUpdate(
+        id,
+        {
+          name,
+          imageUrl, // Only update imageUrl if a new file is uploaded
+          merchantId,
+          geofence,
+        },
+        { new: true } // Return the updated document 
+      );
+  
+      // Check if the banner was found and updated
+      if (!updatedBanner) {
+        return next(appError('Banner not found', 404));
+      }
+  
+      res.status(200).json({ message: 'Banner updated successfully!', banner: updatedBanner });
+    } catch (err) {
+      next(appError(err.message));
+    }
+  };
+
+
+module.exports = { addBannerController, editBannerController }

@@ -2,7 +2,7 @@ const express = require("express");
 const { body } = require("express-validator");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const isAdmin = require("../../../middlewares/isAdmin");
-const { addBannerController } = require("../../../controllers/admin/banner/bannerController");
+const { addBannerController, editBannerController } = require("../../../controllers/admin/banner/bannerController");
 const { upload } = require("../../../utils/imageOperation");
 
 const bannerRoute = express.Router();
@@ -17,6 +17,13 @@ bannerRoute.post("/add-banner",
     isAuthenticated,
     isAdmin,
     addBannerController
+)
+
+bannerRoute.put("/edit-banner/:id",
+    upload.single("bannerImage"),
+    isAuthenticated,
+    isAdmin,
+    editBannerController
 )
 
 
