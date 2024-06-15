@@ -31,10 +31,20 @@ geofenceRoute.post(
 
 geofenceRoute.put("/edit-geofence/:id", isAuthenticated, isAdmin, editGeofence);
 
-geofenceRoute.delete("/delete-geofence/:id", isAuthenticated, isAdmin, deleteGeofence);
+geofenceRoute.delete(
+  "/delete-geofence/:id",
+  isAuthenticated,
+  isAdmin,
+  deleteGeofence
+);
 
 geofenceRoute.get("/get-geofence", isAuthenticated, isAdmin, getAllGeofences);
 
-geofenceRoute.get("/get-geofence/:id", isAuthenticated, isAdmin, getGeofenceById);
+geofenceRoute.get(
+  "/get-geofence/:id",
+  isAuthenticated,
+  isAdmin,
+  getGeofenceById
+);
 
 module.exports = geofenceRoute;

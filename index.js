@@ -5,13 +5,13 @@ const cors = require("cors");
 const globalErrorHandler = require("./middlewares/globalErrorHandler");
 
 const categoryRoute = require("./routes/categoryRoute/categoryRoute");
-const authRoute = require("./routes/authRoute/authRoute");
+const authRoute = require("./routes/adminRoute/authRoute");
 const merchantRoute = require("./routes/merchantRoute/merchantRoute");
 const productRoute = require("./routes/productRoute/productRoute");
 const customerRoute = require("./routes/customerRoute/customerRoute");
 const agentRoute = require("./routes/agentRoute/agentRoute");
-const geofenceRoute = require("./routes/authRoute/geofenceRoute/geofenceRoute");
-const notificationRoute = require("./routes/authRoute/notificationRoute/notificationRoute");
+const geofenceRoute = require("./routes/adminRoute/geofenceRoute/geofenceRoute");
+const notificationRoute = require("./routes/adminRoute/notificationRoute/notificationRoute");
 
 require("dotenv").config();
 require("./config/dbConnect");
