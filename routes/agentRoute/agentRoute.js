@@ -8,6 +8,7 @@ const {
   editAgentProfileController,
   addAgentBankDetailController,
   getBankDetailController,
+  checkIsApprovedController,
 } = require("../../controllers/agent/agentController");
 const { body, check } = require("express-validator");
 const { upload } = require("../../utils/imageOperation");
@@ -195,5 +196,8 @@ agentRoute.put(
 
 //Get Agent's Bank details
 agentRoute.get("/get-bank-details", isAuthenticated, getBankDetailController);
+
+//Checking approval status
+agentRoute.get("/check-approval", isAuthenticated, checkIsApprovedController);
 
 module.exports = agentRoute;

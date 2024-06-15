@@ -1,5 +1,21 @@
 const mongoose = require("mongoose");
 
+const ratingsByCustomerSchema = mongoose.Schema({
+  customerId: {
+    type: mongoose.Types.ObjectId,
+    ref: "Customer",
+    required: true,
+  },
+  review: {
+    type: String,
+    required: true,
+  },
+  rating: {
+    type: Number,
+    required: true,
+  },
+});
+
 const vehicleSchema = mongoose.Schema(
   {
     vehicleStatus: { type: Boolean, default: false },
@@ -96,12 +112,13 @@ const agentSchema = mongoose.Schema(
     },
     location: {
       type: [Number],
-      required: true,
+      // required: true,
     },
     geofenceId: {
       type: mongoose.Schema.ObjectId,
       ref: "Geofence",
     },
+    //TODO: Change manager to Object Id after creating manager
     manager: {
       type: String,
       required: true,
@@ -131,6 +148,7 @@ const agentSchema = mongoose.Schema(
     bankDetail: bankDetailSchema,
     workstructure: workStructureSchema,
     personalDetail: personalDetailSchema,
+    ratingsByCustomers: [ratingsByCustomerSchema],
   },
   {
     timestamp: true,
