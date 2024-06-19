@@ -93,7 +93,11 @@ const sponsorshipSchema = mongoose.Schema(
       type: String,
       default: null,
     },
-    dateRange: {
+    startDate: {
+      type: String,
+      default: null,
+    },
+    endDate: {
       type: String,
       default: null,
     },

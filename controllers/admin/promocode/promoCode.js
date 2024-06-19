@@ -27,7 +27,7 @@ const addPromocodeController = async (req, res, next) => {
       appliedOn,
       merchantId,
       geofenceId,
-      imageUrl
+      imageUrl,
     } = req.body;
 
     // Create a new promocode object
@@ -44,7 +44,7 @@ const addPromocodeController = async (req, res, next) => {
       appliedOn,
       merchantId,
       geofenceId,
-      imageUrl
+      imageUrl,
     });
 
     // Save the promocode to the database

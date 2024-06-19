@@ -6,10 +6,7 @@ const {
 } = require("../../../utils/imageOperation");
 const appError = require("../../../utils/appError");
 
-
 const addBannerController = async (req, res, next) => {
-
-
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
@@ -85,7 +82,6 @@ const editBannerController = async (req, res, next) => {
   }
 };
 
-
 const getAllBannersController = async (req, res, next) => {
   try {
     const banners = await Banner.find();
@@ -142,8 +138,8 @@ const updateStatusBannerController = async (req, res, next) => {
     } else {
       updateBanner.status = true;
     }
-    
-    await updateBanner.save()
+
+    await updateBanner.save();
 
     res.status(200).json({
       success: true,
