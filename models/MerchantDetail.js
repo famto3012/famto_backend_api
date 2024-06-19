@@ -83,32 +83,12 @@ const ratingByCustomerSchema = new mongoose.Schema(
   }
 );
 
-const sponsorshipSchema = mongoose.Schema(
-  {
-    sponsorshipStatus: {
-      type: Boolean,
-      default: false,
-    },
-    plan: {
-      type: String,
-      default: null,
-    },
-    dateRange: {
-      type: String,
-      default: null,
-    },
-    paymentDetails: {
-      type: String,
-      default: null,
-    },
-  },
-  {
-    _id: false,
-  }
-);
-
 const merchantDetailSchema = new mongoose.Schema(
   {
+    merchantId: {
+      type: mongoose.Schema.ObjectId,
+      ref: "Admin",
+    },
     merchantName: {
       type: String,
       required: true,
@@ -125,7 +105,7 @@ const merchantDetailSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    geofenceId: {
+    geofence: {
       type: mongoose.Schema.ObjectId,
       ref: "Geofence",
       required: true,
@@ -193,46 +173,21 @@ const merchantDetailSchema = new mongoose.Schema(
     servingRadius: {
       type: String,
     },
+    sponsorshipStatus: {
+      type: Boolean,
+    },
+    currentPlan: {
+      type: String,
+    },
+    dateRange: {
+      type: String,
+    },
     availability: {
       type: availabilitySchema,
       required: true,
     },
-  },
-  {
-    _id: false,
-  }
-);
-
-const merchantSchema = new mongoose.Schema(
-  {
-    fullName: {
-      type: String,
-      required: true,
-    },
-    email: {
-      type: String,
-      required: true,
-    },
-    password: {
-      type: String,
-      required: true,
-    },
-    phoneNumber: {
-      type: String,
-      required: true,
-    },
-    role: {
-      type: String,
-      default: "Merchant",
-    },
-    isApproved: {
-      type: String,
-      enum: ["Pending", "Approved", "Rejected"],
-      default: "Pending",
-    },
     status: {
-      type: Boolean,
-      default: false,
+      type: String,
     },
     isBlocked: {
       type: Boolean,
@@ -240,55 +195,16 @@ const merchantSchema = new mongoose.Schema(
     },
     reasonForBlockingOrDeleting: {
       type: String,
-      default: null,
     },
-    merchantDetail: merchantDetailSchema,
-    sponsorship: sponsorshipSchema,
+    role: {
+      type: String,
+      default: "Merchant",
+    },
   },
   {
     timestamps: true,
   }
 );
 
-// Virtual field for calculating the average rating
-merchantDetailSchema.virtual("averageRating").get(function () {
-  if (this.ratings?.length === 0) return 0;
-  const total = this.ratings?.reduce((acc, rating) => acc + rating.rating, 0);
-  return total / this.ratings?.length;
-});
-
-// Virtual field for checking if the merchant is serviceable today and returning "open" or "closed"
-merchantDetailSchema.virtual("isServiceableToday").get(function () {
-  const today = new Date()
-    .toLocaleString("en-US", { weekday: "long" })
-    .toLowerCase();
-  const todayAvailability = this.availability?.specificDays[today];
-  if (!todayAvailability) return "closed";
-
-  if (todayAvailability.openAllDay) return "open";
-  if (todayAvailability.closedAllDay) return "closed";
-
-  if (
-    todayAvailability?.specificTime &&
-    todayAvailability?.startTime &&
-    todayAvailability?.endTime
-  ) {
-    const now = new Date();
-    const [startHour, startMinute] = todayAvailability.startTime
-      .split(":")
-      .map(Number);
-    const [endHour, endMinute] = todayAvailability.endTime
-      .split(":")
-      .map(Number);
-
-    const startTime = new Date(now.setHours(startHour, startMinute, 0));
-    const endTime = new Date(now.setHours(endHour, endMinute, 0));
-
-    return now >= startTime && now <= endTime ? "open" : "closed";
-  }
-
-  return "closed";
-});
-
-const Merchant = mongoose.model("Merchant", merchantSchema);
-module.exports = Merchant;
+const MerchantDetail = mongoose.model("MerchantDetail", merchantDetailSchema);
+module.exports = MerchantDetail;

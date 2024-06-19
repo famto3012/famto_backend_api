@@ -28,7 +28,7 @@ const alertNotificationSchema = new mongoose.Schema(
     },
     merchantId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Admin',
+        ref: 'Merchant',
         default: null
     },
     customerId: {
