@@ -10,10 +10,12 @@ const {
 } = require("../../../controllers/admin/agent/agentCOntroller");
 const { upload } = require("../../../utils/imageOperation");
 const { body, check } = require("express-validator");
+const isAuthenticated = require("../../../middlewares/isAuthenticated");
+const isAdmin = require("../../../middlewares/isAdmin");
 
 const agentRoute = express.Router();
 
-//TODO: Need to add authorization middleware
+//Add Agent by admin route
 agentRoute.post(
   "/add-agents",
   upload.fields([
@@ -100,10 +102,12 @@ agentRoute.post(
       return true;
     }),
   ],
+  isAuthenticated,
+  isAdmin,
   addAgentByAdminController
 );
 
-//TODO: Need to add authorization middleware
+//Edit agent details by admin
 agentRoute.put(
   "/edit-agent/:agentId",
   upload.fields([
@@ -205,24 +209,43 @@ agentRoute.put(
       return true;
     }),
   ],
+  isAuthenticated,
+  isAdmin,
   editAgentByAdminController
 );
 
 //Get Agent by vehicle type
-agentRoute.get("/filter-by-vehicle", getAgentByVehicleTypeController);
+agentRoute.get(
+  "/filter-by-vehicle",
+  isAuthenticated,
+  isAdmin,
+  getAgentByVehicleTypeController
+);
 
 //Get Agent by geofence
-agentRoute.get("/filter-by-geofence", getAgentByGeofenceController);
+agentRoute.get(
+  "/filter-by-geofence",
+  isAuthenticated,
+  isAdmin,
+  getAgentByGeofenceController
+);
 
-//TODO: Need to add authorization middleware
-agentRoute.get("/:agentId", getSingleAgentController);
+//Get single agent
+agentRoute.get("/:agentId", isAuthenticated, isAdmin, getSingleAgentController);
 
-//TODO: Need to add authorization middleware
-agentRoute.put("/:agentId", approveOrDeclineRegistrationController);
+//Approve OR Decline registration
+agentRoute.put(
+  "/:agentId",
+  isAuthenticated,
+  isAdmin,
+  approveOrDeclineRegistrationController
+);
 
-//TODO: Need to add authorization middleware
+//Get ratings of agent by customer
 agentRoute.get(
   "/:agentId/get-ratings-by-customer",
+  isAuthenticated,
+  isAdmin,
   getRatingsByCustomerController
 );
 

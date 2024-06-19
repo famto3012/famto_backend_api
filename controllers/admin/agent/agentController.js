@@ -308,6 +308,7 @@ const getSingleAgentController = async (req, res, next) => {
   }
 };
 
+//TODO: Need to change
 const approveOrDeclineRegistrationController = async (req, res, next) => {
   const { status } = req.body;
 

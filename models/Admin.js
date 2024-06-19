@@ -20,12 +20,12 @@ const adminSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      default: "Merchant",
+      default: "Admin",
     },
     isApproved: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   {
     timestamps: true,

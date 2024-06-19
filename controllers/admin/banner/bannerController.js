@@ -6,7 +6,10 @@ const {
 } = require("../../../utils/imageOperation");
 const appError = require("../../../utils/appError");
 
+
 const addBannerController = async (req, res, next) => {
+
+
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
@@ -81,6 +84,7 @@ const editBannerController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
+
 
 const getAllBannersController = async (req, res, next) => {
   try {
