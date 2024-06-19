@@ -23,9 +23,14 @@ const adminSchema = new mongoose.Schema(
       default: "Admin",
     },
     isApproved: {
+      type: String,
+      enum: ["Pending", "Approved", "Rejected"],
+      default: "Approved",
+    },
+    isBlocked: {
       type: Boolean,
       default: false,
-    },
+    }
   },
   {
     timestamps: true,

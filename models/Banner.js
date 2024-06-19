@@ -12,7 +12,7 @@ const bannerSchema = new mongoose.Schema(
     },
     merchantId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Admin',
+      ref: 'Merchant',
       required: true,
     },
     geofence: {
