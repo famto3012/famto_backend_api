@@ -1,7 +1,6 @@
 const appError = require("../../utils/appError");
 const generateToken = require("../../utils/generateToken");
 const bcrypt = require("bcryptjs");
-const MerchantDetail = require("../../models/Merchant");
 const Customer = require("../../models/Customer");
 const Admin = require("../../models/Admin");
 const { validationResult } = require("express-validator");
@@ -12,7 +11,7 @@ const blockMerchant = async (req, res) => {
     const merchantId = req.params.merchantId;
     const { reasonForBlocking } = req.body;
 
-    const merchantDetail = await MerchantDetail.findOne({ merchantId });
+    const merchantDetail = await Merchant.findOne({ _id: merchantId });
 
     if (merchantDetail.isBlocked) {
       merchantDetail.isBlocked = false;
@@ -92,6 +91,10 @@ const loginController = async (req, res, next) => {
       return res.status(500).json({ errors: formattedErrors });
     }
 
+    if(user.isBlocked || user.isApproved !== "Approved"){
+      formattedErrors.general = "Login is restricted";
+      return res.status(403).json({ errors: formattedErrors });
+    }
     if (!user) {
       formattedErrors.general = "Invalid credentials";
       return res.status(500).json({ errors: formattedErrors });

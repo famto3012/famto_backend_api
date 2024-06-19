@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const promoCodeSchema = new mongoose.Schema({
-  promoName: {
+  promoCode: {
     type: String,
     required: true,
   },
@@ -44,7 +44,7 @@ const promoCodeSchema = new mongoose.Schema({
   },
   merchantId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Admin',
+    ref: 'Merchant',
     required: true,
   },
   geofenceId: {
@@ -59,6 +59,10 @@ const promoCodeSchema = new mongoose.Schema({
   status: {
     type: Boolean,
     default: true,
+  },
+  noOfUserUsed: {
+    type: Number,
+    default: 0,
   }
 }, {
   timestamps: true,
