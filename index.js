@@ -16,7 +16,9 @@ const adminNotificationRoute = require("./routes/adminRoute/notificationRoute/no
 const bannerRoute = require("./routes/adminRoute/bannerRoute/bannerRoute");
 const loyaltyPointRoute = require("./routes/adminRoute/loyaltyPointRoute/loyaltyPointRoute");
 const managerRoute = require("./routes/adminRoute/managerRoute/managerRoute");
+const taxRoute = require("./routes/adminRoute/taxRoute/taxRoute");
 const promoCodeRoute = require("./routes/adminRoute/promoCodeRoute/promoCodeRoute");
+
 
 require("dotenv").config();
 require("./config/dbConnect");
@@ -42,6 +44,7 @@ app.use("/api/v1/admin/banner", bannerRoute);
 app.use("/api/v1/admin/loyalty-point", loyaltyPointRoute);
 app.use("/api/v1/admin/promocode", promoCodeRoute);
 app.use("/api/v1/admin/managers", managerRoute);
+app.use("/api/v1/admin/taxes", taxRoute);
 
 //agent
 app.use("/api/v1/agents", agentRoute);

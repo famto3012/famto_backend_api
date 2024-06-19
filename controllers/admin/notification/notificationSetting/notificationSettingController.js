@@ -2,7 +2,6 @@ const appError = require("../../../../utils/appError");
 const { validationResult } = require("express-validator");
 const NotificationSetting = require("../../../../models/NotificationSetting");
 
-
 const addNotificationSettingController = async (req, res, next) => {
   const errors = validationResult(req);
 
@@ -24,7 +23,7 @@ const addNotificationSettingController = async (req, res, next) => {
       customer,
       whatsapp,
       sms,
-      email
+      email,
     } = req.body;
 
     const newNotificationSetting = new NotificationSetting({
@@ -36,14 +35,14 @@ const addNotificationSettingController = async (req, res, next) => {
       customer,
       whatsapp,
       sms,
-      email
+      email,
     });
 
     await newNotificationSetting.save();
 
     res.status(201).json({
       success: "Notification setting created successfully",
-      data: newNotificationSetting
+      data: newNotificationSetting,
     });
   } catch (err) {
     next(appError(err.message));
@@ -71,24 +70,25 @@ const editNotificationSettingController = async (req, res, next) => {
       customer,
       whatsapp,
       sms,
-      email
+      email,
     } = req.body;
 
-    const updatedNotificationSetting = await NotificationSetting.findByIdAndUpdate(
-      req.params.id,
-      {
-        event,
-        description,
-        admin,
-        merchant,
-        driver,
-        customer,
-        whatsapp,
-        sms,
-        email
-      },
-      { new: true } 
-    );
+    const updatedNotificationSetting =
+      await NotificationSetting.findByIdAndUpdate(
+        req.params.id,
+        {
+          event,
+          description,
+          admin,
+          merchant,
+          driver,
+          customer,
+          whatsapp,
+          sms,
+          email,
+        },
+        { new: true }
+      );
 
     if (!updatedNotificationSetting) {
       return res.status(404).json({ error: "Notification setting not found" });
@@ -96,54 +96,56 @@ const editNotificationSettingController = async (req, res, next) => {
 
     res.status(200).json({
       success: "Notification Setting updated successfully",
-      data: updatedNotificationSetting
+      data: updatedNotificationSetting,
     });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
-
 const deleteNotificationSettingController = async (req, res, next) => {
   try {
-    const deletedNotificationSetting = await NotificationSetting.findByIdAndDelete(req.params.id);
+    const deletedNotificationSetting =
+      await NotificationSetting.findByIdAndDelete(req.params.id);
 
     if (!deletedNotificationSetting) {
       return res.status(404).json({ error: "Notification setting not found" });
     }
 
     res.status(200).json({
-      success: "Notification setting deleted successfully"
+      success: "Notification setting deleted successfully",
     });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
-const getAllNotificationSettingController = async(req,res)=>{
-  try{
+const getAllNotificationSettingController = async (req, res) => {
+  try {
     const notificationSettings = await NotificationSetting.find();
     res.status(200).json({
       success: "Notification setting found",
-      data: notificationSettings
+      data: notificationSettings,
     });
-  }catch(err){
+  } catch (err) {
     next(appError(err.message));
   }
-}
+};
 
-const getNotificationSettingController = async(req,res)=>{
-  try{
-    const notificationSettingId = req.params.notificationSettingId
-    const notificationSettings = await NotificationSetting.findOne({_id: notificationSettingId});
+const getNotificationSettingController = async (req, res) => {
+  try {
+    const notificationSettingId = req.params.notificationSettingId;
+    const notificationSettings = await NotificationSetting.findOne({
+      _id: notificationSettingId,
+    });
     res.status(200).json({
       success: "Notification setting found",
-      data: notificationSettings
+      data: notificationSettings,
     });
-  }catch(err){
+  } catch (err) {
     next(appError(err.message));
   }
-}
+};
 
 const searchNotificationSettingController = async (req, res, next) => {
   try {
@@ -151,7 +153,9 @@ const searchNotificationSettingController = async (req, res, next) => {
 
     const searchTerm = query.trim();
 
-    const searchResults = await NotificationSetting.find({ event: { $regex: searchTerm, $options: "i" } ,});
+    const searchResults = await NotificationSetting.find({
+      event: { $regex: searchTerm, $options: "i" },
+    });
 
     res.status(200).json({
       message: "Searched notification setting results",
@@ -162,12 +166,11 @@ const searchNotificationSettingController = async (req, res, next) => {
   }
 };
 
-
-module.exports = { 
-   addNotificationSettingController,
-   editNotificationSettingController,
-   deleteNotificationSettingController,
-   getAllNotificationSettingController,
-   searchNotificationSettingController,
-   getNotificationSettingController,
-   };
+module.exports = {
+  addNotificationSettingController,
+  editNotificationSettingController,
+  deleteNotificationSettingController,
+  getAllNotificationSettingController,
+  searchNotificationSettingController,
+  getNotificationSettingController,
+};
