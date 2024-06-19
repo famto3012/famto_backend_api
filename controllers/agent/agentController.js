@@ -120,103 +120,6 @@ const agentLoginController = async (req, res, next) => {
   }
 };
 
-//Controller for adding agent's Government certificate & Vehicle details
-const submitGovernmentAndVehicleDetailsController = async (req, res, next) => {
-  const errors = validationResult(req);
-
-  let formattedErrors = {};
-  if (!errors.isEmpty()) {
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
-    return res.status(500).json({ errors: formattedErrors });
-  }
-
-  try {
-    const agentFound = await Agent.findById(req.userAuth);
-
-    if (!agentFound) {
-      return next(appError("Agent not found", 404));
-    }
-
-    // Uploading vehicle images
-    const vehicleDetailsPromises = req.body.vehicles.map(
-      async (vehicle, index) => ({
-        model: vehicle.model,
-        type: vehicle.type,
-        licensePlate: vehicle.licensePlate,
-        rcFrontImageURL: req.files.vehicles[index * 2]
-          ? await uploadToFirebase(req.files.vehicles[index * 2], "RCImages")
-          : "",
-        rcBackImageURL: req.files.vehicles[index * 2 + 1]
-          ? await uploadToFirebase(
-              req.files.vehicles[index * 2 + 1],
-              "RCImages"
-            )
-          : "",
-      })
-    );
-
-    const vehicleDetails = await Promise.all(vehicleDetailsPromises);
-
-    // Uploading government certificate images
-    let aadharFrontImageURL = "";
-    let aadharBackImageURL = "";
-    let drivingLicenseFrontImageURL = "";
-    let drivingLicenseBackImageURL = "";
-
-    if (req.files.aadharFrontImage) {
-      aadharFrontImageURL = await uploadToFirebase(
-        req.files.aadharFrontImage[0],
-        "AadharImages"
-      );
-    }
-
-    if (req.files.aadharBackImage) {
-      aadharBackImageURL = await uploadToFirebase(
-        req.files.aadharBackImage[0],
-        "AadharImages"
-      );
-    }
-
-    if (req.files.drivingLicenseFrontImage) {
-      drivingLicenseFrontImageURL = await uploadToFirebase(
-        req.files.drivingLicenseFrontImage[0],
-        "DrivingLicenseImages"
-      );
-    }
-
-    if (req.files.drivingLicenseBackImage) {
-      drivingLicenseBackImageURL = await uploadToFirebase(
-        req.files.drivingLicenseBackImage[0],
-        "DrivingLicenseImages"
-      );
-    }
-
-    const governmentCertificateDetail = {
-      aadharNumber: req.body.aadharNumber,
-      aadharFrontImageURL,
-      aadharBackImageURL,
-      drivingLicenseNumber: req.body.drivingLicenseNumber,
-      drivingLicenseFrontImageURL,
-      drivingLicenseBackImageURL,
-    };
-
-    // Saving the details to the agent
-    agentFound.vehicleDetail = vehicleDetails;
-    agentFound.governmentCertificateDetail = governmentCertificateDetail;
-
-    await agentFound.save();
-
-    res.status(200).json({
-      message: "Agent details updated successfully",
-      data: agentFound,
-    });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
 //Controller for getting images of details
 const getImagesOfDetailsController = async (req, res, next) => {
   try {
@@ -226,23 +129,24 @@ const getImagesOfDetailsController = async (req, res, next) => {
       return next(appError("Agent not found", 404));
     }
 
-    const vehicleDetail = currentAgent.vehicleDetail;
-    const governmentCertificate = currentAgent.governmentCertificateDetail;
+    const vehicleDetail = currentAgent.vehicleDetail || [];
+    const governmentCertificate =
+      currentAgent.governmentCertificateDetail || {};
 
     const rcImages = vehicleDetail.map((vehicle) => ({
-      rcFrontImageURL: vehicle.rcFrontImageURL,
-      rcBackImageURL: vehicle.rcBackImageURL,
+      rcFrontImageURL: vehicle.rcFrontImageURL || "",
+      rcBackImageURL: vehicle.rcBackImageURL || "",
     }));
 
     res.status(200).json({
       message: "Details",
       rcImages,
-      aadharFrontImageURL: governmentCertificate.aadharFrontImageURL,
-      aadharBackImageURL: governmentCertificate.aadharBackImageURL,
+      aadharFrontImageURL: governmentCertificate.aadharFrontImageURL || "",
+      aadharBackImageURL: governmentCertificate.aadharBackImageURL || "",
       drivingLicenseFrontImageURL:
-        governmentCertificate.drivingLicenseFrontImageURL,
+        governmentCertificate.drivingLicenseFrontImageURL || "",
       drivingLicenseBackImageURL:
-        governmentCertificate.drivingLicenseBackImageURL,
+        governmentCertificate.drivingLicenseBackImageURL || "",
     });
   } catch (err) {
     next(appError(err.message));
@@ -455,10 +359,138 @@ const checkIsApprovedController = async (req, res, next) => {
   }
 };
 
+//Add agent's vehicle details
+const addVehicleDetailsController = async (req, res, next) => {
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(500).json({ errors: formattedErrors });
+  }
+  try {
+    const agentFound = await Agent.findById(req.userAuth);
+
+    if (!agentFound) {
+      return next(appError("Agent not found", 404));
+    }
+
+    // Uploading vehicle images
+    const vehicleDetailsPromises = req.body.vehicles.map(
+      async (vehicle, index) => {
+        const rcFrontImage = req.files.rcFrontImage[index];
+        const rcBackImage = req.files.rcBackImage[index];
+
+        return {
+          model: vehicle.model,
+          type: vehicle.type,
+          licensePlate: vehicle.licensePlate,
+          rcFrontImageURL: rcFrontImage
+            ? await uploadToFirebase(rcFrontImage, "RCImages")
+            : "",
+          rcBackImageURL: rcBackImage
+            ? await uploadToFirebase(rcBackImage, "RCImages")
+            : "",
+        };
+      }
+    );
+
+    const vehicleDetails = await Promise.all(vehicleDetailsPromises);
+
+    // Saving the details to the agent
+    agentFound.vehicleDetail = vehicleDetails;
+
+    await agentFound.save();
+
+    res.status(200).json({
+      message: "Agent's Vehicle route",
+      data: agentFound.vehicleDetails,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+//Add agent's government certificates
+const addGovernmentCertificatesController = async (req, res, next) => {
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(500).json({ errors: formattedErrors });
+  }
+
+  try {
+    const agentFound = await Agent.findById(req.userAuth);
+
+    if (!agentFound) {
+      return next(appError("Agent not found", 404));
+    }
+
+    // Uploading government certificate images
+    let aadharFrontImageURL = "";
+    let aadharBackImageURL = "";
+    let drivingLicenseFrontImageURL = "";
+    let drivingLicenseBackImageURL = "";
+
+    if (req.files.aadharFrontImage) {
+      aadharFrontImageURL = await uploadToFirebase(
+        req.files.aadharFrontImage[0],
+        "AadharImages"
+      );
+    }
+
+    if (req.files.aadharBackImage) {
+      aadharBackImageURL = await uploadToFirebase(
+        req.files.aadharBackImage[0],
+        "AadharImages"
+      );
+    }
+
+    if (req.files.drivingLicenseFrontImage) {
+      drivingLicenseFrontImageURL = await uploadToFirebase(
+        req.files.drivingLicenseFrontImage[0],
+        "DrivingLicenseImages"
+      );
+    }
+
+    if (req.files.drivingLicenseBackImage) {
+      drivingLicenseBackImageURL = await uploadToFirebase(
+        req.files.drivingLicenseBackImage[0],
+        "DrivingLicenseImages"
+      );
+    }
+
+    const governmentCertificateDetail = {
+      aadharNumber: req.body.aadharNumber,
+      aadharFrontImageURL,
+      aadharBackImageURL,
+      drivingLicenseNumber: req.body.drivingLicenseNumber,
+      drivingLicenseFrontImageURL,
+      drivingLicenseBackImageURL,
+    };
+
+    //saving government certificate detail
+    agentFound.governmentCertificateDetail = governmentCertificateDetail;
+    await agentFound.save();
+
+    res.status(200).json({
+      message: "Agent government certificates added successfully",
+      data: agentFound.governmentCertificateDetail,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerAgentController,
   agentLoginController,
-  submitGovernmentAndVehicleDetailsController,
   getImagesOfDetailsController,
   getAgentProfileDetailsController,
   editAgentProfileController,
@@ -466,4 +498,6 @@ module.exports = {
   editAgentBankDetailController,
   getBankDetailController,
   checkIsApprovedController,
+  addVehicleDetailsController,
+  addGovernmentCertificatesController,
 };
