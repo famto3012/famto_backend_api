@@ -18,7 +18,7 @@ const addPushNotificationController = async (req, res, next) => {
   }
 
   try {
-    const { title, description, geofence, merchant, driver, customer } =
+    const { title, description, geofenceId, merchant, driver, customer } =
       req.body;
 
     let imageUrl = "";
@@ -29,7 +29,7 @@ const addPushNotificationController = async (req, res, next) => {
     const newPushNotification = new PushNotification({
       title,
       description,
-      geofence,
+      geofenceId,
       imageUrl,
       merchant,
       driver,

@@ -243,6 +243,59 @@ const deletePromoCodeController = async (req, res, next) => {
   }
 };
 
+const editPromoCodeStatusController = async (req,res,next)=>{
+  try{
+      const {id} = req.params
+      const promoCode = await PromoCode.findById(id)
+      if(!promoCode){
+         return res.status(400).json({
+          error: "PromoCode not found"
+         })
+      }
+
+      if(promoCode.status){
+         promoCode.status = false
+      }else{
+        promoCode.status = true
+      }
+
+      await promoCode.save()
+      
+      return res.status(200).json({
+        success: "PromoCode status updated successfully",
+        data: promoCode
+      })
+  }catch(err){
+    next(appError(err.message));
+  }
+}
+
+const updateAllPromoCodesStatusController = async (req, res, next) => {
+  try {
+    // Fetch all promo codes
+    const promoCodes = await PromoCode.find();
+
+    // Iterate through each promo code and update the status if it's true
+    const updatedPromoCodes = await Promise.all(
+      promoCodes.map(async (promoCode) => {
+        if (promoCode.status === true) {
+          promoCode.status = false;
+          await promoCode.save();
+        }
+        return promoCode;
+      })
+    );
+
+    // Send a success response with the updated promo codes
+    return res.status(200).json({
+      success: "PromoCodes status updated successfully",
+      data: updatedPromoCodes,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 
 
 
@@ -250,5 +303,7 @@ module.exports = {
   addPromoCodeController,
   editPromoCodeController,
   deletePromoCodeController,
-  getAllPromoCodesController
+  getAllPromoCodesController,
+  editPromoCodeStatusController,
+  updateAllPromoCodesStatusController
 };

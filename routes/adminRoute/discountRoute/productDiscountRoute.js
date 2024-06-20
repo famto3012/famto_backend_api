@@ -2,18 +2,10 @@ const express = require("express");
 const { body } = require("express-validator");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const isAdmin = require("../../../middlewares/isAdmin");
-const {
-  addBannerController,
-  editBannerController,
-  getAllBannersController,
-  deleteBannerController,
-  updateStatusBannerController,
-} = require("../../../controllers/admin/banner/bannerController");
-const { upload } = require("../../../utils/imageOperation");
 
-const bannerRoute = express.Router();
+const productDiscountRoute = express.Router();
 
-bannerRoute.post(
+productDiscountRoute.post(
   "/add-banner",
   upload.single("bannerImage"),
   [
@@ -26,7 +18,7 @@ bannerRoute.post(
   addBannerController
 );
 
-bannerRoute.put(
+productDiscountRoute.put(
   "/edit-banner/:id",
   upload.single("bannerImage"),
   isAuthenticated,
@@ -34,25 +26,25 @@ bannerRoute.put(
   editBannerController
 );
 
-bannerRoute.get(
+productDiscountRoute.get(
   "/get-banner",
   isAuthenticated,
   isAdmin,
   getAllBannersController
 );
 
-bannerRoute.delete(
+productDiscountRoute.delete(
   "/delete-banner/:id",
   isAuthenticated,
   isAdmin,
   deleteBannerController
 );
 
-bannerRoute.put(
+productDiscountRoute.put(
   "/banner-status/:id",
   isAuthenticated,
   isAdmin,
   updateStatusBannerController
 );
 
-module.exports = bannerRoute;
+module.exports = productDiscountRoute;
