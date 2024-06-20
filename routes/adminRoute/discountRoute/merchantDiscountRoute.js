@@ -74,5 +74,6 @@ merchantDiscountRoute.post(
       addDiscountAdminController
 )
 
+merchantDiscount
 
 module.exports = merchantDiscountRoute;
