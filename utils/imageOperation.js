@@ -6,6 +6,7 @@ const {
   deleteObject,
 } = require("firebase/storage");
 const multer = require("multer");
+const { v4: uuidv4 } = require("uuid");
 
 const firebaseApp = require("../config/firebase");
 
@@ -28,7 +29,12 @@ const uploadToFirebase = async (file, folderName) => {
     throw new Error("File not found");
   }
 
-  const storageRef = ref(storage, `${folderName}/${file.originalname}`);
+  const uniqueName = uuidv4();
+
+  const storageRef = ref(
+    storage,
+    `${folderName}/${file.originalname}-${uniqueName}`
+  );
   await uploadBytes(storageRef, file.buffer);
   const downloadURL = await getDownloadURL(storageRef);
 

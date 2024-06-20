@@ -8,6 +8,7 @@ const BussinessCategorySchema = new mongoose.Schema(
     },
     geofence: {
       type: mongoose.Schema.ObjectId,
+      ref: "Geofence",
       required: true,
     },
     bannerImageURL: {

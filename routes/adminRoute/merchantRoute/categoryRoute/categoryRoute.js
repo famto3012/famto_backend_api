@@ -4,7 +4,7 @@ const {
   editCategoryController,
   deleteCategoryController,
   getCategoriesOfMerchant,
-} = require("../../../../controllers/category/categoryController");
+} = require("../../../../controllers/admin/merchant/category/categoryController");
 const { upload } = require("../../../../utils/imageOperation");
 const isAuthenticated = require("../../../../middlewares/isAuthenticated");
 const { body, check } = require("express-validator");

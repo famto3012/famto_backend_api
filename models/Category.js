@@ -3,11 +3,11 @@ const mongoose = require("mongoose");
 const categorySchema = mongoose.Schema({
   bussinessCategoryId: {
     type: mongoose.Types.ObjectId,
-    ref: "BussnessCategory",
+    ref: "BussinessCategory",
   },
   merchantId: {
     type: mongoose.Types.ObjectId,
-    ref: "Admin",
+    ref: "Merchant",
   },
   categoryName: {
     type: String,

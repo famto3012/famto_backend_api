@@ -1,10 +1,10 @@
 const { validationResult } = require("express-validator");
-const Product = require("../../models/Product");
-const appError = require("../../utils/appError");
+const Product = require("../../../../models/Product");
+const appError = require("../../../../utils/appError");
 const {
   uploadToFirebase,
   deleteFromFirebase,
-} = require("../../utils/imageOperation");
+} = require("../../../../utils/imageOperation");
 
 const getProductController = async (req, res, next) => {
   try {
@@ -295,6 +295,21 @@ const searchProductController = async (req, res, next) => {
   }
 };
 
+const getProductByCategory = async (req, res, next) => {
+  try {
+    const categoryId = req.params.categoryId;
+
+    const productsByCategory = await Product.find({ categoryId: categoryId });
+
+    res.status(200).json({
+      message: "Products By category",
+      data: productsByCategory,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getProductController,
   addProductController,
@@ -303,4 +318,5 @@ module.exports = {
   updateProductDetailsController,
   deleteProductDetailsController,
   searchProductController,
+  getProductByCategory,
 };

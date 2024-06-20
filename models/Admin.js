@@ -20,11 +20,16 @@ const adminSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      default: "Merchant",
+      default: "Admin",
     },
     isApproved: {
+      type: String,
+      enum: ["Pending", "Approved", "Rejected"],
+      default: "Approved",
+    },
+    isBlocked: {
       type: Boolean,
-      default: false
+      default: false,
     }
   },
   {

@@ -4,11 +4,21 @@ const cors = require("cors");
 
 const globalErrorHandler = require("./middlewares/globalErrorHandler");
 
-const categoryRoute = require("./routes/categoryRoute/categoryRoute");
-const authRoute = require("./routes/authRoute/authRoute");
-const merchantRoute = require("./routes/merchantRoute/merchantRoute");
-const productRoute = require("./routes/productRoute/productRoute");
+const categoryRoute = require("./routes/adminRoute/merchantRoute/categoryRoute/categoryRoute");
+const authRoute = require("./routes/adminRoute/authRoute");
+const merchantRoute = require("./routes/adminRoute/merchantRoute/merchantRoute");
+const productRoute = require("./routes/adminRoute/merchantRoute/productRoute/productRoute");
 const customerRoute = require("./routes/customerRoute/customerRoute");
+const agentRoute = require("./routes/agentRoute/agentRoute");
+const adminAgentRoute = require("./routes/adminRoute/agentRoute/agentRoute");
+const geofenceRoute = require("./routes/adminRoute/geofenceRoute/geofenceRoute");
+const adminNotificationRoute = require("./routes/adminRoute/notificationRoute/notificationRoute");
+const bannerRoute = require("./routes/adminRoute/bannerRoute/bannerRoute");
+const loyaltyPointRoute = require("./routes/adminRoute/loyaltyPointRoute/loyaltyPointRoute");
+const managerRoute = require("./routes/adminRoute/managerRoute/managerRoute");
+const taxRoute = require("./routes/adminRoute/taxRoute/taxRoute");
+const promoCodeRoute = require("./routes/adminRoute/promoCodeRoute/promoCodeRoute");
+
 
 require("dotenv").config();
 require("./config/dbConnect");
@@ -22,10 +32,24 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
 //routers
-app.use("/api/v1/categories", categoryRoute);
-app.use("/api/v1/auth", authRoute);
-app.use("/api/v1/merchants", merchantRoute);
-app.use("/api/v1/products", productRoute);
+//admin
+app.use("/api/v1/auth", authRoute); //Login is same for both Admin & Merchant
+app.use("/api/v1/admin/merchants", merchantRoute); //can be used by both admin and merchant
+app.use("/api/v1/admin/agents", adminAgentRoute);
+app.use("/api/v1/admin/geofence", geofenceRoute);
+app.use("/api/v1/categories", categoryRoute); //can be used by both admin and merchant
+app.use("/api/v1/products", productRoute); //can be used by both admin and merchant
+app.use("/api/v1/admin/notification", adminNotificationRoute);
+app.use("/api/v1/admin/banner", bannerRoute);
+app.use("/api/v1/admin/loyalty-point", loyaltyPointRoute);
+app.use("/api/v1/admin/promocode", promoCodeRoute);
+app.use("/api/v1/admin/managers", managerRoute);
+app.use("/api/v1/admin/taxes", taxRoute);
+
+//agent
+app.use("/api/v1/agents", agentRoute);
+
+//customer
 app.use("/api/v1/customers", customerRoute);
 
 //global errors
