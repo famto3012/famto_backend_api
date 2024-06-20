@@ -1,12 +1,12 @@
 const mongoose = require("mongoose");
 
-const BussinessCategorySchema = new mongoose.Schema(
+const BusinessCategorySchema = new mongoose.Schema(
   {
     title: {
       type: String,
       required: true,
     },
-    geofence: {
+    geofenceId: {
       type: mongoose.Schema.ObjectId,
       ref: "Geofence",
       required: true,
@@ -14,6 +14,10 @@ const BussinessCategorySchema = new mongoose.Schema(
     bannerImageURL: {
       type: String,
       required: true,
+    },
+    status: {
+      type: Boolean,
+      default: true,
     },
     order: {
       type: Number,
@@ -25,8 +29,8 @@ const BussinessCategorySchema = new mongoose.Schema(
   }
 );
 
-const BussinessCategory = mongoose.model(
-  "BussinessCategory",
-  BussinessCategorySchema
+const BusinessCategory = mongoose.model(
+  "BusinessCategory",
+  BusinessCategorySchema
 );
-module.exports = BussinessCategory;
+module.exports = BusinessCategory;

@@ -175,9 +175,9 @@ const merchantDetailSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    bussinessCategory: {
+    businessCategory: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "BussinessCategory",
+      ref: "BusinessCategory",
     },
     ifRestaurant: {
       type: String,

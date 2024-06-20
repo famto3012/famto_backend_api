@@ -91,7 +91,7 @@ const loginController = async (req, res, next) => {
       return res.status(500).json({ errors: formattedErrors });
     }
 
-    if(user.isBlocked || user.isApproved !== "Approved"){
+    if (user.isBlocked || user.isApproved !== "Approved") {
       formattedErrors.general = "Login is restricted";
       return res.status(403).json({ errors: formattedErrors });
     }

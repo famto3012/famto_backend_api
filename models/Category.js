@@ -1,9 +1,9 @@
 const mongoose = require("mongoose");
 
 const categorySchema = mongoose.Schema({
-  bussinessCategoryId: {
+  businessCategoryId: {
     type: mongoose.Types.ObjectId,
-    ref: "BussinessCategory",
+    ref: "BusinessCategory",
   },
   merchantId: {
     type: mongoose.Types.ObjectId,
