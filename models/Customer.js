@@ -31,7 +31,7 @@ const ratingByAgentSchema = new mongoose.Schema(
       location: {
         type: [[Number]]
       },
-      geofence: {
+      geofenceId: {
         type: mongoose.Schema.ObjectId,
         ref: "Geofence",
       },

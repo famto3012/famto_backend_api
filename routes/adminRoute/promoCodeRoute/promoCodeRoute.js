@@ -3,7 +3,7 @@ const { body } = require("express-validator");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const isAdmin = require("../../../middlewares/isAdmin");
 const { upload } = require("../../../utils/imageOperation");
-const { addPromoCodeController, editPromoCodeController, getAllPromoCodesController, deletePromoCodeController } = require("../../../controllers/admin/promocode/promoCodeController");
+const { addPromoCodeController, editPromoCodeController, getAllPromoCodesController, deletePromoCodeController, editPromoCodeStatusController, updateAllPromoCodesStatusController } = require("../../../controllers/admin/promocode/promoCodeController");
 
 const promoCodeRoute = express.Router();
 
@@ -47,6 +47,19 @@ promoCodeRoute.delete("/delete-promocode/:id",
     isAdmin,
     deletePromoCodeController
 )
+
+promoCodeRoute.put("/edit-promocode-status/:id",
+    isAuthenticated,
+    isAdmin,
+    editPromoCodeStatusController
+)
+
+promoCodeRoute.put("/edit-all-promocode",
+  isAuthenticated,
+  isAdmin,
+  updateAllPromoCodesStatusController
+)
+
 
 
 module.exports = promoCodeRoute;

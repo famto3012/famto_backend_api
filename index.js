@@ -18,6 +18,7 @@ const loyaltyPointRoute = require("./routes/adminRoute/loyaltyPointRoute/loyalty
 const managerRoute = require("./routes/adminRoute/managerRoute/managerRoute");
 const taxRoute = require("./routes/adminRoute/taxRoute/taxRoute");
 const promoCodeRoute = require("./routes/adminRoute/promoCodeRoute/promoCodeRoute");
+const merchantDiscountRoute = require("./routes/adminRoute/discountRoute/merchantDiscountRoute");
 
 
 require("dotenv").config();
@@ -43,6 +44,8 @@ app.use("/api/v1/admin/notification", adminNotificationRoute);
 app.use("/api/v1/admin/banner", bannerRoute);
 app.use("/api/v1/admin/loyalty-point", loyaltyPointRoute);
 app.use("/api/v1/admin/promocode", promoCodeRoute);
+app.use("/api/v1/merchant/discount", merchantDiscountRoute);
+app.use("/api/v1/admin/discount", merchantDiscountRoute);
 app.use("/api/v1/admin/managers", managerRoute);
 app.use("/api/v1/admin/taxes", taxRoute);
 

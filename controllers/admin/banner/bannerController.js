@@ -18,7 +18,7 @@ const addBannerController = async (req, res, next) => {
   }
 
   try {
-    const { name, merchantId, geofence } = req.body;
+    const { name, merchantId, geofenceId } = req.body;
 
     let imageUrl = "";
     if (req.file) {
@@ -27,7 +27,7 @@ const addBannerController = async (req, res, next) => {
 
     const newBanner = new Banner({
       name,
-      geofence,
+      geofenceId,
       imageUrl,
       merchantId,
     });
@@ -46,7 +46,7 @@ const addBannerController = async (req, res, next) => {
 const editBannerController = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, merchantId, geofence } = req.body;
+    const { name, merchantId, geofenceId } = req.body;
 
     const banner = await Banner.findOne({ _id: id });
 
@@ -64,7 +64,7 @@ const editBannerController = async (req, res, next) => {
         name,
         imageUrl, // Only update imageUrl if a new file is uploaded
         merchantId,
-        geofence,
+        geofenceId,
       },
       { new: true } // Return the updated document
     );
