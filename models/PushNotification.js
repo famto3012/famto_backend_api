@@ -10,7 +10,7 @@ const pushNotificationSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    geofence: {
+    geofenceId: {
         type: mongoose.Schema.ObjectId,
         ref: "Geofence",
         required: true,

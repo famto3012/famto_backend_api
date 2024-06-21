@@ -9,7 +9,6 @@ const {
   getAgentByGeofenceController,
 } = require("../../../controllers/admin/agent/agentCOntroller");
 const { upload } = require("../../../utils/imageOperation");
-const { body, check } = require("express-validator");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const isAdmin = require("../../../middlewares/isAdmin");
 const {
