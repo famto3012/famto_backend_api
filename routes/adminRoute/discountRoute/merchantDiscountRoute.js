@@ -12,6 +12,7 @@ const {
   addDiscountAdminController,
   getAllDiscountAdminController,
   updateAllDiscountAdminController,
+  getMerchantDiscountByIdController,
 } = require("../../../controllers/admin/merchant/discount/merchantDiscountController");
 
 const merchantDiscountRoute = express.Router();
@@ -65,6 +66,12 @@ merchantDiscountRoute.put(
   updateAllDiscountController
 );
 
+merchantDiscountRoute.get(
+  "/get-merchant-discount-id/:id",
+  isAuthenticated,
+  getMerchantDiscountByIdController
+)
+
 //For Admin
 
 merchantDiscountRoute.post(
@@ -102,7 +109,7 @@ merchantDiscountRoute.delete(
 );
 
 merchantDiscountRoute.get(
-  "/get-merchant-discount-admin",
+  "/get-merchant-discount-admin/:id",
   isAuthenticated,
   isAdmin,
   getAllDiscountAdminController
@@ -121,5 +128,7 @@ merchantDiscountRoute.put(
   isAdmin,
   updateAllDiscountAdminController
 );
+
+
 
 module.exports = merchantDiscountRoute;

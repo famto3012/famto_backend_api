@@ -190,6 +190,31 @@ const updateAllDiscountController = async (req, res, next) => {
   }
 };
 
+const getMerchantDiscountByIdController = async (req, res, next) => {
+  try {
+    const { id } = req.params; // Extract the ID from the request parameters
+
+    // Find the MerchantDiscount by ID
+    const merchantDiscount = await MerchantDiscount.findById(id);
+
+    // Check if the MerchantDiscount exists
+    if (!merchantDiscount) {
+      return res.status(404).json({
+        error: "MerchantDiscount not found",
+      });
+    }
+
+    // Return the MerchantDiscount data
+    res.status(200).json({
+      success: "MerchantDiscount retrieved successfully",
+      data: merchantDiscount,
+    });
+  } catch (err) {
+    // Handle any errors
+    next(appError(err.message));
+  }
+};
+
 //For Admin
 const addDiscountAdminController = async (req, res, next) => {
   const errors = validationResult(req);
@@ -306,4 +331,5 @@ module.exports = {
   getAllDiscountAdminController,
   updateAllDiscountAdminController,
   updateAllDiscountController,
+  getMerchantDiscountByIdController
 };
