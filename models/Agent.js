@@ -74,9 +74,16 @@ const bankDetailSchema = mongoose.Schema(
 
 const workStructureSchema = mongoose.Schema(
   {
-    salaryStructure: { type: String, required: true },
-
-    tag: { type: String, enum: ["tag1", "tag2"], required: true },
+    salaryStructureId: {
+      type: mongoose.Types.ObjectId,
+      ref: "AgentPricing",
+      required: true,
+    },
+    tag: {
+      type: String,
+      enum: ["Fish & Meat", "Normal"],
+      required: true,
+    },
   },
   { _id: false }
 );
@@ -112,15 +119,15 @@ const agentSchema = mongoose.Schema(
     },
     location: {
       type: [Number],
-      // required: true,
+      required: true,
     },
     geofenceId: {
       type: mongoose.Schema.ObjectId,
       ref: "Geofence",
     },
-    //TODO: Change manager to Object Id after creating manager
-    manager: {
-      type: String,
+    managerId: {
+      type: mongoose.Types.ObjectId,
+      ref: "Manager",
       required: true,
     },
     role: {
@@ -132,21 +139,23 @@ const agentSchema = mongoose.Schema(
       required: true,
     },
     status: {
-      type: Boolean,
-      default: false,
+      type: String,
+      enum: ["Inactive", "Free", "Busy"],
+      default: "Inactive",
     },
     isBlocked: {
       type: Boolean,
       default: false,
     },
     isApproved: {
-      type: Boolean,
-      default: false,
+      type: String,
+      enum: ["Approved", "Pending", "Rejected"],
+      default: "Pending",
     },
     vehicleDetail: [vehicleSchema],
     governmentCertificateDetail: governmentCertificateDetailSchema,
     bankDetail: bankDetailSchema,
-    workstructure: workStructureSchema,
+    workStructure: workStructureSchema,
     personalDetail: personalDetailSchema,
     ratingsByCustomers: [ratingsByCustomerSchema],
   },

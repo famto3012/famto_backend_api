@@ -12,8 +12,8 @@ const addAgentByAdminController = async (req, res, next) => {
     fullName,
     phoneNumber,
     email,
-    manager,
-    salaryStructure,
+    managerId,
+    salaryStructureId,
     geofenceId,
     tag,
     aadharNumber,
@@ -99,11 +99,11 @@ const addAgentByAdminController = async (req, res, next) => {
       fullName,
       phoneNumber,
       email,
-      manager,
+      managerId,
       geofenceId,
       agentImageURL,
       workStructure: {
-        salaryStructure,
+        salaryStructureId,
         tag,
       },
       bankDetail: {
@@ -147,8 +147,8 @@ const editAgentByAdminController = async (req, res, next) => {
     fullName,
     phoneNumber,
     email,
-    manager,
-    salaryStructure,
+    managerId,
+    salaryStructureId,
     geofenceId,
     tag,
     aadharNumber,
@@ -249,11 +249,11 @@ const editAgentByAdminController = async (req, res, next) => {
         fullName,
         phoneNumber,
         email,
-        manager,
+        managerId,
         geofenceId,
         agentImageURL,
         workStructure: {
-          salaryStructure,
+          salaryStructureId,
           tag,
         },
         bankDetail: {
@@ -296,7 +296,11 @@ const editAgentByAdminController = async (req, res, next) => {
 
 const getSingleAgentController = async (req, res, next) => {
   try {
-    const agentFound = await Agent.findById(req.params.agentId);
+    const agentFound = await Agent.findById(req.params.agentId)
+      .populate("geofenceId", "name")
+      .populate("managerId", "name")
+      .populate("workStructure.salaryStructureId", "ruleName")
+      .select("-ratingsByCustomers");
 
     if (!agentFound) {
       return next(appError("Agent not found", 404));
@@ -308,10 +312,7 @@ const getSingleAgentController = async (req, res, next) => {
   }
 };
 
-//TODO: Need to change
-const approveOrDeclineRegistrationController = async (req, res, next) => {
-  const { status } = req.body;
-
+const approveAgentRegistrationController = async (req, res, next) => {
   try {
     const agentFound = await Agent.findById(req.params.agentId);
 
@@ -319,15 +320,29 @@ const approveOrDeclineRegistrationController = async (req, res, next) => {
       return next(appError("Agent not found", 404));
     }
 
-    await Agent.findByIdAndUpdate(
-      req.params.agentId,
-      { isApproved: status },
-      { new: true }
-    );
+    agentFound.isApproved = "Approved";
+    await agentFound.save();
 
     res.status(200).json({
-      message: "Redistration status apporval",
-      data: agentFound.isApproved,
+      message: "Agent registration apporved",
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const rejectAgentRegistrationController = async (req, res, next) => {
+  try {
+    const agentFound = await Agent.findById(req.params.agentId);
+
+    if (!agentFound) {
+      return next(appError("Agent not found", 404));
+    }
+
+    await Agent.findByIdAndDelete(req.params.agentId);
+
+    res.status(200).json({
+      message: "Agent registration rejected",
     });
   } catch (err) {
     next(appError(err.message));
@@ -423,7 +438,8 @@ module.exports = {
   addAgentByAdminController,
   editAgentByAdminController,
   getSingleAgentController,
-  approveOrDeclineRegistrationController,
+  approveAgentRegistrationController,
+  rejectAgentRegistrationController,
   getRatingsByCustomerController,
   getAgentByVehicleTypeController,
   getAgentByGeofenceController,

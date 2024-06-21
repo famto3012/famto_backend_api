@@ -3,10 +3,11 @@ const {
   addAgentByAdminController,
   editAgentByAdminController,
   getSingleAgentController,
-  approveOrDeclineRegistrationController,
   getRatingsByCustomerController,
   getAgentByVehicleTypeController,
   getAgentByGeofenceController,
+  approveAgentRegistrationController,
+  rejectAgentRegistrationController,
 } = require("../../../controllers/admin/agent/agentCOntroller");
 const { upload } = require("../../../utils/imageOperation");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
@@ -16,10 +17,10 @@ const {
   editAgentByAdminValidations,
 } = require("../../../middlewares/validators/agentValidation");
 
-const agentRoute = express.Router();
+const adminAgentRoute = express.Router();
 
 //Add Agent by admin route
-agentRoute.post(
+adminAgentRoute.post(
   "/add-agents",
   upload.fields([
     { name: "rcFrontImage", maxCount: 1 },
@@ -37,7 +38,7 @@ agentRoute.post(
 );
 
 //Edit agent details by admin
-agentRoute.put(
+adminAgentRoute.put(
   "/edit-agent/:agentId",
   upload.fields([
     { name: "rcFrontImage", maxCount: 1 },
@@ -55,7 +56,7 @@ agentRoute.put(
 );
 
 //Get Agent by vehicle type
-agentRoute.get(
+adminAgentRoute.get(
   "/filter-by-vehicle",
   isAuthenticated,
   isAdmin,
@@ -63,7 +64,7 @@ agentRoute.get(
 );
 
 //Get Agent by geofence
-agentRoute.get(
+adminAgentRoute.get(
   "/filter-by-geofence",
   isAuthenticated,
   isAdmin,
@@ -71,22 +72,35 @@ agentRoute.get(
 );
 
 //Get single agent
-agentRoute.get("/:agentId", isAuthenticated, isAdmin, getSingleAgentController);
-
-//Approve OR Decline registration
-agentRoute.put(
+adminAgentRoute.get(
   "/:agentId",
   isAuthenticated,
   isAdmin,
-  approveOrDeclineRegistrationController
+  getSingleAgentController
+);
+
+//TODO: split into 2 approve and decline
+//Approve OR Decline registration
+adminAgentRoute.patch(
+  "/approve-registration/:agentId",
+  isAuthenticated,
+  isAdmin,
+  approveAgentRegistrationController
+);
+
+adminAgentRoute.delete(
+  "/reject-registration/:agentId",
+  isAuthenticated,
+  isAdmin,
+  rejectAgentRegistrationController
 );
 
 //Get ratings of agent by customer
-agentRoute.get(
+adminAgentRoute.get(
   "/:agentId/get-ratings-by-customer",
   isAuthenticated,
   isAdmin,
   getRatingsByCustomerController
 );
 
-module.exports = agentRoute;
+module.exports = adminAgentRoute;

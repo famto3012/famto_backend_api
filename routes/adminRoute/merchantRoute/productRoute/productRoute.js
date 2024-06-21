@@ -15,40 +15,41 @@ const {
   addProductValidations,
   editProductValidations,
 } = require("../../../../middlewares/validators/productValidations");
+const isAuthenticated = require("../../../../middlewares/isAuthenticated");
 
 const productRoute = express.Router();
 
-//TODO: Need to add authorization
 //Search Product Details
-productRoute.get("/search", searchProductController);
+productRoute.get("/search", isAuthenticated, searchProductController);
 
-//TODO: Need to add authorization
 //Get Product
-productRoute.get("/:productId", getProductController);
+productRoute.get("/:productId", isAuthenticated, getProductController);
 
-//TODO: Need to add authorization
 //Add Product
 productRoute.post(
   "/add-product",
   upload.single("productImage"),
   addProductValidations,
+  isAuthenticated,
   addProductController
 );
 
-//TODO: Need to add authorization
 //Edit Product
 productRoute.put(
   "/edit-product/:productId",
   upload.single("productImage"),
   editProductValidations,
+  isAuthenticated,
   editProductController
 );
 
-//TODO: Need to add authorization
 //Edit Product
-productRoute.delete("/delete-product/:productId", deleteProductController);
+productRoute.delete(
+  "/delete-product/:productId",
+  isAuthenticated,
+  deleteProductController
+);
 
-//TODO: Need to add authorization
 //Add Product Details
 productRoute.put(
   "/:productId/add-product-details",
@@ -64,10 +65,10 @@ productRoute.put(
       .isArray()
       .withMessage("Variants should be an array"),
   ],
+  isAuthenticated,
   updateProductDetailsController
 );
 
-//TODO: Need to add authorization
 //Edit Product Details
 productRoute.put(
   "/:productId/edit-product-details",
@@ -83,18 +84,22 @@ productRoute.put(
       .isArray()
       .withMessage("Variants should be an array"),
   ],
+  isAuthenticated,
   updateProductDetailsController
 );
 
-//TODO: Need to add authorization
 //Delete Product Details
 productRoute.delete(
   "/:productId/delete-product-details",
+  isAuthenticated,
   deleteProductDetailsController
 );
 
-//TODO: Need to add authorization
 //Get Product by category
-productRoute.get("/product-by-category/:categoryId", getProductByCategory);
+productRoute.get(
+  "/product-by-category/:categoryId",
+  isAuthenticated,
+  getProductByCategory
+);
 
 module.exports = productRoute;
