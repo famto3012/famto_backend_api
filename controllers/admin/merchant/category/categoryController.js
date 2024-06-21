@@ -6,12 +6,16 @@ const {
   deleteFromFirebase,
 } = require("../../../../utils/imageOperation");
 
-const getCategoriesOfMerchant = async (req, res, next) => {
+// ----------------------------------------------------
+// For Admin
+// ----------------------------------------------------
+
+const getAllCategoriesOfMerchantByAdminController = async (req, res, next) => {
   try {
     const merchantId = req.params.merchantId;
 
-    const categoriesOfMerchant = await Category.find({ merchantId }).populate(
-      "businessCategoryId"
+    const categoriesOfMerchant = await Category.find({ merchantId }).select(
+      "categoryName merchantId"
     );
 
     res
@@ -22,7 +26,29 @@ const getCategoriesOfMerchant = async (req, res, next) => {
   }
 };
 
-const addCategoryController = async (req, res, next) => {
+const getSingleCategoryOfMerchantByAdminController = async (req, res, next) => {
+  try {
+    const categoryFound = await Category.findOne({
+      _id: req.params.categoryId,
+      merchantId: req.params.merchantId,
+    })
+      .populate("businessCategoryId", "title")
+      .select("-merchantId");
+
+    if (!categoryFound) {
+      return next(appError("Category not found", 404));
+    }
+
+    res.status(200).json({
+      message: "Single category detail",
+      data: categoryFound,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const addCategoryByAdminController = async (req, res, next) => {
   const { businessCategoryId, merchantId, categoryName, description, type } =
     req.body;
 
@@ -38,7 +64,7 @@ const addCategoryController = async (req, res, next) => {
 
   try {
     const existingCategory = await Category.findOne({
-      businessCategoryId,
+      merchantId,
       categoryName,
     });
 
@@ -75,7 +101,7 @@ const addCategoryController = async (req, res, next) => {
   }
 };
 
-const editCategoryController = async (req, res, next) => {
+const editCategoryByAdminController = async (req, res, next) => {
   const { businessCategoryId, merchantId, categoryName, description, type } =
     req.body;
 
@@ -90,7 +116,10 @@ const editCategoryController = async (req, res, next) => {
   }
 
   try {
-    const categoryToUpdate = await Category.findById(req.params.categoryId);
+    const categoryToUpdate = await Category.findOne({
+      _id: req.params.categoryId,
+      merchantId: req.params.merchantId,
+    });
 
     if (!categoryToUpdate) {
       return next(appError("Category not found", 404));
@@ -129,9 +158,12 @@ const editCategoryController = async (req, res, next) => {
   }
 };
 
-const deleteCategoryController = async (req, res, next) => {
+const deleteCategoryByAdminController = async (req, res, next) => {
   try {
-    const categoryToDelete = await Category.findById(req.params.categoryId);
+    const categoryToDelete = await Category.findOne({
+      _id: req.params.categoryId,
+      merchantId: req.params.merchantId,
+    });
 
     if (!categoryToDelete) {
       return next(appError("Category not found", 404));
@@ -153,9 +185,69 @@ const deleteCategoryController = async (req, res, next) => {
   }
 };
 
+// ----------------------------------------------------
+// For Merchant
+// ----------------------------------------------------
+
+const addCategoryByMerchantController = async (req, res, next) => {
+  const { businessCategoryId, categoryName, description, type } = req.body;
+
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(500).json({ errors: formattedErrors });
+  }
+
+  try {
+    const merchantId = req.userAuth;
+
+    const existingCategory = await Category.findOne({
+      merchantId,
+      categoryName,
+    });
+
+    if (existingCategory) {
+      formattedErrors.categoryName =
+        "Category name already exists for the same business category";
+      return res.status(409).json({ errors: formattedErrors });
+    }
+
+    let categoryImageURL = "";
+
+    if (req.file) {
+      categoryImageURL = await uploadToFirebase(req.file, "CategoryImages");
+    }
+
+    const newCategory = await Category.create({
+      businessCategoryId,
+      merchantId,
+      categoryName,
+      description,
+      type,
+      categoryImageURL,
+    });
+
+    if (!newCategory) {
+      return next(appError("Error in creating new category"));
+    }
+
+    res.status(200).json({
+      message: "Category created successfully",
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
-  getCategoriesOfMerchant,
-  addCategoryController,
-  editCategoryController,
-  deleteCategoryController,
+  getAllCategoriesOfMerchantByAdminController,
+  getSingleCategoryOfMerchantByAdminController,
+  addCategoryByAdminController,
+  editCategoryByAdminController,
+  deleteCategoryByAdminController,
+  addCategoryByMerchantController,
 };

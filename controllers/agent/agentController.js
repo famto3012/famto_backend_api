@@ -344,7 +344,7 @@ const checkIsApprovedController = async (req, res, next) => {
     const status = currentAgent.isApproved;
 
     let message = "";
-    if (status === true) {
+    if (status === "Approved") {
       message = "Agent is approved";
     } else {
       message = "Agent is not approved";
@@ -488,6 +488,36 @@ const addGovernmentCertificatesController = async (req, res, next) => {
   }
 };
 
+//Change agent's status to Free
+const goOnlineController = async (req, res, next) => {
+  try {
+    const currentAgent = await Agent.findById(req.userAuth);
+
+    currentAgent.status = "Free";
+
+    currentAgent.save();
+
+    res.status(200).json({ message: "Agent is online" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+//Change agent's status to Inactive
+const goOfflineController = async (req, res, next) => {
+  try {
+    const currentAgent = await Agent.findById(req.userAuth);
+
+    currentAgent.status = "Inactive";
+
+    currentAgent.save();
+
+    res.status(200).json({ message: "Agent is offline" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerAgentController,
   agentLoginController,
@@ -500,4 +530,6 @@ module.exports = {
   checkIsApprovedController,
   addVehicleDetailsController,
   addGovernmentCertificatesController,
+  goOnlineController,
+  goOfflineController,
 };

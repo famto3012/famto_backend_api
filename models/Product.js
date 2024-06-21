@@ -85,14 +85,14 @@ const productSchema = mongoose.Schema(
     },
     discountId: {
       type: mongoose.Schema.ObjectId,
-      ref: "Discount",
+      ref: "ProductDiscount",
+      default: null,
     },
-    oftenBoughtTogether: [
-      {
-        type: mongoose.Schema.ObjectId,
-        ref: "Product",
-      },
-    ],
+    oftenBoughtTogetherId: {
+      type: mongoose.Schema.ObjectId,
+      ref: "Product",
+      default: null,
+    },
     preperationTime: {
       type: String,
       required: true,

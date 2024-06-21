@@ -1,84 +1,75 @@
 const express = require("express");
 const {
-  addCategoryController,
-  editCategoryController,
-  deleteCategoryController,
-  getCategoriesOfMerchant,
+  getAllCategoriesOfMerchantByAdminController,
+  getSingleCategoryOfMerchantByAdminController,
+  addCategoryByAdminController,
+  editCategoryByAdminController,
+  deleteCategoryByAdminController,
+  addCategoryByMerchantController,
 } = require("../../../../controllers/admin/merchant/category/categoryController");
 const { upload } = require("../../../../utils/imageOperation");
 const isAuthenticated = require("../../../../middlewares/isAuthenticated");
-const { body, check } = require("express-validator");
+const {
+  addCategoryValidation,
+  editCategoryValidation,
+} = require("../../../../middlewares/validators/categoryValidations");
 
 const categoryRoute = express.Router();
 
-//TODO: Need to add Role based Authentication
-categoryRoute.get("/:merchantId", getCategoriesOfMerchant);
+// ----------------------------------------------------
+// For Admin
+// ----------------------------------------------------
 
-//TODO: Need to add Role based Authentication
+//Get all category of a merchant by Admin
+categoryRoute.get(
+  "/admin/:merchantId",
+  isAuthenticated,
+  getAllCategoriesOfMerchantByAdminController
+);
+
+//Get single category of a merchant by Admin
+categoryRoute.get(
+  "/admin/:merchantId/:categoryId",
+  isAuthenticated,
+  getSingleCategoryOfMerchantByAdminController
+);
+
+//Add category by Admin
+categoryRoute.post(
+  "/admin/add-category",
+  upload.single("categoryImage"),
+  addCategoryValidation,
+  isAuthenticated,
+  addCategoryByAdminController
+);
+
+//Edit category by Admin
+categoryRoute.put(
+  "/admin/edit-category/:merchantId/:categoryId",
+  upload.single("categoryImage"),
+  editCategoryValidation,
+  isAuthenticated,
+  editCategoryByAdminController
+);
+
+//Delete category by Admin
+categoryRoute.delete(
+  "/admin/delete-category/:merchantId/:categoryId",
+  isAuthenticated,
+  deleteCategoryByAdminController
+);
+
+// ----------------------------------------------------
+// For Merchant
+// ----------------------------------------------------
+
+//Add category by Admin
 categoryRoute.post(
   "/add-category",
   upload.single("categoryImage"),
-  [
-    body("businessCategoryId")
-      .trim()
-      .notEmpty()
-      .withMessage("Business Category is required"),
-    body("merchantId").trim().notEmpty().withMessage("Merchant is required"),
-    body("categoryName")
-      .trim()
-      .notEmpty()
-      .withMessage("Category name is required"),
-    body("description")
-      .trim()
-      .notEmpty()
-      .withMessage("Description is required"),
-    body("type").trim().notEmpty().withMessage("Type is required"),
-    check("categoryImage").custom((value, { req }) => {
-      if (!req.file) {
-        throw new Error("Merchant image is required");
-      }
-      return true;
-    }),
-  ],
-  // isAuthenticated,
-  addCategoryController
-);
-
-//TODO: Need to add Role based Authentication
-categoryRoute.put(
-  "/edit-category/:categoryId",
-  upload.single("categoryImage"),
-  [
-    body("businessCategoryId")
-      .trim()
-      .notEmpty()
-      .withMessage("Business Category is required"),
-    body("merchantId").trim().notEmpty().withMessage("Merchant is required"),
-    body("categoryName")
-      .trim()
-      .notEmpty()
-      .withMessage("Category name is required"),
-    body("description")
-      .trim()
-      .notEmpty()
-      .withMessage("Description is required"),
-    body("type").trim().notEmpty().withMessage("Type is required"),
-    check("categoryImage").custom((value, { req }) => {
-      if (!req.body.categoryImageURL && !req.file) {
-        throw new Error("Category image is required");
-      }
-      return true;
-    }),
-  ],
-  // isAuthenticated,
-  editCategoryController
-);
-
-//TODO: Need to add Role based Authentication
-categoryRoute.delete(
-  "/delete-category/:categoryId",
-  // isAuthenticated,
-  deleteCategoryController
+  addCategoryValidation,
+  isAuthenticated,
+  addCategoryByMerchantController
 );
 
 module.exports = categoryRoute;

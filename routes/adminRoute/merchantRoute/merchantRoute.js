@@ -41,16 +41,16 @@ merchantRoute.post(
 //Get all merchants
 merchantRoute.get(
   "/all-merchants",
-  // isAuthenticated,
-  // isAdmin,
+  isAuthenticated,
+  isAdmin,
   getAllMerchantsController
 );
 
 //Get single merchant
 merchantRoute.get(
   "/:merchantId",
-  // isAuthenticated,
-  // isAdmin,
+  isAuthenticated,
+  isAdmin,
   getSingleMerchantController
 );
 
