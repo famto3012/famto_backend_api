@@ -9,11 +9,15 @@ const {
   deleteAgentPricingController,
   changeStatusAgentPricingController,
 } = require("../../../controllers/admin/pricing/agentPricingController");
+const {
+  agentPricingValidations,
+} = require("../../../middlewares/validators/pricingValidations");
 const agentPricingRoute = express.Router();
 
 //Add agent pricing
 agentPricingRoute.post(
   "/add-agent-pricing",
+  agentPricingValidations,
   isAuthenticated,
   isAdmin,
   addAgentPricingController
@@ -38,6 +42,7 @@ agentPricingRoute.get(
 //Edit agent pricing
 agentPricingRoute.put(
   "/edit-agent-pricing/:agentPricingId",
+  agentPricingValidations,
   isAuthenticated,
   isAdmin,
   editAgentPricingController

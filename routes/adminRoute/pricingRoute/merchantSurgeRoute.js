@@ -9,11 +9,15 @@ const {
 } = require("../../../controllers/admin/pricing/merchantSurgeController");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const isAdmin = require("../../../middlewares/isAdmin");
+const {
+  surgeValidations,
+} = require("../../../middlewares/validators/pricingValidations");
 const merchantSurgeRoute = express.Router();
 
 //Add merchant surge
 merchantSurgeRoute.post(
   "/add-merchant-surge",
+  surgeValidations,
   isAuthenticated,
   isAdmin,
   addMerchantSurgeController
@@ -38,6 +42,7 @@ merchantSurgeRoute.get(
 //Edit merchant surge
 merchantSurgeRoute.put(
   "/edit-merchant-surge/:merchantSurgeId",
+  surgeValidations,
   isAuthenticated,
   isAdmin,
   editMerchantSurgeController

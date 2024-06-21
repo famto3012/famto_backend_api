@@ -9,11 +9,15 @@ const {
 } = require("../../../controllers/admin/pricing/merchantPricingController");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const isAdmin = require("../../../middlewares/isAdmin");
+const {
+  merchantPricingValidations,
+} = require("../../../middlewares/validators/pricingValidations");
 const merchantPricingRoute = express.Router();
 
 //Add merchant pricing
 merchantPricingRoute.post(
   "/add-merchant-pricing",
+  merchantPricingValidations,
   isAuthenticated,
   isAdmin,
   addMerchantPricingController
@@ -38,6 +42,7 @@ merchantPricingRoute.get(
 //Edit merchant pricing
 merchantPricingRoute.put(
   "/edit-merchant-pricing/:merchantPricingId",
+  merchantPricingValidations,
   isAuthenticated,
   isAdmin,
   editMerchantPricingController

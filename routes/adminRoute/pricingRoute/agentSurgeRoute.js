@@ -9,11 +9,15 @@ const {
   deleteAgentSurgeController,
   changeStatusAgentSurgeController,
 } = require("../../../controllers/admin/pricing/agentSurgeController");
+const {
+  surgeValidations,
+} = require("../../../middlewares/validators/pricingValidations");
 const agentSurgeRoute = express.Router();
 
 //Add agent surge
 agentSurgeRoute.post(
   "/add-agent-surge",
+  surgeValidations,
   isAuthenticated,
   isAdmin,
   addAgentSurgeController
@@ -38,6 +42,7 @@ agentSurgeRoute.get(
 //Edit agent surge
 agentSurgeRoute.put(
   "/edit-agent-surge/:agentSurgeId",
+  surgeValidations,
   isAuthenticated,
   isAdmin,
   editAgentSurgeController
