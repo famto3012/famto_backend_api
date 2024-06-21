@@ -26,6 +26,7 @@ const customerSurgeRoute = require("./routes/adminRoute/pricingRoute/customerSur
 const agentPricingRoute = require("./routes/adminRoute/pricingRoute/agentPricingRoute");
 const agentSurgeRoute = require("./routes/adminRoute/pricingRoute/agentSurgeRoute");
 const merchantDiscountRoute = require("./routes/adminRoute/discountRoute/merchantDiscountRoute");
+const productDiscountRoute = require("./routes/adminRoute/discountRoute/productDiscountRoute");
 
 require("dotenv").config();
 require("./config/dbConnect");
@@ -50,8 +51,10 @@ app.use("/api/v1/admin/notification", adminNotificationRoute);
 app.use("/api/v1/admin/banner", bannerRoute);
 app.use("/api/v1/admin/loyalty-point", loyaltyPointRoute);
 app.use("/api/v1/admin/promocode", promoCodeRoute);
-app.use("/api/v1/merchant/discount", merchantDiscountRoute);
-app.use("/api/v1/admin/discount", merchantDiscountRoute);
+app.use("/api/v1/merchant/shop-discount", merchantDiscountRoute);
+app.use("/api/v1/admin/shop-discount", merchantDiscountRoute);
+app.use("/api/v1/admin/product-discount", productDiscountRoute);
+app.use("/api/v1/merchant/product-discount", productDiscountRoute);
 app.use("/api/v1/admin/managers", managerRoute);
 app.use("/api/v1/admin/taxes", taxRoute);
 app.use("/api/v1/admin/business-categories", businessCategoryRoute);

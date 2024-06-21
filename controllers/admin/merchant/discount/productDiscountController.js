@@ -1,8 +1,6 @@
-
 const { validationResult } = require("express-validator");
 const ProductDiscount = require("../../../../models/ProductDiscount");
 const appError = require("../../../../utils/appError");
-
 
 // For Merchant
 const addProductDiscountController = async (req, res, next) => {
@@ -162,58 +160,83 @@ const updateProductDiscountStatusController = async (req, res, next) => {
   }
 };
 
+const getProductDiscountByIdController = async (req, res, next) => {
+  try {
+    const { id } = req.params; // Extract the ID from the request parameters
+
+    // Find the MerchantDiscount by ID
+    const productDiscount = await ProductDiscount.findById(id);
+
+    // Check if the MerchantDiscount exists
+    if (!productDiscount) {
+      return res.status(404).json({
+        error: "ProductDiscount not found",
+      });
+    }
+
+    // Return the MerchantDiscount data
+    res.status(200).json({
+      success: "ProductDiscount retrieved successfully",
+      data: productDiscount,
+    });
+  } catch (err) {
+    // Handle any errors
+    next(appError(err.message));
+  }
+};
+
 //For Admin
 const addProductDiscountAdminController = async (req, res, next) => {
-    const errors = validationResult(req);
-  
-    if (!errors.isEmpty()) {
-      let formattedErrors = {};
-      errors.array().forEach((error) => {
-        formattedErrors[error.param] = error.msg;
-      });
-      return res.status(400).json({ errors: formattedErrors });
-    }
-  
-    try {
-      const {
-        discountName,
-        maxAmount,
-        discountType,
-        discountValue,
-        description,
-        validFrom,
-        validTo,
-        geofenceId,
-        merchantId,
-        productId,
-        onAddOn,
-      } = req.body;
-  
-      const addDiscount = new ProductDiscount({
-        discountName,
-        maxAmount,
-        discountType,
-        discountValue,
-        description,
-        validFrom,
-        validTo,
-        geofenceId,
-        merchantId,
-        productId,
-        onAddOn
-      });
-  
-      addDiscount.save();
-  
-      res.status(201).json({
-        success: "Product Discount created successfully",
-        data: addDiscount,
-      });
-    } catch (err) {
-      next(appError(err.message));
-    }
-  };
-  
+  const errors = validationResult(req);
+
+  if (!errors.isEmpty()) {
+    let formattedErrors = {};
+    errors.array().forEach((error) => {
+      formattedErrors[error.param] = error.msg;
+    });
+    return res.status(400).json({ errors: formattedErrors });
+  }
+
+  try {
+    const {
+      discountName,
+      maxAmount,
+      discountType,
+      discountValue,
+      description,
+      validFrom,
+      validTo,
+      geofenceId,
+      merchantId,
+      productId,
+      onAddOn,
+    } = req.body;
+
+    const addDiscount = new ProductDiscount({
+      discountName,
+      maxAmount,
+      discountType,
+      discountValue,
+      description,
+      validFrom,
+      validTo,
+      geofenceId,
+      merchantId,
+      productId,
+      onAddOn,
+    });
+
+    addDiscount.save();
+
+    res.status(201).json({
+      success: "Product Discount created successfully",
+      data: addDiscount,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   addProductDiscountController,
   editProductDiscountController,
@@ -221,4 +244,5 @@ module.exports = {
   getAllProductDiscountController,
   updateProductDiscountStatusController,
   addProductDiscountAdminController,
+  getProductDiscountByIdController,
 };
