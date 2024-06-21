@@ -2,7 +2,7 @@ const express = require("express");
 const { body } = require("express-validator");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const isAdmin = require("../../../middlewares/isAdmin");
-const { addDiscountController, editDiscountController, deleteDiscountController, getAllDiscountController, updateDiscountStatusController, updateAllDiscountController, addDiscountAdminController } = require("../../../controllers/admin/merchant/discount/merchantDiscountController");
+const { addDiscountController, editDiscountController, deleteDiscountController, getAllDiscountController, updateDiscountStatusController, updateAllDiscountController, addDiscountAdminController, getAllDiscountAdminController } = require("../../../controllers/admin/merchant/discount/merchantDiscountController");
 
 const merchantDiscountRoute = express.Router();
 //For Merchant
@@ -57,7 +57,7 @@ merchantDiscountRoute.put(
 //For Admin
 
 merchantDiscountRoute.post(
-    "/add-discount",
+    "/add-merchant-discount-admin",
     [
         body("discountName").notEmpty().withMessage("Discount Name is required"),
         body("maxCheckoutValue").notEmpty().withMessage("Max checkout value is required"),
@@ -74,6 +74,32 @@ merchantDiscountRoute.post(
       addDiscountAdminController
 )
 
-merchantDiscount
+merchantDiscountRoute.put(
+    "/edit-merchant-discount-admin/:id",
+    isAuthenticated,
+    isAdmin,
+    editDiscountController
+  );
+
+  merchantDiscountRoute.delete(
+    "/delete-merchant-discount-admin/:id",
+    isAuthenticated,
+    isAdmin,
+    deleteDiscountController
+  );
+
+  merchantDiscountRoute.get(
+    "/get-merchant-discount-admin",
+    isAuthenticated,
+    isAdmin,
+    getAllDiscountAdminController
+  );
+
+  merchantDiscountRoute.put(
+    "/merchant-status-admin/:id",
+    isAuthenticated,
+    isAdmin,
+    updateDiscountStatusController
+  );
 
 module.exports = merchantDiscountRoute;
