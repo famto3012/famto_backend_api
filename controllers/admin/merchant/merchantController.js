@@ -153,7 +153,7 @@ const getSingleMerchantController = async (req, res, next) => {
   }
 };
 
-//TODO: add bussiness category
+//TODO: add business category
 const updateMerchantDetailsController = async (req, res, next) => {
   // const merchantDetail = req.body;
 

@@ -46,7 +46,7 @@ const productDetailSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
-    variants: [variantSchema], // Embed Variant schema
+    variants: [variantSchema],
   },
   {
     timestamps: true,

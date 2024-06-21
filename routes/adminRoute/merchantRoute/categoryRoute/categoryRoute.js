@@ -19,10 +19,10 @@ categoryRoute.post(
   "/add-category",
   upload.single("categoryImage"),
   [
-    body("bussinessCategoryId")
+    body("businessCategoryId")
       .trim()
       .notEmpty()
-      .withMessage("Bussiness Category is required"),
+      .withMessage("Business Category is required"),
     body("merchantId").trim().notEmpty().withMessage("Merchant is required"),
     body("categoryName")
       .trim()
@@ -49,10 +49,10 @@ categoryRoute.put(
   "/edit-category/:categoryId",
   upload.single("categoryImage"),
   [
-    body("bussinessCategoryId")
+    body("businessCategoryId")
       .trim()
       .notEmpty()
-      .withMessage("Bussiness Category is required"),
+      .withMessage("Business Category is required"),
     body("merchantId").trim().notEmpty().withMessage("Merchant is required"),
     body("categoryName")
       .trim()

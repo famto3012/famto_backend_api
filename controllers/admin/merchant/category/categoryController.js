@@ -11,7 +11,7 @@ const getCategoriesOfMerchant = async (req, res, next) => {
     const merchantId = req.params.merchantId;
 
     const categoriesOfMerchant = await Category.find({ merchantId }).populate(
-      "bussinessCategoryId"
+      "businessCategoryId"
     );
 
     res
@@ -23,7 +23,7 @@ const getCategoriesOfMerchant = async (req, res, next) => {
 };
 
 const addCategoryController = async (req, res, next) => {
-  const { bussinessCategoryId, merchantId, categoryName, description, type } =
+  const { businessCategoryId, merchantId, categoryName, description, type } =
     req.body;
 
   const errors = validationResult(req);
@@ -38,13 +38,13 @@ const addCategoryController = async (req, res, next) => {
 
   try {
     const existingCategory = await Category.findOne({
-      bussinessCategoryId,
+      businessCategoryId,
       categoryName,
     });
 
     if (existingCategory) {
       formattedErrors.categoryName =
-        "Category name already exists for the same bussiness category";
+        "Category name already exists for the same business category";
       return res.status(409).json({ errors: formattedErrors });
     }
 
@@ -55,7 +55,7 @@ const addCategoryController = async (req, res, next) => {
     }
 
     const newCategory = await Category.create({
-      bussinessCategoryId,
+      businessCategoryId,
       merchantId,
       categoryName,
       description,
@@ -76,7 +76,7 @@ const addCategoryController = async (req, res, next) => {
 };
 
 const editCategoryController = async (req, res, next) => {
-  const { bussinessCategoryId, merchantId, categoryName, description, type } =
+  const { businessCategoryId, merchantId, categoryName, description, type } =
     req.body;
 
   const errors = validationResult(req);
@@ -111,7 +111,7 @@ const editCategoryController = async (req, res, next) => {
     await Category.findByIdAndUpdate(
       req.params.categoryId,
       {
-        bussinessCategoryId,
+        businessCategoryId,
         merchantId,
         categoryName,
         description,

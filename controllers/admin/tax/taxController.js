@@ -17,9 +17,11 @@ const addTaxController = async (req, res, next) => {
   }
 
   try {
-    const normalizedTaxName = taxName.toLowerCase();
+    const normalizedTaxName = taxName.trim().replace(/\s+/g, " ").toLowerCase();
 
-    const taxNameFound = await Tax.findOne({ taxName: normalizedTaxName });
+    const taxNameFound = await Tax.findOne({
+      taxName: new RegExp(`^${normalizedTaxName}$`, "i"),
+    });
 
     if (taxNameFound) {
       formattedErrors.taxName = "Tax name already exists";
@@ -27,7 +29,7 @@ const addTaxController = async (req, res, next) => {
     }
 
     const newTax = await Tax.create({
-      taxName: normalizedTaxName,
+      taxName,
       tax,
       taxType,
       geofenceId,
@@ -101,17 +103,27 @@ const editTaxController = async (req, res, next) => {
       return next(appError("Tax not found", 404));
     }
 
-    const normalizedTaxName = taxName.toLowerCase();
+    const normalizedTaxName = taxName.trim().replace(/\s+/g, " ").toLowerCase();
+    const normalizedDbTaxName = taxFound.taxName
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase();
 
-    if (normalizedTaxName === taxFound.taxName) {
-      formattedErrors.taxName = "Tax name already exists";
-      return res.status(409).json({ errors: formattedErrors });
+    if (normalizedTaxName !== normalizedDbTaxName) {
+      const taxNameFound = await Tax.findOne({
+        taxName: new RegExp(`^${normalizedTaxName}$`, "i"),
+      });
+
+      if (taxNameFound) {
+        formattedErrors.taxName = "Tax name already exists";
+        return res.status(409).json({ errors: formattedErrors });
+      }
     }
 
     const updatedTax = await Tax.findByIdAndUpdate(
       req.params.taxId,
       {
-        taxName: normalizedTaxName,
+        taxName,
         tax,
         taxType,
         geofenceId,
@@ -141,7 +153,7 @@ const deleteTaxController = async (req, res, next) => {
 
     await Tax.findByIdAndDelete(req.params.taxId);
 
-    req.status(200).json({ message: "Tax deleted successfully" });
+    res.status(200).json({ message: "Tax deleted successfully" });
   } catch (err) {
     next(appError(err.message));
   }
@@ -149,38 +161,22 @@ const deleteTaxController = async (req, res, next) => {
 
 //Disable / Enable Status
 const disableOrEnableStatusController = async (req, res, next) => {
-  const errors = validationResult(req);
-
-  let formattedErrors = {};
-  if (!errors.isEmpty()) {
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
-    return res.status(500).json({ errors: formattedErrors });
-  }
-
   try {
-    const { status } = req.body;
-
     const taxFound = await Tax.findById(req.params.taxId);
 
     if (!taxFound) {
       return next(appError("Tax not found", 404));
     }
 
-    const updatedTax = await Tax.findByIdAndUpdate(
-      req.params.taxId,
-      {
-        status,
-      },
-      { new: true }
-    );
-
-    if (!updatedTax) {
-      return next(appError("Error in updating Tax"));
+    if (taxFound.status === true) {
+      taxFound.status = false;
+      await taxFound.save();
+    } else {
+      taxFound.status = true;
+      await taxFound.save();
     }
 
-    res.status(201).json({ message: `${taxName} status updated` });
+    res.status(201).json({ message: `${taxFound.taxName} status updated` });
   } catch (err) {
     next(appError(err.message));
   }
