@@ -9,11 +9,15 @@ const {
 } = require("../../../controllers/admin/pricing/customerPricingController");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const isAdmin = require("../../../middlewares/isAdmin");
+const {
+  customerPricingValidations,
+} = require("../../../middlewares/validators/pricingValidations");
 const customerPricingRoute = express.Router();
 
 //Add customer pricing
 customerPricingRoute.post(
   "/add-customer-pricing",
+  customerPricingValidations,
   isAuthenticated,
   isAdmin,
   addCustomerPricingController
@@ -38,6 +42,7 @@ customerPricingRoute.get(
 //Edit customer pricing
 customerPricingRoute.put(
   "/edit-customer-pricing/:customerPricingId",
+  customerPricingValidations,
   isAuthenticated,
   isAdmin,
   editCustomerPricingController
