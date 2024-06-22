@@ -32,33 +32,33 @@ const addAppBannerController = async (req, res, next) => {
       merchantId,
     });
 
-    const savedBanner = await newAppBanner.save();
+    const savedAppBanner = await newAppBanner.save();
 
     res.status(201).json({
-      success: "Banner created successfully",
-      data: savedBanner,
+      success: "App Banner created successfully",
+      data: savedAppBanner,
     });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
-const editBannerController = async (req, res, next) => {
+const editAppBannerController = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, merchantId, geofenceId } = req.body;
 
-    const banner = await Banner.findOne({ _id: id });
+    const appBanner = await AppBanner.findOne({ _id: id });
 
-    await deleteFromFirebase(banner.imageUrl);
+    await deleteFromFirebase(appBanner.imageUrl);
 
     let imageUrl = "";
     if (req.file) {
-      imageUrl = await uploadToFirebase(req.file, "AdBannerImages");
+      imageUrl = await uploadToFirebase(req.file, "AppBannerImages");
     }
 
     // Find the banner by ID and update it with the new data
-    const updatedBanner = await Banner.findByIdAndUpdate(
+    const updatedAppBanner = await AppBanner.findByIdAndUpdate(
       id,
       {
         name,
@@ -70,80 +70,80 @@ const editBannerController = async (req, res, next) => {
     );
 
     // Check if the banner was found and updated
-    if (!updatedBanner) {
-      return next(appError("Banner not found", 404));
+    if (!updatedAppBanner) {
+      return next(appError("App Banner not found", 404));
     }
 
     res
       .status(200)
-      .json({ message: "Banner updated successfully!", banner: updatedBanner });
+      .json({ message: "App Banner updated successfully!", banner: updatedAppBanner });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
-const getAllBannersController = async (req, res, next) => {
+const getAllAppBannersController = async (req, res, next) => {
   try {
-    const banners = await Banner.find();
+    const appBanners = await AppBanner.find();
 
-    if (!banners) {
-      return next(appError("No banners found", 404));
+    if (!appBanners) {
+      return next(appError("No app banners found", 404));
     }
 
     res.status(200).json({
       success: true,
-      data: banners,
+      data: appBanners,
     });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
-const deleteBannerController = async (req, res, next) => {
+const deleteAppBannerController = async (req, res, next) => {
   try {
     const { id } = req.params;
 
     // Find the banner by ID and delete it
-    const deletedBanner = await Banner.findOne({ _id: id });
+    const deletedAppBanner = await AppBanner.findOne({ _id: id });
 
     // Check if the banner was found and deleted
-    if (!deletedBanner) {
-      return next(appError("Banner not found", 404));
+    if (!deletedAppBanner) {
+      return next(appError("App Banner not found", 404));
     } else {
-      await deleteFromFirebase(deletedBanner.imageUrl);
-      await Banner.findByIdAndDelete(id);
+      await deleteFromFirebase(deletedAppBanner.imageUrl);
+      await AppBanner.findByIdAndDelete(id);
     }
 
     res.status(200).json({
       success: true,
-      message: "Banner deleted successfully!",
+      message: "App Banner deleted successfully!",
     });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
-const updateStatusBannerController = async (req, res, next) => {
+const updateStatusAppBannerController = async (req, res, next) => {
   try {
     const { id } = req.params;
 
     // Find the banner by ID and delete it
-    const updateBanner = await Banner.findOne({ _id: id });
+    const updateAppBanner = await AppBanner.findOne({ _id: id });
 
     // Check if the banner was found and deleted
-    if (!updateBanner) {
-      return next(appError("Banner not found", 404));
-    } else if (updateBanner.status) {
-      updateBanner.status = false;
+    if (!updateAppBanner) {
+      return next(appError("App Banner not found", 404));
+    } else if (updateAppBanner.status) {
+      updateAppBanner.status = false;
     } else {
-      updateBanner.status = true;
+      updateAppBanner.status = true;
     }
 
-    await updateBanner.save();
+    await updateAppBanner.save();
 
     res.status(200).json({
       success: true,
-      message: "Banner status updated successfully!",
+      message: "App Banner status updated successfully!",
     });
   } catch (err) {
     next(appError(err.message));
@@ -151,9 +151,9 @@ const updateStatusBannerController = async (req, res, next) => {
 };
 
 module.exports = {
-  addBannerController,
-  editBannerController,
-  getAllBannersController,
-  deleteBannerController,
-  updateStatusBannerController,
+  addAppBannerController,
+  editAppBannerController,
+  getAllAppBannersController,
+  deleteAppBannerController,
+  updateStatusAppBannerController,
 };
