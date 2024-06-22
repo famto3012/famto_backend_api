@@ -12,9 +12,12 @@ const isAdminOrMerchant = async (req, res, next) => {
   //Save the user into req object
   req.userAuth = decodedUser.id;
 
+
+  //Check if the user is Admin or Merchant
   //Find the user in DB
   // const user = await Admin.findById(decodedUser.id);
   //Check if the user is Admin or not
+
   if (decodedUser.role === "Admin" || decodedUser.role === "Merchant") {
     return next();
   } else {

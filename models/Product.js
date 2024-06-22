@@ -3,6 +3,10 @@ const mongoose = require("mongoose");
 // Define the VariantType schema
 const variantTypeSchema = mongoose.Schema(
   {
+    _id: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: () => new mongoose.Types.ObjectId(),
+    },
     typeName: {
       type: String,
       required: true,
@@ -20,36 +24,15 @@ const variantTypeSchema = mongoose.Schema(
 // Define the Variant schema
 const variantSchema = mongoose.Schema(
   {
+    _id: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: () => new mongoose.Types.ObjectId(),
+    },
     variantName: {
       type: String,
       required: true,
     },
     variantTypes: [variantTypeSchema], // Embed VariantType schema
-  },
-  {
-    _id: false,
-  }
-);
-
-// Define the ProductDetail schema
-const productDetailSchema = mongoose.Schema(
-  {
-    inventory: {
-      type: Boolean,
-      default: false,
-    },
-    availableQuantity: {
-      type: Number,
-      required: true,
-    },
-    alert: {
-      type: Number,
-      required: true,
-    },
-    variants: [variantSchema],
-  },
-  {
-    timestamps: true,
   },
   {
     _id: false,
@@ -84,12 +67,12 @@ const productSchema = mongoose.Schema(
       required: true,
     },
     discountId: {
-      type: mongoose.Schema.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "ProductDiscount",
       default: null,
     },
     oftenBoughtTogetherId: {
-      type: mongoose.Schema.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
       default: null,
     },
@@ -111,6 +94,7 @@ const productSchema = mongoose.Schema(
     },
     type: {
       type: String,
+      enum: ["Veg", "Non-veg"],
       required: true,
     },
     productImageURL: {
@@ -121,16 +105,19 @@ const productSchema = mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       ref: "Category",
     },
-    vaiantStatus: {
+    inventory: {
       type: Boolean,
-      default: null,
+      default: true,
     },
-    productStatus: {
-      type: Boolean,
+    availableQuantity: {
+      type: Number,
       required: true,
     },
-
-    productDetails: productDetailSchema,
+    alert: {
+      type: Number,
+      required: true,
+    },
+    variants: [variantSchema],
   },
   {
     timestamps: true,

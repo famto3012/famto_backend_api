@@ -1,29 +1,36 @@
 const express = require("express");
 const {
   addProductController,
-  updateProductDetailsController,
   editProductController,
   deleteProductController,
-  deleteProductDetailsController,
   getProductController,
   searchProductController,
-  getProductByCategory,
+  addVariantToProductController,
+  deleteVariantTypeController,
+  editVariantController,
+  getProductByCategoryController,
+  changeProductCategoryController,
 } = require("../../../../controllers/admin/merchant/product/productController");
-const { body, check } = require("express-validator");
 const { upload } = require("../../../../utils/imageOperation");
 const {
   addProductValidations,
   editProductValidations,
+  productVariantValidations,
 } = require("../../../../middlewares/validators/productValidations");
 const isAuthenticated = require("../../../../middlewares/isAuthenticated");
+const isAdminOrMerchant = require("../../../../middlewares/isAdminOrMerchant");
 
 const productRoute = express.Router();
 
 //Search Product Details
 productRoute.get("/search", isAuthenticated, searchProductController);
 
-//Get Product
-productRoute.get("/:productId", isAuthenticated, getProductController);
+//Get Product by category
+productRoute.get(
+  "/product-by-category/:categoryId",
+  isAuthenticated,
+  getProductByCategoryController
+);
 
 //Add Product
 productRoute.post(
@@ -31,7 +38,16 @@ productRoute.post(
   upload.single("productImage"),
   addProductValidations,
   isAuthenticated,
+  isAdminOrMerchant,
   addProductController
+);
+
+//Get Product
+productRoute.get(
+  "/:productId",
+  isAuthenticated,
+  isAdminOrMerchant,
+  getProductController
 );
 
 //Edit Product
@@ -40,66 +56,52 @@ productRoute.put(
   upload.single("productImage"),
   editProductValidations,
   isAuthenticated,
+  isAdminOrMerchant,
   editProductController
 );
 
-//Edit Product
+//Delete Product
 productRoute.delete(
   "/delete-product/:productId",
   isAuthenticated,
+  isAdminOrMerchant,
   deleteProductController
 );
 
-//Add Product Details
-productRoute.put(
-  "/:productId/add-product-details",
-  [
-    body("productName").trim().optional(),
-    body("price").trim().optional(),
-    body("description").trim().optional(),
-    body("availableQuantity").trim().optional(),
-    body("inventory").trim().optional(),
-    body("alert").optional(),
-    body("variants")
-      .optional()
-      .isArray()
-      .withMessage("Variants should be an array"),
-  ],
+// Change product category
+productRoute.patch(
+  "/:productId/change-category/:categoryId",
   isAuthenticated,
-  updateProductDetailsController
+  isAdminOrMerchant,
+  changeProductCategoryController
 );
 
-//Edit Product Details
-productRoute.put(
-  "/:productId/edit-product-details",
-  [
-    body("productName").trim().optional(),
-    body("price").trim().optional(),
-    body("description").trim().optional(),
-    body("availableQuantity").trim().optional(),
-    body("inventory").trim().optional(),
-    body("alert").optional(),
-    body("variants")
-      .optional()
-      .isArray()
-      .withMessage("Variants should be an array"),
-  ],
+//Variants
+// -------------------------------
+
+//Add variants to product
+productRoute.post(
+  "/:productId/add-variants",
+  productVariantValidations,
   isAuthenticated,
-  updateProductDetailsController
+  isAdminOrMerchant,
+  addVariantToProductController
 );
 
-//Delete Product Details
+//Edit product variants
+productRoute.put(
+  "/:productId/variants/:variantId",
+  productVariantValidations,
+  isAuthenticated,
+  isAdminOrMerchant,
+  editVariantController
+);
+
+//Delete product variant type
 productRoute.delete(
-  "/:productId/delete-product-details",
-  isAuthenticated,
-  deleteProductDetailsController
-);
-
-//Get Product by category
-productRoute.get(
-  "/product-by-category/:categoryId",
-  isAuthenticated,
-  getProductByCategory
+  "/:productId/variants/:variantId/types/:variantTypeId",
+  isAdminOrMerchant,
+  deleteVariantTypeController
 );
 
 module.exports = productRoute;

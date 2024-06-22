@@ -42,7 +42,7 @@ const availabilitySchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ["full-time", "specific-time"],
+      enum: ["Full-time", "Specific-time"],
       required: true,
     },
     specificDays: {
@@ -89,16 +89,16 @@ const sponsorshipSchema = mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    plan: {
+    currentPlan: {
       type: String,
       default: null,
     },
     startDate: {
-      type: String,
+      type: Date,
       default: null,
     },
     endDate: {
-      type: String,
+      type: Date,
       default: null,
     },
     paymentDetails: {
@@ -134,15 +134,16 @@ const merchantDetailSchema = new mongoose.Schema(
       ref: "Geofence",
       required: true,
     },
-    ratings: [ratingByCustomerSchema],
+    pricing: {
+      type: String,
+      required: true,
+      default: "-",
+    },
     location: {
       type: String,
       required: true,
     },
-    pricing: {
-      type: String,
-      required: true,
-    },
+    ratings: [ratingByCustomerSchema],
     pancardNumber: {
       type: String,
       required: true,
@@ -175,27 +176,35 @@ const merchantDetailSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    businessCategory: {
+    businessCategoryId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "BusinessCategory",
+      required: true,
     },
     ifRestaurant: {
       type: String,
+      enum: ["Veg", "Non-veg", "Both"],
     },
     deliveryOption: {
       type: String,
+      enum: ["On-demand", "Scheduled", "Both"],
       required: true,
     },
     deliveryTime: {
       type: String,
       required: true,
     },
+    preOrderStatus: {
+      type: Boolean,
+      default: false,
+    },
     servingArea: {
       type: String,
+      enum: ["No-restrictions", "Mention-radius"],
       required: true,
     },
     servingRadius: {
-      type: String,
+      type: Number,
     },
     availability: {
       type: availabilitySchema,
@@ -231,7 +240,7 @@ const merchantSchema = new mongoose.Schema(
     },
     isApproved: {
       type: String,
-      enum: ["Pending", "Approved", "Rejected"],
+      enum: ["Pending", "Approved"],
       default: "Pending",
     },
     status: {
@@ -247,7 +256,7 @@ const merchantSchema = new mongoose.Schema(
       default: null,
     },
     merchantDetail: merchantDetailSchema,
-    sponsorship: sponsorshipSchema,
+    sponsorshipDetail: sponsorshipSchema,
   },
   {
     timestamps: true,
