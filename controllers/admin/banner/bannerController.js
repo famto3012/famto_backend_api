@@ -50,10 +50,10 @@ const editBannerController = async (req, res, next) => {
 
     const banner = await Banner.findOne({ _id: id });
 
-    await deleteFromFirebase(banner.imageUrl);
-
-    let imageUrl = "";
+    
+    let imageUrl = banner.imageUrl;
     if (req.file) {
+      await deleteFromFirebase(banner.imageUrl);
       imageUrl = await uploadToFirebase(req.file, "AdBannerImages");
     }
 
@@ -98,6 +98,24 @@ const getAllBannersController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
+
+const getBannerByIdController = async(req,res,next)=>{
+  try {
+    const {id} = req.params
+    const banners = await Banner.findOne({_id: id});
+
+    if (!banners) {
+      return next(appError("No banners found", 404));
+    }
+
+    res.status(200).json({
+      success: true,
+      data: banners,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+}
 
 const deleteBannerController = async (req, res, next) => {
   try {
@@ -154,6 +172,7 @@ module.exports = {
   addBannerController,
   editBannerController,
   getAllBannersController,
+  getBannerByIdController,
   deleteBannerController,
   updateStatusBannerController,
 };
