@@ -8,6 +8,7 @@ const {
   getAllBannersController,
   deleteBannerController,
   updateStatusBannerController,
+  getBannerByIdController,
 } = require("../../../controllers/admin/banner/bannerController");
 const { upload } = require("../../../utils/imageOperation");
 
@@ -39,6 +40,13 @@ bannerRoute.get(
   isAuthenticated,
   isAdmin,
   getAllBannersController
+);
+
+bannerRoute.get(
+  "/get-banner/:id",
+  isAuthenticated,
+  isAdmin,
+  getBannerByIdController
 );
 
 bannerRoute.delete(
