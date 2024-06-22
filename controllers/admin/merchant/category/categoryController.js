@@ -185,6 +185,26 @@ const deleteCategoryByAdminController = async (req, res, next) => {
   }
 };
 
+const changeCategoryStatusByAdminController = async (req, res, next) => {
+  try {
+    const categoryFound = await Category.findOne({
+      _id: req.params.categoryId,
+      merchantId: req.params.merchantId,
+    });
+
+    if (!categoryFound) {
+      return next(appError("Category not found", 404));
+    }
+
+    categoryFound.status = !categoryFound.status;
+    await categoryFound.save();
+
+    res.status(200).json({ message: "Category status changed" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 // ----------------------------------------------------
 // For Merchant
 // ----------------------------------------------------
@@ -243,11 +263,164 @@ const addCategoryByMerchantController = async (req, res, next) => {
   }
 };
 
+const getAllCategoriesByMerchantController = async (req, res, next) => {
+  try {
+    const merchantId = req.userAuth;
+
+    const categoriesOfMerchant = await Category.find({ merchantId }).select(
+      "categoryName merchantId"
+    );
+
+    res
+      .status(200)
+      .json({ message: "Categories of merchant", data: categoriesOfMerchant });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getSingleCategoryByMerchantController = async (req, res, next) => {
+  try {
+    const categoryFound = await Category.findOne({
+      _id: req.params.categoryId,
+      merchantId: req.userAuth,
+    })
+      .populate("businessCategoryId", "title")
+      .select("-merchantId");
+
+    if (!categoryFound) {
+      return next(appError("Category not found", 404));
+    }
+
+    res.status(200).json({
+      message: "Single category detail",
+      data: categoryFound,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const editCategoryByMerchantController = async (req, res, next) => {
+  const { businessCategoryId, categoryName, description, type } = req.body;
+
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(500).json({ errors: formattedErrors });
+  }
+
+  try {
+    const merchantId = req.userAuth;
+
+    const categoryToUpdate = await Category.findOne({
+      _id: req.params.categoryId,
+      merchantId,
+    });
+
+    if (!categoryToUpdate) {
+      return next(appError("Category not found", 404));
+    }
+
+    let categoryImageURL = categoryToUpdate.categoryImageURL;
+
+    if (req.file) {
+      // Delete the old file from Firebase
+      if (categoryImageURL) {
+        await deleteFromFirebase(categoryImageURL);
+      }
+
+      // Upload the new file to Firebase
+      categoryImageURL = await uploadToFirebase(req.file, "CategoryImages");
+    }
+
+    await Category.findByIdAndUpdate(
+      req.params.categoryId,
+      {
+        businessCategoryId,
+        merchantId,
+        categoryName,
+        description,
+        type,
+        categoryImageURL,
+      },
+      { new: true }
+    );
+
+    res.status(200).json({
+      message: "Category updated successfully",
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const deleteCategoryByMerchantController = async (req, res, next) => {
+  try {
+    const merchantId = req.userAuth;
+
+    const categoryToDelete = await Category.findOne({
+      _id: req.params.categoryId,
+      merchantId,
+    });
+
+    if (!categoryToDelete) {
+      return next(appError("Category not found", 404));
+    }
+
+    let categoryImageURL = categoryToDelete.categoryImageURL;
+
+    if (categoryImageURL) {
+      await deleteFromFirebase(categoryImageURL);
+    }
+
+    await Category.findByIdAndDelete(req.params.categoryId);
+
+    res.status(200).json({
+      message: "Category deleted successfully",
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const changeCategoryStatusByMerchantController = async (req, res, next) => {
+  try {
+    const merchantId = req.userAuth;
+
+    const categoryFound = await Category.findOne({
+      _id: req.params.categoryId,
+      merchantId,
+    });
+
+    if (!categoryFound) {
+      return next(appError("Category not found", 404));
+    }
+
+    categoryFound.status = !categoryFound.status;
+    await categoryFound.save();
+
+    res.status(200).json({ message: "Category status changed" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getAllCategoriesOfMerchantByAdminController,
   getSingleCategoryOfMerchantByAdminController,
   addCategoryByAdminController,
   editCategoryByAdminController,
   deleteCategoryByAdminController,
+  changeCategoryStatusByAdminController,
   addCategoryByMerchantController,
+  getAllCategoriesByMerchantController,
+  getSingleCategoryByMerchantController,
+  editCategoryByMerchantController,
+  deleteCategoryByMerchantController,
+  changeCategoryStatusByMerchantController,
 };

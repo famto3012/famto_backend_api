@@ -42,7 +42,7 @@ app.use(cors());
 //routers
 //admin
 app.use("/api/v1/auth", authRoute); //Login is same for both Admin & Merchant
-app.use("/api/v1/admin/merchants", merchantRoute); //can be used by both admin and merchant
+app.use("/api/v1/merchants", merchantRoute); //can be used by both admin and merchant
 app.use("/api/v1/admin/agents", adminAgentRoute);
 app.use("/api/v1/admin/geofence", geofenceRoute);
 app.use("/api/v1/categories", categoryRoute); //can be used by both admin and merchant

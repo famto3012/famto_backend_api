@@ -5,10 +5,12 @@ const {
   uploadToFirebase,
   deleteFromFirebase,
 } = require("../../../utils/imageOperation");
-const MerchantDetails = require("../../../models/Merchant");
 const Merchant = require("../../../models/Merchant");
-const calculateDateRange = require("../../../utils/calculateSponsorshipDateRange");
-const { verifyRazorpayPayment } = require("../../../utils/razorpayPayment");
+const {
+  createRazorpayOrderId,
+  verifyPayment,
+} = require("../../../utils/razorpayPayment");
+const calculateEndDate = require("../../../utils/calculateEndDate");
 
 //Register
 const registerMerchantController = async (req, res, next) => {
@@ -20,7 +22,8 @@ const registerMerchantController = async (req, res, next) => {
     const merchantExists = await Merchant.findOne({ email: normalizedEmail });
 
     if (merchantExists) {
-      return res.status(400).json({ error: "Email already exists" });
+      formattedErrors.email = "Email already exists";
+      return res.status(409).json({ errors: formattedErrors });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -36,14 +39,11 @@ const registerMerchantController = async (req, res, next) => {
 
     if (newMerchant) {
       res.status(201).json({
-        success: "User created successfully",
+        success: "Merchant registered successfully",
         _id: newMerchant._id,
-        fullName: newMerchant.fullName,
-        email: newMerchant.email,
-        phoneNumber: newMerchant.phoneNumber,
       });
     } else {
-      res.status(400).json({ error: "Invalid user data received" });
+      return next(appError("Error in registering new merchant"));
     }
   } catch (err) {
     next(appError(err.message));
@@ -61,19 +61,19 @@ const approveRegistrationController = async (req, res, next) => {
       return next(appError("Merchant not found", 404));
     }
 
-    merchantFound.isApproved = true;
+    merchantFound.isApproved = "Approved";
     await merchantFound.save();
 
     res.status(200).json({
-      message: "Approved merchanr registration",
-      data: merchantFound,
+      message: "Approved merchant registration",
+      data: merchantFound.isApproved,
     });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
-const declineRegistrationController = async (req, res, next) => {
+const rejectRegistrationController = async (req, res, next) => {
   try {
     const merchantFound = await Merchant.findById(req.params.merchantId);
 
@@ -81,12 +81,10 @@ const declineRegistrationController = async (req, res, next) => {
       return next(appError("Merchant not found", 404));
     }
 
-    merchantFound.isApproved = false;
-    await merchantFound.save();
+    await Merchant.findByIdAndDelete(req.params.merchantId);
 
     res.status(200).json({
       message: "Declined merchant registration",
-      data: merchantFound,
     });
   } catch (err) {
     next(appError(err.message));
@@ -153,13 +151,26 @@ const getSingleMerchantController = async (req, res, next) => {
   }
 };
 
-//TODO: add business category
 const updateMerchantDetailsController = async (req, res, next) => {
-  // const merchantDetail = req.body;
-
-  const { fullName, email, phoneNumber, status, merchantDetail } = req.body;
-
-  console.log(merchantDetail, "Merchant detail");
+  const {
+    fullName,
+    email,
+    phoneNumber,
+    merchantName,
+    displayAddress,
+    description,
+    geofenceId,
+    location,
+    pancardNumber,
+    GSTINNumber,
+    FSSAINumber,
+    aadharNumber,
+    businessCategoryId,
+    deliveryOption,
+    deliveryTime,
+    servingArea,
+    availability,
+  } = req.body;
 
   const errors = validationResult(req);
 
@@ -235,7 +246,20 @@ const updateMerchantDetailsController = async (req, res, next) => {
     }
 
     const details = {
-      ...merchantDetail,
+      merchantName,
+      displayAddress,
+      description,
+      geofenceId,
+      location,
+      pancardNumber,
+      GSTINNumber,
+      FSSAINumber,
+      aadharNumber,
+      businessCategoryId,
+      deliveryOption,
+      deliveryTime,
+      servingArea,
+      availability,
       merchantImageURL,
       pancardImageURL,
       GSTINImageURL,
@@ -243,19 +267,106 @@ const updateMerchantDetailsController = async (req, res, next) => {
       aadharImageURL,
     };
 
-    const updatedMerchant = await Merchant.findByIdAndUpdate(
-      merchantId,
-      { fullName, email, phoneNumber, status, merchantDetail: details },
-      { new: true, runValidators: true }
-    );
+    merchantFound.fullName = fullName;
+    merchantFound.email = email;
+    merchantFound.phoneNumber = phoneNumber;
+    merchantFound.merchantDetail = details;
 
-    if (!updatedMerchant) {
-      return next(appError("Error in adding merchant details"));
-    }
+    await merchantFound.save();
 
     res.status(200).json({ message: "Merchant details added successfully" });
   } catch (err) {
     next(appError(err.message));
+  }
+};
+
+const sponsorshipPaymentController = async (req, res, next) => {
+  const { sponsorshipStatus, currentPlan } = req.body;
+
+  try {
+    const { merchantId } = req.params;
+
+    const merchantFound = await Merchant.findById(merchantId);
+
+    if (!merchantFound) {
+      return next(appError("Merchant not found", 404));
+    }
+
+    if (sponsorshipStatus) {
+      const planAmount = getPlanAmount(currentPlan);
+      const paymentResponse = await createRazorpayOrderId(planAmount);
+
+      if (paymentResponse.success) {
+        // Returning order details to the client for further processing
+        return res.status(200).json({
+          success: true,
+          orderId: paymentResponse.orderId,
+          amount: planAmount,
+          currentPlan,
+        });
+      } else {
+        return next(appError("Payment initialization failed", 400));
+      }
+    } else {
+      return res.status(400).json({ message: "Invalid sponsorship status" });
+    }
+  } catch (err) {
+    next(appError(err.messsage));
+  }
+};
+
+const verifyPaymentController = async (req, res, next) => {
+  const { merchantId } = req.params;
+  const paymentDetails = req.body;
+
+  try {
+    const merchantFound = await Merchant.findById(merchantId);
+
+    if (!merchantFound) {
+      return next(appError("Merchant not found", 404));
+    }
+
+    const isValidPayment = await verifyPayment(paymentDetails);
+
+    if (isValidPayment) {
+      const { currentPlan } = paymentDetails;
+      const startDate = new Date();
+      const endDate = calculateEndDate(startDate, currentPlan);
+
+      merchantFound.sponsorshipDetail = {
+        sponsorshipStatus: true,
+        currentPlan,
+        startDate,
+        endDate,
+        paymentDetails,
+      };
+
+      await merchantFound.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Payment verified and sponsorship updated",
+      });
+    } else {
+      return next(appError("Payment verification failed", 400));
+    }
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getPlanAmount = (plan) => {
+  switch (plan) {
+    case "Monthly":
+      return 250;
+    case "3 Month":
+      return 750;
+    case "6 Month":
+      return 1500;
+    case "1 Year":
+      return 3000;
+    default:
+      throw new Error("Invalid plan");
   }
 };
 
@@ -265,5 +376,7 @@ module.exports = {
   getAllMerchantsController,
   getSingleMerchantController,
   approveRegistrationController,
-  declineRegistrationController,
+  rejectRegistrationController,
+  sponsorshipPaymentController,
+  verifyPaymentController,
 };

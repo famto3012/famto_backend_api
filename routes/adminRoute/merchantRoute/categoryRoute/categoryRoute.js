@@ -6,13 +6,22 @@ const {
   editCategoryByAdminController,
   deleteCategoryByAdminController,
   addCategoryByMerchantController,
+  getAllCategoriesByMerchantController,
+  getSingleCategoryByMerchantController,
+  editCategoryByMerchantController,
+  deleteCategoryByMerchantController,
+  changeCategoryStatusByAdminController,
+  changeCategoryStatusByMerchantController,
 } = require("../../../../controllers/admin/merchant/category/categoryController");
 const { upload } = require("../../../../utils/imageOperation");
 const isAuthenticated = require("../../../../middlewares/isAuthenticated");
 const {
-  addCategoryValidation,
-  editCategoryValidation,
+  addCategoryByAdminValidation,
+  editCategoryByAdminValidation,
+  addCategoryByMerchantValidation,
+  editCategoryByMerchantValidation,
 } = require("../../../../middlewares/validators/categoryValidations");
+const isAdmin = require("../../../../middlewares/isAdmin");
 
 const categoryRoute = express.Router();
 
@@ -24,6 +33,7 @@ const categoryRoute = express.Router();
 categoryRoute.get(
   "/admin/:merchantId",
   isAuthenticated,
+  isAdmin,
   getAllCategoriesOfMerchantByAdminController
 );
 
@@ -31,6 +41,7 @@ categoryRoute.get(
 categoryRoute.get(
   "/admin/:merchantId/:categoryId",
   isAuthenticated,
+  isAdmin,
   getSingleCategoryOfMerchantByAdminController
 );
 
@@ -38,8 +49,9 @@ categoryRoute.get(
 categoryRoute.post(
   "/admin/add-category",
   upload.single("categoryImage"),
-  addCategoryValidation,
+  addCategoryByAdminValidation,
   isAuthenticated,
+  isAdmin,
   addCategoryByAdminController
 );
 
@@ -47,8 +59,9 @@ categoryRoute.post(
 categoryRoute.put(
   "/admin/edit-category/:merchantId/:categoryId",
   upload.single("categoryImage"),
-  editCategoryValidation,
+  editCategoryByAdminValidation,
   isAuthenticated,
+  isAdmin,
   editCategoryByAdminController
 );
 
@@ -56,20 +69,66 @@ categoryRoute.put(
 categoryRoute.delete(
   "/admin/delete-category/:merchantId/:categoryId",
   isAuthenticated,
+  isAdmin,
   deleteCategoryByAdminController
+);
+
+//Change category status by Admin
+categoryRoute.patch(
+  "/admin/change-status/:merchantId/:categoryId",
+  isAuthenticated,
+  isAdmin,
+  changeCategoryStatusByAdminController
 );
 
 // ----------------------------------------------------
 // For Merchant
 // ----------------------------------------------------
 
-//Add category by Admin
+//Add category by Merchant
 categoryRoute.post(
   "/add-category",
   upload.single("categoryImage"),
-  addCategoryValidation,
+  addCategoryByMerchantValidation,
   isAuthenticated,
   addCategoryByMerchantController
+);
+
+//Get all category by Merchant
+categoryRoute.get(
+  "/all-categories",
+  isAuthenticated,
+  getAllCategoriesByMerchantController
+);
+
+//Get single category by Merchant
+categoryRoute.get(
+  "/:categoryId",
+  isAuthenticated,
+  getSingleCategoryByMerchantController
+);
+
+//Edit category by Merchant
+categoryRoute.put(
+  "/:categoryId",
+  upload.single("categoryImage"),
+  editCategoryByMerchantValidation,
+  isAuthenticated,
+  editCategoryByMerchantController
+);
+
+//Delete category by Merchant
+categoryRoute.delete(
+  "/:categoryId",
+  isAuthenticated,
+  deleteCategoryByMerchantController
+);
+
+//Change category status by Merchant
+categoryRoute.patch(
+  "/change-status/:categoryId",
+  isAuthenticated,
+  changeCategoryStatusByMerchantController
 );
 
 module.exports = categoryRoute;

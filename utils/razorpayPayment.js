@@ -1,42 +1,37 @@
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
 
-// Initialize Razorpay instance with your key and secret
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-const createRazorpayOrder = async (amount, currency = "INR") => {
-  const options = {
-    amount: amount * 100, // Amount in paise
-    currency,
-    receipt: "receipt_" + new Date().getTime(),
-  };
-
+const createRazorpayOrderId = async (amount) => {
   try {
+    const options = {
+      amount: amount * 100,
+      currency: "INR",
+      receipt: crypto.randomBytes(10).toString("hex"),
+    };
     const order = await razorpay.orders.create(options);
-
-    if (!order) {
-      return next(appError("Bad request", 400));
-    }
-
-    return order;
-  } catch (error) {
-    throw new Error("Error creating Razorpay order: " + error.message);
+    return { success: true, orderId: order.id };
+  } catch (err) {
+    console.error("Error in processing payment:", err);
+    return { success: false, error: err.message };
   }
 };
 
-const verifyRazorpayPayment = (orderId, paymentId, paymentSignature) => {
-  const generatedSignature = crypto
-    .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-    .update(orderId + "|" + paymentId)
+// Function to verify payment
+const verifyPayment = async (paymentDetails) => {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
+    paymentDetails;
+  const body = razorpay_order_id + "|" + razorpay_payment_id;
+  const expectedSignature = crypto
+    .createHmac("sha256", razorpay.key_secret)
+    .update(body.toString())
     .digest("hex");
 
-  return generatedSignature === paymentSignature;
+  return expectedSignature === razorpay_signature;
 };
 
-module.exports = {
-  createRazorpayOrder,
-  verifyRazorpayPayment,
-};
+module.exports = { createRazorpayOrderId, verifyPayment };

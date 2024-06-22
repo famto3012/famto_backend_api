@@ -6,28 +6,14 @@ const {
   deleteFromFirebase,
 } = require("../../../../utils/imageOperation");
 
-const getProductController = async (req, res, next) => {
-  try {
-    const productId = req.params.productId;
-
-    const productFound = await Product.findById(productId).populate(
-      "oftenBoughtTogether"
-    );
-
-    if (!productFound) {
-      return next(appError("Produ t not found", 404));
-    }
-
-    res.status(200).json({ message: "Product data", data: productFound });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
+// ------------------------------------------------------
+// For Merchant and Admin
+// -------------------------------------------------------
 
 const addProductController = async (req, res, next) => {
   const {
+    categoryId,
     productName,
-    productStatus,
     price,
     minQuantityToOrder,
     maxQuantityPerOrder,
@@ -40,7 +26,8 @@ const addProductController = async (req, res, next) => {
     description,
     longDescription,
     type,
-    categoryId,
+    availableQuantity,
+    alert,
   } = req.body;
 
   const errors = validationResult(req);
@@ -68,8 +55,8 @@ const addProductController = async (req, res, next) => {
     }
 
     const newProduct = await Product.create({
+      categoryId,
       productName,
-      productStatus,
       price,
       minQuantityToOrder,
       maxQuantityPerOrder,
@@ -82,8 +69,9 @@ const addProductController = async (req, res, next) => {
       description,
       longDescription,
       type,
+      availableQuantity,
+      alert,
       productImageURL,
-      categoryId,
     });
 
     if (!newProduct) {
@@ -91,6 +79,25 @@ const addProductController = async (req, res, next) => {
     }
 
     res.status(200).json({ message: "Product added successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getProductController = async (req, res, next) => {
+  try {
+    const productId = req.params.productId;
+
+    const productFound = await Product.findById(productId)
+      .populate("oftenBoughtTogetherId", "productName")
+      .populate("discountId", "discountName")
+      .populate("categoryId", "categoryName");
+
+    if (!productFound) {
+      return next(appError("Produ t not found", 404));
+    }
+
+    res.status(200).json({ message: "Product data", data: productFound });
   } catch (err) {
     next(appError(err.message));
   }
@@ -190,89 +197,6 @@ const deleteProductController = async (req, res, next) => {
   }
 };
 
-const updateProductDetailsController = async (req, res, next) => {
-  const { productName, price, description, productDetails } = req.body;
-
-  const errors = validationResult(req);
-
-  let formattedErrors = {};
-  if (!errors.isEmpty()) {
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
-    return res.status(500).json({ errors: formattedErrors });
-  }
-
-  try {
-    const productId = req.params.productId;
-
-    const productFound = await Product.findById(productId);
-
-    if (!productFound) {
-      return next(appError("Product not found", 404));
-    }
-
-    // Prepare the update object
-    const updateFields = {};
-    if (productName) updateFields.productName = productName;
-    if (price) updateFields.price = price;
-    if (description) updateFields.description = description;
-    if (productDetails) updateFields.productDetails = productDetails;
-
-    // Save the updated product details
-    const updatedProduct = await Product.findByIdAndUpdate(
-      productId,
-      {
-        $set: updateFields,
-      },
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedProduct) {
-      return next(appError("Error in updating product"));
-    }
-
-    res.status(200).json({
-      message: "Product details updated successfully",
-    });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
-const deleteProductDetailsController = async (req, res, next) => {
-  try {
-    const productId = req.params.productId;
-
-    const productFound = await Product.findById(productId);
-
-    if (!productFound) {
-      return next(appError("Product not found", 404));
-    }
-
-    // Set productDetails to null or empty object based on your requirement
-    productFound.productDetails = {
-      productStatus: false,
-      availableQuantity: 0,
-      alert: 0,
-      variants: [],
-    };
-
-    // Save the updated product
-    const updatedProduct = await productFound.save();
-
-    if (!updatedProduct) {
-      return next(appError("Error in deleting product details"));
-    }
-
-    res.status(200).json({
-      message: "Product details deleted successfully",
-    });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
 const searchProductController = async (req, res, next) => {
   try {
     const { query } = req.query;
@@ -295,15 +219,142 @@ const searchProductController = async (req, res, next) => {
   }
 };
 
-const getProductByCategory = async (req, res, next) => {
+const getProductByCategoryController = async (req, res, next) => {
   try {
     const categoryId = req.params.categoryId;
 
-    const productsByCategory = await Product.find({ categoryId: categoryId });
+    const productsByCategory = await Product.find({
+      categoryId: categoryId,
+    }).select("productName");
 
     res.status(200).json({
       message: "Products By category",
       data: productsByCategory,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const changeProductCategoryController = async (req, res, next) => {
+  try {
+    const { categoryId, productId } = req.params;
+
+    const productFound = await Product.findById(productId);
+
+    if (!productFound) {
+      return next(appError("Product not found", 404));
+    }
+
+    productFound.categoryId = categoryId;
+    await productFound.save();
+
+    res.status(200).json({ message: "Product category changed" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+//Variants
+
+const addVariantToProductController = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+    const { variantName, variantTypes } = req.body;
+
+    // Validate input
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const formattedErrors = errors.array().reduce((acc, error) => {
+        acc[error.param] = error.msg;
+        return acc;
+      }, {});
+      return res.status(400).json({ errors: formattedErrors });
+    }
+
+    // Find the product by ID
+    const product = await Product.findById(productId);
+    if (!product) {
+      return next(appError("Product not found", 404));
+    }
+
+    // Create new variant object
+    const newVariant = {
+      variantName,
+      variantTypes,
+    };
+
+    // Add the new variant to the product's variants array
+    product.variants.push(newVariant);
+
+    // Save the updated product
+    await product.save();
+
+    res.status(201).json({
+      message: "Variant added successfully",
+      data: product,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const editVariantController = async (req, res, next) => {
+  try {
+    const { productId, variantId } = req.params;
+    const { variantName, variantTypes } = req.body;
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return next(appError("Product not found", 404));
+    }
+
+    const variant = product.variants.id(variantId);
+    if (!variant) {
+      return next(appError("Variant not found", 404));
+    }
+
+    variant.variantName = variantName;
+    variant.variantTypes = variantTypes;
+
+    await product.save();
+
+    res.status(200).json({
+      message: "Variant updated successfully",
+      data: product,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const deleteVariantTypeController = async (req, res, next) => {
+  try {
+    const { productId, variantId, variantTypeId } = req.params;
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return next(appError("Product not found", 404));
+    }
+
+    const variant = product.variants.id(variantId);
+    if (!variant) {
+      return next(appError("Variant not found", 404));
+    }
+
+    const variantTypeIndex = variant.variantTypes.findIndex(
+      (vt) => vt._id.toString() === variantTypeId
+    );
+    if (variantTypeIndex === -1) {
+      return next(appError("Variant type not found", 404));
+    }
+
+    variant.variantTypes.splice(variantTypeIndex, 1);
+    await product.save();
+
+    res.status(200).json({
+      message: "Variant type deleted successfully",
+      data: product,
     });
   } catch (err) {
     next(appError(err.message));
@@ -315,8 +366,10 @@ module.exports = {
   addProductController,
   editProductController,
   deleteProductController,
-  updateProductDetailsController,
-  deleteProductDetailsController,
+  addVariantToProductController,
+  editVariantController,
+  deleteVariantTypeController,
   searchProductController,
-  getProductByCategory,
+  getProductByCategoryController,
+  changeProductCategoryController,
 };
