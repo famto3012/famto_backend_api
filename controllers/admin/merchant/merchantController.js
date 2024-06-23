@@ -10,10 +10,28 @@ const {
   createRazorpayOrderId,
   verifyPayment,
 } = require("../../../utils/razorpayPayment");
-const calculateEndDate = require("../../../utils/calculateEndDate");
+const {
+  getPlanAmount,
+  calculateEndDate,
+} = require("../../../utils/sponsorshipHelpers");
+const { default: mongoose } = require("mongoose");
+
+//----------------------------
+//For Merchant
+//-----------------------------
 
 //Register
 const registerMerchantController = async (req, res, next) => {
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(500).json({ errors: formattedErrors });
+  }
+
   try {
     const { fullName, email, phoneNumber, password } = req.body;
 
@@ -50,9 +68,470 @@ const registerMerchantController = async (req, res, next) => {
   }
 };
 
+//Change status by merchant
+const changeMerchantStatusByMerchantController = async (req, res, next) => {
+  try {
+    const merchantFound = await Merchant.findById(req.userAuth);
+
+    if (!merchantFound) {
+      return next(appError("Merchant not found", 404));
+    }
+
+    merchantFound.status = !merchantFound.status;
+    await merchantFound.save();
+
+    res.status(200).json({ message: "Merchant status changed" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+//Update Merchant Details by merchant
+const updateMerchantDetailsByMerchantController = async (req, res, next) => {
+  const {
+    fullName,
+    email,
+    phoneNumber,
+    merchantName,
+    displayAddress,
+    description,
+    geofenceId,
+    location,
+    pancardNumber,
+    GSTINNumber,
+    FSSAINumber,
+    aadharNumber,
+    businessCategoryId,
+    deliveryOption,
+    deliveryTime,
+    servingArea,
+    availability,
+  } = req.body;
+
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(500).json({ errors: formattedErrors });
+  }
+
+  try {
+    const merchantId = req.userAuth;
+
+    const merchantFound = await Merchant.findById(merchantId);
+
+    if (!merchantFound) {
+      return next(appError("Merchant not found", 404));
+    }
+
+    let merchantImageURL =
+      merchantFound?.merchantDetail?.merchantImageURL || "";
+    let pancardImageURL = merchantFound?.merchantDetail?.pancardImageURL || "";
+    let GSTINImageURL = merchantFound?.merchantDetail?.GSTINImageURL || "";
+    let FSSAIImageURL = merchantFound?.merchantDetail?.FSSAIImageURL || "";
+    let aadharImageURL = merchantFound?.merchantDetail?.aadharImageURL || "";
+
+    if (req.files) {
+      const {
+        merchantImage,
+        pancardImage,
+        GSTINImage,
+        FSSAIImage,
+        aadharImage,
+      } = req.files;
+
+      if (merchantImage) {
+        if (merchantImageURL) {
+          await deleteFromFirebase(merchantImageURL);
+        }
+        merchantImageURL = await uploadToFirebase(
+          merchantImage[0],
+          "MerchantImages"
+        );
+      }
+      if (pancardImage) {
+        if (pancardImageURL) {
+          await deleteFromFirebase(pancardImageURL);
+        }
+        pancardImageURL = await uploadToFirebase(
+          pancardImage[0],
+          "PancardImages"
+        );
+      }
+      if (GSTINImage) {
+        if (GSTINImageURL) {
+          await deleteFromFirebase(GSTINImageURL);
+        }
+        GSTINImageURL = await uploadToFirebase(GSTINImage[0], "GSTINImages");
+      }
+      if (FSSAIImage) {
+        if (FSSAIImageURL) {
+          await deleteFromFirebase(FSSAIImageURL);
+        }
+        FSSAIImageURL = await uploadToFirebase(FSSAIImage[0], "FSSAIImages");
+      }
+      if (aadharImage) {
+        if (aadharImageURL) {
+          await deleteFromFirebase(aadharImageURL);
+        }
+        aadharImageURL = await uploadToFirebase(aadharImage[0], "AadharImages");
+      }
+    }
+
+    const details = {
+      merchantName,
+      displayAddress,
+      description,
+      geofenceId,
+      location,
+      pancardNumber,
+      GSTINNumber,
+      FSSAINumber,
+      aadharNumber,
+      businessCategoryId,
+      deliveryOption,
+      deliveryTime,
+      servingArea,
+      availability,
+      merchantImageURL,
+      pancardImageURL,
+      GSTINImageURL,
+      FSSAIImageURL,
+      aadharImageURL,
+    };
+
+    merchantFound.fullName = fullName;
+    merchantFound.email = email;
+    merchantFound.phoneNumber = phoneNumber;
+    merchantFound.merchantDetail = details;
+
+    await merchantFound.save();
+
+    res.status(200).json({ message: "Merchant details added successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+//Initiate Merchant sponsorship payment by merchant
+const sponsorshipPaymentByMerchantController = async (req, res, next) => {
+  const { sponsorshipStatus, currentPlan } = req.body;
+
+  try {
+    const merchantId = req.userAuth;
+
+    const merchantFound = await Merchant.findById(merchantId);
+
+    if (!merchantFound) {
+      return next(appError("Merchant not found", 404));
+    }
+
+    if (sponsorshipStatus) {
+      const planAmount = getPlanAmount(currentPlan);
+      const paymentResponse = await createRazorpayOrderId(planAmount);
+
+      if (paymentResponse.success) {
+        // Returning order details to the client for further processing
+        return res.status(200).json({
+          success: true,
+          orderId: paymentResponse.orderId,
+          amount: planAmount,
+          currentPlan,
+        });
+      } else {
+        return next(appError("Payment initialization failed", 400));
+      }
+    } else {
+      return res.status(400).json({ message: "Invalid sponsorship status" });
+    }
+  } catch (err) {
+    next(appError(err.messsage));
+  }
+};
+
+//Verify Merchant sponsorship payment by merchant
+const verifyPaymentByMerchantController = async (req, res, next) => {
+  const merchantId = req.userAuth;
+  const paymentDetails = req.body;
+
+  try {
+    const merchantFound = await Merchant.findById(merchantId);
+
+    if (!merchantFound) {
+      return next(appError("Merchant not found", 404));
+    }
+
+    const isValidPayment = await verifyPayment(paymentDetails);
+
+    if (isValidPayment) {
+      const { currentPlan } = paymentDetails;
+      let startDate = new Date();
+
+      const existingSponsorships = merchantFound?.sponsorshipDetail;
+
+      // Check if there's an existing sponsorship that hasn't ended yet
+      if (existingSponsorships.length > 0) {
+        const lastSponsorship =
+          existingSponsorships[existingSponsorships.length - 1];
+        if (new Date(lastSponsorship.endDate) > new Date()) {
+          startDate = new Date(lastSponsorship.endDate);
+        }
+      }
+
+      const endDate = calculateEndDate(startDate, currentPlan);
+
+      const newSponsorship = {
+        sponsorshipStatus: true,
+        currentPlan,
+        startDate,
+        endDate,
+        paymentDetails: JSON.stringify(paymentDetails),
+      };
+
+      merchantFound.sponsorshipDetail.push(newSponsorship);
+
+      await merchantFound.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Payment verified and sponsorship updated",
+      });
+    } else {
+      return next(appError("Payment verification failed", 400));
+    }
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 //----------------------------
 //For Admin Panel
 //-----------------------------
+
+// Search merchant
+const searchMerchantController = async (req, res, next) => {
+  try {
+    const { query } = req.query;
+
+    if (!query || query.trim() === "") {
+      return res.status(400).json({
+        message: "Search query cannot be empty",
+      });
+    }
+
+    const searchResults = await Merchant.find({
+      fullName: { $regex: searchTerm, $options: "i" },
+    }).select("fullName phoneNumber isApproved");
+
+    const merchantsWithDetails = await Promise.all(
+      searchResults.map(async (merchant) => {
+        // Fetch additional details if available, or set them to null if not
+        let merchantDetail = await Merchant.findById(merchant._id)
+          .select(
+            "status merchantDetail.geofenceId merchantDetail.averageRating merchantDetail.isServiceableToday"
+          )
+          .populate("merchantDetail.geofenceId", "name");
+
+        return {
+          ...merchant.toObject(),
+          status: merchantDetail ? merchantDetail.status : null,
+          geofence:
+            merchantDetail && merchantDetail?.merchantDetail?.geofenceId
+              ? merchantDetail.merchantDetail?.geofenceId.name
+              : null,
+          averageRating:
+            merchantDetail && merchantDetail.merchantDetail
+              ? merchantDetail.merchantDetail.averageRating
+              : null,
+          isServiceableToday:
+            merchantDetail && merchantDetail.merchantDetail
+              ? merchantDetail.merchantDetail.isServiceableToday
+              : null,
+        };
+      })
+    );
+
+    res.status(200).json({
+      message: "Searched merchant results",
+      data: merchantsWithDetails,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+//TODO: Need to work on
+// Filter merchant by serviceable
+const filterMerchantByServiceableController = async (req, res, next) => {
+  try {
+    const { filter } = req.query;
+
+    if (!filter || (filter !== "open" && filter !== "closed")) {
+      return res.status(400).json({
+        message: "Filter query must be 'open' or 'closed'",
+      });
+    }
+
+    const merchantsFound = await Merchant.find({})
+      .select("fullName phoneNumber isApproved merchantDetail")
+      .populate("merchantDetail.geofenceId", "name");
+
+    const filteredMerchants = merchantsFound.filter((merchant) => {
+      const merchantDetail = merchant.merchantDetail;
+
+      if (!merchantDetail || !merchantDetail.availability)
+        return filter === "closed";
+
+      const today = new Date()
+        .toLocaleString("en-US", { weekday: "long" })
+        .toLowerCase();
+      const todayAvailability = merchantDetail.availability.specificDays[today];
+
+      if (!todayAvailability) return filter === "closed";
+
+      if (todayAvailability.openAllDay) return filter === "open";
+      if (todayAvailability.closedAllDay) return filter === "closed";
+
+      if (
+        todayAvailability.specificTime &&
+        todayAvailability.startTime &&
+        todayAvailability.endTime
+      ) {
+        const now = new Date();
+        const [startHour, startMinute] = todayAvailability.startTime
+          .split(":")
+          .map(Number);
+        const [endHour, endMinute] = todayAvailability.endTime
+          .split(":")
+          .map(Number);
+
+        const startTime = new Date(now.setHours(startHour, startMinute, 0));
+        const endTime = new Date(now.setHours(endHour, endMinute, 0));
+
+        const isOpen = now >= startTime && now <= endTime;
+        return filter === "open" ? isOpen : !isOpen;
+      }
+
+      return filter === "closed";
+    });
+
+    const merchantsWithDetails = filteredMerchants.map((merchant) => {
+      const merchantDetail = merchant.merchantDetail;
+      return {
+        ...merchant.toObject(),
+        status: merchantDetail ? merchantDetail.status : null,
+        geofence:
+          merchantDetail && merchantDetail.geofenceId
+            ? merchantDetail.geofenceId.name
+            : null,
+        averageRating: merchantDetail ? merchantDetail.averageRating : null,
+        isServiceableToday: merchantDetail
+          ? merchantDetail.isServiceableToday
+          : null,
+      };
+    });
+
+    res.status(200).json({
+      message: "Filtered merchant results",
+      data: merchantsWithDetails,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Filter merchant by business category
+const filterMerchantByBusinessCategoryController = async (req, res, next) => {
+  try {
+    const { filter } = req.query;
+
+    if (!filter) {
+      return res.status(400).json({ message: "Business category is required" });
+    }
+
+    // Convert geofence query parameter to ObjectId
+    const businessCategoryObjectId = new mongoose.Types.ObjectId(filter.trim());
+
+    const searchResults = await Merchant.find(
+      { "merchantDetail.businessCategoryId": businessCategoryObjectId },
+      // Specifying the fields needed to include in the response
+      "_id fullName email phoneNumber status isApproved"
+    );
+
+    const merchantsWithDetails = await Promise.all(
+      searchResults.map(async (merchant) => {
+        // Fetch additional details if available, or set them to null if not
+        let merchantDetail = await Merchant.findById(merchant._id).select(
+          "merchantDetail.isServiceableToday"
+        );
+
+        return {
+          ...merchant.toObject(),
+          isServiceableToday:
+            merchantDetail && merchantDetail.merchantDetail
+              ? merchantDetail.merchantDetail.isServiceableToday
+              : "unknown",
+        };
+      })
+    );
+
+    res.status(200).json({
+      message: "Filtering merchants by geofence",
+      data: merchantsWithDetails,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Filter merchant by geofence
+const filterMerchantByGeofenceController = async (req, res, next) => {
+  try {
+    const { filter } = req.query;
+
+    if (!filter) {
+      return res.status(400).json({ message: "Geofence is required" });
+    }
+
+    // Convert geofence query parameter to ObjectId
+    const geofenceObjectId = new mongoose.Types.ObjectId(filter.trim());
+
+    const searchResults = await Merchant.find(
+      { "merchantDetail.geofenceId": geofenceObjectId },
+      // Specifying the fields needed to include in the response
+      "_id fullName email phoneNumber status isApproved"
+    );
+
+    const merchantsWithDetails = await Promise.all(
+      searchResults.map(async (merchant) => {
+        // Fetch additional details if available, or set them to null if not
+        let merchantDetail = await Merchant.findById(merchant._id).select(
+          "merchantDetail.isServiceableToday"
+        );
+
+        return {
+          ...merchant.toObject(),
+          isServiceableToday:
+            merchantDetail && merchantDetail.merchantDetail
+              ? merchantDetail.merchantDetail.isServiceableToday
+              : "unknown",
+        };
+      })
+    );
+
+    res.status(200).json({
+      message: "Filtering merchants by geofence",
+      data: merchantsWithDetails,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Approve merchant registration
 const approveRegistrationController = async (req, res, next) => {
   try {
     const merchantFound = await Merchant.findById(req.params.merchantId);
@@ -73,6 +552,7 @@ const approveRegistrationController = async (req, res, next) => {
   }
 };
 
+// Reject merchant registration
 const rejectRegistrationController = async (req, res, next) => {
   try {
     const merchantFound = await Merchant.findById(req.params.merchantId);
@@ -91,6 +571,7 @@ const rejectRegistrationController = async (req, res, next) => {
   }
 };
 
+// Get all merchant details
 const getAllMerchantsController = async (req, res, next) => {
   try {
     const merchantsFound = await Merchant.find({}).select(
@@ -134,6 +615,7 @@ const getAllMerchantsController = async (req, res, next) => {
   }
 };
 
+// Get single merchant detail by Id
 const getSingleMerchantController = async (req, res, next) => {
   try {
     const merchantFound = await Merchant.findById(req.params.merchantId);
@@ -142,15 +624,44 @@ const getSingleMerchantController = async (req, res, next) => {
       return next(appError("Merchant not found", 404));
     }
 
+    // Extract the first sponsorship detail
+    const firstSponsorshipDetail = merchantFound.sponsorshipDetail
+      ? merchantFound.sponsorshipDetail[0]
+      : null;
+
     res.status(200).json({
       message: "Merchant details",
-      data: merchantFound,
+      data: {
+        ...merchantFound._doc,
+        sponsorshipDetail: firstSponsorshipDetail
+          ? [firstSponsorshipDetail]
+          : [],
+      },
     });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
+// Change merchant status by admin
+const changeMerchantStatusController = async (req, res, next) => {
+  try {
+    const merchantFound = await Merchant.findById(req.params.merchantId);
+
+    if (!merchantFound) {
+      return next(appError("Merchant not found", 404));
+    }
+
+    merchantFound.status = !merchantFound.status;
+    await merchantFound.save();
+
+    res.status(200).json({ message: "Merchant status changed" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Update Merchant Details by admin
 const updateMerchantDetailsController = async (req, res, next) => {
   const {
     fullName,
@@ -280,6 +791,7 @@ const updateMerchantDetailsController = async (req, res, next) => {
   }
 };
 
+// Initiate Merchant sponsorship payment by admin
 const sponsorshipPaymentController = async (req, res, next) => {
   const { sponsorshipStatus, currentPlan } = req.body;
 
@@ -315,6 +827,7 @@ const sponsorshipPaymentController = async (req, res, next) => {
   }
 };
 
+// Verify Merchant sponsorship payment by admin
 const verifyPaymentController = async (req, res, next) => {
   const { merchantId } = req.params;
   const paymentDetails = req.body;
@@ -330,16 +843,30 @@ const verifyPaymentController = async (req, res, next) => {
 
     if (isValidPayment) {
       const { currentPlan } = paymentDetails;
-      const startDate = new Date();
+      let startDate = new Date();
+
+      const existingSponsorships = merchantFound?.sponsorshipDetail;
+
+      // Check if there's an existing sponsorship that hasn't ended yet
+      if (existingSponsorships.length > 0) {
+        const lastSponsorship =
+          existingSponsorships[existingSponsorships.length - 1];
+        if (new Date(lastSponsorship.endDate) > new Date()) {
+          startDate = new Date(lastSponsorship.endDate);
+        }
+      }
+
       const endDate = calculateEndDate(startDate, currentPlan);
 
-      merchantFound.sponsorshipDetail = {
+      const newSponsorship = {
         sponsorshipStatus: true,
         currentPlan,
         startDate,
         endDate,
-        paymentDetails,
+        paymentDetails: JSON.stringify(paymentDetails),
       };
+
+      merchantFound.sponsorshipDetail.push(newSponsorship);
 
       await merchantFound.save();
 
@@ -355,26 +882,20 @@ const verifyPaymentController = async (req, res, next) => {
   }
 };
 
-const getPlanAmount = (plan) => {
-  switch (plan) {
-    case "Monthly":
-      return 250;
-    case "3 Month":
-      return 750;
-    case "6 Month":
-      return 1500;
-    case "1 Year":
-      return 3000;
-    default:
-      throw new Error("Invalid plan");
-  }
-};
-
 module.exports = {
   registerMerchantController,
+  changeMerchantStatusByMerchantController,
+  updateMerchantDetailsByMerchantController,
+  sponsorshipPaymentByMerchantController,
+  verifyPaymentByMerchantController,
   updateMerchantDetailsController,
+  searchMerchantController,
+  filterMerchantByServiceableController,
+  filterMerchantByGeofenceController,
+  filterMerchantByBusinessCategoryController,
   getAllMerchantsController,
   getSingleMerchantController,
+  changeMerchantStatusController,
   approveRegistrationController,
   rejectRegistrationController,
   sponsorshipPaymentController,

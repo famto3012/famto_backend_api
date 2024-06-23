@@ -30,7 +30,7 @@ const adminSchema = new mongoose.Schema(
     isBlocked: {
       type: Boolean,
       default: false,
-    }
+    },
   },
   {
     timestamps: true,

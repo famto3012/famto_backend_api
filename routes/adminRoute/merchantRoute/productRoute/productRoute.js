@@ -10,6 +10,7 @@ const {
   editVariantController,
   getProductByCategoryController,
   changeProductCategoryController,
+  changeInventoryStatusController,
 } = require("../../../../controllers/admin/merchant/product/productController");
 const { upload } = require("../../../../utils/imageOperation");
 const {
@@ -74,6 +75,14 @@ productRoute.patch(
   isAuthenticated,
   isAdminOrMerchant,
   changeProductCategoryController
+);
+
+// Change inventory status
+productRoute.patch(
+  "/change-inventory-status/:productId",
+  isAuthenticated,
+  isAdminOrMerchant,
+  changeInventoryStatusController
 );
 
 //Variants
