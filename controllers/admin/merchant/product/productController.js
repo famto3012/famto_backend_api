@@ -255,6 +255,25 @@ const changeProductCategoryController = async (req, res, next) => {
   }
 };
 
+const changeInventoryStatusController = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+
+    const productFound = await Product.findById(productId);
+
+    if (!productFound) {
+      return next(appError("Product not found", 404));
+    }
+
+    productFound.inventory = !productFound.inventory;
+    await productFound.save();
+
+    res.status(200).json({ message: "Product inventory status changed" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 //Variants
 
 const addVariantToProductController = async (req, res, next) => {
@@ -372,4 +391,5 @@ module.exports = {
   searchProductController,
   getProductByCategoryController,
   changeProductCategoryController,
+  changeInventoryStatusController,
 };

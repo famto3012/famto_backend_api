@@ -183,7 +183,7 @@ const deleteAgentPricingController = async (req, res, next) => {
   try {
     const agentPricingFound = await AgentPricing.findById(
       req.params.agentPricingId
-    ).populate("geofenceId", "name");
+    );
 
     if (!agentPricingFound) {
       return next(appError("Agent pricing not found", 404));
@@ -201,7 +201,7 @@ const changeStatusAgentPricingController = async (req, res, next) => {
   try {
     const agentPricingFound = await AgentPricing.findById(
       req.params.agentPricingId
-    ).populate("geofenceId", "name");
+    );
 
     if (!agentPricingFound) {
       return next(appError("Agent pricing not found", 404));

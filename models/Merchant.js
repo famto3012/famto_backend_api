@@ -102,7 +102,7 @@ const sponsorshipSchema = mongoose.Schema(
       default: null,
     },
     paymentDetails: {
-      type: String,
+      type: mongoose.Schema.Types.Mixed,
       default: null,
     },
   },
@@ -256,7 +256,10 @@ const merchantSchema = new mongoose.Schema(
       default: null,
     },
     merchantDetail: merchantDetailSchema,
-    sponsorshipDetail: sponsorshipSchema,
+    sponsorshipDetail: {
+      type: [sponsorshipSchema],
+      default: [],
+    },
   },
   {
     timestamps: true,

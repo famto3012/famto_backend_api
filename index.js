@@ -1,6 +1,7 @@
 const express = require("express");
 // const cookieParser = require("cookie-parser");
 const cors = require("cors");
+const cron = require("node-cron");
 
 const globalErrorHandler = require("./middlewares/globalErrorHandler");
 
@@ -29,6 +30,9 @@ const merchantDiscountRoute = require("./routes/adminRoute/discountRoute/merchan
 const productDiscountRoute = require("./routes/adminRoute/discountRoute/productDiscountRoute");
 const appBannerRoute = require("./routes/adminRoute/bannerRoute/appBannerRoute");
 const appCustomizationRoute = require("./routes/adminRoute/appCustomizationRoute/appCustomizationRoute");
+
+const { deleteExpiredSponsorshipPlans } = require("./utils/sponsorshipHelpers");
+const settingsRoute = require("./routes/adminRoute/settingsRoute/settingsRoute");
 
 require("dotenv").config();
 require("./config/dbConnect");
@@ -68,12 +72,19 @@ app.use("/api/v1/admin/customer-pricing", customerPricingRoute);
 app.use("/api/v1/admin/customer-surge", customerSurgeRoute);
 app.use("/api/v1/admin/agent-pricing", agentPricingRoute);
 app.use("/api/v1/admin/agent-surge", agentSurgeRoute);
+app.use("/api/v1/settings", settingsRoute);
 
 //agent
 app.use("/api/v1/agents", agentRoute);
 
 //customer
 app.use("/api/v1/customers", customerRoute);
+
+// Schedule the task to run daily at midnight for deleteing expired sponsorship plans of Merchnats
+cron.schedule("0 0 * * *", async () => {
+  console.log("Running scheduled task to delete expired sponsorship plans");
+  await deleteExpiredSponsorshipPlans();
+});
 
 //global errors
 app.use(globalErrorHandler);

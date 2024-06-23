@@ -8,6 +8,12 @@ const {
   updateMerchantDetailsController,
   sponsorshipPaymentController,
   verifyPaymentController,
+  changeMerchantStatusController,
+  changeMerchantStatusByMerchantController,
+  searchMerchantController,
+  filterMerchantByServiceableController,
+  filterMerchantByGeofenceController,
+  filterMerchantByBusinessCategoryController,
 } = require("../../../controllers/admin/merchant/merchantController");
 const { upload } = require("../../../utils/imageOperation");
 const isAdmin = require("../../../middlewares/isAdmin");
@@ -18,6 +24,38 @@ const merchantRoute = express.Router();
 
 //Register merchant
 merchantRoute.post("/register", registerMerchantController);
+
+//Change status
+merchantRoute.patch(
+  "/change-status",
+  isAuthenticated,
+  changeMerchantStatusByMerchantController
+);
+
+//Update Merchant details
+merchantRoute.put(
+  "/update-merchant-details",
+  upload.fields([
+    { name: "merchantImage", maxCount: 1 },
+    { name: "pancardImage", maxCount: 1 },
+    { name: "GSTINImage", maxCount: 1 },
+    { name: "FSSAIImage", maxCount: 1 },
+    { name: "aadharImage", maxCount: 1 },
+  ]),
+  merchantDetailValidations,
+  isAuthenticated,
+  updateMerchantDetailsController
+);
+
+//Sponsorship payment
+merchantRoute.post(
+  "/sponsorship-payment",
+  isAuthenticated,
+  sponsorshipPaymentController
+);
+
+//Verify sponsorship payment
+merchantRoute.post("/verify-payment", isAuthenticated, verifyPaymentController);
 
 //-------------------------------
 //For Admin
@@ -39,25 +77,62 @@ merchantRoute.patch(
   rejectRegistrationController
 );
 
+// Search merchant
+merchantRoute.get(
+  "/admin/search",
+  isAuthenticated,
+  isAdmin,
+  searchMerchantController
+);
+
+// Filter merchant by serviceable
+merchantRoute.get(
+  "/admin/serviceable",
+  isAuthenticated,
+  isAdmin,
+  filterMerchantByServiceableController
+);
+
+// Filter merchant by geofence
+merchantRoute.get(
+  "/admin/geofence",
+  isAuthenticated,
+  isAdmin,
+  filterMerchantByGeofenceController
+);
+
+// Filter merchant by business category
+merchantRoute.get(
+  "/admin/business-category",
+  isAuthenticated,
+  isAdmin,
+  filterMerchantByBusinessCategoryController
+);
+
 //Get all merchants
 merchantRoute.get(
   "/admin/all-merchants",
-  // isAuthenticated,
-  // isAdmin,
+  isAuthenticated,
+  isAdmin,
   getAllMerchantsController
 );
 
 //Get single merchant
 merchantRoute.get(
-  "/:merchantId",
+  "/admin/:merchantId",
   isAuthenticated,
   isAdmin,
   getSingleMerchantController
 );
 
+merchantRoute.patch(
+  "/admin/change-status/:merchantId",
+  changeMerchantStatusController
+);
+
 //Update Merchant details
 merchantRoute.put(
-  "/update-merchant-details/:merchantId",
+  "/admin/update-merchant-details/:merchantId",
   upload.fields([
     { name: "merchantImage", maxCount: 1 },
     { name: "pancardImage", maxCount: 1 },
@@ -67,16 +142,24 @@ merchantRoute.put(
   ]),
   merchantDetailValidations,
   isAuthenticated,
+  isAdmin,
   updateMerchantDetailsController
 );
 
 //Sponsorship payment
 merchantRoute.post(
-  "/sponsorship-payment/:merchantId",
+  "/admin/sponsorship-payment/:merchantId",
+  isAuthenticated,
+  isAdmin,
   sponsorshipPaymentController
 );
 
 //Verify sponsorship payment
-merchantRoute.post("/verify-payment/:merchantId", verifyPaymentController);
+merchantRoute.post(
+  "/admin/verify-payment/:merchantId",
+  isAuthenticated,
+  isAdmin,
+  verifyPaymentController
+);
 
 module.exports = merchantRoute;
