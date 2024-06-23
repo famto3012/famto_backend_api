@@ -16,32 +16,44 @@ const businessCategoryRoute = express.Router();
 businessCategoryRoute.post(
   "/add-business-category",
   upload.single("bannerImage"),
+  isAuthenticated,
+  isAdmin,
   addBusinessCategoryController
 );
 
 businessCategoryRoute.get(
   "/get-all-business-category",
+  isAuthenticated,
+  isAdmin,
   getAllBusinessCategoryController
 );
 
 businessCategoryRoute.get(
   "/:businessCategoryId",
+  isAuthenticated,
+  isAdmin,
   getSingleBusinessCategoryController
 );
 
 businessCategoryRoute.put(
   "/edit-business-category/:businessCategoryId",
   upload.single("bannerImage"),
+  isAuthenticated,
+  isAdmin,
   editBusinessCategoryController
 );
 
 businessCategoryRoute.delete(
   "/delete-business-category/:businessCategoryId",
+  isAuthenticated,
+  isAdmin,
   deleteBusinessCategoryController
 );
 
 businessCategoryRoute.post(
   "/change-status/:businessCategoryId",
+  isAuthenticated,
+  isAdmin,
   enableOrDisableBusinessCategoryController
 );
 
