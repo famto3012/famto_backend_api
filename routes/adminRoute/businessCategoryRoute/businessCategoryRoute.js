@@ -7,7 +7,10 @@ const {
   editBusinessCategoryController,
   deleteBusinessCategoryController,
   enableOrDisableBusinessCategoryController,
+  updateBusinessCategoryOrderController,
 } = require("../../../controllers/admin/businessCategory/businessCategoryController");
+const isAuthenticated = require("../../../middlewares/isAuthenticated");
+const isAdmin = require("../../../middlewares/isAdmin");
 const businessCategoryRoute = express.Router();
 
 businessCategoryRoute.post(
@@ -40,6 +43,13 @@ businessCategoryRoute.delete(
 businessCategoryRoute.post(
   "/change-status/:businessCategoryId",
   enableOrDisableBusinessCategoryController
+);
+
+businessCategoryRoute.put(
+  "/edit-business-category-order",
+  isAuthenticated,
+  isAdmin,
+  updateBusinessCategoryOrderController
 );
 
 module.exports = businessCategoryRoute;

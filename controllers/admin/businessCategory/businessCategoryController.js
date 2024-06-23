@@ -58,7 +58,7 @@ const getAllBusinessCategoryController = async (req, res, next) => {
       .sort({ order: 1 });
 
     res.status(200).json({
-      message: "All ussiness categories",
+      message: "All business categories",
       data: allBusinessCategories,
     });
   } catch (err) {
@@ -172,6 +172,21 @@ const enableOrDisableBusinessCategoryController = async (req, res, next) => {
   }
 };
 
+const updateBusinessCategoryOrderController = async (req, res, next) => {
+  const { categories } = req.body;
+
+  try {
+    for (const category of categories) {
+      await BusinessCategory.findByIdAndUpdate(category.id, { order: category.order });
+    }
+
+    res.status(200).json({ message: "Business category order updated successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+
 module.exports = {
   addBusinessCategoryController,
   getAllBusinessCategoryController,
@@ -179,4 +194,5 @@ module.exports = {
   editBusinessCategoryController,
   deleteBusinessCategoryController,
   enableOrDisableBusinessCategoryController,
+  updateBusinessCategoryOrderController
 };
