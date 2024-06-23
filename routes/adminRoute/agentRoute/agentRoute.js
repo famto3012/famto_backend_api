@@ -79,8 +79,7 @@ adminAgentRoute.get(
   getSingleAgentController
 );
 
-//TODO: split into 2 approve and decline
-//Approve OR Decline registration
+//Approve registration
 adminAgentRoute.patch(
   "/approve-registration/:agentId",
   isAuthenticated,
@@ -88,6 +87,7 @@ adminAgentRoute.patch(
   approveAgentRegistrationController
 );
 
+//Decline registration
 adminAgentRoute.delete(
   "/reject-registration/:agentId",
   isAuthenticated,
