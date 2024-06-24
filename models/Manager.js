@@ -20,7 +20,7 @@ const managerSchema = mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["Role1", "Role2"], //INFO: Edit for adding additional roles
+      default: "Manager", //INFO: Edit for adding additional roles
       required: true,
     },
     merchants: {
@@ -37,6 +37,11 @@ const managerSchema = mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    domain: {
+      type: String,
+      enum: ["role1", "role2"],
+      required: true
+    }
   },
   {
     timestamp: true,
