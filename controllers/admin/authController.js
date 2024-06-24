@@ -5,6 +5,7 @@ const Customer = require("../../models/Customer");
 const Admin = require("../../models/Admin");
 const { validationResult } = require("express-validator");
 const Merchant = require("../../models/Merchant");
+const Manager = require("../../models/Manager");
 
 const blockMerchant = async (req, res) => {
   try {
@@ -86,6 +87,8 @@ const loginController = async (req, res, next) => {
       user = await Admin.findOne({ email: normalizedEmail });
     } else if (role === "Merchant") {
       user = await Merchant.findOne({ email: normalizedEmail });
+    } else if (role === "Manager") {
+      user = await Manager.findOne({ email: normalizedEmail });
     } else {
       formattedErrors.role = "Invalid role";
       return res.status(500).json({ errors: formattedErrors });

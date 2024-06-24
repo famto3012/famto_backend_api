@@ -30,11 +30,14 @@ const merchantDiscountRoute = require("./routes/adminRoute/discountRoute/merchan
 const productDiscountRoute = require("./routes/adminRoute/discountRoute/productDiscountRoute");
 const appBannerRoute = require("./routes/adminRoute/bannerRoute/appBannerRoute");
 const appCustomizationRoute = require("./routes/adminRoute/appCustomizationRoute/appCustomizationRoute");
-
 const { deleteExpiredSponsorshipPlans } = require("./utils/sponsorshipHelpers");
 const settingsRoute = require("./routes/adminRoute/settingsRoute/settingsRoute");
 const referalRoute = require("./routes/adminRoute/referalRoute/referalRoute");
 const adminCustomerRoute = require("./routes/adminRoute/customerRoute/customerRoute");
+const serviceCategoryRoute = require("./routes/adminRoute/serviceCategoryRoute/serviceCategoryRoute");
+const pickAndDropBannerRoute = require("./routes/adminRoute/bannerRoute/pickAndDropBannerRoute");
+const customOrderBannerRoute = require("./routes/adminRoute/bannerRoute/customOrderBannerRoute");
+
 
 require("dotenv").config();
 require("./config/dbConnect");
@@ -58,6 +61,8 @@ app.use("/api/v1/products", productRoute); //can be used by both admin and merch
 app.use("/api/v1/admin/notification", adminNotificationRoute);
 app.use("/api/v1/admin/banner", bannerRoute);
 app.use("/api/v1/admin/app-banner", appBannerRoute);
+app.use("/api/v1/admin/pick-and-drop-banner", pickAndDropBannerRoute);
+app.use("/api/v1/admin/custom-order-banner", customOrderBannerRoute);
 app.use("/api/v1/admin/loyalty-point", loyaltyPointRoute);
 app.use("/api/v1/admin/promocode", promoCodeRoute);
 app.use("/api/v1/merchant/shop-discount", merchantDiscountRoute);
@@ -68,6 +73,7 @@ app.use("/api/v1/admin/managers", managerRoute);
 app.use("/api/v1/admin/app-customization", appCustomizationRoute);
 app.use("/api/v1/admin/taxes", taxRoute);
 app.use("/api/v1/admin/business-categories", businessCategoryRoute);
+app.use("/api/v1/admin/service-categories", serviceCategoryRoute);
 app.use("/api/v1/admin/merchant-pricing", merchantPricingRoute);
 app.use("/api/v1/admin/merchant-surge", merchantSurgeRoute);
 app.use("/api/v1/admin/customer-pricing", customerPricingRoute);
