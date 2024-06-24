@@ -62,12 +62,12 @@ const availabilitySchema = new mongoose.Schema(
 
 const ratingByCustomerSchema = new mongoose.Schema(
   {
-    userId: {
+    customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-    ratingDescription: {
+    review: {
       type: String,
       required: true,
     },
@@ -143,7 +143,7 @@ const merchantDetailSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    ratings: [ratingByCustomerSchema],
+    ratingByCustomers: [ratingByCustomerSchema],
     pancardNumber: {
       type: String,
       required: true,
@@ -206,13 +206,16 @@ const merchantDetailSchema = new mongoose.Schema(
     servingRadius: {
       type: Number,
     },
-    availability: {
-      type: availabilitySchema,
-      required: true,
-    },
+    // availability: {
+    //   type: availabilitySchema,
+    //   required: true,
+    // },
+    availability: availabilitySchema,
   },
   {
     _id: false,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
 
@@ -263,20 +266,30 @@ const merchantSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
 
+// merchantDetailSchema.pre(/^find/, function (next) {
 // Virtual field for calculating the average rating
 merchantDetailSchema.virtual("averageRating").get(function () {
-  if (this.ratings?.length === 0) return 0;
-  const total = this.ratings?.reduce((acc, rating) => acc + rating.rating, 0);
-  return total / this.ratings?.length;
+  if (this.ratingByCustomers.length === 0) return 0;
+  const total = this.ratingByCustomers.reduce(
+    (acc, rating) => acc + rating.rating,
+    0
+  );
+  return total / this.ratingByCustomers.length;
 });
 
 // Virtual field for checking if the merchant is serviceable today and returning "open" or "closed"
 merchantDetailSchema.virtual("isServiceableToday").get(function () {
+  if (this.availability?.type === "Full-time") {
+    return "open";
+  }
+
   const today = new Date()
-    .toLocaleString("en-US", { weekday: "long" })
+    .toLocaleString("en-IN", { weekday: "long" })
     .toLowerCase();
   const todayAvailability = this.availability?.specificDays[today];
   if (!todayAvailability) return "closed";
@@ -285,9 +298,9 @@ merchantDetailSchema.virtual("isServiceableToday").get(function () {
   if (todayAvailability.closedAllDay) return "closed";
 
   if (
-    todayAvailability?.specificTime &&
-    todayAvailability?.startTime &&
-    todayAvailability?.endTime
+    todayAvailability.specificTime &&
+    todayAvailability.startTime &&
+    todayAvailability.endTime
   ) {
     const now = new Date();
     const [startHour, startMinute] = todayAvailability.startTime
@@ -297,14 +310,18 @@ merchantDetailSchema.virtual("isServiceableToday").get(function () {
       .split(":")
       .map(Number);
 
-    const startTime = new Date(now.setHours(startHour, startMinute, 0));
-    const endTime = new Date(now.setHours(endHour, endMinute, 0));
+    const startTime = new Date(now.getTime());
+    startTime.setHours(startHour, startMinute, 0, 0);
+
+    const endTime = new Date(now.getTime());
+    endTime.setHours(endHour, endMinute, 0, 0);
 
     return now >= startTime && now <= endTime ? "open" : "closed";
   }
 
   return "closed";
 });
+// });
 
 const Merchant = mongoose.model("Merchant", merchantSchema);
 module.exports = Merchant;

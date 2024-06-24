@@ -33,6 +33,8 @@ const appCustomizationRoute = require("./routes/adminRoute/appCustomizationRoute
 
 const { deleteExpiredSponsorshipPlans } = require("./utils/sponsorshipHelpers");
 const settingsRoute = require("./routes/adminRoute/settingsRoute/settingsRoute");
+const referalRoute = require("./routes/adminRoute/referalRoute/referalRoute");
+const adminCustomerRoute = require("./routes/adminRoute/customerRoute/customerRoute");
 
 require("dotenv").config();
 require("./config/dbConnect");
@@ -73,6 +75,8 @@ app.use("/api/v1/admin/customer-surge", customerSurgeRoute);
 app.use("/api/v1/admin/agent-pricing", agentPricingRoute);
 app.use("/api/v1/admin/agent-surge", agentSurgeRoute);
 app.use("/api/v1/settings", settingsRoute);
+app.use("/api/v1/referals", referalRoute);
+app.use("/api/v1/admin/customers", adminCustomerRoute);
 
 //agent
 app.use("/api/v1/agents", agentRoute);
