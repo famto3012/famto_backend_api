@@ -30,12 +30,14 @@ const merchantDiscountRoute = require("./routes/adminRoute/discountRoute/merchan
 const productDiscountRoute = require("./routes/adminRoute/discountRoute/productDiscountRoute");
 const appBannerRoute = require("./routes/adminRoute/bannerRoute/appBannerRoute");
 const appCustomizationRoute = require("./routes/adminRoute/appCustomizationRoute/appCustomizationRoute");
-
 const { deleteExpiredSponsorshipPlans } = require("./utils/sponsorshipHelpers");
 const settingsRoute = require("./routes/adminRoute/settingsRoute/settingsRoute");
+const referalRoute = require("./routes/adminRoute/referalRoute/referalRoute");
+const adminCustomerRoute = require("./routes/adminRoute/customerRoute/customerRoute");
 const serviceCategoryRoute = require("./routes/adminRoute/serviceCategoryRoute/serviceCategoryRoute");
 const pickAndDropBannerRoute = require("./routes/adminRoute/bannerRoute/pickAndDropBannerRoute");
 const customOrderBannerRoute = require("./routes/adminRoute/bannerRoute/customOrderBannerRoute");
+
 
 require("dotenv").config();
 require("./config/dbConnect");
@@ -79,6 +81,8 @@ app.use("/api/v1/admin/customer-surge", customerSurgeRoute);
 app.use("/api/v1/admin/agent-pricing", agentPricingRoute);
 app.use("/api/v1/admin/agent-surge", agentSurgeRoute);
 app.use("/api/v1/settings", settingsRoute);
+app.use("/api/v1/referals", referalRoute);
+app.use("/api/v1/admin/customers", adminCustomerRoute);
 
 //agent
 app.use("/api/v1/agents", agentRoute);

@@ -8,7 +8,7 @@ const {
   getAgentByGeofenceController,
   approveAgentRegistrationController,
   rejectAgentRegistrationController,
-} = require("../../../controllers/admin/agent/agentCOntroller");
+} = require("../../../controllers/admin/agent/agentController");
 const { upload } = require("../../../utils/imageOperation");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const isAdmin = require("../../../middlewares/isAdmin");

@@ -531,6 +531,44 @@ const filterMerchantByGeofenceController = async (req, res, next) => {
   }
 };
 
+// Get ratings and reviews by customer
+const getRatingsAndReviewsByCustomerController = async (req, res, next) => {
+  try {
+    const merchantFound = await Merchant.findById(
+      req.params.merchantId
+    ).populate({
+      path: "ratingsByCustomers",
+      populate: {
+        path: "customerId",
+        model: "Customer",
+        select: "fullName _id", // Selecting the fields of fullName and _id from Customer
+      },
+    });
+
+    if (!merchantFound) {
+      return next(appError("Agent not found", 404));
+    }
+
+    const ratings = merchantFound?.merchantDetail?.ratingByCustomers?.map(
+      (rating) => ({
+        review: rating.review,
+        rating: rating.rating,
+        customerId: {
+          id: rating.customerId._id,
+          fullName: rating.customerId.fullName,
+        },
+      })
+    );
+
+    res.status(200).json({
+      message: "Ratings of agent by customer",
+      data: ratings,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 // Approve merchant registration
 const approveRegistrationController = async (req, res, next) => {
   try {
@@ -574,37 +612,29 @@ const rejectRegistrationController = async (req, res, next) => {
 // Get all merchant details
 const getAllMerchantsController = async (req, res, next) => {
   try {
-    const merchantsFound = await Merchant.find({}).select(
-      "fullName phoneNumber isApproved"
-    );
+    const merchantsFound = await Merchant.find({})
+      .select("fullName phoneNumber isApproved status merchantDetail")
+      .populate("merchantDetail.geofenceId", "name");
 
-    const merchantsWithDetails = await Promise.all(
-      merchantsFound.map(async (merchant) => {
-        // Fetch additional details if available, or set them to null if not
-        let merchantDetail = await Merchant.findById(merchant._id)
-          .select(
-            "status merchantDetail.geofenceId merchantDetail.averageRating merchantDetail.isServiceableToday"
-          )
-          .populate("merchantDetail.geofenceId", "name");
+    const merchantsWithDetails = merchantsFound.map((merchant) => {
+      const geofenceName = merchant?.merchantDetail?.geofenceId
+        ? merchant.merchantDetail.geofenceId.name
+        : null;
 
-        return {
-          ...merchant.toObject(),
-          status: merchantDetail ? merchantDetail.status : null,
-          geofence:
-            merchantDetail && merchantDetail?.merchantDetail?.geofenceId
-              ? merchantDetail.merchantDetail?.geofenceId.name
-              : null,
-          averageRating:
-            merchantDetail && merchantDetail.merchantDetail
-              ? merchantDetail.merchantDetail.averageRating
-              : null,
-          isServiceableToday:
-            merchantDetail && merchantDetail.merchantDetail
-              ? merchantDetail.merchantDetail.isServiceableToday
-              : null,
-        };
-      })
-    );
+      // Access isServiceableToday directly as it's a virtual field
+      const isServiceableToday = merchant.merchantDetail?.isServiceableToday;
+
+      return {
+        _id: merchant._id,
+        fullName: merchant.fullName,
+        phoneNumber: merchant.phoneNumber,
+        isApproved: merchant.isApproved,
+        status: merchant.status,
+        geofence: geofenceName,
+        averageRating: merchant?.merchantDetail?.averageRating,
+        isServiceableToday: isServiceableToday,
+      };
+    });
 
     res.status(200).json({
       message: "Getting all merchants",
@@ -618,11 +648,16 @@ const getAllMerchantsController = async (req, res, next) => {
 // Get single merchant detail by Id
 const getSingleMerchantController = async (req, res, next) => {
   try {
-    const merchantFound = await Merchant.findById(req.params.merchantId);
+    const merchantFound = await Merchant.findById(req.params.merchantId)
+      .populate("merchantDetail.geofenceId", "name")
+      .populate("merchantDetail.businessCategoryId", "title");
 
     if (!merchantFound) {
       return next(appError("Merchant not found", 404));
     }
+
+    // Convert the document to an object including virtuals
+    const merchantWithVirtuals = merchantFound.toObject({ virtuals: true });
 
     // Extract the first sponsorship detail
     const firstSponsorshipDetail = merchantFound.sponsorshipDetail
@@ -632,7 +667,7 @@ const getSingleMerchantController = async (req, res, next) => {
     res.status(200).json({
       message: "Merchant details",
       data: {
-        ...merchantFound._doc,
+        ...merchantWithVirtuals,
         sponsorshipDetail: firstSponsorshipDetail
           ? [firstSponsorshipDetail]
           : [],
@@ -893,6 +928,7 @@ module.exports = {
   filterMerchantByServiceableController,
   filterMerchantByGeofenceController,
   filterMerchantByBusinessCategoryController,
+  getRatingsAndReviewsByCustomerController,
   getAllMerchantsController,
   getSingleMerchantController,
   changeMerchantStatusController,

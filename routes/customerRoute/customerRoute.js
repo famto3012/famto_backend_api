@@ -2,6 +2,7 @@ const express = require("express");
 const {
   registerAndLoginController,
   loginController,
+  getCustomerProfileController,
 } = require("../../controllers/customer/customerController");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const { body } = require("express-validator");
@@ -9,7 +10,7 @@ const { body } = require("express-validator");
 const customerRoute = express.Router();
 
 customerRoute.post(
-  "/register",
+  "/authenticate",
   [
     body().custom((value, { req }) => {
       const email = req.body.email;
@@ -36,16 +37,6 @@ customerRoute.post(
   registerAndLoginController
 );
 
-// customerRoute.post("/sign-in", [
-//     body("email")
-//     .trim()
-//     .notEmpty()
-//     .isEmail()
-//     .withMessage("Email is required"),
-//     body("password")
-//       .trim()
-//       .notEmpty()
-//       .withMessage("Password is required"),
-//   ], loginController);
+customerRoute.get("/profile", isAuthenticated, getCustomerProfileController);
 
 module.exports = customerRoute;
