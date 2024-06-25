@@ -1,3 +1,4 @@
+const AccountLogs = require("../../../models/AccountLogs");
 const Customer = require("../../../models/Customer");
 const appError = require("../../../utils/appError");
 const formatDate = require("../../../utils/formatDate");
@@ -160,6 +161,13 @@ const blockCustomerController = async (req, res, next) => {
     customerFound.customerDetails.isBlocked = true;
     customerFound.customerDetails.reasonForBlockingOrDeleting = reason;
     customerFound.customerDetails.blockedDate = new Date();
+    const accountLogs = await new AccountLogs({
+      _id: customerFound._id,
+      fullName: customerFound.fullName,
+      role: customerFound.role,
+      description: reason,
+    })
+    await accountLogs.save()
 
     await customerFound.save();
 
@@ -169,25 +177,6 @@ const blockCustomerController = async (req, res, next) => {
   }
 };
 
-const unBlockCustomerController = async (req, res, next) => {
-  try {
-    const customerFound = await Customer.findById(req.params.customerId);
-
-    if (!customerFound) {
-      return next(appError("Customer not found", 404));
-    }
-
-    customerFound.customerDetails.isBlocked = false;
-    customerFound.customerDetails.reasonForBlockingOrDeleting = null;
-    customerFound.customerDetails.blockedDate = null;
-
-    await customerFound.save();
-
-    res.status(200).json({ message: "Customer unblocked successfully" });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
 
 const editCustomerDetailsController = async (req, res, next) => {
   const {
