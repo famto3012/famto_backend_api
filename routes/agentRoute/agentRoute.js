@@ -13,6 +13,7 @@ const {
   addGovernmentCertificatesController,
   goOnlineController,
   goOfflineController,
+  getAllVehicleDetailsController,
 } = require("../../controllers/agent/agentController");
 const { body, check } = require("express-validator");
 const { upload } = require("../../utils/imageOperation");
@@ -221,5 +222,11 @@ agentRoute.post(
 agentRoute.patch("/go-online", isAuthenticated, goOnlineController);
 
 agentRoute.patch("/go-offline", isAuthenticated, goOfflineController);
+
+agentRoute.get(
+  "/vehicle-details",
+  isAuthenticated,
+  getAllVehicleDetailsController
+);
 
 module.exports = agentRoute;

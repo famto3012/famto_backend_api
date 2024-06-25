@@ -8,6 +8,7 @@ const Geofence = require("../../models/Geofence");
 const generateToken = require("../../utils/generateToken");
 const geoLocation = require("../../utils/getGeoLocation");
 const appError = require("../../utils/appError");
+const { default: mongoose } = require("mongoose");
 
 //Function for getting agent's manager from geofence
 const getManager = async (geofenceId) => {
@@ -157,21 +158,21 @@ const getImagesOfDetailsController = async (req, res, next) => {
 const getAgentProfileDetailsController = async (req, res, next) => {
   try {
     const currentAgent = await Agent.findById(req.userAuth).select(
-      "fullName phoneNumber email agentImageURL"
+      "fullName phoneNumber email agentImageURL governmentCertificateDetail"
     );
 
     if (!currentAgent) {
       return next(appError("Agent not found", 404));
     }
 
-    const agentData = {
-      fullName: currentAgent.fullName,
-      email: currentAgent.email,
-      phoneNumber: currentAgent.phoneNumber,
-      agentImageURL: currentAgent.agentImageURL,
-    };
+    // const agentData = {
+    //   fullName: currentAgent.fullName,
+    //   email: currentAgent.email,
+    //   phoneNumber: currentAgent.phoneNumber,
+    //   agentImageURL: currentAgent.agentImageURL,
+    // };
 
-    res.status(200).json({ message: "Agent profile data", data: agentData });
+    res.status(200).json({ message: "Agent profile data", data: currentAgent });
   } catch (err) {
     next(appError(err.message));
   }
@@ -376,6 +377,7 @@ const addVehicleDetailsController = async (req, res, next) => {
         const rcBackImage = req.files.rcBackImage[index];
 
         return {
+          _id: new mongoose.Types.ObjectId(),
           model: vehicle.model,
           type: vehicle.type,
           licensePlate: vehicle.licensePlate,
@@ -399,6 +401,26 @@ const addVehicleDetailsController = async (req, res, next) => {
     res.status(200).json({
       message: "Agent's vehicle details added successfully",
       data: agentFound.vehicleDetails,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get all vehicle details
+const getAllVehicleDetailsController = async (req, res, next) => {
+  try {
+    const currentAgent = await Agent.findById(req.userAuth).select(
+      "vehicleDetails"
+    );
+
+    if (!currentAgent) {
+      return next(appError("Agent not found", 404));
+    }
+
+    res.status(200).json({
+      message: "Agent vehicle details",
+      data: currentAgent,
     });
   } catch (err) {
     next(appError(err.message));
@@ -524,4 +546,5 @@ module.exports = {
   addGovernmentCertificatesController,
   goOnlineController,
   goOfflineController,
+  getAllVehicleDetailsController,
 };
