@@ -139,7 +139,7 @@ const getImagesOfDetailsController = async (req, res, next) => {
     }));
 
     res.status(200).json({
-      message: "Details",
+      message: "Image details of given documents",
       rcImages,
       aadharFrontImageURL: governmentCertificate.aadharFrontImageURL || "",
       aadharBackImageURL: governmentCertificate.aadharBackImageURL || "",
@@ -345,9 +345,9 @@ const checkIsApprovedController = async (req, res, next) => {
 
     let message = "";
     if (status === "Approved") {
-      message = "Agent is approved";
+      message = "Registration is approved";
     } else {
-      message = "Agent is not approved";
+      message = "Registration is pending";
     }
 
     res.status(200).json({
@@ -405,7 +405,7 @@ const addVehicleDetailsController = async (req, res, next) => {
     await agentFound.save();
 
     res.status(200).json({
-      message: "Agent's Vehicle route",
+      message: "Agent's vehicle details added successfully",
       data: agentFound.vehicleDetails,
     });
   } catch (err) {
