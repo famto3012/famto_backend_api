@@ -106,7 +106,7 @@ const agentLoginController = async (req, res, next) => {
       return res.status(409).json({ errors: formattedErrors });
     }
 
-    if ((agentFound.isApproved = "Pending" || agentFound.isBlocked)) {
+    if (agentFound.isApproved === "Pending" || agentFound.isBlocked) {
       formattedErrors.general = "Login is restricted";
       return res.status(403).json({ errors: formattedErrors });
     }
