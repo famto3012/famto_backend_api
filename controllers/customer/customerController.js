@@ -24,7 +24,7 @@ const registerAndLoginController = async (req, res, next) => {
     const { email, phoneNumber, latitude, longitude } = req.body;
     const location = [latitude, longitude];
 
-    const normalizedEmail = email.toLowerCase();
+    const normalizedEmail = email?.toLowerCase();
 
     let customer = {};
     let newCustomer = {};
@@ -57,6 +57,7 @@ const registerAndLoginController = async (req, res, next) => {
       if (email) {
         newCustomer = new Customer({
           email: normalizedEmail,
+          lastPlatformUsed: os.platform(),
           customerDetails: {
             location,
             geofenceId,
@@ -89,7 +90,7 @@ const registerAndLoginController = async (req, res, next) => {
 const getCustomerProfileController = async (req, res, next) => {
   try {
     const currentCustomer = await Customer.findById(req.userAuth).select(
-      "fullName phoneNumber customerDetails"
+      "fullName phoneNumber email customerDetails"
     );
 
     if (!currentCustomer) {
@@ -132,6 +133,8 @@ const updateCustomerProfileController = async (req, res, next) => {
     if (!currentCustomer) {
       return next(appError("Customer not found", 404));
     }
+
+    const normalizedEmail = email.toLowerCase();
 
     if (normalizedEmail !== currentCustomer.email) {
       const emailExists = await Customer.findOne({
@@ -179,8 +182,67 @@ const updateCustomerProfileController = async (req, res, next) => {
   }
 };
 
+const updateCustomerAddressController = async (req, res, next) => {
+  const { addresses } = req.body;
+
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(500).json({ errors: formattedErrors });
+  }
+
+  try {
+    const currentCustomer = await Customer.findById(req.userAuth);
+
+    if (!currentCustomer) {
+      return next(appError("Customer not found", 404));
+    }
+
+    let newOtherAddresses = [];
+
+    addresses.forEach((address) => {
+      const { type, fullName, phoneNumber, flat, area, landmark } = address;
+
+      const updatedAddress = {
+        fullName,
+        phoneNumber,
+        flat,
+        area,
+        landmark,
+      };
+
+      switch (type) {
+        case "home":
+          currentCustomer.customerDetails.homeAddress = updatedAddress;
+          break;
+        case "work":
+          currentCustomer.customerDetails.workAddress = updatedAddress;
+          break;
+        case "other":
+          newOtherAddresses.push(updatedAddress);
+          break;
+        default:
+          throw new Error("Invalid address type");
+      }
+    });
+
+    currentCustomer.customerDetails.otherAddress = newOtherAddresses;
+
+    await currentCustomer.save();
+
+    res.status(200).json({ message: "Updated home address" });
+  } catch (err) {
+    next(err.message);
+  }
+};
+
 module.exports = {
   registerAndLoginController,
   getCustomerProfileController,
   updateCustomerProfileController,
+  updateCustomerAddressController,
 };
