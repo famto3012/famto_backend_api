@@ -159,11 +159,31 @@ const blockCustomerController = async (req, res, next) => {
 
     customerFound.customerDetails.isBlocked = true;
     customerFound.customerDetails.reasonForBlockingOrDeleting = reason;
-    customerFound.customerDetails.blockedDate = new Date.now();
+    customerFound.customerDetails.blockedDate = new Date();
 
     await customerFound.save();
 
     res.status(200).json({ message: "Customer blocked successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const unBlockCustomerController = async (req, res, next) => {
+  try {
+    const customerFound = await Customer.findById(req.params.customerId);
+
+    if (!customerFound) {
+      return next(appError("Customer not found", 404));
+    }
+
+    customerFound.customerDetails.isBlocked = false;
+    customerFound.customerDetails.reasonForBlockingOrDeleting = null;
+    customerFound.customerDetails.blockedDate = null;
+
+    await customerFound.save();
+
+    res.status(200).json({ message: "Customer unblocked successfully" });
   } catch (err) {
     next(appError(err.message));
   }
