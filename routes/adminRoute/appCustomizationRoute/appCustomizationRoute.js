@@ -2,12 +2,15 @@ const express = require("express");
 const { upload } = require("../../../utils/imageOperation");
 const {
   createOrUpdateAgentCustomizationController,
+  getAgentCustomizationController,
 } = require("../../../controllers/admin/appCustomization/agentAppCustomizationController");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const isAdmin = require("../../../middlewares/isAdmin");
 const {
   createOrUpdateMerchantCustomizationController,
+  getMerchantCustomizationController,
 } = require("../../../controllers/admin/appCustomization/merchantAppCustomizationController");
+const { createOrUpdateCustomerCustomizationController, getCustomerCustomizationController } = require("../../../controllers/admin/appCustomization/customerAppCustomization");
 
 const appCustomizationRoute = express.Router();
 
@@ -25,6 +28,35 @@ appCustomizationRoute.post(
   isAuthenticated,
   isAdmin,
   createOrUpdateMerchantCustomizationController
+);
+
+appCustomizationRoute.post(
+  "/customer-app",
+  upload.single("splashScreenImage"),
+  isAuthenticated,
+  isAdmin,
+  createOrUpdateCustomerCustomizationController
+);
+
+appCustomizationRoute.get(
+  "/agent-app",
+  isAuthenticated,
+  isAdmin,
+  getAgentCustomizationController
+);
+
+appCustomizationRoute.get(
+  "/merchant-app",
+  isAuthenticated,
+  isAdmin,
+  getMerchantCustomizationController
+);
+
+appCustomizationRoute.get(
+  "/customer-app",
+  isAuthenticated,
+  isAdmin,
+  getCustomerCustomizationController
 );
 
 module.exports = appCustomizationRoute;

@@ -147,6 +147,14 @@ const agentSchema = mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    reasonForBlockingOrDeleting: {
+       type: String,
+       default:null
+    },
+    blockedDate: {
+       type: Date,
+       default: null
+    },
     isApproved: {
       type: String,
       enum: ["Approved", "Pending", "Rejected"],

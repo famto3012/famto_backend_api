@@ -4,7 +4,11 @@ const {
   uploadToFirebase,
 } = require("../../../utils/imageOperation");
 
-const createOrUpdateMerchantCustomizationController = async (req, res, next) => {
+const createOrUpdateMerchantCustomizationController = async (
+  req,
+  res,
+  next
+) => {
   try {
     const {
       email,
@@ -95,4 +99,26 @@ const createOrUpdateMerchantCustomizationController = async (req, res, next) => 
   }
 };
 
-module.exports = { createOrUpdateMerchantCustomizationController };
+const getMerchantCustomizationController = async (req, res, next) => {
+  try {
+    const customization = await MerchantAppCustomization.findOne();
+
+    if (!customization) {
+      return res.status(404).json({
+        error: "Merchant App Customization not found",
+      });
+    }
+
+    res.status(200).json({
+      success: "Merchant App Customization fetched successfully",
+      data: customization,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+module.exports = {
+  createOrUpdateMerchantCustomizationController,
+  getMerchantCustomizationController,
+};

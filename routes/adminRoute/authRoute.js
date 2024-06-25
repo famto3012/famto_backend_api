@@ -49,17 +49,6 @@ authRoute.post(
   loginController
 );
 
-authRoute.put(
-  "/block-merchant/:merchantId",
-  isAuthenticated,
-  isAdmin,
-  blockMerchant
-);
-authRoute.put(
-  "/block-customer/:customerId",
-  isAuthenticated,
-  isAdmin,
-  blockCustomer
-);
+
 
 module.exports = authRoute;

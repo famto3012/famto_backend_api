@@ -7,62 +7,6 @@ const { validationResult } = require("express-validator");
 const Merchant = require("../../models/Merchant");
 const Manager = require("../../models/Manager");
 
-const blockMerchant = async (req, res) => {
-  try {
-    const merchantId = req.params.merchantId;
-    const { reasonForBlocking } = req.body;
-
-    const merchantDetail = await Merchant.findOne({ _id: merchantId });
-
-    if (merchantDetail.isBlocked) {
-      merchantDetail.isBlocked = false;
-      merchantDetail.reasonForBlockingOrDeleting = null;
-      await merchantDetail.save();
-      res.status(200).json({
-        message: "Merchant Unblocked",
-      });
-    } else {
-      merchantDetail.isBlocked = true;
-      merchantDetail.reasonForBlockingOrDeleting = reasonForBlocking;
-      await merchantDetail.save();
-      res.status(200).json({
-        message: "Merchant blocked",
-      });
-    }
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-    console.log("Error in blockMerchant", err.message);
-  }
-};
-
-const blockCustomer = async (req, res) => {
-  try {
-    const customerId = req.params.customerId;
-    const { reasonForBlocking } = req.body;
-
-    const customer = await Customer.findOne({ _id: customerId });
-    const customerDetail = customer.customerDetails;
-
-    if (customerDetail.isBlocked) {
-      customerDetail.isBlocked = false;
-      customerDetail.reasonForBlockingOrDeleting = null;
-      await customer.save();
-      res.status(200).json({
-        message: "Customer Unblocked",
-      });
-    } else {
-      customerDetail.isBlocked = true;
-      customerDetail.reasonForBlockingOrDeleting = reasonForBlocking;
-      await customer.save();
-      res.status(200).json({
-        message: "Customer blocked",
-      });
-    }
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-    console.log("Error in blockMerchant", err.message);
-  }
-};
 
 //For Admin and Merchant
 // -----------------------------
@@ -127,6 +71,4 @@ const loginController = async (req, res, next) => {
 
 module.exports = {
   loginController,
-  blockMerchant,
-  blockCustomer,
 };

@@ -14,6 +14,7 @@ const {
   filterMerchantByServiceableController,
   filterMerchantByGeofenceController,
   filterMerchantByBusinessCategoryController,
+  blockMerchant,
 } = require("../../../controllers/admin/merchant/merchantController");
 const { upload } = require("../../../utils/imageOperation");
 const isAdmin = require("../../../middlewares/isAdmin");
@@ -161,5 +162,13 @@ merchantRoute.post(
   isAdmin,
   verifyPaymentController
 );
+
+merchantRoute.put(
+  "/admin/block-merchant/:merchantId",
+  isAuthenticated,
+  isAdmin,
+  blockMerchant
+);
+
 
 module.exports = merchantRoute;
