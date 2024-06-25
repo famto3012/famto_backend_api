@@ -94,7 +94,7 @@ const getProductController = async (req, res, next) => {
       .populate("categoryId", "categoryName");
 
     if (!productFound) {
-      return next(appError("Produ t not found", 404));
+      return next(appError("Product not found", 404));
     }
 
     res.status(200).json({ message: "Product data", data: productFound });

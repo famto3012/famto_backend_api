@@ -37,6 +37,7 @@ const adminCustomerRoute = require("./routes/adminRoute/customerRoute/customerRo
 const serviceCategoryRoute = require("./routes/adminRoute/serviceCategoryRoute/serviceCategoryRoute");
 const pickAndDropBannerRoute = require("./routes/adminRoute/bannerRoute/pickAndDropBannerRoute");
 const customOrderBannerRoute = require("./routes/adminRoute/bannerRoute/customOrderBannerRoute");
+const accountLogRoute = require("./routes/adminRoute/accountLogRoute/accountLogRoute");
 
 
 require("dotenv").config();
@@ -83,6 +84,7 @@ app.use("/api/v1/admin/agent-surge", agentSurgeRoute);
 app.use("/api/v1/settings", settingsRoute);
 app.use("/api/v1/referals", referalRoute);
 app.use("/api/v1/admin/customers", adminCustomerRoute);
+app.use("/api/v1/admin/account-log", accountLogRoute);
 
 //agent
 app.use("/api/v1/agents", agentRoute);

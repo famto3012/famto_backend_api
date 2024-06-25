@@ -6,6 +6,7 @@ const {
 } = require("../../../utils/imageOperation");
 const Agent = require("../../../models/Agent");
 const { default: mongoose } = require("mongoose");
+const AccountLogs = require("../../../models/AccountLogs");
 
 const addAgentByAdminController = async (req, res, next) => {
   const {
@@ -434,6 +435,36 @@ const getAgentByGeofenceController = async (req, res, next) => {
   }
 };
 
+const blockAgentController = async (req, res, next) => {
+  const { reason } = req.body;
+  try {
+    const agentFound = await Agent.findById(req.params.agentId);
+
+    if (!agentFound) {
+      return next(appError("Agent not found", 404));
+    }
+
+    agentFound.isBlocked = true;
+    agentFound.reasonForBlockingOrDeleting = reason;
+    agentFound.blockedDate = new Date();
+
+    await agentFound.save();
+    const accountLogs = await new AccountLogs({
+      _id: agentFound._id,
+      fullName: agentFound.fullName,
+      role: agentFound.role,
+      description: reason,
+    })
+    await accountLogs.save()
+
+    res.status(200).json({ message: "Agent blocked successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+
+
 module.exports = {
   addAgentByAdminController,
   editAgentByAdminController,
@@ -443,4 +474,5 @@ module.exports = {
   getRatingsByCustomerController,
   getAgentByVehicleTypeController,
   getAgentByGeofenceController,
+  blockAgentController,
 };

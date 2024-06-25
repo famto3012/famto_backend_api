@@ -15,6 +15,7 @@ const {
   calculateEndDate,
 } = require("../../../utils/sponsorshipHelpers");
 const { default: mongoose } = require("mongoose");
+const AccountLogs = require("../../../models/AccountLogs");
 
 //----------------------------
 //For Merchant
@@ -933,6 +934,13 @@ const blockMerchant = async (req, res) => {
       merchantDetail.reasonForBlockingOrDeleting = reasonForBlocking;
       merchantDetail.blockedDate = new Date()
       await merchantDetail.save();
+      const accountLogs = await new AccountLogs({
+        _id: merchantDetail._id,
+        fullName: merchantDetail.fullName,
+        role: merchantDetail.role,
+        description: reasonForBlocking,
+      })
+      await accountLogs.save()
       res.status(200).json({
         message: "Merchant blocked",
       });
@@ -943,31 +951,7 @@ const blockMerchant = async (req, res) => {
   }
 };
 
-const unBlockMerchant = async (req, res) => {
-  try {
-    const merchantId = req.params.merchantId;
 
-    const merchantDetail = await Merchant.findOne({ _id: merchantId });
-
-    if (merchantDetail.isBlocked) {
-      merchantDetail.isBlocked = false;
-      merchantDetail.reasonForBlockingOrDeleting = null;
-      merchantDetail.blockedDate = null
-      await merchantDetail.save();
-      res.status(200).json({
-        message: "Merchant unblocked",
-      });
-      
-    } else {
-      res.status(200).json({
-        message: "Merchant is already unblocked",
-      });
-    }
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-    console.log("Error in unblockMerchant", err.message);
-  }
-};
 
 module.exports = {
   registerMerchantController,
@@ -989,5 +973,4 @@ module.exports = {
   sponsorshipPaymentController,
   verifyPaymentController,
   blockMerchant,
-  unBlockMerchant,
 };

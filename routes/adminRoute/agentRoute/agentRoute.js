@@ -8,6 +8,7 @@ const {
   getAgentByGeofenceController,
   approveAgentRegistrationController,
   rejectAgentRegistrationController,
+  blockAgentController,
 } = require("../../../controllers/admin/agent/agentController");
 const { upload } = require("../../../utils/imageOperation");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
@@ -101,6 +102,13 @@ adminAgentRoute.get(
   isAuthenticated,
   isAdmin,
   getRatingsByCustomerController
+);
+
+adminAgentRoute.patch(
+  "/block-agent/:agentId",
+  isAuthenticated,
+  isAdmin,
+  blockAgentController
 );
 
 module.exports = adminAgentRoute;
