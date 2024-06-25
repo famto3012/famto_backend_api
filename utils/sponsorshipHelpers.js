@@ -30,16 +30,16 @@ const calculateEndDate = (startDate, plan) => {
   const date = new Date(startDate);
   switch (plan) {
     case "Monthly":
-      date.setMonth(date.getMonth() + 1);
+      date.setDate(date.getDate() + 30);
       break;
     case "3 Month":
-      date.setMonth(date.getMonth() + 3);
+      date.setDate(date.getDate() + 90);
       break;
     case "6 Month":
-      date.setMonth(date.getMonth() + 6);
+      date.setDate(date.getDate() + 180);
       break;
     case "1 Year":
-      date.setFullYear(date.getFullYear() + 1);
+      date.setDate(date.getDate() + 365);
       break;
     default:
       throw new Error("Invalid plan");

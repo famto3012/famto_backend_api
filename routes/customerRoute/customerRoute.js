@@ -3,9 +3,12 @@ const {
   registerAndLoginController,
   loginController,
   getCustomerProfileController,
+  updateCustomerProfileController,
+  updateCustomerAddressController,
 } = require("../../controllers/customer/customerController");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const { body } = require("express-validator");
+const { upload } = require("../../utils/imageOperation");
 
 const customerRoute = express.Router();
 
@@ -38,5 +41,35 @@ customerRoute.post(
 );
 
 customerRoute.get("/profile", isAuthenticated, getCustomerProfileController);
+
+customerRoute.put(
+  "/edit-profile",
+  upload.single("customerImage"),
+  isAuthenticated,
+  updateCustomerProfileController
+);
+
+customerRoute.patch(
+  "/update-address",
+  [
+    body("addresses").isArray().withMessage("Addresses should be an array"),
+    body("addresses.*.type")
+      .notEmpty()
+      .withMessage("Address type is required")
+      .isIn(["home", "work", "other"])
+      .withMessage("Invalid address type"),
+    body("addresses.*.fullName")
+      .notEmpty()
+      .withMessage("Full name is required"),
+    body("addresses.*.phoneNumber")
+      .notEmpty()
+      .withMessage("Phone number is required"),
+    body("addresses.*.flat").notEmpty().withMessage("Flat is required"),
+    body("addresses.*.area").notEmpty().withMessage("Area is required"),
+    body("addresses.*.landmark").optional(),
+  ],
+  isAuthenticated,
+  updateCustomerAddressController
+);
 
 module.exports = customerRoute;

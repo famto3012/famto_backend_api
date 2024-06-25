@@ -16,7 +16,7 @@ const getAllCustomersController = async (req, res, next) => {
         _id: customer._id,
         fullName: customer.fullName || "N/A",
         email: customer.email || "N/A",
-        phoneNumber: customer.phoneNumber,
+        phoneNumber: customer.phoneNumber || "N/A",
         lastPlatformUsed: customer.lastPlatformUsed,
         registrationDate: formatDate(customer.createdAt),
         averageRating: customer.customerDetails?.averageRating || 0,
@@ -148,9 +148,74 @@ const getSingleCustomerController = async (req, res, next) => {
   }
 };
 
+const blockCustomerController = async (req, res, next) => {
+  const { reason } = req.body;
+  try {
+    const customerFound = await Customer.findById(req.params.customerId);
+
+    if (!customerFound) {
+      return next(appError("Customer not found", 404));
+    }
+
+    customerFound.customerDetails.isBlocked = true;
+    customerFound.customerDetails.reasonForBlockingOrDeleting = reason;
+    customerFound.customerDetails.blockedDate = new Date.now();
+
+    await customerFound.save();
+
+    res.status(200).json({ message: "Customer blocked successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const editCustomerDetailsController = async (req, res, next) => {
+  const {
+    fullName,
+    email,
+    phoneNumber,
+    homeAddress,
+    workAddress,
+    otherAddress,
+  } = req.body;
+
+  try {
+    const customerFound = await Customer.findById(req.params.customerId);
+
+    if (!customerFound) {
+      return next(appError("Customer not found", 404));
+    }
+
+    const updatedFields = {
+      fullName,
+      email,
+      phoneNumber,
+      customerDetails: {
+        homeAddress,
+        workAddress,
+        otherAddress,
+      },
+    };
+
+    await Customer.findByIdAndUpdate(
+      req.params.customerId,
+      {
+        $set: updatedFields,
+      },
+      { new: true }
+    );
+
+    res.status(200).josn({ message: "Customer updated successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getAllCustomersController,
   searchCustomerByNameController,
   filterCustomerByGeofenceController,
   getSingleCustomerController,
+  blockCustomerController,
+  editCustomerDetailsController,
 };

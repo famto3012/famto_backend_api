@@ -6,6 +6,8 @@ const {
   searchCustomerByNameController,
   filterCustomerByGeofenceController,
   getSingleCustomerController,
+  blockCustomerController,
+  editCustomerDetailsController,
 } = require("../../../controllers/admin/customer/customerController");
 const adminCustomerRoute = express.Router();
 
@@ -35,6 +37,20 @@ adminCustomerRoute.get(
   isAuthenticated,
   isAdmin,
   getSingleCustomerController
+);
+
+adminCustomerRoute.patch(
+  "/block-customer/:customerId",
+  isAuthenticated,
+  isAdmin,
+  blockCustomerController
+);
+
+adminCustomerRoute.put(
+  "/edit-customer/:customerId",
+  isAuthenticated,
+  isAdmin,
+  editCustomerDetailsController
 );
 
 module.exports = adminCustomerRoute;

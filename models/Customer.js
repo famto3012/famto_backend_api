@@ -1,5 +1,33 @@
 const mongoose = require("mongoose");
 
+const addressSchema = new mongoose.Schema(
+  {
+    fullName: {
+      type: String,
+      required: true,
+    },
+    phoneNumber: {
+      type: String,
+      required: true,
+    },
+    flat: {
+      type: String,
+      required: true,
+    },
+    area: {
+      type: String,
+      required: true,
+    },
+    landmark: {
+      type: String,
+      default: null,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
 const ratingByAgentSchema = new mongoose.Schema(
   {
     agentId: {
@@ -47,18 +75,23 @@ const customerDetailSchema = new mongoose.Schema(
     reasonForBlockingOrDeleting: {
       type: String,
     },
+    blockedDate: {
+      type: Date,
+    },
     homeAddress: {
-      type: String,
+      type: addressSchema,
       default: null,
     },
     workAddress: {
-      type: String,
+      type: addressSchema,
       default: null,
     },
-    otherAddress: {
-      type: String,
-      default: null,
-    },
+    otherAddress: [
+      {
+        type: addressSchema,
+        default: null,
+      },
+    ],
   },
   {
     _id: false,
