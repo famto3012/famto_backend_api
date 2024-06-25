@@ -106,7 +106,7 @@ const agentLoginController = async (req, res, next) => {
       return res.status(409).json({ errors: formattedErrors });
     }
 
-    if (!agentFound.isApproved || agentFound.isBlocked) {
+    if ((agentFound.isApproved = "Pending" || agentFound.isBlocked)) {
       formattedErrors.general = "Login is restricted";
       return res.status(403).json({ errors: formattedErrors });
     }
@@ -192,11 +192,7 @@ const editAgentProfileController = async (req, res, next) => {
   }
 
   try {
-    const agentToUpdate = await Agent.findById(req.params.agentId);
-
-    if (req.userAuth !== req.params.agentId) {
-      return next(appError("Access Denied", 403));
-    }
+    const agentToUpdate = await Agent.findById(req.userAuth);
 
     if (!agentToUpdate) {
       return next(appError("Agent not Found", 404));
@@ -210,7 +206,7 @@ const editAgentProfileController = async (req, res, next) => {
     }
 
     await Agent.findByIdAndUpdate(
-      req.params.agentId,
+      req.userAuth,
       { email, fullName, agentImageURL },
       { new: true }
     );
@@ -278,11 +274,7 @@ const editAgentBankDetailController = async (req, res, next) => {
   }
 
   try {
-    const agentToUpdate = await Agent.findById(req.params.agentId);
-
-    if (req.userAuth !== req.params.agentId) {
-      return next(appError("Access Denied", 403));
-    }
+    const agentToUpdate = await Agent.findById(req.userAuth);
 
     if (!agentToUpdate) {
       return next(appError("Agent not Found", 404));

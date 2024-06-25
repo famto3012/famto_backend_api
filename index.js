@@ -39,7 +39,6 @@ const pickAndDropBannerRoute = require("./routes/adminRoute/bannerRoute/pickAndD
 const customOrderBannerRoute = require("./routes/adminRoute/bannerRoute/customOrderBannerRoute");
 const accountLogRoute = require("./routes/adminRoute/accountLogRoute/accountLogRoute");
 
-
 require("dotenv").config();
 require("./config/dbConnect");
 
@@ -49,7 +48,11 @@ const app = express();
 app.use(express.json());
 // app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors());
+app.use(
+  cors({
+    origin: "*",
+  })
+);
 
 //routers
 //admin

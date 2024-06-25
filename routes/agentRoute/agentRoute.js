@@ -71,7 +71,7 @@ agentRoute.get(
 
 //Edit agent's profile data
 agentRoute.put(
-  "/edit-agent/:agentId",
+  "/edit-agent",
   upload.single("agentImage"),
   [
     body("fullName").trim().notEmpty().withMessage("Full name is required"),
@@ -108,7 +108,7 @@ agentRoute.post(
 
 //Edit Agent's Bank details
 agentRoute.put(
-  "/edit-bank-details/:agentId",
+  "/edit-bank-details",
   [
     body("accountHolderName")
       .trim()
