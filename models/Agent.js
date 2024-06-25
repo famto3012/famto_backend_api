@@ -18,11 +18,12 @@ const ratingsByCustomerSchema = mongoose.Schema({
 
 const vehicleSchema = mongoose.Schema(
   {
+    _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
     vehicleStatus: { type: Boolean, default: false },
     model: { type: String, required: true },
     type: {
       type: String,
-      enum: ["Two-wheeler", "Three-wheeler", "Four-wheeler"],
+      enum: ["Scooter", "Bike"], //INFO: Add more types if needed
       required: true,
     },
     licensePlate: { type: String, required: true },
