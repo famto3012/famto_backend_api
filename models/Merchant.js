@@ -258,6 +258,10 @@ const merchantSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    blockedDate: {
+      type: Date,
+      default: null
+    },
     merchantDetail: merchantDetailSchema,
     sponsorshipDetail: {
       type: [sponsorshipSchema],

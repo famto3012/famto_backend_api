@@ -612,7 +612,7 @@ const rejectRegistrationController = async (req, res, next) => {
 // Get all merchant details
 const getAllMerchantsController = async (req, res, next) => {
   try {
-    const merchantsFound = await Merchant.find({})
+    const merchantsFound = await Merchant.find({isBlocked: false})
       .select("fullName phoneNumber isApproved status merchantDetail")
       .populate("merchantDetail.geofenceId", "name");
 
@@ -917,6 +917,58 @@ const verifyPaymentController = async (req, res, next) => {
   }
 };
 
+const blockMerchant = async (req, res) => {
+  try {
+    const merchantId = req.params.merchantId;
+    const { reasonForBlocking } = req.body;
+
+    const merchantDetail = await Merchant.findOne({ _id: merchantId });
+
+    if (merchantDetail.isBlocked) {
+      res.status(200).json({
+        message: "Merchant is already blocked",
+      });
+    } else {
+      merchantDetail.isBlocked = true;
+      merchantDetail.reasonForBlockingOrDeleting = reasonForBlocking;
+      merchantDetail.blockedDate = new Date()
+      await merchantDetail.save();
+      res.status(200).json({
+        message: "Merchant blocked",
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+    console.log("Error in blockMerchant", err.message);
+  }
+};
+
+const unBlockMerchant = async (req, res) => {
+  try {
+    const merchantId = req.params.merchantId;
+
+    const merchantDetail = await Merchant.findOne({ _id: merchantId });
+
+    if (merchantDetail.isBlocked) {
+      merchantDetail.isBlocked = false;
+      merchantDetail.reasonForBlockingOrDeleting = null;
+      merchantDetail.blockedDate = null
+      await merchantDetail.save();
+      res.status(200).json({
+        message: "Merchant unblocked",
+      });
+      
+    } else {
+      res.status(200).json({
+        message: "Merchant is already unblocked",
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+    console.log("Error in unblockMerchant", err.message);
+  }
+};
+
 module.exports = {
   registerMerchantController,
   changeMerchantStatusByMerchantController,
@@ -936,4 +988,6 @@ module.exports = {
   rejectRegistrationController,
   sponsorshipPaymentController,
   verifyPaymentController,
+  blockMerchant,
+  unBlockMerchant,
 };

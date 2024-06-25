@@ -1,10 +1,14 @@
-const AgentAppCustomization = require("../../../models/AgentAppCustomization");
+const CustomerAppCustomization = require("../../../models/CustomerAppCustomization");
 const {
   deleteFromFirebase,
   uploadToFirebase,
 } = require("../../../utils/imageOperation");
 
-const createOrUpdateAgentCustomizationController = async (req, res, next) => {
+const createOrUpdateCustomerCustomizationController = async (
+  req,
+  res,
+  next
+) => {
   try {
     const {
       email,
@@ -17,7 +21,7 @@ const createOrUpdateAgentCustomizationController = async (req, res, next) => {
       loginViaFacebook,
     } = req.body;
 
-    const customization = await AgentAppCustomization.findOne();
+    const customization = await CustomerAppCustomization.findOne();
 
     if (customization) {
       let splashScreenUrl = customization.splashScreenUrl;
@@ -25,7 +29,7 @@ const createOrUpdateAgentCustomizationController = async (req, res, next) => {
         await deleteFromFirebase(customization.splashScreenUrl);
         splashScreenUrl = await uploadToFirebase(
           req.file,
-          "AgentAppSplashScreenImages"
+          "CustomerAppSplashScreenImages"
         );
       }
 
@@ -59,7 +63,7 @@ const createOrUpdateAgentCustomizationController = async (req, res, next) => {
       await customization.save();
 
       res.status(200).json({
-        success: "Agent App Customization updated successfully",
+        success: "Customer App Customization updated successfully",
         data: customization,
       });
     } else {
@@ -71,7 +75,7 @@ const createOrUpdateAgentCustomizationController = async (req, res, next) => {
         );
       }
 
-      const newAgentAppCustomization = new AgentAppCustomization({
+      const newCustomerAppCustomization = new CustomerAppCustomization({
         email,
         phoneNumber,
         emailVerification,
@@ -83,11 +87,11 @@ const createOrUpdateAgentCustomizationController = async (req, res, next) => {
         splashScreenUrl,
       });
 
-      await newAgentAppCustomization.save();
+      await newCustomerAppCustomization.save();
 
       res.status(201).json({
-        success: "Agent App Customization created successfully",
-        data: newAgentAppCustomization,
+        success: "Customer App Customization created successfully",
+        data: newCustomerAppCustomization,
       });
     }
   } catch (err) {
@@ -95,18 +99,18 @@ const createOrUpdateAgentCustomizationController = async (req, res, next) => {
   }
 };
 
-const getAgentCustomizationController = async (req, res, next) => {
+const getCustomerCustomizationController = async (req, res, next) => {
   try {
-    const customization = await AgentAppCustomization.findOne();
+    const customization = await CustomerAppCustomization.findOne();
 
     if (!customization) {
       return res.status(404).json({
-        error: "Agent App Customization not found",
+        error: "Customer App Customization not found",
       });
     }
 
     res.status(200).json({
-      success: "Agent App Customization fetched successfully",
+      success: "Customer App Customization fetched successfully",
       data: customization,
     });
   } catch (err) {
@@ -115,6 +119,6 @@ const getAgentCustomizationController = async (req, res, next) => {
 };
 
 module.exports = {
-  createOrUpdateAgentCustomizationController,
-  getAgentCustomizationController,
+  createOrUpdateCustomerCustomizationController,
+  getCustomerCustomizationController,
 };
