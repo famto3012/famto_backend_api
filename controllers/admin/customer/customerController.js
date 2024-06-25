@@ -225,7 +225,44 @@ const editCustomerDetailsController = async (req, res, next) => {
       { new: true }
     );
 
-    res.status(200).josn({ message: "Customer updated successfully" });
+    res.status(200).json({ message: "Customer updated successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getAllRatingsAndReviewsByAgentController = async (req, res, next) => {
+  try {
+    const { customerId } = req.params;
+
+    const customerFound = await Customer.findById(customerId).populate({
+      path: "customerDetails.ratingsByAgents",
+      populate: {
+        path: "agentId",
+        model: "Agent",
+        select: "fullName _id", // Selecting the fields of fullName and _id from Agent
+      },
+    });
+
+    if (!customerFound) {
+      next(appError("Customer not found", 404));
+    }
+
+    const ratings = customerFound.customerDetails.ratingsByAgents.map(
+      (rating) => ({
+        review: rating.review,
+        rating: rating.rating,
+        customerId: {
+          id: rating.agentId._id,
+          fullName: rating.agentId.fullName,
+        },
+      })
+    );
+
+    res.status(200).json({
+      message: "Ratings of customer by agent",
+      data: ratings,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -238,4 +275,5 @@ module.exports = {
   getSingleCustomerController,
   blockCustomerController,
   editCustomerDetailsController,
+  getAllRatingsAndReviewsByAgentController,
 };
