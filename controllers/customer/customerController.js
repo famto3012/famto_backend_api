@@ -8,6 +8,10 @@ const {
   deleteFromFirebase,
   uploadToFirebase,
 } = require("../../utils/imageOperation");
+const BusinessCategory = require("../../models/BusinessCategory");
+const Product = require("../../models/Product");
+const Geofence = require("../../models/Geofence");
+const Merchant = require("../../models/Merchant");
 
 const registerAndLoginController = async (req, res, next) => {
   const errors = validationResult(req);
@@ -187,12 +191,8 @@ const updateCustomerAddressController = async (req, res, next) => {
 
   const errors = validationResult(req);
 
-  let formattedErrors = {};
   if (!errors.isEmpty()) {
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
-    return res.status(500).json({ errors: formattedErrors });
+    return res.status(400).json({ errors: errors.array() });
   }
 
   try {
@@ -230,13 +230,140 @@ const updateCustomerAddressController = async (req, res, next) => {
       }
     });
 
+    // Replace otherAddress array with newOtherAddresses
     currentCustomer.customerDetails.otherAddress = newOtherAddresses;
 
     await currentCustomer.save();
 
-    res.status(200).json({ message: "Updated home address" });
+    res
+      .status(200)
+      .json({ message: "Customer addresses updated successfully" });
   } catch (err) {
-    next(err.message);
+    next(appError(err.message));
+  }
+};
+
+const getCustomerAddressController = async (req, res, next) => {
+  try {
+    const currentCustomer = await Customer.findById(req.userAuth);
+
+    if (!currentCustomer) {
+      return next(appError("Customer not found", 404));
+    }
+
+    const { homeAddress, workAddress, otherAddress } =
+      currentCustomer.customerDetails;
+
+    res.status(200).json({
+      homeAddress,
+      workAddress,
+      otherAddress,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getAllBusinessCategoryController = async (req, res, next) => {
+  try {
+    const allBusinessCategories = await BusinessCategory.find({})
+      .select("title bannerImageURL")
+      .sort({ order: 1 });
+
+    res.status(200).json({
+      message: "All business categories",
+      data: allBusinessCategories,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const homeSearchController = async (req, res, next) => {
+  const { query } = req.query;
+
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(500).json({ errors: formattedErrors });
+  }
+
+  try {
+    // Search in BusinessCategory by title
+    const businessCategories = await BusinessCategory.find({
+      title: { $regex: query, $options: "i" }, // Case-insensitive search
+    })
+      .select("title bannerImageURL")
+      .exec();
+
+    // Search in Product by productName or searchTags
+    const products = await Product.find({
+      $or: [
+        { productName: { $regex: query, $options: "i" } }, // Case-insensitive search
+        { searchTags: { $in: [query] } }, // Match searchTags array containing the query
+      ],
+    })
+      .select("productName productImageURL type")
+      .exec();
+
+    // Combine results from both models
+    const searchResults = {
+      businessCategories,
+      products,
+    };
+
+    res.status(200).json({
+      message: "Search results",
+      data: searchResults,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+//TODO: I ws doing this
+const listRestaurantsController = async (req, res, next) => {
+  const { latitude, longitude } = req.body;
+
+  try {
+    // Find the geofence that contains the customer's location
+    const geofence = await Geofence.findOne({
+      coordinates: {
+        $geoIntersects: {
+          $geometry: {
+            type: "Point",
+            coordinates: [longitude, latitude],
+          },
+        },
+      },
+    }).exec();
+
+    if (!geofence) {
+      return next(appError("Geofence not found", 404));
+    }
+
+    // Query merchants based on geofence and other conditions
+    const merchantsFound = await Merchant.find({
+      "merchantDetail.geofenceId": geofence._id,
+      isBlocked: false,
+      isApproved: "Approved",
+    })
+      .select("")
+      .sort({
+        "merchantDetail.sponsorshipDetail.sponsorshipStatus": -1,
+      })
+      .exec();
+
+    res.status(200).json({
+      message: "Available merchants",
+      data: merchantsFound,
+    });
+  } catch (err) {
+    next(appError(err.message));
   }
 };
 
@@ -245,4 +372,8 @@ module.exports = {
   getCustomerProfileController,
   updateCustomerProfileController,
   updateCustomerAddressController,
+  getCustomerAddressController,
+  getAllBusinessCategoryController,
+  homeSearchController,
+  listRestaurantsController,
 };

@@ -8,6 +8,7 @@ const {
   getSingleCustomerController,
   blockCustomerController,
   editCustomerDetailsController,
+  getAllRatingsAndReviewsByAgentController,
 } = require("../../../controllers/admin/customer/customerController");
 const adminCustomerRoute = express.Router();
 
@@ -51,6 +52,13 @@ adminCustomerRoute.put(
   isAuthenticated,
   isAdmin,
   editCustomerDetailsController
+);
+
+adminCustomerRoute.get(
+  "/ratings/:customerId",
+  isAuthenticated,
+  isAdmin,
+  getAllRatingsAndReviewsByAgentController
 );
 
 module.exports = adminCustomerRoute;

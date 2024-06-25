@@ -88,8 +88,11 @@ const customerDetailSchema = new mongoose.Schema(
     },
     otherAddress: [
       {
-        type: addressSchema,
-        default: null,
+        fullName: String,
+        phoneNumber: String,
+        flat: String,
+        area: String,
+        landmark: String,
       },
     ],
   },
