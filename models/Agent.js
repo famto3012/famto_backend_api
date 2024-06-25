@@ -74,6 +74,11 @@ const bankDetailSchema = mongoose.Schema(
 
 const workStructureSchema = mongoose.Schema(
   {
+    managerId: {
+      type: mongoose.Types.ObjectId,
+      ref: "Manager",
+      required: true,
+    },
     salaryStructureId: {
       type: mongoose.Types.ObjectId,
       ref: "AgentPricing",
@@ -125,11 +130,6 @@ const agentSchema = mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       ref: "Geofence",
     },
-    managerId: {
-      type: mongoose.Types.ObjectId,
-      ref: "Manager",
-      required: true,
-    },
     role: {
       type: String,
       default: "Agent",
@@ -148,12 +148,12 @@ const agentSchema = mongoose.Schema(
       default: false,
     },
     reasonForBlockingOrDeleting: {
-       type: String,
-       default:null
+      type: String,
+      default: null,
     },
     blockedDate: {
-       type: Date,
-       default: null
+      type: Date,
+      default: null,
     },
     isApproved: {
       type: String,
