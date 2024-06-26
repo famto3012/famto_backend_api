@@ -121,39 +121,6 @@ const agentLoginController = async (req, res, next) => {
   }
 };
 
-//Controller for getting images of details
-const getImagesOfDetailsController = async (req, res, next) => {
-  try {
-    const currentAgent = await Agent.findById(req.userAuth);
-
-    if (!currentAgent) {
-      return next(appError("Agent not found", 404));
-    }
-
-    const vehicleDetail = currentAgent.vehicleDetail || [];
-    const governmentCertificate =
-      currentAgent.governmentCertificateDetail || {};
-
-    const rcImages = vehicleDetail.map((vehicle) => ({
-      rcFrontImageURL: vehicle.rcFrontImageURL || "",
-      rcBackImageURL: vehicle.rcBackImageURL || "",
-    }));
-
-    res.status(200).json({
-      message: "Image details of given documents",
-      rcImages,
-      aadharFrontImageURL: governmentCertificate.aadharFrontImageURL || "",
-      aadharBackImageURL: governmentCertificate.aadharBackImageURL || "",
-      drivingLicenseFrontImageURL:
-        governmentCertificate.drivingLicenseFrontImageURL || "",
-      drivingLicenseBackImageURL:
-        governmentCertificate.drivingLicenseBackImageURL || "",
-    });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
 //Get Agent's profile
 const getAgentProfileDetailsController = async (req, res, next) => {
   try {
@@ -164,13 +131,6 @@ const getAgentProfileDetailsController = async (req, res, next) => {
     if (!currentAgent) {
       return next(appError("Agent not found", 404));
     }
-
-    // const agentData = {
-    //   fullName: currentAgent.fullName,
-    //   email: currentAgent.email,
-    //   phoneNumber: currentAgent.phoneNumber,
-    //   agentImageURL: currentAgent.agentImageURL,
-    // };
 
     res.status(200).json({ message: "Agent profile data", data: currentAgent });
   } catch (err) {
@@ -220,8 +180,8 @@ const editAgentProfileController = async (req, res, next) => {
   }
 };
 
-//Add Bank account details controller
-const addAgentBankDetailController = async (req, res, next) => {
+// Update Bank account details controller
+const updateAgentBankDetailController = async (req, res, next) => {
   const { accountHolderName, accountNumber, IFSCCode, UPIId } = req.body;
 
   const errors = validationResult(req);
@@ -255,46 +215,6 @@ const addAgentBankDetailController = async (req, res, next) => {
     res
       .status(200)
       .json({ message: "Agent's bank details added successfully" });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
-//Edit Bank account details controller
-const editAgentBankDetailController = async (req, res, next) => {
-  const { accountHolderName, accountNumber, IFSCCode, UPIId } = req.body;
-
-  const errors = validationResult(req);
-
-  let formattedErrors = {};
-  if (!errors.isEmpty()) {
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
-    return res.status(500).json({ errors: formattedErrors });
-  }
-
-  try {
-    const agentToUpdate = await Agent.findById(req.userAuth);
-
-    if (!agentToUpdate) {
-      return next(appError("Agent not Found", 404));
-    }
-
-    const bankDetails = {
-      accountHolderName,
-      accountNumber,
-      IFSCCode,
-      UPIId,
-    };
-
-    agentToUpdate.bankDetail = bankDetails;
-
-    await agentToUpdate.save();
-
-    res
-      .status(200)
-      .json({ message: "Agent's bank details updated successfully" });
   } catch (err) {
     next(appError(err.message));
   }
@@ -363,6 +283,7 @@ const addVehicleDetailsController = async (req, res, next) => {
     });
     return res.status(500).json({ errors: formattedErrors });
   }
+
   try {
     const agentFound = await Agent.findById(req.userAuth);
 
@@ -370,31 +291,27 @@ const addVehicleDetailsController = async (req, res, next) => {
       return next(appError("Agent not found", 404));
     }
 
-    // Uploading vehicle images
-    const vehicleDetailsPromises = req.body.vehicles.map(
-      async (vehicle, index) => {
-        const rcFrontImage = req.files.rcFrontImage[index];
-        const rcBackImage = req.files.rcBackImage[index];
+    const { model, type, licensePlate } = req.body;
 
-        return {
-          _id: new mongoose.Types.ObjectId(),
-          model: vehicle.model,
-          type: vehicle.type,
-          licensePlate: vehicle.licensePlate,
-          rcFrontImageURL: rcFrontImage
-            ? await uploadToFirebase(rcFrontImage, "RCImages")
-            : "",
-          rcBackImageURL: rcBackImage
-            ? await uploadToFirebase(rcBackImage, "RCImages")
-            : "",
-        };
-      }
-    );
+    const rcFrontImage = req.files.rcFrontImage[0];
+    const rcBackImage = req.files.rcBackImage[0];
 
-    const vehicleDetails = await Promise.all(vehicleDetailsPromises);
+    // Uploading vehicle images and details
+    const newVehicle = {
+      _id: new mongoose.Types.ObjectId(),
+      model,
+      type,
+      licensePlate,
+      rcFrontImageURL: rcFrontImage
+        ? await uploadToFirebase(rcFrontImage, "RCImages")
+        : "",
+      rcBackImageURL: rcBackImage
+        ? await uploadToFirebase(rcBackImage, "RCImages")
+        : "",
+    };
 
-    // Saving the details to the agent
-    agentFound.vehicleDetail = vehicleDetails;
+    // Adding the new vehicle to the agent's vehicle details array
+    agentFound.vehicleDetail.push(newVehicle);
 
     await agentFound.save();
 
@@ -407,11 +324,78 @@ const addVehicleDetailsController = async (req, res, next) => {
   }
 };
 
+// Edit agent's vehicle details
+const editAgentVehicleController = async (req, res, next) => {
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(500).json({ errors: formattedErrors });
+  }
+
+  try {
+    const currentAgent = await Agent.findById(req.userAuth);
+
+    if (!currentAgent) {
+      return next(appError("Agent not found", 404));
+    }
+
+    const { vehicleId } = req.params;
+    const vehicle = currentAgent.vehicleDetail.id(vehicleId);
+
+    if (!vehicle) {
+      return next(appError("Vehicle not found", 404));
+    }
+
+    let rcFrontImageURL = vehicle.rcFrontImageURL;
+    let rcBackImageURL = vehicle.rcBackImageURL;
+
+    // If new images are provided, upload them and update URLs
+    if (req.files && req.files.rcFrontImage) {
+      await deleteFromFirebase(rcFrontImageURL);
+      vehicle.rcFrontImageURL = await uploadToFirebase(
+        req.files.rcFrontImage[0],
+        "RCImages"
+      );
+    }
+    if (req.files && req.files.rcBackImage) {
+      await deleteFromFirebase(rcBackImageURL);
+      vehicle.rcBackImageURL = await uploadToFirebase(
+        req.files.rcBackImage[0],
+        "RCImages"
+      );
+    }
+
+    // Update vehicle details
+    vehicle.model = req.body.model || vehicle.model;
+    vehicle.type = req.body.type || vehicle.type;
+    vehicle.licensePlate = req.body.licensePlate || vehicle.licensePlate;
+    vehicle.rcFrontImageURL = rcFrontImageURL;
+    vehicle.rcBackImageURL = rcBackImageURL;
+    vehicle.vehicleStatus =
+      req.body.vehicleStatus !== undefined
+        ? req.body.vehicleStatus
+        : vehicle.vehicleStatus;
+
+    await currentAgent.save();
+
+    res.status(200).json({
+      message: "Vehicle details updated successfully",
+      data: vehicle,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 // Get all vehicle details
 const getAllVehicleDetailsController = async (req, res, next) => {
   try {
     const currentAgent = await Agent.findById(req.userAuth).select(
-      "vehicleDetails"
+      "vehicleDetail"
     );
 
     if (!currentAgent) {
@@ -421,6 +405,31 @@ const getAllVehicleDetailsController = async (req, res, next) => {
     res.status(200).json({
       message: "Agent vehicle details",
       data: currentAgent,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get single vehicle detail
+const getSingleVehicleDetailController = async (req, res, next) => {
+  try {
+    const currentAgent = await Agent.findById(req.userAuth);
+
+    if (!currentAgent) {
+      return next(appError("Agent not found", 404));
+    }
+
+    const { vehicleId } = req.params;
+    const vehicle = currentAgent.vehicleDetail.id(vehicleId);
+
+    if (!vehicle) {
+      return next(appError("Vehicle not found", 404));
+    }
+
+    res.status(200).json({
+      message: "Vehicle details fetched successfully",
+      data: vehicle,
     });
   } catch (err) {
     next(appError(err.message));
@@ -532,14 +541,80 @@ const goOfflineController = async (req, res, next) => {
   }
 };
 
+const deleteAgentVehicleController = async (req, res, next) => {
+  try {
+    const agentFound = await Agent.findById(req.userAuth);
+
+    if (!agentFound) {
+      return next(appError("Agent not found", 404));
+    }
+
+    const { vehicleId } = req.params;
+
+    const vehicleIndex = agentFound.vehicleDetail.findIndex(
+      (vehicle) => vehicle._id.toString() === vehicleId
+    );
+
+    if (vehicleIndex === -1) {
+      return next(appError("Vehicle not found", 404));
+    }
+
+    // Remove the vehicle from the array
+    agentFound.vehicleDetail.splice(vehicleIndex, 1);
+
+    await agentFound.save();
+
+    res.status(200).json({
+      message: "Vehicle detail deleted successfully",
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const changeVehicleStatusController = async (req, res, next) => {
+  try {
+    const agentFound = await Agent.findById(req.userAuth);
+
+    if (!agentFound) {
+      return next(appError("Agent not found", 404));
+    }
+
+    const { vehicleId } = req.params;
+
+    let vehicleFound = false;
+
+    // Update the status of each vehicle
+    agentFound.vehicleDetail.forEach((vehicle) => {
+      if (vehicle._id.toString() === vehicleId) {
+        vehicle.vehicleStatus = true;
+        vehicleFound = true;
+      } else {
+        vehicle.vehicleStatus = false;
+      }
+    });
+
+    if (!vehicleFound) {
+      return next(appError("Vehicle not found", 404));
+    }
+
+    await agentFound.save();
+
+    res.status(200).json({
+      message: "Vehicle status updated successfully",
+      data: agentFound.vehicleDetail,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerAgentController,
   agentLoginController,
-  getImagesOfDetailsController,
   getAgentProfileDetailsController,
   editAgentProfileController,
-  addAgentBankDetailController,
-  editAgentBankDetailController,
+  updateAgentBankDetailController,
   getBankDetailController,
   checkIsApprovedController,
   addVehicleDetailsController,
@@ -547,4 +622,8 @@ module.exports = {
   goOnlineController,
   goOfflineController,
   getAllVehicleDetailsController,
+  getSingleVehicleDetailController,
+  editAgentVehicleController,
+  deleteAgentVehicleController,
+  changeVehicleStatusController,
 };

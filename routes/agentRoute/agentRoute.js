@@ -2,11 +2,8 @@ const express = require("express");
 const {
   registerAgentController,
   agentLoginController,
-  submitGovernmentAndVehicleDetailsController,
-  getImagesOfDetailsController,
   getAgentProfileDetailsController,
   editAgentProfileController,
-  addAgentBankDetailController,
   getBankDetailController,
   checkIsApprovedController,
   addVehicleDetailsController,
@@ -14,6 +11,11 @@ const {
   goOnlineController,
   goOfflineController,
   getAllVehicleDetailsController,
+  updateAgentBankDetailController,
+  getSingleVehicleDetailController,
+  editAgentVehicleController,
+  deleteAgentVehicleController,
+  changeVehicleStatusController,
 } = require("../../controllers/agent/agentController");
 const { body, check } = require("express-validator");
 const { upload } = require("../../utils/imageOperation");
@@ -56,13 +58,6 @@ agentRoute.post(
   agentLoginController
 );
 
-//Get agent's images of details
-agentRoute.get(
-  "/get-image-details",
-  isAuthenticated,
-  getImagesOfDetailsController
-);
-
 //Get agent's profile data
 agentRoute.get(
   "/get-profile",
@@ -88,9 +83,9 @@ agentRoute.put(
   editAgentProfileController
 );
 
-//Add Agent's Bank details
+// Update Agent's Bank details
 agentRoute.post(
-  "/add-bank-details",
+  "/update-bank-details",
   [
     body("accountHolderName")
       .trim()
@@ -104,26 +99,7 @@ agentRoute.post(
     body("UPIId").trim().notEmpty().withMessage("UPI Id is required"),
   ],
   isAuthenticated,
-  addAgentBankDetailController
-);
-
-//Edit Agent's Bank details
-agentRoute.put(
-  "/edit-bank-details",
-  [
-    body("accountHolderName")
-      .trim()
-      .notEmpty()
-      .withMessage("Account holder name is required"),
-    body("accountNumber")
-      .trim()
-      .notEmpty()
-      .withMessage("Account number is required"),
-    body("IFSCCode").trim().notEmpty().withMessage("IFSC Code is required"),
-    body("UPIId").trim().notEmpty().withMessage("UPI Id is required"),
-  ],
-  isAuthenticated,
-  addAgentBankDetailController
+  updateAgentBankDetailController
 );
 
 //Get Agent's Bank details
@@ -136,22 +112,13 @@ agentRoute.get("/check-approval", isAuthenticated, checkIsApprovedController);
 agentRoute.post(
   "/add-vehicle-details",
   upload.fields([
-    { name: "rcFrontImage", maxCount: 2 }, // Nedd to change the count according to number of vehicles that can be added
-    { name: "rcBackImage", maxCount: 2 }, // Nedd to change the count according to number of vehicles that can be added
+    { name: "rcFrontImage", maxCount: 1 },
+    { name: "rcBackImage", maxCount: 1 },
   ]),
   [
-    body("vehicles")
-      .isArray({ min: 1 })
-      .withMessage("Vehicle details are required"),
-    body("vehicles.*.model")
-      .trim()
-      .notEmpty()
-      .withMessage("Vehicle model is required"),
-    body("vehicles.*.type")
-      .trim()
-      .notEmpty()
-      .withMessage("Vehicle type is required"),
-    body("vehicles.*.licensePlate")
+    body("model").trim().notEmpty().withMessage("Vehicle model is required"),
+    body("type").trim().notEmpty().withMessage("Vehicle type is required"),
+    body("licensePlate")
       .trim()
       .notEmpty()
       .withMessage("License plate is required"),
@@ -219,14 +186,67 @@ agentRoute.post(
   addGovernmentCertificatesController
 );
 
+// Change agents status to Free
 agentRoute.patch("/go-online", isAuthenticated, goOnlineController);
 
+// Change agent's status to Inactive
 agentRoute.patch("/go-offline", isAuthenticated, goOfflineController);
 
+// Get all vehicle details of agent
 agentRoute.get(
   "/vehicle-details",
   isAuthenticated,
   getAllVehicleDetailsController
+);
+
+// Get single vehicle detail
+agentRoute.get(
+  "/vehicles/:vehicleId",
+  isAuthenticated,
+  getSingleVehicleDetailController
+);
+
+// Edit agent vehicle
+agentRoute.put(
+  "/edit-vehicle-details/:vehicleId",
+  upload.fields([
+    { name: "rcFrontImage", maxCount: 1 },
+    { name: "rcBackImage", maxCount: 1 },
+  ]),
+  [
+    body("model").trim().notEmpty().withMessage("Vehicle model is required"),
+    body("type").trim().notEmpty().withMessage("Vehicle type is required"),
+    body("licensePlate")
+      .trim()
+      .notEmpty()
+      .withMessage("License plate is required"),
+    check("rcFrontImage").custom((value, { req }) => {
+      if (!req.files || !req.files.rcFrontImage) {
+        throw new Error("RC Front Image is required for each vehicle");
+      }
+      return true;
+    }),
+    check("rcBackImage").custom((value, { req }) => {
+      if (!req.files || !req.files.rcBackImage) {
+        throw new Error("RC Back Image is required for each vehicle");
+      }
+      return true;
+    }),
+  ],
+  isAuthenticated,
+  editAgentVehicleController
+);
+
+agentRoute.delete(
+  "/delete-vehicle/:vehicleId",
+  isAuthenticated,
+  deleteAgentVehicleController
+);
+
+agentRoute.put(
+  "/change-vehicle-status",
+  isAuthenticated,
+  changeVehicleStatusController
 );
 
 module.exports = agentRoute;
