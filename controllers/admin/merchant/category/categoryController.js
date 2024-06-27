@@ -236,6 +236,13 @@ const addCategoryByMerchantController = async (req, res, next) => {
       return res.status(409).json({ errors: formattedErrors });
     }
 
+    // Find the highest order number
+    const lastCategory = await Category.findOne().sort({
+      order: -1,
+    });
+
+    const newOrder = lastCategory ? lastCategory.order + 1 : 1;
+
     let categoryImageURL = "";
 
     if (req.file) {
@@ -249,6 +256,7 @@ const addCategoryByMerchantController = async (req, res, next) => {
       description,
       type,
       categoryImageURL,
+      order: newOrder,
     });
 
     if (!newCategory) {
@@ -267,9 +275,9 @@ const getAllCategoriesByMerchantController = async (req, res, next) => {
   try {
     const merchantId = req.userAuth;
 
-    const categoriesOfMerchant = await Category.find({ merchantId }).select(
-      "categoryName merchantId"
-    );
+    const categoriesOfMerchant = await Category.find({ merchantId })
+      .select("categoryName merchantId")
+      .sort({ order: 1 });
 
     res
       .status(200)
@@ -410,6 +418,24 @@ const changeCategoryStatusByMerchantController = async (req, res, next) => {
   }
 };
 
+const updateCategoryOrderController = async (req, res, next) => {
+  const { categories } = req.body;
+
+  try {
+    for (const category of categories) {
+      await Category.findByIdAndUpdate(
+        category.id,
+        { order: category.order },
+        { new: true }
+      );
+    }
+
+    res.status(200).json({ message: "Category order updated successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getAllCategoriesOfMerchantByAdminController,
   getSingleCategoryOfMerchantByAdminController,
@@ -423,4 +449,5 @@ module.exports = {
   editCategoryByMerchantController,
   deleteCategoryByMerchantController,
   changeCategoryStatusByMerchantController,
+  updateCategoryOrderController,
 };

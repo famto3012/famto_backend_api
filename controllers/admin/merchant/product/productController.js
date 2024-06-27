@@ -48,6 +48,13 @@ const addProductController = async (req, res, next) => {
       return res.status(409).json({ errors: formattedErrors });
     }
 
+    // Find the highest order number
+    const lastCategory = await Product.findOne().sort({
+      order: -1,
+    });
+
+    const newOrder = lastCategory ? lastCategory.order + 1 : 1;
+
     let productImageURL = "";
 
     if (req.file) {
@@ -72,6 +79,7 @@ const addProductController = async (req, res, next) => {
       availableQuantity,
       alert,
       productImageURL,
+      order: newOrder,
     });
 
     if (!newProduct) {
@@ -225,7 +233,9 @@ const getProductByCategoryController = async (req, res, next) => {
 
     const productsByCategory = await Product.find({
       categoryId: categoryId,
-    }).select("productName");
+    })
+      .select("productName")
+      .sort({ order: 1 });
 
     res.status(200).json({
       message: "Products By category",
@@ -269,6 +279,22 @@ const changeInventoryStatusController = async (req, res, next) => {
     await productFound.save();
 
     res.status(200).json({ message: "Product inventory status changed" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const updateProductOrderController = async (req, res, next) => {
+  const { products } = req.body;
+
+  try {
+    for (const product of products) {
+      await Product.findByIdAndUpdate(product.id, {
+        order: product.order,
+      });
+    }
+
+    res.status(200).json({ message: "Product order updated successfully" });
   } catch (err) {
     next(appError(err.message));
   }
@@ -392,4 +418,5 @@ module.exports = {
   getProductByCategoryController,
   changeProductCategoryController,
   changeInventoryStatusController,
+  updateProductOrderController,
 };

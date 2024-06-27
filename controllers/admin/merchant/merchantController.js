@@ -364,67 +364,30 @@ const searchMerchantController = async (req, res, next) => {
   }
 };
 
-//TODO: Need to work on
 // Filter merchant by serviceable
 const filterMerchantByServiceableController = async (req, res, next) => {
   try {
     const { filter } = req.query;
-    console.log(`Filter is:  ${filter}`);
-
-    if (!filter || (filter !== "open" && filter !== "closed")) {
-      return res.status(400).json({
-        message: "Filter query must be 'open' or 'closed'",
-      });
+    if (!filter || !["open", "closed"].includes(filter.toLowerCase())) {
+      return res.status(400).json({ message: "Invalid filter value" });
     }
 
-    const merchantsFound = await Merchant.find({})
-      .select("fullName phoneNumber isApproved merchantDetail status")
-      .populate("merchantDetail.geofenceId", "name");
+    const merchants = await Merchant.find()
+      .populate("merchantDetail.geofenceId")
+      .populate("merchantDetail.businessCategoryId");
 
-    const filteredMerchants = merchantsFound.filter((merchant) => {
-      const merchantDetail = merchant.merchantDetail;
-
-      if (!merchantDetail || !merchantDetail.availability)
-        return filter === "closed";
-
-      const today = new Date()
-        .toLocaleString("en-IN", { weekday: "long" })
-        .toLowerCase();
-      const todayAvailability = merchantDetail.availability.specificDays[today];
-
-      if (!todayAvailability) return filter === "closed";
-
-      if (todayAvailability.openAllDay) return filter === "open";
-      if (todayAvailability.closedAllDay) return filter === "closed";
-
-      if (
-        todayAvailability.specificTime &&
-        todayAvailability.startTime &&
-        todayAvailability.endTime
-      ) {
-        const now = new Date();
-        const [startHour, startMinute] = todayAvailability.startTime
-          .split(":")
-          .map(Number);
-        const [endHour, endMinute] = todayAvailability.endTime
-          .split(":")
-          .map(Number);
-
-        const startTime = new Date(now.setHours(startHour, startMinute, 0));
-        const endTime = new Date(now.setHours(endHour, endMinute, 0));
-
-        const isOpen = now >= startTime && now <= endTime;
-        return filter === "open" ? isOpen : !isOpen;
-      }
-
-      return filter === "closed";
+    // Filter merchants based on the virtual field isServiceableToday
+    const filteredMerchants = merchants.filter((merchant) => {
+      return (
+        merchant.merchantDetail.isServiceableToday === filter.toLowerCase()
+      );
     });
 
     const merchantsWithDetails = filteredMerchants.map((merchant) => {
       const merchantDetail = merchant.merchantDetail;
       return {
         _id: merchant._id,
-        merchantName: merchant.merchantDetail.merchantName,
+        merchantName: merchantDetail?.merchantName || null,
         phoneNumber: merchant.phoneNumber,
         status: merchant.status,
         isApproved: merchant.isApproved,
@@ -434,29 +397,18 @@ const filterMerchantByServiceableController = async (req, res, next) => {
           merchantDetail && merchantDetail.geofenceId
             ? merchantDetail.geofenceId.name
             : null,
-        averageRating: merchantDetail ? merchantDetail.averageRating : null,
-        isServiceableToday: merchantDetail
-          ? merchantDetail.isServiceableToday
-          : null,
+        averageRating: merchantDetail ? merchantDetail.averageRating : 0,
+        isServiceableToday:
+          merchant.merchantDetail?.isServiceableToday || "N/A",
       };
     });
 
-    // Conditionally filter based on the 'filter' query
-    const filteredResponse =
-      filter === "open"
-        ? merchantsWithDetails.filter(
-            (merchant) => merchant.isServiceableToday === "open"
-          )
-        : merchantsWithDetails.filter(
-            (merchant) => merchant.isServiceableToday === "closed"
-          );
-
     res.status(200).json({
-      message: "Filtered merchant results",
+      message: "Filtered merchants by servieceable",
       data: merchantsWithDetails,
     });
   } catch (err) {
-    next(appError(err.message));
+    next(new Error(err.message));
   }
 };
 

@@ -8,6 +8,8 @@ const {
   getAllBusinessCategoryController,
   homeSearchController,
   listRestaurantsController,
+  getMerchantWithCategoriesController,
+  getAllProductsOfCategoryController,
 } = require("../../controllers/customer/customerController");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const { upload } = require("../../utils/imageOperation");
@@ -51,5 +53,15 @@ customerRoute.get("/all-business-categories", getAllBusinessCategoryController);
 customerRoute.get("/search-home", homeSearchController);
 
 customerRoute.get("/list-restaurants", listRestaurantsController);
+
+customerRoute.get(
+  "/merchant-with-categories/:merchantId",
+  getMerchantWithCategoriesController
+);
+
+customerRoute.get(
+  "/get-products/:categoryId",
+  getAllProductsOfCategoryController
+);
 
 module.exports = customerRoute;
