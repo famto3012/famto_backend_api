@@ -1,26 +1,56 @@
 const Geofence = require("../models/Geofence");
 const appError = require("./appError");
+const { point, polygon, booleanPointInPolygon } = require("@turf/turf");
+
+// const geoLocation = async (latitude, longitude, next) => {
+//   try {
+//     const location = [latitude, longitude];
+
+//     const geofence = await Geofence.findOne({
+//       coordinates: {
+//         $geoIntersects: {
+//           $geometry: {
+//             type: "Point",
+//             coordinates: location,
+//           },
+//         },
+//       },
+//     });
+
+//     if (!geofence) {
+//       throw new Error("No geofence found for this location");
+//     }
+
+//     return geofence._id;
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
+
+// Function to find the appropriate geofence for given coordinates
 
 const geoLocation = async (latitude, longitude, next) => {
   try {
-    const location = [latitude, longitude];
+    // Retrieve all geofences (assuming you have a Geofence model)
+    const geofences = await Geofence.find(); // Adjust this based on your actual model name
 
-    const geofence = await Geofence.findOne({
-      coordinates: {
-        $geoIntersects: {
-          $geometry: {
-            type: "Point",
-            coordinates: location,
-          },
-        },
-      },
-    });
+    // Convert user coordinates into a Turf.js point
+    const userPoint = point([longitude, latitude]);
 
-    if (!geofence) {
-      throw new Error("No geofence found for this location");
+    // Iterate through each geofence and check if userPoint is inside
+    for (let i = 0; i < geofences.length; i++) {
+      const coords = geofences[i].coordinates.map((coord) => [
+        coord[1],
+        coord[0],
+      ]);
+      const geoPolygon = polygon([coords]);
+
+      if (booleanPointInPolygon(userPoint, geoPolygon)) {
+        return geofences[i]; // Return the first matching geofence
+      }
     }
 
-    return geofence._id;
+    return null; // Return null if no matching geofence is found
   } catch (err) {
     next(appError(err.message));
   }

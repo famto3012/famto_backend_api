@@ -1,4 +1,5 @@
 const appError = require("../../utils/appError");
+const turf = require("@turf/turf");
 const generateToken = require("../../utils/generateToken");
 const os = require("os");
 const Customer = require("../../models/Customer");
@@ -45,7 +46,11 @@ const registerAndLoginController = async (req, res, next) => {
           message: "Account is Blocked",
         });
       } else {
+        const geofence = await geoLocation(latitude, longitude, next);
+
         customer.lastPlatformUsed = os.platform();
+        customer.customerDetails.geofenceId = geofence._id;
+
         await customer.save();
 
         return res.status(200).json({
@@ -56,27 +61,27 @@ const registerAndLoginController = async (req, res, next) => {
         });
       }
     } else {
-      const geofenceId = await geoLocation(latitude, longitude, next);
+      const geofence = await geoLocation(latitude, longitude, next);
 
-      if (email) {
-        newCustomer = new Customer({
-          email: normalizedEmail,
-          lastPlatformUsed: os.platform(),
-          customerDetails: {
-            location,
-            geofenceId,
-          },
-        });
-      } else {
-        newCustomer = new Customer({
-          phoneNumber,
-          lastPlatformUsed: os.platform(),
-          customerDetails: {
-            location,
-            geofenceId,
-          },
+      if (!geofence) {
+        return res.status(400).json({
+          message: "User coordinates are outside defined geofences",
         });
       }
+
+      // Create new customer based on email or phoneNumber
+      const newCustomerData = email
+        ? { email: normalizedEmail }
+        : { phoneNumber };
+
+      const newCustomer = new Customer({
+        ...newCustomerData,
+        lastPlatformUsed: os.platform(),
+        customerDetails: {
+          location,
+          geofenceId: geofence._id,
+        },
+      });
 
       await newCustomer.save();
 
@@ -325,42 +330,79 @@ const homeSearchController = async (req, res, next) => {
   }
 };
 
-//TODO: I ws doing this
 const listRestaurantsController = async (req, res, next) => {
   const { latitude, longitude } = req.body;
 
   try {
-    // Find the geofence that contains the customer's location
-    const geofence = await Geofence.findOne({
-      coordinates: {
-        $geoIntersects: {
-          $geometry: {
-            type: "Point",
-            coordinates: [longitude, latitude],
-          },
-        },
-      },
-    }).exec();
+    // Fetch all geofences from the database
+    const geofences = await Geofence.find({}).exec();
 
-    if (!geofence) {
+    // Check if the customer's location is within any geofence
+    const customerLocation = [latitude, longitude]; // [latitude, longitude]
+
+    let foundGeofence = null;
+    for (const geofence of geofences) {
+      const polygon = turf.polygon([
+        geofence.coordinates.map((coord) => [coord[1], coord[0]]),
+      ]); // Note: Turf uses [longitude, latitude]
+      const point = turf.point([longitude, latitude]); // Note: Turf uses [longitude, latitude]
+      if (turf.booleanPointInPolygon(point, polygon)) {
+        foundGeofence = geofence;
+        break;
+      }
+    }
+
+    if (!foundGeofence) {
       return next(appError("Geofence not found", 404));
     }
 
     // Query merchants based on geofence and other conditions
-    const merchantsFound = await Merchant.find({
-      "merchantDetail.geofenceId": geofence._id,
+    const merchants = await Merchant.find({
+      "merchantDetail.geofenceId": foundGeofence._id,
       isBlocked: false,
       isApproved: "Approved",
-    })
-      .select("")
-      .sort({
-        "merchantDetail.sponsorshipDetail.sponsorshipStatus": -1,
-      })
-      .exec();
+    }).exec();
+
+    // Filter merchants based on serving radius
+    const filteredMerchants = merchants.filter((merchant) => {
+      const servingRadius = merchant.merchantDetail.servingRadius || 0;
+      if (servingRadius > 0) {
+        const merchantLocation = merchant.merchantDetail.location;
+        const distance = turf.distance(
+          turf.point(merchantLocation),
+          turf.point(customerLocation),
+          { units: "kilometers" }
+        );
+        return distance <= servingRadius;
+      }
+      return true;
+    });
+
+    // Extracting required fields from filtered merchants including distance
+    const simplifiedMerchants = filteredMerchants.map((merchant) => {
+      const merchantLocation = merchant.merchantDetail.location;
+      const distance = turf
+        .distance(turf.point(merchantLocation), turf.point(customerLocation), {
+          units: "kilometers",
+        })
+        .toFixed(2);
+
+      return {
+        _id: merchant._id,
+        merchantName: merchant.merchantDetail.merchantName,
+        preparationTime: merchant.merchantDetail.deliveryTime,
+        description: merchant.merchantDetail.description,
+        averageRating: merchant.merchantDetail.averageRating,
+        status: merchant.status,
+        distanceInKM: parseFloat(distance),
+        restaurantType: merchant.merchantDetail.ifRestaurant || "N/A",
+        merchantImageURL: merchant.merchantDetail.merchantImageURL,
+      };
+    });
 
     res.status(200).json({
       message: "Available merchants",
-      data: merchantsFound,
+      data: simplifiedMerchants,
     });
   } catch (err) {
     next(appError(err.message));

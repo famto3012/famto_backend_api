@@ -26,7 +26,12 @@ const merchantDetailValidations = [
     .trim()
     .notEmpty()
     .withMessage("Display address is required"),
-  body("description").trim().notEmpty().withMessage("Description is required"),
+  body("description")
+    .trim()
+    .notEmpty()
+    .withMessage("Description is required")
+    .isLength({ min: 3, max: 10 })
+    .withMessage("Description must be between 3 to 10 characters"),
   body("geofenceId").trim().notEmpty().withMessage("Geofence is required"),
   body("location").trim().notEmpty().withMessage("Location is required"),
   body("pancardNumber")

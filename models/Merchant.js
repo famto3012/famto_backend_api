@@ -140,7 +140,7 @@ const merchantDetailSchema = new mongoose.Schema(
       default: "-",
     },
     location: {
-      type: String,
+      type: [Number],
       required: true,
     },
     ratingByCustomers: [ratingByCustomerSchema],
@@ -260,7 +260,7 @@ const merchantSchema = new mongoose.Schema(
     },
     blockedDate: {
       type: Date,
-      default: null
+      default: null,
     },
     merchantDetail: merchantDetailSchema,
     sponsorshipDetail: {

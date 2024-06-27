@@ -52,7 +52,7 @@ const registerAgentController = async (req, res, next) => {
       return res.status(409).json({ errors: formattedErrors });
     }
 
-    const geofenceId = await geoLocation(latitude, longitude, next);
+    const geofence = await geoLocation(latitude, longitude, next);
     console.log("geofenceId", geofenceId);
     const manager = await getManager(geofenceId);
 
@@ -67,7 +67,7 @@ const registerAgentController = async (req, res, next) => {
       email,
       phoneNumber,
       location,
-      geofenceId,
+      geofenceId: geofence._id,
       agentImageURL,
       manager,
     });

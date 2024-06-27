@@ -369,6 +369,7 @@ const searchMerchantController = async (req, res, next) => {
 const filterMerchantByServiceableController = async (req, res, next) => {
   try {
     const { filter } = req.query;
+    console.log(`Filter is:  ${filter}`);
 
     if (!filter || (filter !== "open" && filter !== "closed")) {
       return res.status(400).json({
@@ -377,7 +378,7 @@ const filterMerchantByServiceableController = async (req, res, next) => {
     }
 
     const merchantsFound = await Merchant.find({})
-      .select("fullName phoneNumber isApproved merchantDetail")
+      .select("fullName phoneNumber isApproved merchantDetail status")
       .populate("merchantDetail.geofenceId", "name");
 
     const filteredMerchants = merchantsFound.filter((merchant) => {
@@ -387,7 +388,7 @@ const filterMerchantByServiceableController = async (req, res, next) => {
         return filter === "closed";
 
       const today = new Date()
-        .toLocaleString("en-US", { weekday: "long" })
+        .toLocaleString("en-IN", { weekday: "long" })
         .toLowerCase();
       const todayAvailability = merchantDetail.availability.specificDays[today];
 
@@ -422,8 +423,13 @@ const filterMerchantByServiceableController = async (req, res, next) => {
     const merchantsWithDetails = filteredMerchants.map((merchant) => {
       const merchantDetail = merchant.merchantDetail;
       return {
-        ...merchant.toObject(),
-        status: merchantDetail ? merchantDetail.status : null,
+        _id: merchant._id,
+        merchantName: merchant.merchantDetail.merchantName,
+        phoneNumber: merchant.phoneNumber,
+        status: merchant.status,
+        isApproved: merchant.isApproved,
+        subscriptionStatus:
+          merchant?.sponsorshipDetail?.length > 0 ? "Active" : "Inactive",
         geofence:
           merchantDetail && merchantDetail.geofenceId
             ? merchantDetail.geofenceId.name
@@ -434,6 +440,16 @@ const filterMerchantByServiceableController = async (req, res, next) => {
           : null,
       };
     });
+
+    // Conditionally filter based on the 'filter' query
+    const filteredResponse =
+      filter === "open"
+        ? merchantsWithDetails.filter(
+            (merchant) => merchant.isServiceableToday === "open"
+          )
+        : merchantsWithDetails.filter(
+            (merchant) => merchant.isServiceableToday === "closed"
+          );
 
     res.status(200).json({
       message: "Filtered merchant results",
@@ -613,7 +629,7 @@ const rejectRegistrationController = async (req, res, next) => {
 // Get all merchant details
 const getAllMerchantsController = async (req, res, next) => {
   try {
-    const merchantsFound = await Merchant.find({isBlocked: false})
+    const merchantsFound = await Merchant.find({ isBlocked: false })
       .select("fullName phoneNumber isApproved status merchantDetail")
       .populate("merchantDetail.geofenceId", "name");
 
@@ -932,15 +948,15 @@ const blockMerchant = async (req, res) => {
     } else {
       merchantDetail.isBlocked = true;
       merchantDetail.reasonForBlockingOrDeleting = reasonForBlocking;
-      merchantDetail.blockedDate = new Date()
+      merchantDetail.blockedDate = new Date();
       await merchantDetail.save();
       const accountLogs = await new AccountLogs({
         _id: merchantDetail._id,
         fullName: merchantDetail.fullName,
         role: merchantDetail.role,
         description: reasonForBlocking,
-      })
-      await accountLogs.save()
+      });
+      await accountLogs.save();
       res.status(200).json({
         message: "Merchant blocked",
       });
@@ -950,8 +966,6 @@ const blockMerchant = async (req, res) => {
     console.log("Error in blockMerchant", err.message);
   }
 };
-
-
 
 module.exports = {
   registerMerchantController,
