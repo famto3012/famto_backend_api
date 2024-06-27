@@ -38,6 +38,8 @@ const serviceCategoryRoute = require("./routes/adminRoute/serviceCategoryRoute/s
 const pickAndDropBannerRoute = require("./routes/adminRoute/bannerRoute/pickAndDropBannerRoute");
 const customOrderBannerRoute = require("./routes/adminRoute/bannerRoute/customOrderBannerRoute");
 const accountLogRoute = require("./routes/adminRoute/accountLogRoute/accountLogRoute");
+const commissionRoute = require("./routes/adminRoute/commissionAndSubscriptionRoute/commissionRoute");
+const subscriptionRoute = require("./routes/adminRoute/commissionAndSubscriptionRoute/subscriptionRoute");
 
 require("dotenv").config();
 require("./config/dbConnect");
@@ -88,6 +90,8 @@ app.use("/api/v1/settings", settingsRoute);
 app.use("/api/v1/referals", referalRoute);
 app.use("/api/v1/admin/customers", adminCustomerRoute);
 app.use("/api/v1/admin/account-log", accountLogRoute);
+app.use("/api/v1/admin/commission", commissionRoute);
+app.use("/api/v1/admin/subscription", subscriptionRoute);
 
 //agent
 app.use("/api/v1/agents", agentRoute);
