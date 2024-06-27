@@ -51,12 +51,16 @@ merchantRoute.put(
 //Sponsorship payment
 merchantRoute.post(
   "/sponsorship-payment",
-  isAuthenticated,
+  // isAuthenticated,
   sponsorshipPaymentController
 );
 
 //Verify sponsorship payment
-merchantRoute.post("/verify-payment", isAuthenticated, verifyPaymentController);
+merchantRoute.post(
+  "/verify-payment",
+  // isAuthenticated,
+  verifyPaymentController
+);
 
 //-------------------------------
 //For Admin
@@ -169,6 +173,5 @@ merchantRoute.put(
   isAdmin,
   blockMerchant
 );
-
 
 module.exports = merchantRoute;

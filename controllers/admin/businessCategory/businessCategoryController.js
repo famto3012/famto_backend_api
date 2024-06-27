@@ -24,6 +24,7 @@ const addBusinessCategoryController = async (req, res, next) => {
     const lastCategory = await BusinessCategory.findOne().sort({
       order: -1,
     });
+
     const newOrder = lastCategory ? lastCategory.order + 1 : 1;
 
     let bannerImageURL = "";
@@ -177,15 +178,18 @@ const updateBusinessCategoryOrderController = async (req, res, next) => {
 
   try {
     for (const category of categories) {
-      await BusinessCategory.findByIdAndUpdate(category.id, { order: category.order });
+      await BusinessCategory.findByIdAndUpdate(category.id, {
+        order: category.order,
+      });
     }
 
-    res.status(200).json({ message: "Business category order updated successfully" });
+    res
+      .status(200)
+      .json({ message: "Business category order updated successfully" });
   } catch (err) {
     next(appError(err.message));
   }
 };
-
 
 module.exports = {
   addBusinessCategoryController,
@@ -194,5 +198,5 @@ module.exports = {
   editBusinessCategoryController,
   deleteBusinessCategoryController,
   enableOrDisableBusinessCategoryController,
-  updateBusinessCategoryOrderController
+  updateBusinessCategoryOrderController,
 };

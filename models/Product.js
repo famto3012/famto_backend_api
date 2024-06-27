@@ -117,6 +117,10 @@ const productSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
+    order: {
+      type: Number,
+      required: true,
+    },
     variants: [variantSchema],
   },
   {

@@ -13,6 +13,7 @@ const BusinessCategory = require("../../models/BusinessCategory");
 const Product = require("../../models/Product");
 const Geofence = require("../../models/Geofence");
 const Merchant = require("../../models/Merchant");
+const Category = require("../../models/Category");
 
 const registerAndLoginController = async (req, res, next) => {
   const errors = validationResult(req);
@@ -32,7 +33,6 @@ const registerAndLoginController = async (req, res, next) => {
     const normalizedEmail = email?.toLowerCase();
 
     let customer = {};
-    let newCustomer = {};
 
     if (email) {
       customer = await Customer.findOne({ email: normalizedEmail });
@@ -308,17 +308,32 @@ const homeSearchController = async (req, res, next) => {
     // Search in Product by productName or searchTags
     const products = await Product.find({
       $or: [
-        { productName: { $regex: query, $options: "i" } }, // Case-insensitive search
-        { searchTags: { $in: [query] } }, // Match searchTags array containing the query
+        { productName: { $regex: query, $options: "i" } },
+        { searchTags: { $in: [query] } },
       ],
     })
       .select("productName productImageURL type")
       .exec();
 
-    // Combine results from both models
+    // Search in Merchant by merchantName
+    const merchants = await Merchant.find({
+      "merchantDetail.merchantName": { $regex: query, $options: "i" },
+    })
+      .select(
+        "merchantDetail.merchantName merchantDetail.merchantImageURL merchantDetail.displayAddress"
+      )
+      .exec();
+
+    // Combine results from all models
     const searchResults = {
       businessCategories,
       products,
+      merchants: merchants.map((merchant) => ({
+        _id: merchant._id,
+        merchantName: merchant.merchantDetail.merchantName,
+        merchantImageURL: merchant.merchantDetail.merchantImageURL,
+        displayAddress: merchant.merchantDetail.displayAddress,
+      })),
     };
 
     res.status(200).json({
@@ -409,6 +424,60 @@ const listRestaurantsController = async (req, res, next) => {
   }
 };
 
+const getMerchantWithCategoriesController = async (req, res, next) => {
+  try {
+    const { merchantId } = req.params;
+
+    const merchantFound = await Merchant.find({
+      merchantId,
+      isApproved: "Approved",
+    }).select("phoneNumber merchantDetail.FSSAINumber");
+
+    if (!merchantFound) {
+      return next(appError("Merchant not found", 404));
+    }
+
+    const categoriesOfMerchant = await Category.find({ merchantId })
+      .select("_id merchantId categoryName")
+      .sort({ order: 1 });
+
+    if (!categoriesOfMerchant) {
+      return next(appError("Categories not found", 404));
+    }
+
+    const formattedResponse = {
+      merchant: {
+        phoneNumber: merchantFound.phoneNumber || "N/A",
+        FSSAINumber: merchantFound.merchantDetail?.FSSAINumber || "N/A",
+      },
+      categoriesOfMerchant,
+    };
+
+    res
+      .status(200)
+      .json({ message: "Categories of merchant", data: formattedResponse });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+const getAllProductsOfCategoryController = async (req, res, next) => {
+  try {
+    const { categoryId } = req.params;
+
+    const productsFound = await Product.find({ categoryId })
+      .select("productName price description")
+      .sort({ order: 1 })
+      .exec();
+
+    res.status(200).json({
+      message: "All products of category",
+      data: productsFound,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerAndLoginController,
   getCustomerProfileController,
@@ -418,4 +487,6 @@ module.exports = {
   getAllBusinessCategoryController,
   homeSearchController,
   listRestaurantsController,
+  getMerchantWithCategoriesController,
+  getAllProductsOfCategoryController,
 };

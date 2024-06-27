@@ -32,6 +32,10 @@ const categorySchema = mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    order: {
+      type: Number,
+      required: true,
+    },
   },
   {
     timestamps: true,

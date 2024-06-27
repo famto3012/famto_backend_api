@@ -96,7 +96,8 @@ app.use("/api/v1/agents", agentRoute);
 app.use("/api/v1/customers", customerRoute);
 
 // Schedule the task to run daily at midnight for deleteing expired sponsorship plans of Merchnats
-cron.schedule("0 0 * * *", async () => {
+// cron.schedule("0 0,6,12,18 * * *", async () => {
+cron.schedule("27 17 * * *", async () => {
   console.log("Running scheduled task to delete expired sponsorship plans");
   await deleteExpiredSponsorshipPlans();
 });
