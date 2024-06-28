@@ -2,6 +2,10 @@ const mongoose = require('mongoose');
 
 const commissionSchema = new mongoose.Schema(
   {
+    title: {
+      type: String,
+      default: "commission"
+    },
     commissionType: {
       type: String,
       enum:["Fixed","Percentage"],

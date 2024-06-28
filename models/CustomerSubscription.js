@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const merchantSubscriptionSchema = new mongoose.Schema(
+const customerSubscriptionSchema = new mongoose.Schema(
   {
     title: {
       type: String,
@@ -27,6 +27,10 @@ const merchantSubscriptionSchema = new mongoose.Schema(
         type: Number,
         required:true
     },
+    noOfOrder: {
+        type: Number,
+        required: true
+    },
     description: {
         type: String,
         required: true
@@ -37,5 +41,5 @@ const merchantSubscriptionSchema = new mongoose.Schema(
   }
 );
 
-const MerchantSubscription = mongoose.model('MerchantSubscription', merchantSubscriptionSchema);
-module.exports = MerchantSubscription;
+const CustomerSubscription = mongoose.model('CustomerSubscription', customerSubscriptionSchema);
+module.exports = CustomerSubscription;
