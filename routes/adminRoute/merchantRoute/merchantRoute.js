@@ -15,16 +15,24 @@ const {
   filterMerchantByGeofenceController,
   filterMerchantByBusinessCategoryController,
   blockMerchant,
+  editMerchantController,
 } = require("../../../controllers/admin/merchant/merchantController");
 const { upload } = require("../../../utils/imageOperation");
 const isAdmin = require("../../../middlewares/isAdmin");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
-const merchantDetailValidations = require("../../../middlewares/validators/merchantDetailValidations");
+const {
+  merchantDetailValidations,
+  merchantValidations,
+} = require("../../../middlewares/validators/merchantValidations");
 
 const merchantRoute = express.Router();
 
 //Register merchant
-merchantRoute.post("/register", registerMerchantController);
+merchantRoute.post(
+  "/register",
+  merchantValidations,
+  registerMerchantController
+);
 
 //Change status
 merchantRoute.patch(
@@ -128,6 +136,15 @@ merchantRoute.get(
   // isAuthenticated,
   // isAdmin,
   getSingleMerchantController
+);
+
+// Edit merchant
+merchantRoute.put(
+  "/admin/edit-merchant/:merchantId",
+  merchantValidations,
+  isAuthenticated,
+  isAdmin,
+  editMerchantController
 );
 
 merchantRoute.patch(

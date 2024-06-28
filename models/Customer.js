@@ -95,6 +95,18 @@ const customerDetailSchema = new mongoose.Schema(
         landmark: String,
       },
     ],
+    favouriteProducts: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product",
+      },
+    ],
+    favouriteMerchants: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Merchants",
+      },
+    ],
   },
   {
     _id: false,

@@ -89,25 +89,7 @@ const changeMerchantStatusByMerchantController = async (req, res, next) => {
 
 //Update Merchant Details by merchant
 const updateMerchantDetailsByMerchantController = async (req, res, next) => {
-  const {
-    fullName,
-    email,
-    phoneNumber,
-    merchantName,
-    displayAddress,
-    description,
-    geofenceId,
-    location,
-    pancardNumber,
-    GSTINNumber,
-    FSSAINumber,
-    aadharNumber,
-    businessCategoryId,
-    deliveryOption,
-    deliveryTime,
-    servingArea,
-    availability,
-  } = req.body;
+  const { fullName, email, phoneNumber, merchantDetail } = req.body;
 
   const errors = validationResult(req);
 
@@ -183,20 +165,7 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
     }
 
     const details = {
-      merchantName,
-      displayAddress,
-      description,
-      geofenceId,
-      location,
-      pancardNumber,
-      GSTINNumber,
-      FSSAINumber,
-      aadharNumber,
-      businessCategoryId,
-      deliveryOption,
-      deliveryTime,
-      servingArea,
-      availability,
+      ...merchantDetail,
       merchantImageURL,
       pancardImageURL,
       GSTINImageURL,
@@ -647,6 +616,67 @@ const getSingleMerchantController = async (req, res, next) => {
   }
 };
 
+// Edit merchant
+const editMerchantController = async (req, res, next) => {
+  const { fullName, email, phoneNumber, password } = req.body;
+
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(500).json({ errors: formattedErrors });
+  }
+
+  try {
+    const { merchantId } = req.params;
+
+    const merchantFound = await Merchant.findById(merchantId);
+
+    if (!merchantFound) {
+      return next(appError("Merchant not found", 404));
+    }
+
+    const normalizedEmail = email.toLowerCase();
+
+    if (normalizedEmail !== merchantFound.email) {
+      const emailExists = await Merchant.findOne({
+        _id: { $ne: merchantId },
+        email: normalizedEmail,
+      });
+
+      if (emailExists) {
+        formattedErrors.email = "Email already exists";
+        return res.status(409).json({ errors: formattedErrors });
+      }
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const updatedMerchant = await Merchant.findByIdAndUpdate(
+      merchantId,
+      {
+        fullName,
+        email: normalizedEmail,
+        phoneNumber,
+        password: hashedPassword,
+      },
+      { new: true }
+    );
+
+    if (!updatedMerchant) {
+      return next(appError("Error in updating merchant"));
+    }
+
+    res.status(200).josn({ message: "Merchant updated successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 // Change merchant status by admin
 const changeMerchantStatusController = async (req, res, next) => {
   try {
@@ -667,25 +697,7 @@ const changeMerchantStatusController = async (req, res, next) => {
 
 // Update Merchant Details by admin
 const updateMerchantDetailsController = async (req, res, next) => {
-  const {
-    fullName,
-    email,
-    phoneNumber,
-    merchantName,
-    displayAddress,
-    description,
-    geofenceId,
-    location,
-    pancardNumber,
-    GSTINNumber,
-    FSSAINumber,
-    aadharNumber,
-    businessCategoryId,
-    deliveryOption,
-    deliveryTime,
-    servingArea,
-    availability,
-  } = req.body;
+  const { fullName, email, phoneNumber, merchantDetail } = req.body;
 
   const errors = validationResult(req);
 
@@ -761,20 +773,7 @@ const updateMerchantDetailsController = async (req, res, next) => {
     }
 
     const details = {
-      merchantName,
-      displayAddress,
-      description,
-      geofenceId,
-      location,
-      pancardNumber,
-      GSTINNumber,
-      FSSAINumber,
-      aadharNumber,
-      businessCategoryId,
-      deliveryOption,
-      deliveryTime,
-      servingArea,
-      availability,
+      ...merchantDetail,
       merchantImageURL,
       pancardImageURL,
       GSTINImageURL,
@@ -886,7 +885,8 @@ const verifyPaymentController = async (req, res, next) => {
   }
 };
 
-const blockMerchant = async (req, res) => {
+// Block a merchant
+const blockMerchant = async (req, res, next) => {
   try {
     const merchantId = req.params.merchantId;
     const { reasonForBlocking } = req.body;
@@ -914,8 +914,7 @@ const blockMerchant = async (req, res) => {
       });
     }
   } catch (err) {
-    res.status(500).json({ error: err.message });
-    console.log("Error in blockMerchant", err.message);
+    next(appError(err.message));
   }
 };
 
@@ -939,4 +938,5 @@ module.exports = {
   sponsorshipPaymentController,
   verifyPaymentController,
   blockMerchant,
+  editMerchantController,
 };

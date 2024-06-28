@@ -14,6 +14,9 @@ const Product = require("../../models/Product");
 const Geofence = require("../../models/Geofence");
 const Merchant = require("../../models/Merchant");
 const Category = require("../../models/Category");
+const {
+  sortMerchantsBySponsorship,
+} = require("../../utils/customerAppHelpers");
 
 const registerAndLoginController = async (req, res, next) => {
   const errors = validationResult(req);
@@ -393,8 +396,15 @@ const listRestaurantsController = async (req, res, next) => {
       return true;
     });
 
+    // Sort merchants by sponsorship status (sponsored merchants first)
+    const sortedMerchants = filteredMerchants.sort((a, b) => {
+      const aSponsorship = a.sponsorshipDetail.some((s) => s.sponsorshipStatus);
+      const bSponsorship = b.sponsorshipDetail.some((s) => s.sponsorshipStatus);
+      return bSponsorship - aSponsorship;
+    });
+
     // Extracting required fields from filtered merchants including distance
-    const simplifiedMerchants = filteredMerchants.map((merchant) => {
+    const simplifiedMerchants = sortedMerchants.map((merchant) => {
       const merchantLocation = merchant.merchantDetail.location;
       const distance = turf
         .distance(turf.point(merchantLocation), turf.point(customerLocation), {
@@ -410,7 +420,7 @@ const listRestaurantsController = async (req, res, next) => {
         averageRating: merchant.merchantDetail.averageRating,
         status: merchant.status,
         distanceInKM: parseFloat(distance),
-        restaurantType: merchant.merchantDetail.ifRestaurant || "N/A",
+        merchantFoodType: merchant.merchantDetail.merchantFoodType || "N/A",
         merchantImageURL: merchant.merchantDetail.merchantImageURL,
       };
     });
@@ -424,55 +434,358 @@ const listRestaurantsController = async (req, res, next) => {
   }
 };
 
-const getMerchantWithCategoriesController = async (req, res, next) => {
+const getMerchantWithCategoriesAndProductsController = async (
+  req,
+  res,
+  next
+) => {
   try {
     const { merchantId } = req.params;
 
-    const merchantFound = await Merchant.find({
-      merchantId,
+    const merchantFound = await Merchant.findOne({
+      _id: merchantId,
       isApproved: "Approved",
-    }).select("phoneNumber merchantDetail.FSSAINumber");
+    });
 
     if (!merchantFound) {
       return next(appError("Merchant not found", 404));
     }
 
     const categoriesOfMerchant = await Category.find({ merchantId })
-      .select("_id merchantId categoryName")
+      .select("_id categoryName order")
       .sort({ order: 1 });
 
-    if (!categoriesOfMerchant) {
-      return next(appError("Categories not found", 404));
-    }
+    const categoriesWithProducts = await Promise.all(
+      categoriesOfMerchant.map(async (category) => {
+        const products = await Product.find({ categoryId: category._id })
+          .select("_id productName price description productImageURL")
+          .sort({ order: 1 });
+        return {
+          ...category._doc,
+          products,
+        };
+      })
+    );
 
     const formattedResponse = {
       merchant: {
+        _id: merchantFound.id,
         phoneNumber: merchantFound.phoneNumber || "N/A",
         FSSAINumber: merchantFound.merchantDetail?.FSSAINumber || "N/A",
+        merchantName: merchantFound.merchantDetail?.merchantName || "N/A",
+        deliveryTime: merchantFound.merchantDetail?.deliveryTime || "N/A",
+        description: merchantFound.merchantDetail?.description || "N/A",
+        displayAddress: merchantFound.merchantDetail?.displayAddress || "N/A",
       },
-      categoriesOfMerchant,
+      categories: categoriesWithProducts,
     };
 
-    res
-      .status(200)
-      .json({ message: "Categories of merchant", data: formattedResponse });
+    res.status(200).json({
+      message: "Categories and products of merchant",
+      data: formattedResponse,
+    });
   } catch (err) {
     next(appError(err.message));
   }
 };
-const getAllProductsOfCategoryController = async (req, res, next) => {
-  try {
-    const { categoryId } = req.params;
 
-    const productsFound = await Product.find({ categoryId })
-      .select("productName price description")
-      .sort({ order: 1 })
-      .exec();
+const filterMerchantController = async (req, res, next) => {
+  try {
+    const { filterType, latitude, longitude } = req.body;
+
+    // Define filter criteria based on filter type
+    let filterCriteria = {
+      isBlocked: false,
+      isApproved: "Approved",
+    };
+
+    if (filterType === "Veg") {
+      filterCriteria["merchantDetail.merchantFoodType"] = { $in: ["Veg"] };
+    } else if (filterType === "Rating") {
+      filterCriteria["merchantDetail.averageRating"] = { $gte: 4.0 };
+    }
+
+    let merchants = await Merchant.find(filterCriteria).exec();
+
+    if (filterType === "Nearby") {
+      if (!latitude || !longitude) {
+        return next(
+          appError("Latitude and longitude are required for nearby filter", 400)
+        );
+      }
+
+      const customerLocation = [latitude, longitude];
+      merchants = merchants.filter((merchant) => {
+        const servingRadius = merchant.merchantDetail.servingRadius || 0;
+        if (servingRadius > 0) {
+          const merchantLocation = merchant.merchantDetail.location;
+          const distance = turf.distance(
+            turf.point(merchantLocation),
+            turf.point(customerLocation),
+            { units: "kilometers" }
+          );
+          return distance <= servingRadius;
+        }
+        return true;
+      });
+    }
+
+    const sortedMerchants = sortMerchantsBySponsorship(merchants);
+
+    const responseMerchants = sortedMerchants.map((merchant) => {
+      const merchantLocation = merchant.merchantDetail.location;
+      const distance = turf.distance(
+        turf.point(merchantLocation),
+        turf.point([latitude, longitude]),
+        { units: "kilometers" }
+      );
+
+      return {
+        _id: merchant._id,
+        merchantName: merchant.merchantDetail.merchantName,
+        averageRating: merchant.merchantDetail.averageRating,
+        merchantImageURL: merchant.merchantDetail.merchantImageURL,
+        description: merchant.merchantDetail.description,
+        deliveryTime: merchant.merchantDetail.deliveryTime,
+        displayAddress: merchant.merchantDetail.displayAddress,
+        ifRestaurant: merchant.merchantDetail.ifRestaurant,
+        distance: distance.toFixed(2),
+      };
+    });
 
     res.status(200).json({
-      message: "All products of category",
-      data: productsFound,
+      message: "Filtered merchants",
+      data: responseMerchants,
     });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const searchProductsInMerchantController = async (req, res, next) => {
+  try {
+    const { merchantId } = req.params;
+
+    const { query } = req.query;
+
+    // Find categories belonging to the merchant
+    const categories = await Category.find({ merchantId });
+
+    // Extract category IDs
+    const categoryIds = categories.map((category) => category._id);
+
+    // Search products by name or description within the categories
+    const products = await Product.find({
+      categoryId: { $in: categoryIds },
+      $or: [
+        { productName: { $regex: query, $options: "i" } },
+        { description: { $regex: query, $options: "i" } },
+        { searchTags: { $in: [query] } },
+      ],
+    })
+      .select("_id productName price description")
+      .sort({ order: 1 });
+
+    res.status(200).json({
+      message: "Products found in merchant",
+      data: products,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const filterProductsByTypeController = async (req, res, next) => {
+  try {
+    const { merchantId } = req.params;
+    const { type } = req.query; // Type can be "Veg" or "Non-veg" only
+
+    // Find categories belonging to the merchant
+    const categories = await Category.find({ merchantId });
+
+    // Extract category IDs
+    const categoryIds = categories.map((category) => category._id);
+
+    // Filter products by type within the categories
+    const products = await Product.find({
+      categoryId: { $in: categoryIds },
+      type: type, // Only filter by the specified type
+    })
+      .select("_id productName price description")
+      .sort({ order: 1 });
+
+    res.status(200).json({
+      message: `Products filtered by ${type} type`,
+      data: products,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const filterProductByFavouriteController = async (req, res, next) => {
+  try {
+    const currentCustomer = req.userAuth;
+    const { merchantId } = req.params;
+
+    if (!currentCustomer) {
+      return next(appError("Customer is not authenticated", 403));
+    }
+
+    const customer = await Customer.findById(currentCustomer).populate({
+      path: "customerDetails.favouriteProducts",
+      select: "_id productName price description productImageURL",
+      populate: {
+        path: "categoryId",
+        match: { merchantId: merchantId },
+        select: "_id merchantId",
+      },
+    });
+
+    if (!customer) {
+      return next(appError("Customer not found", 404));
+    }
+
+    const favoriteProducts = customer.customerDetails.favouriteProducts.filter(
+      (product) =>
+        product.categoryId &&
+        product.categoryId.merchantId.toString() === merchantId
+    );
+
+    res.status(200).json({
+      message: "Favorite products retrieved successfully",
+      data: favoriteProducts,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const toggleProductFavoriteController = async (req, res, next) => {
+  try {
+    const currentCustomer = await Customer.findById(req.userAuth);
+
+    if (!currentCustomer) {
+      return next(appError("Customer is not authenticated", 403));
+    }
+
+    const { productId } = req.params;
+
+    const productFound = await Product.findById(productId);
+
+    if (!productFound) {
+      return next(appError("Product not found", 404));
+    }
+
+    const isFavourite =
+      currentCustomer.customerDetails.favouriteProducts.includes(productId);
+
+    if (isFavourite) {
+      currentCustomer.customerDetails.favouriteProducts =
+        currentCustomer.customerDetails.favouriteProducts.filter(
+          (favourite) => favourite.toString() !== productId.toString()
+        );
+
+      await currentCustomer.save();
+
+      res.status(200).json({
+        message: "successfully removed product from favourite list",
+      });
+    } else {
+      currentCustomer.customerDetails.favouriteProducts.push(productId);
+      await currentCustomer.save();
+
+      res.status(200).json({
+        message: "successfully added product to favourite list",
+      });
+    }
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const toggleMerchantFavoriteController = async (req, res, next) => {
+  try {
+    const currentCustomer = await Customer.findById(req.userAuth);
+
+    if (!currentCustomer) {
+      return next(appError("Customer is not authenticated", 403));
+    }
+
+    const { merchantId } = req.params;
+
+    const merchantFound = await Merchant.findById(merchantId);
+
+    if (!merchantFound) {
+      return next(appError("Merchant not found", 404));
+    }
+
+    const isFavourite =
+      currentCustomer.customerDetails.favouriteMerchants.includes(merchantId);
+
+    if (isFavourite) {
+      currentCustomer.customerDetails.favouriteMerchants =
+        currentCustomer.customerDetails.favouriteMerchants.filter(
+          (favourite) => favourite.toString() !== merchantId.toString()
+        );
+
+      await currentCustomer.save();
+
+      res.status(200).json({
+        message: "successfully removed merchant from favourite list",
+      });
+    } else {
+      currentCustomer.customerDetails.favouriteMerchants.push(merchantId);
+      await currentCustomer.save();
+
+      res.status(200).json({
+        message: "successfully added merchant to favourite list",
+      });
+    }
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const addRatingToMerchantController = async (req, res, next) => {
+  const { review, rating } = req.body;
+
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(500).json({ errors: formattedErrors });
+  }
+
+  try {
+    const currentCustomer = await Customer.findById(req.userAuth);
+
+    if (!currentCustomer) {
+      return next(appError("Customer is not authenticated", 401));
+    }
+
+    const { merchantId } = req.params;
+
+    const merchantFound = await Merchant.findById(merchantId);
+
+    if (!merchantFound) {
+      return next(appError("Merchant not found", 404));
+    }
+
+    const ratingData = {
+      customerId: currentCustomer,
+      review,
+      rating,
+    };
+
+    merchantFound.merchantDetail.ratingByCustomers.push(ratingData);
+
+    await merchantFound.save();
+
+    res.status(200).json({ message: "Rating submitted successfully" });
   } catch (err) {
     next(appError(err.message));
   }
@@ -487,6 +800,12 @@ module.exports = {
   getAllBusinessCategoryController,
   homeSearchController,
   listRestaurantsController,
-  getMerchantWithCategoriesController,
-  getAllProductsOfCategoryController,
+  getMerchantWithCategoriesAndProductsController,
+  filterMerchantController,
+  searchProductsInMerchantController,
+  filterProductsByTypeController,
+  toggleProductFavoriteController,
+  toggleMerchantFavoriteController,
+  filterProductByFavouriteController,
+  addRatingToMerchantController,
 };

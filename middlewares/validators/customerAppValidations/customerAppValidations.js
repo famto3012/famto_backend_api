@@ -40,4 +40,18 @@ const updateAddressValidations = [
   body("addresses.*.landmark").optional(),
 ];
 
-module.exports = { customerAuthenticateValidations, updateAddressValidations };
+const ratingValidations = [
+  body("rating")
+    .trim()
+    .notEmpty()
+    .withMessage("Rating is required")
+    .isNumeric()
+    .withMessage("Must be a number"),
+  body("review").optional().trim(),
+];
+
+module.exports = {
+  customerAuthenticateValidations,
+  updateAddressValidations,
+  ratingValidations,
+};

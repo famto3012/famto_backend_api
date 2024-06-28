@@ -12,7 +12,7 @@ const alertNotificationSchema = new mongoose.Schema(
     },
     imageUrl: {
       type: String,
-      required: true
+      required: true,
     },
     merchant: {
       type: Boolean,
@@ -24,28 +24,31 @@ const alertNotificationSchema = new mongoose.Schema(
     },
     customer: {
       type: Boolean,
-      default: false
+      default: false,
     },
     merchantId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Merchant',
-        default: null
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Merchant",
+      default: null,
     },
     customerId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Customer',
-        default: null
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Customer",
+      default: null,
     },
     agentId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Agent',
-        default: null
-    }
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Agent",
+      default: null,
+    },
   },
   {
     timestamps: true,
   }
 );
 
-const AlertNotification = mongoose.model("AlertNotification", alertNotificationSchema);
+const AlertNotification = mongoose.model(
+  "AlertNotification",
+  alertNotificationSchema
+);
 module.exports = AlertNotification;

@@ -1,12 +1,6 @@
 const express = require("express");
 const { body } = require("express-validator");
-const {
-  loginController,
-  blockMerchant,
-  blockCustomer,
-} = require("../../controllers/admin/authController");
-const isAuthenticated = require("../../middlewares/isAuthenticated");
-const isAdmin = require("../../middlewares/isAdmin");
+const { loginController } = require("../../controllers/admin/authController");
 
 const authRoute = express.Router();
 
@@ -45,10 +39,9 @@ authRoute.post(
   [
     body("email").trim().notEmpty().withMessage("Email is required"),
     body("password").trim().notEmpty().withMessage("Password is required"),
+    body("role").trim().notEmpty().withMessage("Role is required"),
   ],
   loginController
 );
-
-
 
 module.exports = authRoute;
