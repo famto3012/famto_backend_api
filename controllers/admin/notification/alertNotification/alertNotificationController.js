@@ -93,12 +93,10 @@ const getAllAlertNotificationsController = async (req, res, next) => {
     // Fetch all alert notifications from the database
     const alertNotifications = await AlertNotification.find();
 
-    res
-      .status(200)
-      .json({
-        message: "Alert notifications retrieved successfully!",
-        data: alertNotifications,
-      });
+    res.status(200).json({
+      message: "Alert notifications retrieved successfully!",
+      data: alertNotifications,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -128,12 +126,10 @@ const getAlertNotificationsByUserTypeController = async (req, res, next) => {
     // Fetch alert notifications by user type from the database
     const alertNotifications = await AlertNotification.find(query);
 
-    res
-      .status(200)
-      .json({
-        message: "Alert notifications retrieved successfully!",
-        alertNotifications,
-      });
+    res.status(200).json({
+      message: "Alert notifications retrieved successfully!",
+      alertNotifications,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -152,12 +148,10 @@ const searchAlertNotificationsByTitleController = async (req, res, next) => {
       title: { $regex: title, $options: "i" }, // Case-insensitive search
     });
 
-    res
-      .status(200)
-      .json({
-        message: "Alert notifications retrieved successfully!",
-        alertNotifications,
-      });
+    res.status(200).json({
+      message: "Alert notifications retrieved successfully!",
+      alertNotifications,
+    });
   } catch (err) {
     next(appError(err.message));
   }

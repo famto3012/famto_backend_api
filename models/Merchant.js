@@ -69,7 +69,6 @@ const ratingByCustomerSchema = new mongoose.Schema(
     },
     review: {
       type: String,
-      required: true,
     },
     rating: {
       type: Number,
@@ -181,7 +180,7 @@ const merchantDetailSchema = new mongoose.Schema(
       ref: "BusinessCategory",
       required: true,
     },
-    ifRestaurant: {
+    merchantFoodType: {
       type: String,
       enum: ["Veg", "Non-veg", "Both"],
     },
