@@ -95,13 +95,13 @@ const customerDetailSchema = new mongoose.Schema(
         landmark: String,
       },
     ],
-    favouriteProducts: [
+    favoriteProducts: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Product",
       },
     ],
-    favouriteMerchants: [
+    favoriteMerchants: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Merchants",

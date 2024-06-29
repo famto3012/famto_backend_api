@@ -49,7 +49,7 @@ const productDiscountSchema = new mongoose.Schema(
     onAddOn: {
       type: Boolean,
       required: true,
-      default: true,
+      default: false,
     },
     status: {
       type: Boolean,

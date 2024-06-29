@@ -349,9 +349,16 @@ const homeSearchController = async (req, res, next) => {
 };
 
 const listRestaurantsController = async (req, res, next) => {
-  const { latitude, longitude } = req.body;
-
+  const { latitude, longitude, customerId } = req.body;
   try {
+    // Fetch the authenticated customer to get their favorite merchants, if they exist
+    let currentCustomer = null;
+    if (customerId) {
+      currentCustomer = await Customer.findById(customerId)
+        .select("customerDetails.favoriteMerchants")
+        .exec();
+    }
+
     // Fetch all geofences from the database
     const geofences = await Geofence.find({}).exec();
 
@@ -403,7 +410,7 @@ const listRestaurantsController = async (req, res, next) => {
       return bSponsorship - aSponsorship;
     });
 
-    // Extracting required fields from filtered merchants including distance
+    // Extracting required fields from filtered merchants including distance and favorite status
     const simplifiedMerchants = sortedMerchants.map((merchant) => {
       const merchantLocation = merchant.merchantDetail.location;
       const distance = turf
@@ -411,6 +418,12 @@ const listRestaurantsController = async (req, res, next) => {
           units: "kilometers",
         })
         .toFixed(2);
+
+      // Determine if the merchant is a favorite
+      const isFavorite =
+        currentCustomer?.customerDetails?.favoriteMerchants?.includes(
+          merchant._id
+        ) ?? false;
 
       return {
         _id: merchant._id,
@@ -420,8 +433,9 @@ const listRestaurantsController = async (req, res, next) => {
         averageRating: merchant.merchantDetail.averageRating,
         status: merchant.status,
         distanceInKM: parseFloat(distance),
-        merchantFoodType: merchant.merchantDetail.merchantFoodType || "N/A",
+        restaurantType: merchant.merchantDetail.ifRestaurant || "N/A",
         merchantImageURL: merchant.merchantDetail.merchantImageURL,
+        isFavorite,
       };
     });
 
@@ -441,6 +455,7 @@ const getMerchantWithCategoriesAndProductsController = async (
 ) => {
   try {
     const { merchantId } = req.params;
+    const { customerId } = req.body;
 
     const merchantFound = await Merchant.findOne({
       _id: merchantId,
@@ -451,18 +466,86 @@ const getMerchantWithCategoriesAndProductsController = async (
       return next(appError("Merchant not found", 404));
     }
 
+    // Fetch the authenticated customer to get their favorite products, if they exist
+    let currentCustomer = null;
+    if (customerId) {
+      currentCustomer = await Customer.findById(customerId)
+        .select("customerDetails.favoriteProducts")
+        .exec();
+    }
+
     const categoriesOfMerchant = await Category.find({ merchantId })
-      .select("_id categoryName order")
+      .select("_id categoryName status")
       .sort({ order: 1 });
 
     const categoriesWithProducts = await Promise.all(
       categoriesOfMerchant.map(async (category) => {
         const products = await Product.find({ categoryId: category._id })
-          .select("_id productName price description productImageURL")
+          .populate("discountId")
+          .select(
+            "_id productName price description productImageURL inventory variants discountId"
+          )
           .sort({ order: 1 });
+
+        const productsWithDetails = products.map((product) => {
+          const currentDate = new Date();
+
+          let discountPrice = product.price;
+          if (
+            product.discountId &&
+            product.discountId.validFrom <= currentDate &&
+            product.discountId.validTo >= currentDate
+          ) {
+            const discount = product.discountId;
+
+            if (discount.discountType === "percentage") {
+              discountPrice -= (product.price * discount.discountValue) / 100;
+            } else if (discount.discountType === "fixed") {
+              discountPrice -= discount.discountValue;
+            }
+
+            if (discountPrice < 0) discountPrice = 0;
+
+            if (discount.onAddOn) {
+              product.variants = product.variants.map((variant) => {
+                variant.variantTypes = variant.variantTypes.map(
+                  (variantType) => {
+                    let variantDiscountPrice = variantType.price;
+                    if (discount.discountType === "percentage") {
+                      variantDiscountPrice -=
+                        (variantType.price * discount.discountValue) / 100;
+                    } else if (discount.discountType === "fixed") {
+                      variantDiscountPrice -= discount.discountValue;
+                    }
+
+                    if (variantDiscountPrice < 0) variantDiscountPrice = 0;
+
+                    return {
+                      ...variantType._doc,
+                      discountPrice: variantDiscountPrice,
+                    };
+                  }
+                );
+                return variant;
+              });
+            }
+          }
+
+          const isFavorite =
+            currentCustomer?.customerDetails?.favoriteProducts?.includes(
+              product._id
+            ) ?? false;
+
+          return {
+            ...product._doc,
+            isFavorite,
+            discountPrice,
+          };
+        });
+
         return {
           ...category._doc,
-          products,
+          products: productsWithDetails,
         };
       })
     );
@@ -583,7 +666,7 @@ const searchProductsInMerchantController = async (req, res, next) => {
         { searchTags: { $in: [query] } },
       ],
     })
-      .select("_id productName price description")
+      .select("_id productName price description inventory variants")
       .sort({ order: 1 });
 
     res.status(200).json({
@@ -595,66 +678,58 @@ const searchProductsInMerchantController = async (req, res, next) => {
   }
 };
 
-const filterProductsByTypeController = async (req, res, next) => {
+const filterAndSortProductsController = async (req, res, next) => {
   try {
     const { merchantId } = req.params;
-    const { type } = req.query; // Type can be "Veg" or "Non-veg" only
+    const { filter, sort } = req.query;
 
-    // Find categories belonging to the merchant
-    const categories = await Category.find({ merchantId });
+    // Get category IDs associated with the merchant
+    const categories = await Category.find({ merchantId }).select("_id");
 
-    // Extract category IDs
     const categoryIds = categories.map((category) => category._id);
 
-    // Filter products by type within the categories
-    const products = await Product.find({
-      categoryId: { $in: categoryIds },
-      type: type, // Only filter by the specified type
-    })
-      .select("_id productName price description")
-      .sort({ order: 1 });
+    // Build the query object
+    let query = { categoryId: { $in: categoryIds } };
 
-    res.status(200).json({
-      message: `Products filtered by ${type} type`,
-      data: products,
-    });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
-const filterProductByFavouriteController = async (req, res, next) => {
-  try {
-    const currentCustomer = req.userAuth;
-    const { merchantId } = req.params;
-
-    if (!currentCustomer) {
-      return next(appError("Customer is not authenticated", 403));
+    // Add filter conditions
+    if (filter) {
+      if (filter === "Veg" || filter === "Non-veg") {
+        query.type = filter;
+      } else if (filter === "Favorite") {
+        const customer = await Customer.findOne({
+          "customerDetails.favoriteProducts": {
+            $exists: true,
+            $not: { $size: 0 },
+          },
+        }).select("customerDetails.favoriteProducts");
+        if (customer) {
+          query._id = { $in: customer.customerDetails.favoriteProducts };
+        } else {
+          query._id = { $in: [] }; // No favorite products found, return empty result
+        }
+      }
     }
 
-    const customer = await Customer.findById(currentCustomer).populate({
-      path: "customerDetails.favouriteProducts",
-      select: "_id productName price description productImageURL",
-      populate: {
-        path: "categoryId",
-        match: { merchantId: merchantId },
-        select: "_id merchantId",
-      },
-    });
-
-    if (!customer) {
-      return next(appError("Customer not found", 404));
+    // Build the sort object
+    let sortObj = {};
+    if (sort) {
+      if (sort === "Price - low to high") {
+        sortObj.price = 1; // Ascending order
+      } else if (sort === "Price - high to low") {
+        sortObj.price = -1; // Descending order
+      }
     }
 
-    const favoriteProducts = customer.customerDetails.favouriteProducts.filter(
-      (product) =>
-        product.categoryId &&
-        product.categoryId.merchantId.toString() === merchantId
-    );
+    // Fetch the filtered and sorted products
+    const products = await Product.find(query)
+      .select(
+        "productName price longDescription productImageURL inventory variants"
+      )
+      .sort(sortObj);
 
     res.status(200).json({
-      message: "Favorite products retrieved successfully",
-      data: favoriteProducts,
+      message: "Filtered and sorted products retrieved successfully",
+      products,
     });
   } catch (err) {
     next(appError(err.message));
@@ -677,26 +752,26 @@ const toggleProductFavoriteController = async (req, res, next) => {
       return next(appError("Product not found", 404));
     }
 
-    const isFavourite =
-      currentCustomer.customerDetails.favouriteProducts.includes(productId);
+    const isFavorite =
+      currentCustomer.customerDetails.favoriteProducts.includes(productId);
 
-    if (isFavourite) {
-      currentCustomer.customerDetails.favouriteProducts =
-        currentCustomer.customerDetails.favouriteProducts.filter(
-          (favourite) => favourite.toString() !== productId.toString()
+    if (isFavorite) {
+      currentCustomer.customerDetails.favoriteProducts =
+        currentCustomer.customerDetails.favoriteProducts.filter(
+          (favorite) => favorite.toString() !== productId.toString()
         );
 
       await currentCustomer.save();
 
       res.status(200).json({
-        message: "successfully removed product from favourite list",
+        message: "successfully removed product from favorite list",
       });
     } else {
-      currentCustomer.customerDetails.favouriteProducts.push(productId);
+      currentCustomer.customerDetails.favoriteProducts.push(productId);
       await currentCustomer.save();
 
       res.status(200).json({
-        message: "successfully added product to favourite list",
+        message: "successfully added product to favorite list",
       });
     }
   } catch (err) {
@@ -720,26 +795,26 @@ const toggleMerchantFavoriteController = async (req, res, next) => {
       return next(appError("Merchant not found", 404));
     }
 
-    const isFavourite =
-      currentCustomer.customerDetails.favouriteMerchants.includes(merchantId);
+    const isFavorite =
+      currentCustomer.customerDetails.favoriteMerchants.includes(merchantId);
 
-    if (isFavourite) {
-      currentCustomer.customerDetails.favouriteMerchants =
-        currentCustomer.customerDetails.favouriteMerchants.filter(
-          (favourite) => favourite.toString() !== merchantId.toString()
+    if (isFavorite) {
+      currentCustomer.customerDetails.favoriteMerchants =
+        currentCustomer.customerDetails.favoriteMerchants.filter(
+          (favorite) => favorite.toString() !== merchantId.toString()
         );
 
       await currentCustomer.save();
 
       res.status(200).json({
-        message: "successfully removed merchant from favourite list",
+        message: "successfully removed merchant from favorite list",
       });
     } else {
-      currentCustomer.customerDetails.favouriteMerchants.push(merchantId);
+      currentCustomer.customerDetails.favoriteMerchants.push(merchantId);
       await currentCustomer.save();
 
       res.status(200).json({
-        message: "successfully added merchant to favourite list",
+        message: "successfully added merchant to favorite list",
       });
     }
   } catch (err) {
@@ -791,6 +866,30 @@ const addRatingToMerchantController = async (req, res, next) => {
   }
 };
 
+const getTotalRatingOfMerchantController = async (req, res, next) => {
+  try {
+    const { merchantId } = req.params;
+
+    const merchantFound = await Merchant.findById(merchantId);
+
+    if (!merchantFound) {
+      return next(appError("Merchant not found", 404));
+    }
+
+    const totalReviews =
+      merchantFound?.merchantDetail?.ratingByCustomers?.length || 0;
+    const averageRating = merchantFound?.merchantDetail?.averageRating || 0;
+
+    res.status(200).json({
+      message: "Rating details of merchant",
+      totalReviews,
+      averageRating,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerAndLoginController,
   getCustomerProfileController,
@@ -803,9 +902,88 @@ module.exports = {
   getMerchantWithCategoriesAndProductsController,
   filterMerchantController,
   searchProductsInMerchantController,
-  filterProductsByTypeController,
+  filterAndSortProductsController,
   toggleProductFavoriteController,
   toggleMerchantFavoriteController,
-  filterProductByFavouriteController,
   addRatingToMerchantController,
+  getTotalRatingOfMerchantController,
 };
+
+// const getMerchantWithCategoriesAndProductsController = async (
+//   req,
+//   res,
+//   next
+// ) => {
+//   try {
+//     const { merchantId } = req.params;
+//     const { customerId } = req.body;
+
+//     const merchantFound = await Merchant.findOne({
+//       _id: merchantId,
+//       isApproved: "Approved",
+//     });
+
+//     if (!merchantFound) {
+//       return next(appError("Merchant not found", 404));
+//     }
+
+//     // Fetch the authenticated customer to get their favorite products, if they exist
+//     let currentCustomer = null;
+//     if (customerId) {
+//       currentCustomer = await Customer.findById(customerId)
+//         .select("customerDetails.favoriteProducts")
+//         .exec();
+//     }
+
+//     const categoriesOfMerchant = await Category.find({ merchantId })
+//       .select("_id categoryName status")
+//       .sort({ order: 1 });
+
+//     const categoriesWithProducts = await Promise.all(
+//       categoriesOfMerchant.map(async (category) => {
+//         const products = await Product.find({ categoryId: category._id })
+//           .select(
+//             "_id productName price description productImageURL inventory variants"
+//           )
+//           .sort({ order: 1 });
+
+//         // Add isFavorite field to each product
+//         const productsWithFavorite = products.map((product) => {
+//           const isFavorite =
+//             currentCustomer?.customerDetails?.favoriteProducts?.includes(
+//               product._id
+//             ) ?? false;
+//           return {
+//             ...product._doc,
+//             isFavorite,
+//           };
+//         });
+
+//         return {
+//           ...category._doc,
+//           products: productsWithFavorite,
+//         };
+//       })
+//     );
+
+//     const formattedResponse = {
+//       merchant: {
+//         _id: merchantFound.id,
+//         phoneNumber: merchantFound.phoneNumber || "N/A",
+//         FSSAINumber: merchantFound.merchantDetail?.FSSAINumber || "N/A",
+//         merchantName: merchantFound.merchantDetail?.merchantName || "N/A",
+//         deliveryTime: merchantFound.merchantDetail?.deliveryTime || "N/A",
+//         description: merchantFound.merchantDetail?.description || "N/A",
+//         displayAddress: merchantFound.merchantDetail?.displayAddress || "N/A",
+//       },
+//       categories: categoriesWithProducts,
+//     };
+
+//     res.status(200).json({
+//       message: "Categories and products of merchant",
+//       data: formattedResponse,
+//     });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };

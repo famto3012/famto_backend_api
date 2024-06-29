@@ -129,7 +129,7 @@ const merchantDetailSchema = new mongoose.Schema(
       required: true,
     },
     geofenceId: {
-      type: mongoose.Schema.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "Geofence",
       required: true,
     },
@@ -137,7 +137,7 @@ const merchantDetailSchema = new mongoose.Schema(
       {
         type: mongoose.Schema.Types.Mixed,
         required: true,
-        default: [], 
+        default: [],
       },
     ],
     location: {
