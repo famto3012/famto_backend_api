@@ -7,6 +7,11 @@ const {
   editMerchantSubscriptionPlanController,
   getSingleMerchantSubscriptionPlanController,
   deleteMerchantSubscriptionPlanController,
+  addCustomerSubscriptionPlanController,
+  getAllCustomerSubscriptionPlansController,
+  editCustomerSubscriptionPlanController,
+  getSingleCustomerSubscriptionPlanController,
+  deleteCustomerSubscriptionPlanController,
 } = require("../../../controllers/admin/commissionAndSubscription/subscriptionController");
 const { body } = require("express-validator");
 const subscriptionValidationRules = require("../../../middlewares/validators/subscriptionValidations");
@@ -14,7 +19,7 @@ const subscriptionValidationRules = require("../../../middlewares/validators/sub
 const subscriptionRoute = express.Router();
 
 subscriptionRoute.post(
-  "/add-subscription",
+  "/add-merchant-subscription",
   subscriptionValidationRules,
   isAuthenticated,
   isAdmin,
@@ -22,32 +27,67 @@ subscriptionRoute.post(
 );
 
 subscriptionRoute.get(
-  "/get-subscription",
+  "/get-merchant-subscription",
   isAuthenticated,
   isAdmin,
   getAllMerchantSubscriptionPlansController
 );
 
 subscriptionRoute.put(
-  "/edit-subscription/:id",
+  "/edit-merchant-subscription/:id",
   isAuthenticated,
   isAdmin,
   editMerchantSubscriptionPlanController
 );
 
 subscriptionRoute.get(
-  "/get-subscription/:id",
+  "/get-merchant-subscription/:id",
   isAuthenticated,
   isAdmin,
   getSingleMerchantSubscriptionPlanController
 );
 
 subscriptionRoute.delete(
-  "/delete-subscription/:id",
+  "/delete-merchant-subscription/:id",
   isAuthenticated,
   isAdmin,
   deleteMerchantSubscriptionPlanController
 );
 
+subscriptionRoute.post(
+  "/add-customer-subscription",
+  subscriptionValidationRules,
+  isAuthenticated,
+  isAdmin,
+  addCustomerSubscriptionPlanController
+);
+
+subscriptionRoute.get(
+  "/get-customer-subscription",
+  isAuthenticated,
+  isAdmin,
+  getAllCustomerSubscriptionPlansController
+);
+
+subscriptionRoute.put(
+  "/edit-customer-subscription/:id",
+  isAuthenticated,
+  isAdmin,
+  editCustomerSubscriptionPlanController
+);
+
+subscriptionRoute.get(
+  "/get-customer-subscription/:id",
+  isAuthenticated,
+  isAdmin,
+  getSingleCustomerSubscriptionPlanController
+);
+
+subscriptionRoute.delete(
+  "/delete-customer-subscription/:id",
+  isAuthenticated,
+  isAdmin,
+  deleteCustomerSubscriptionPlanController
+);
 
 module.exports = subscriptionRoute;

@@ -1,6 +1,7 @@
 const { validationResult } = require("express-validator");
 const MerchantSubscription = require("../../../models/MerchantSubscription");
 const appError = require("../../../utils/appError");
+const CustomerSubscription = require("../../../models/customerSubscription");
 
 const addMerchantSubscriptionPlanController = async (req, res, next) => {
   const errors = validationResult(req);
@@ -134,10 +135,150 @@ const deleteMerchantSubscriptionPlanController = async (req, res, next) => {
   }
 };
 
+const addCustomerSubscriptionPlanController = async (req, res, next) => {
+  const errors = validationResult(req);
+
+  if (!errors.isEmpty()) {
+    let formattedErrors = {};
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(400).json({ errors: formattedErrors });
+  }
+
+  try {
+    const { name, amount, duration, taxId, noOfOrder, renewalReminder, description } =
+      req.body;
+
+    const subscriptionPlan = new CustomerSubscription({
+      name,
+      amount,
+      duration,
+      taxId,
+      renewalReminder,
+      noOfOrder,
+      description,
+    });
+
+    const savedSubscriptionPlan = await subscriptionPlan.save();
+
+    res.status(201).json({
+      message: "Subscription plan added successfully",
+      data: savedSubscriptionPlan,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getAllCustomerSubscriptionPlansController = async (req, res, next) => {
+  try {
+    const subscriptionPlans = await CustomerSubscription.find();
+
+    res.status(200).json({
+      message: "Subscription plans retrieved successfully",
+      data: subscriptionPlans,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const editCustomerSubscriptionPlanController = async (req, res, next) => {
+  const errors = validationResult(req);
+
+  if (!errors.isEmpty()) {
+    let formattedErrors = {};
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(400).json({ errors: formattedErrors });
+  }
+
+  try {
+    const { id } = req.params;
+    const { name, amount, duration, taxId, noOfOrder, renewalReminder, description } =
+      req.body;
+
+    const subscriptionPlan = await CustomerSubscription.findById(id);
+    if (!subscriptionPlan) {
+      return res.status(404).json({ message: "Subscription plan not found" });
+    }
+
+    subscriptionPlan.name = name !== undefined ? name : subscriptionPlan.name;
+    subscriptionPlan.amount =
+    amount !== undefined ? amount : subscriptionPlan.amount;
+    subscriptionPlan.duration =
+    duration !== undefined ? duration : subscriptionPlan.duration;
+    subscriptionPlan.taxId =
+    taxId !== undefined ? taxId : subscriptionPlan.taxId;
+    subscriptionPlan.renewalReminder =
+    renewalReminder !== undefined
+    ? renewalReminder
+    : subscriptionPlan.renewalReminder;
+    subscriptionPlan.noOfOrder = noOfOrder !== undefined ? noOfOrder : subscriptionPlan.noOfOrder;
+    subscriptionPlan.description =
+      description !== undefined ? description : subscriptionPlan.description;
+
+    // Save the updated subscription plan
+    const updatedSubscriptionPlan = await subscriptionPlan.save();
+
+    res.status(200).json({
+      message: "Subscription plan updated successfully",
+      data: updatedSubscriptionPlan,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getSingleCustomerSubscriptionPlanController = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const subscriptionPlan = await CustomerSubscription.findById(id);
+
+    if (!subscriptionPlan) {
+      return res.status(404).json({ message: "Subscription plan not found" });
+    }
+
+    res.status(200).json({
+      message: "Subscription plan retrieved successfully",
+      data: subscriptionPlan,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const deleteCustomerSubscriptionPlanController = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const subscriptionPlan = await CustomerSubscription.findByIdAndDelete(id);
+
+    if (!subscriptionPlan) {
+      return res.status(404).json({ message: "Subscription plan not found" });
+    }
+
+    res.status(200).json({
+      message: "Subscription plan deleted successfully",
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+
 module.exports = {
   addMerchantSubscriptionPlanController,
   getAllMerchantSubscriptionPlansController,
   editMerchantSubscriptionPlanController,
   getSingleMerchantSubscriptionPlanController,
-  deleteMerchantSubscriptionPlanController
-};
+  deleteMerchantSubscriptionPlanController,
+  addCustomerSubscriptionPlanController,
+  getAllCustomerSubscriptionPlansController,
+  editCustomerSubscriptionPlanController,
+  getSingleCustomerSubscriptionPlanController,
+  deleteCustomerSubscriptionPlanController
+}

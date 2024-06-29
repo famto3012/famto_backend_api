@@ -133,11 +133,13 @@ const merchantDetailSchema = new mongoose.Schema(
       ref: "Geofence",
       required: true,
     },
-    pricing: {
-      type: String,
-      required: true,
-      default: "-",
-    },
+    pricing: [
+      {
+        type: mongoose.Schema.Types.Mixed,
+        required: true,
+        default: [], 
+      },
+    ],
     location: {
       type: [Number],
       required: true,
