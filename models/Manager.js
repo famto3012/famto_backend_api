@@ -29,7 +29,7 @@ const managerSchema = mongoose.Schema(
       required: true,
     },
     geofenceId: {
-      type: mongoose.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "Geofence",
       required: true,
     },
@@ -40,8 +40,8 @@ const managerSchema = mongoose.Schema(
     domain: {
       type: String,
       enum: ["role1", "role2"],
-      required: true
-    }
+      required: true,
+    },
   },
   {
     timestamp: true,

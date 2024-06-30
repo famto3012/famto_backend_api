@@ -19,6 +19,7 @@ const {
   filterAndSortProductsController,
   getTotalRatingOfMerchantController,
   addItemsToCartController,
+  updateCartItemQuantityController,
 } = require("../../controllers/customer/customerController");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const { upload } = require("../../utils/imageOperation");
@@ -121,5 +122,7 @@ customerRoute.get(
 );
 
 customerRoute.post("/add-to-cart", addItemsToCartController);
+
+customerRoute.put("/update-cart", updateCartItemQuantityController);
 
 module.exports = customerRoute;

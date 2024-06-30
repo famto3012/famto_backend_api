@@ -60,7 +60,7 @@ const customerDetailSchema = new mongoose.Schema(
       type: [[Number]],
     },
     geofenceId: {
-      type: mongoose.Schema.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "Geofence",
     },
     walletBalance: {
@@ -128,7 +128,6 @@ const customerSchema = new mongoose.Schema(
     },
     lastPlatformUsed: {
       type: String,
-      //required:true
     },
     role: {
       type: String,

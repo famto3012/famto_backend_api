@@ -9,19 +9,17 @@ const deleteExpiredSponsorshipPlans = async () => {
       "sponsorshipDetail.endDate": { $lte: now },
     });
 
-    console.log(merchants);
-    console.log(now);
-
     // Use for...of loop to handle asynchronous operations correctly
     for (const merchant of merchants) {
-      // Filter out expired plans
-      const activePlans = merchant.sponsorshipDetail.filter(
-        (plan) => new Date(plan.endDate) < now
+      // Remove expired plans
+      await Merchant.updateOne(
+        { _id: merchant._id },
+        {
+          $pull: {
+            sponsorshipDetail: { endDate: { $lte: now } },
+          },
+        }
       );
-
-      // Update merchant with only active plans
-      merchant.sponsorshipDetail = activePlans;
-      await merchant.save();
     }
 
     console.log("Expired sponsorship plans deleted successfully");
