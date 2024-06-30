@@ -39,7 +39,7 @@ const agentPricingSchema = new mongoose.Schema(
       required: true,
     },
     geofenceId: {
-      type: mongoose.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "Geofence",
       required: true,
     },

@@ -76,12 +76,12 @@ const bankDetailSchema = mongoose.Schema(
 const workStructureSchema = mongoose.Schema(
   {
     managerId: {
-      type: mongoose.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "Manager",
       required: true,
     },
     salaryStructureId: {
-      type: mongoose.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "AgentPricing",
       required: true,
     },
@@ -128,7 +128,7 @@ const agentSchema = mongoose.Schema(
       required: true,
     },
     geofenceId: {
-      type: mongoose.Schema.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "Geofence",
     },
     role: {

@@ -19,6 +19,7 @@ const {
 } = require("../../utils/customerAppHelpers");
 const CustomerCart = require("../../models/CustomerCart");
 
+// Register or login customer
 const registerAndLoginController = async (req, res, next) => {
   const errors = validationResult(req);
 
@@ -100,6 +101,7 @@ const registerAndLoginController = async (req, res, next) => {
   }
 };
 
+// Get the profile details of customer
 const getCustomerProfileController = async (req, res, next) => {
   try {
     const currentCustomer = await Customer.findById(req.userAuth).select(
@@ -127,6 +129,7 @@ const getCustomerProfileController = async (req, res, next) => {
   }
 };
 
+// Update profile details of customer
 const updateCustomerProfileController = async (req, res, next) => {
   const { fullName, email } = req.body;
 
@@ -195,6 +198,7 @@ const updateCustomerProfileController = async (req, res, next) => {
   }
 };
 
+// Update customer address details
 const updateCustomerAddressController = async (req, res, next) => {
   const { addresses } = req.body;
 
@@ -252,6 +256,7 @@ const updateCustomerAddressController = async (req, res, next) => {
   }
 };
 
+// Get the address details of customer
 const getCustomerAddressController = async (req, res, next) => {
   try {
     const currentCustomer = await Customer.findById(req.userAuth);
@@ -273,6 +278,7 @@ const getCustomerAddressController = async (req, res, next) => {
   }
 };
 
+// Get all available business categories according to the order
 const getAllBusinessCategoryController = async (req, res, next) => {
   try {
     const allBusinessCategories = await BusinessCategory.find({})
@@ -288,6 +294,7 @@ const getAllBusinessCategoryController = async (req, res, next) => {
   }
 };
 
+// search for Product OR Business category OR Merchant in the home
 const homeSearchController = async (req, res, next) => {
   const { query } = req.query;
 
@@ -349,6 +356,7 @@ const homeSearchController = async (req, res, next) => {
   }
 };
 
+// List the available restaurants in the customers geofence
 const listRestaurantsController = async (req, res, next) => {
   const { latitude, longitude, customerId } = req.body;
   try {
@@ -449,6 +457,7 @@ const listRestaurantsController = async (req, res, next) => {
   }
 };
 
+// Get all the availbel categories and products of a merchant
 const getMerchantWithCategoriesAndProductsController = async (
   req,
   res,
@@ -597,6 +606,7 @@ const getMerchantWithCategoriesAndProductsController = async (
   }
 };
 
+// Filter merchants based on (Pure veg, Rating, Nearby)
 const filterMerchantController = async (req, res, next) => {
   try {
     const { filterType, latitude, longitude } = req.body;
@@ -670,6 +680,7 @@ const filterMerchantController = async (req, res, next) => {
   }
 };
 
+// Search for a product in the merchant
 const searchProductsInMerchantController = async (req, res, next) => {
   try {
     const { merchantId } = req.params;
@@ -703,6 +714,7 @@ const searchProductsInMerchantController = async (req, res, next) => {
   }
 };
 
+// Filter and sort products
 const filterAndSortProductsController = async (req, res, next) => {
   try {
     const { merchantId } = req.params;
@@ -761,6 +773,7 @@ const filterAndSortProductsController = async (req, res, next) => {
   }
 };
 
+// Add or remove Products from favorite
 const toggleProductFavoriteController = async (req, res, next) => {
   try {
     const currentCustomer = await Customer.findById(req.userAuth);
@@ -804,6 +817,7 @@ const toggleProductFavoriteController = async (req, res, next) => {
   }
 };
 
+// Add or remove Merchants from favorite
 const toggleMerchantFavoriteController = async (req, res, next) => {
   try {
     const currentCustomer = await Customer.findById(req.userAuth);
@@ -847,6 +861,7 @@ const toggleMerchantFavoriteController = async (req, res, next) => {
   }
 };
 
+// Add ratings to the merchant
 const addRatingToMerchantController = async (req, res, next) => {
   const { review, rating } = req.body;
 
@@ -891,6 +906,7 @@ const addRatingToMerchantController = async (req, res, next) => {
   }
 };
 
+// Get average rating and total rating count of merchant
 const getTotalRatingOfMerchantController = async (req, res, next) => {
   try {
     const { merchantId } = req.params;
@@ -915,6 +931,7 @@ const getTotalRatingOfMerchantController = async (req, res, next) => {
   }
 };
 
+//
 const addItemsToCartController = async (req, res, next) => {
   try {
     const { customerId, productId, quantity, variantTypeId } = req.body;
@@ -927,6 +944,12 @@ const addItemsToCartController = async (req, res, next) => {
 
     const price = product.price; // Getting the product price
     const merchantId = product.categoryId.merchantId; // Getting the merchantId
+
+    if (product.variants.length > 0 && !variantTypeId) {
+      return res
+        .status(400)
+        .json({ error: "Variant ID is required for this product" });
+    }
 
     let cart = await CustomerCart.findOne({ customerId });
 
@@ -942,27 +965,45 @@ const addItemsToCartController = async (req, res, next) => {
       cart = new CustomerCart({ customerId, merchantId, items: [] });
     }
 
-    // Add the new item to the cart
-    const itemIndex = cart.items.findIndex(
+    // Check for existing item with the same productId and variantTypeId
+    const existingItemIndex = cart.items.findIndex(
       (item) =>
         item.productId.equals(productId) &&
-        (variantTypeId
-          ? item.variantTypeId?.equals(variantTypeId)
-          : !item.variantTypeId)
+        ((variantTypeId &&
+          item.variantTypeId &&
+          item.variantTypeId.equals(variantTypeId)) ||
+          (!variantTypeId && !item.variantTypeId))
     );
 
-    if (itemIndex >= 0) {
+    if (existingItemIndex >= 0) {
       // Update the quantity if the item already exists in the cart
-      cart.items[itemIndex].quantity += quantity;
+      cart.items[existingItemIndex].quantity += quantity;
+      if (cart.items[existingItemIndex].quantity <= 0) {
+        cart.items.splice(existingItemIndex, 1); // Remove item if quantity is zero or less
+      }
     } else {
-      // Add a new item to the cart
-      const newItem = {
-        productId,
-        quantity,
-        price,
-        variantTypeId: variantTypeId || null, // Handle variantTypeId if it's not provided
-      };
-      cart.items.push(newItem);
+      // Add a new item to the cart or replace an existing variant
+      if (variantTypeId) {
+        const sameProductDifferentVariantIndex = cart.items.findIndex(
+          (item) =>
+            item.productId.equals(productId) &&
+            !item.variantTypeId.equals(variantTypeId)
+        );
+
+        if (sameProductDifferentVariantIndex >= 0) {
+          cart.items.splice(sameProductDifferentVariantIndex, 1); // Remove existing item with different variant
+        }
+      }
+
+      if (quantity > 0) {
+        const newItem = {
+          productId,
+          quantity,
+          price,
+          variantTypeId: variantTypeId || null, // Handle variantTypeId if it's not provided
+        };
+        cart.items.push(newItem);
+      }
     }
 
     await cart.save();
@@ -972,6 +1013,45 @@ const addItemsToCartController = async (req, res, next) => {
       data: cart,
       totalPrice: cart.totalPrice,
     });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+//
+const updateCartItemQuantityController = async (req, res, next) => {
+  try {
+    const { customerId, productId, quantity, variantTypeId } = req.body;
+
+    let cart = await CustomerCart.findOne({ customerId });
+
+    if (!cart) {
+      return res.status(404).json({ error: "Cart not found" });
+    }
+
+    const itemIndex = cart.items.findIndex(
+      (item) =>
+        item.productId.equals(productId) &&
+        ((variantTypeId &&
+          item.variantTypeId &&
+          item.variantTypeId.equals(variantTypeId)) ||
+          (!variantTypeId && !item.variantTypeId))
+    );
+
+    if (itemIndex >= 0) {
+      cart.items[itemIndex].quantity += quantity;
+      if (cart.items[itemIndex].quantity <= 0) {
+        cart.items.splice(itemIndex, 1); // Remove item if quantity is zero or less
+      }
+      await cart.save();
+      res.status(200).json({
+        success: "Cart updated successfully",
+        data: cart,
+        totalPrice: cart.totalPrice,
+      });
+    } else {
+      res.status(404).json({ error: "Item not found in cart" });
+    }
   } catch (err) {
     next(appError(err.message));
   }
@@ -995,4 +1075,5 @@ module.exports = {
   addRatingToMerchantController,
   getTotalRatingOfMerchantController,
   addItemsToCartController,
+  updateCartItemQuantityController,
 };
