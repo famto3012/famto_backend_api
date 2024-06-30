@@ -10,6 +10,11 @@ const subscriptionLogSchema = new mongoose.Schema(
         type: mongoose.Schema.Types.Mixed,
         required: true,
     },
+    typeOfUser: {
+      type: String,
+      enum: ["Customer", "Merchant"],
+      default: null
+    },
     amount: {
       type: Number,
       required: true,
@@ -28,10 +33,14 @@ const subscriptionLogSchema = new mongoose.Schema(
        required: true
     },
     paymentStatus: {
-        type: String,
-       enum: ["Paid", "Unpaid"],
+       type: String,
+       enum: ["Paid", "Unpaid", "Pending"],
        default: "Unpaid"
     },
+    razorpayOrderId: {
+      type: String,
+      default: null
+    }
 },
   {
     timestamps: true,
