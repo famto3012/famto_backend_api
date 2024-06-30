@@ -13,9 +13,12 @@ const {
   searchProductsInMerchantController,
   toggleProductFavoriteController,
   toggleMerchantFavoriteController,
-  filterProductByFavouriteController,
+  filterProductByFavoriteController,
   addRatingToMerchantController,
   filterProductsByTypeController,
+  filterAndSortProductsController,
+  getTotalRatingOfMerchantController,
+  addItemsToCartController,
 } = require("../../controllers/customer/customerController");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const { upload } = require("../../utils/imageOperation");
@@ -84,15 +87,9 @@ customerRoute.get(
   searchProductsInMerchantController
 );
 
-//TODO: Need to work on
-// Filter products in merchant (Veg , Non-veg)
-customerRoute.get("/filter-products", filterProductsByTypeController);
-
-// Filter favorite products in merchant
 customerRoute.get(
-  "/favorite-products/:merchantId",
-  isAuthenticated,
-  filterProductByFavouriteController
+  "/products/filter-and-sort/:merchantId",
+  filterAndSortProductsController
 );
 
 // Toggle Product favorite
@@ -116,5 +113,13 @@ customerRoute.post(
   isAuthenticated,
   addRatingToMerchantController
 );
+
+// Get rating details of customer
+customerRoute.get(
+  "/merchant-rating-details/:merchantId",
+  getTotalRatingOfMerchantController
+);
+
+customerRoute.post("/add-to-cart", addItemsToCartController);
 
 module.exports = customerRoute;
