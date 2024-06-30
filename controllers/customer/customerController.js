@@ -1039,9 +1039,14 @@ const updateCartItemQuantityController = async (req, res, next) => {
     );
 
     if (itemIndex >= 0) {
-      cart.items[itemIndex].quantity += quantity;
+      cart.items[itemIndex].quantity = quantity;
       if (cart.items[itemIndex].quantity <= 0) {
-        cart.items.splice(itemIndex, 1); // Remove item if quantity is zero or less
+        if (cart.items.length === 1) {
+          await CustomerCart.findByIdAndDelete(cart._id);
+          return res.status(200).json({ message: "Cart deleted successfully" });
+        } else {
+          cart.items.splice(itemIndex, 1); // Remove item if quantity is zero or less
+        }
       }
       await cart.save();
       res.status(200).json({
