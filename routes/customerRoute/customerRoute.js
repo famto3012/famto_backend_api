@@ -18,6 +18,7 @@ const {
   filterProductsByTypeController,
   filterAndSortProductsController,
   getTotalRatingOfMerchantController,
+  addItemsToCartController,
 } = require("../../controllers/customer/customerController");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const { upload } = require("../../utils/imageOperation");
@@ -119,15 +120,6 @@ customerRoute.get(
   getTotalRatingOfMerchantController
 );
 
+customerRoute.post("/add-to-cart", addItemsToCartController);
+
 module.exports = customerRoute;
-
-// //TODO: Need to work on
-// // Filter products in merchant (Veg , Non-veg)
-// customerRoute.get("/filter-products", filterProductsByTypeController);
-
-// // Filter favorite products in merchant
-// customerRoute.get(
-//   "/favorite-products/:merchantId",
-//   isAuthenticated,
-//   filterProductByFavoriteController
-// );

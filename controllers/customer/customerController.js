@@ -17,6 +17,7 @@ const Category = require("../../models/Category");
 const {
   sortMerchantsBySponsorship,
 } = require("../../utils/customerAppHelpers");
+const CustomerCart = require("../../models/CustomerCart");
 
 const registerAndLoginController = async (req, res, next) => {
   const errors = validationResult(req);
@@ -466,7 +467,6 @@ const getMerchantWithCategoriesAndProductsController = async (
       return next(appError("Merchant not found", 404));
     }
 
-    // Fetch the authenticated customer to get their favorite products, if they exist
     let currentCustomer = null;
     if (customerId) {
       currentCustomer = await Customer.findById(customerId)
@@ -481,7 +481,10 @@ const getMerchantWithCategoriesAndProductsController = async (
     const categoriesWithProducts = await Promise.all(
       categoriesOfMerchant.map(async (category) => {
         const products = await Product.find({ categoryId: category._id })
-          .populate("discountId")
+          .populate(
+            "discountId",
+            "discountName maxAmount discountType discountValue validFrom validTo onAddOn status"
+          )
           .select(
             "_id productName price description productImageURL inventory variants discountId"
           )
@@ -489,32 +492,50 @@ const getMerchantWithCategoriesAndProductsController = async (
 
         const productsWithDetails = products.map((product) => {
           const currentDate = new Date();
+          const validFrom = new Date(product.discountId.validFrom);
+          const validTo = new Date(product.discountId.validTo);
+
+          // Adjusting the validTo date to the end of the day
+          validTo.setHours(23, 59, 59, 999);
 
           let discountPrice = product.price;
+          let variantsWithDiscount = product.variants;
+
           if (
             product.discountId &&
-            product.discountId.validFrom <= currentDate &&
-            product.discountId.validTo >= currentDate
+            validFrom <= currentDate &&
+            validTo >= currentDate &&
+            product.discountId.status
           ) {
             const discount = product.discountId;
 
-            if (discount.discountType === "percentage") {
-              discountPrice -= (product.price * discount.discountValue) / 100;
-            } else if (discount.discountType === "fixed") {
+            if (discount.discountType === "Percentage-discount") {
+              let discountAmount =
+                (product.price * discount.discountValue) / 100;
+              if (discountAmount > discount.maxAmount) {
+                discountAmount = discount.maxAmount;
+              }
+              discountPrice -= discountAmount;
+            } else if (discount.discountType === "Flat-discount") {
               discountPrice -= discount.discountValue;
             }
 
             if (discountPrice < 0) discountPrice = 0;
 
+            // Apply discount to the variants if onAddOn is true
             if (discount.onAddOn) {
-              product.variants = product.variants.map((variant) => {
-                variant.variantTypes = variant.variantTypes.map(
+              variantsWithDiscount = product.variants.map((variant) => {
+                const variantTypesWithDiscount = variant.variantTypes.map(
                   (variantType) => {
                     let variantDiscountPrice = variantType.price;
-                    if (discount.discountType === "percentage") {
-                      variantDiscountPrice -=
+                    if (discount.discountType === "Percentage-discount") {
+                      let discountAmount =
                         (variantType.price * discount.discountValue) / 100;
-                    } else if (discount.discountType === "fixed") {
+                      if (discountAmount > discount.maxAmount) {
+                        discountAmount = discount.maxAmount;
+                      }
+                      variantDiscountPrice -= discountAmount;
+                    } else if (discount.discountType === "Flat-discount") {
                       variantDiscountPrice -= discount.discountValue;
                     }
 
@@ -526,7 +547,10 @@ const getMerchantWithCategoriesAndProductsController = async (
                     };
                   }
                 );
-                return variant;
+                return {
+                  ...variant._doc,
+                  variantTypes: variantTypesWithDiscount,
+                };
               });
             }
           }
@@ -540,6 +564,7 @@ const getMerchantWithCategoriesAndProductsController = async (
             ...product._doc,
             isFavorite,
             discountPrice,
+            variants: variantsWithDiscount,
           };
         });
 
@@ -890,6 +915,68 @@ const getTotalRatingOfMerchantController = async (req, res, next) => {
   }
 };
 
+const addItemsToCartController = async (req, res, next) => {
+  try {
+    const { customerId, productId, quantity, variantTypeId } = req.body;
+
+    const product = await Product.findById(productId).populate("categoryId");
+
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    const price = product.price; // Getting the product price
+    const merchantId = product.categoryId.merchantId; // Getting the merchantId
+
+    let cart = await CustomerCart.findOne({ customerId });
+
+    if (cart) {
+      // Check if the existing cart is from a different merchant
+      if (!cart.merchantId.equals(merchantId)) {
+        // Replace the cart items if the merchant is different
+        cart.merchantId = merchantId;
+        cart.items = [];
+      }
+    } else {
+      // Create a new cart if none exists
+      cart = new CustomerCart({ customerId, merchantId, items: [] });
+    }
+
+    // Add the new item to the cart
+    const itemIndex = cart.items.findIndex(
+      (item) =>
+        item.productId.equals(productId) &&
+        (variantTypeId
+          ? item.variantTypeId?.equals(variantTypeId)
+          : !item.variantTypeId)
+    );
+
+    if (itemIndex >= 0) {
+      // Update the quantity if the item already exists in the cart
+      cart.items[itemIndex].quantity += quantity;
+    } else {
+      // Add a new item to the cart
+      const newItem = {
+        productId,
+        quantity,
+        price,
+        variantTypeId: variantTypeId || null, // Handle variantTypeId if it's not provided
+      };
+      cart.items.push(newItem);
+    }
+
+    await cart.save();
+
+    res.status(200).json({
+      success: "Item added to cart successfully",
+      data: cart,
+      totalPrice: cart.totalPrice,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerAndLoginController,
   getCustomerProfileController,
@@ -907,83 +994,5 @@ module.exports = {
   toggleMerchantFavoriteController,
   addRatingToMerchantController,
   getTotalRatingOfMerchantController,
+  addItemsToCartController,
 };
-
-// const getMerchantWithCategoriesAndProductsController = async (
-//   req,
-//   res,
-//   next
-// ) => {
-//   try {
-//     const { merchantId } = req.params;
-//     const { customerId } = req.body;
-
-//     const merchantFound = await Merchant.findOne({
-//       _id: merchantId,
-//       isApproved: "Approved",
-//     });
-
-//     if (!merchantFound) {
-//       return next(appError("Merchant not found", 404));
-//     }
-
-//     // Fetch the authenticated customer to get their favorite products, if they exist
-//     let currentCustomer = null;
-//     if (customerId) {
-//       currentCustomer = await Customer.findById(customerId)
-//         .select("customerDetails.favoriteProducts")
-//         .exec();
-//     }
-
-//     const categoriesOfMerchant = await Category.find({ merchantId })
-//       .select("_id categoryName status")
-//       .sort({ order: 1 });
-
-//     const categoriesWithProducts = await Promise.all(
-//       categoriesOfMerchant.map(async (category) => {
-//         const products = await Product.find({ categoryId: category._id })
-//           .select(
-//             "_id productName price description productImageURL inventory variants"
-//           )
-//           .sort({ order: 1 });
-
-//         // Add isFavorite field to each product
-//         const productsWithFavorite = products.map((product) => {
-//           const isFavorite =
-//             currentCustomer?.customerDetails?.favoriteProducts?.includes(
-//               product._id
-//             ) ?? false;
-//           return {
-//             ...product._doc,
-//             isFavorite,
-//           };
-//         });
-
-//         return {
-//           ...category._doc,
-//           products: productsWithFavorite,
-//         };
-//       })
-//     );
-
-//     const formattedResponse = {
-//       merchant: {
-//         _id: merchantFound.id,
-//         phoneNumber: merchantFound.phoneNumber || "N/A",
-//         FSSAINumber: merchantFound.merchantDetail?.FSSAINumber || "N/A",
-//         merchantName: merchantFound.merchantDetail?.merchantName || "N/A",
-//         deliveryTime: merchantFound.merchantDetail?.deliveryTime || "N/A",
-//         description: merchantFound.merchantDetail?.description || "N/A",
-//         displayAddress: merchantFound.merchantDetail?.displayAddress || "N/A",
-//       },
-//       categories: categoriesWithProducts,
-//     };
-
-//     res.status(200).json({
-//       message: "Categories and products of merchant",
-//       data: formattedResponse,
-//     });
-//   } catch (err) {
-//     next(appError(err.message));
-//   }
-// };

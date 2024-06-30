@@ -48,7 +48,6 @@ const productDiscountSchema = new mongoose.Schema(
     },
     onAddOn: {
       type: Boolean,
-      required: true,
       default: false,
     },
     status: {
