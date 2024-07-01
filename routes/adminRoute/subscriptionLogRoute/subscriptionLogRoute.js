@@ -4,19 +4,19 @@ const { body } = require("express-validator");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const { createSubscriptionLog, verifyRazorpayPayment } = require("../../../controllers/admin/commissionAndSubscription/subscriptionLogController");
 
-const subscriptionRoute = express.Router();
+const subscriptionLogRoute = express.Router();
 
 
-subscriptionRoute.post(
+subscriptionLogRoute.post(
   "/merchant-subscription-payment",
-  isAuthenticated,
+ // isAuthenticated,
   createSubscriptionLog
 );
 
-subscriptionRoute.post(
+subscriptionLogRoute.post(
   "/merchant-subscription-payment-verification",
-  isAuthenticated,
+ // isAuthenticated,
   verifyRazorpayPayment
 );
 
-module.exports = subscriptionRoute;
+module.exports = subscriptionLogRoute;
