@@ -1,7 +1,7 @@
 const { validationResult } = require("express-validator");
 const MerchantSubscription = require("../../../models/MerchantSubscription");
 const appError = require("../../../utils/appError");
-const CustomerSubscription = require("../../../models/customerSubscription");
+const CustomerSubscription = require("../../../models/CustomerSubscription");
 
 const addMerchantSubscriptionPlanController = async (req, res, next) => {
   const errors = validationResult(req);
