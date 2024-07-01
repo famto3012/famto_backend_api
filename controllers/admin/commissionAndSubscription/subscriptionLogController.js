@@ -17,7 +17,7 @@ const createSubscriptionLog = async (req, res, next) => {
 
     const startDate = new Date();
     const endDate = new Date();
-    endDate.setMonth(endDate.getMonth() + duration);
+    endDate.setDate(endDate.getDate() + duration);
 
     if (paymentMode === 'Online') {
         const razorpayOrderResponse = await createRazorpayOrderId(amount);

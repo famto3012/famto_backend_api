@@ -40,6 +40,7 @@ const customOrderBannerRoute = require("./routes/adminRoute/bannerRoute/customOr
 const accountLogRoute = require("./routes/adminRoute/accountLogRoute/accountLogRoute");
 const commissionRoute = require("./routes/adminRoute/commissionAndSubscriptionRoute/commissionRoute");
 const subscriptionRoute = require("./routes/adminRoute/commissionAndSubscriptionRoute/subscriptionRoute");
+const subscriptionLogRoute = require("./routes/adminRoute/subscriptionLogRoute/subscriptionLogRoute");
 
 require("dotenv").config();
 require("./config/dbConnect");
@@ -92,6 +93,7 @@ app.use("/api/v1/admin/customers", adminCustomerRoute);
 app.use("/api/v1/admin/account-log", accountLogRoute);
 app.use("/api/v1/admin/commission", commissionRoute);
 app.use("/api/v1/admin/subscription", subscriptionRoute);
+app.use("/api/v1/admin/subscription-payment", subscriptionLogRoute);
 
 //agent
 app.use("/api/v1/agents", agentRoute);
