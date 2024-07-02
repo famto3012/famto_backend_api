@@ -18,6 +18,7 @@ const {
   sortMerchantsBySponsorship,
   getDistanceFromPickupToDelivery,
   calculateDeliveryCharges,
+  getTaxAmount,
 } = require("../../utils/customerAppHelpers");
 const CustomerCart = require("../../models/CustomerCart");
 const mongoose = require("mongoose");
@@ -1069,13 +1070,13 @@ const addOrUpdateCartItemController = async (req, res, next) => {
     res.status(200).json({
       success: "Cart updated successfully",
       data: cart,
-      totalPrice: cart.totalPrice,
     });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
+// Add Cart details (Address, Tip, Instrunctions)
 const addCartDetailsController = async (req, res, next) => {
   try {
     const {
@@ -1169,8 +1170,6 @@ const addCartDetailsController = async (req, res, next) => {
           deliveryCoordinates
         );
 
-      console.log(distanceFromPickupToDelivery);
-
       updatedCartDetails.distance = distanceFromPickupToDelivery;
     }
 
@@ -1203,21 +1202,30 @@ const addCartDetailsController = async (req, res, next) => {
       fareAfterBaseDistance
     );
 
-    updatedCartDetails.deliveryCharge = deliveryCharges.toFixed(2);
+    updatedCartDetails.originalDeliveryCharge = deliveryCharges.toFixed(2);
 
     cart.cartDetails = updatedCartDetails;
 
-    // TODO: Add tac to the grand total
+    const itemTotal = cart.items.reduce(
+      (total, item) => total + item.price * item.quantity,
+      0
+    );
 
-    const grandTotal =
-      cart.items.reduce(
-        (total, item) => total + item.price * item.quantity,
-        0
-      ) +
-      deliveryCharges +
-      addedTip;
+    const taxAmount = await getTaxAmount(
+      businessCategoryId,
+      merchant.merchantDetail.geofenceId,
+      itemTotal,
+      deliveryCharges
+    );
 
-    cart.grandTotal = grandTotal;
+    const grandTotal = (
+      itemTotal +
+      parseFloat(deliveryCharges) +
+      parseFloat(addedTip) +
+      parseFloat(taxAmount)
+    ).toFixed(2);
+
+    cart.originalGrandTotal = parseFloat(grandTotal);
 
     await cart.save();
 
@@ -1230,6 +1238,7 @@ const addCartDetailsController = async (req, res, next) => {
   }
 };
 
+// Apply promocode
 const applyPromocodeController = async (req, res, next) => {
   try {
     const { promoCode } = req.body;
@@ -1325,7 +1334,9 @@ const applyPromocodeController = async (req, res, next) => {
     }
 
     // Update cart and save
-    cart.grandTotal = updatedTotal;
+    cart.cartDetails.discountedDeliveryCharge =
+      cart.cartDetails.originalDeliveryCharge - discountAmount;
+    cart.discountedGrandTotal = cart.originalGrandTotal - discountAmount;
     promoCodeFound.noOfUserUsed += 1;
     await promoCodeFound.save();
     await cart.save();

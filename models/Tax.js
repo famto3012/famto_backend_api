@@ -20,9 +20,9 @@ const taxSchema = new mongoose.Schema(
       ref: "Geofence",
       required: true,
     },
-    assignToMerchantId: {
+    assignToBusinessCategoryId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Merchant",
+      ref: "BusinessCategory",
       required: true,
     },
     status: {
