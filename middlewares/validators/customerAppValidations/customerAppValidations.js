@@ -50,8 +50,26 @@ const ratingValidations = [
   body("review").optional().trim(),
 ];
 
+const updateCartProductValidations = [
+  body("productId").trim().notEmpty().withMessage("Product Id is required"),
+  body("quantity")
+    .trim()
+    .notEmpty()
+    .withMessage("Quantity is required")
+    .isNumeric()
+    .withMessage("Quantity must be a number"),
+  body("price")
+    .trim()
+    .notEmpty()
+    .withMessage("Price is required")
+    .isNumeric()
+    .withMessage("Price must be a number"),
+  body("variantId").optional().trim(),
+];
+
 module.exports = {
   customerAuthenticateValidations,
   updateAddressValidations,
   ratingValidations,
+  updateCartProductValidations,
 };

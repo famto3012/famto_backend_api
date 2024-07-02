@@ -102,7 +102,7 @@ const customerPricingValidations = [
     .withMessage("Fare after base distance is required")
     .isNumeric()
     .withMessage("Fare after base distance must be a number"),
-  body("baseWeightUpTo")
+  body("baseWeightUpto")
     .trim()
     .notEmpty()
     .withMessage("Base weight upto is required")

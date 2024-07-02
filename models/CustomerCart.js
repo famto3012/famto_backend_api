@@ -27,6 +27,53 @@ const cartItemSchema = mongoose.Schema(
   }
 );
 
+const addressDetailsSchema = mongoose.Schema(
+  {
+    pickupLocation: {
+      type: [Number],
+      required: true,
+    },
+    deliveryLocation: {
+      type: [Number],
+      required: true,
+    },
+    deliveryMode: {
+      type: String,
+      required: true,
+    },
+    instructionToMerchant: {
+      type: String,
+      default: null,
+    },
+    instructionToDeliveryAgent: {
+      type: String,
+      default: null,
+    },
+    addedTip: {
+      type: Number,
+      default: null,
+    },
+    distance: {
+      type: Number,
+    },
+    startDate: {
+      type: Date,
+      default: null,
+    },
+    endDate: {
+      type: Date,
+      default: null,
+    },
+    time: {
+      type: String,
+      default: null,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
 // Define the Cart schema
 const CustomerCartSchema = mongoose.Schema(
   {
@@ -41,14 +88,21 @@ const CustomerCartSchema = mongoose.Schema(
       required: true,
     },
     items: [cartItemSchema],
+    addressDetails: addressDetailsSchema,
+    grandTotal: {
+      type: Number,
+      default: null,
+    },
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
 
 // Virtual field to calculate the total price
-CustomerCartSchema.virtual("totalPrice").get(function () {
+CustomerCartSchema.virtual("totalCartPrice").get(function () {
   return this.items.reduce(
     (total, item) => total + item.price * item.quantity,
     0
