@@ -9,13 +9,25 @@ const subscriptionLogRoute = express.Router();
 
 subscriptionLogRoute.post(
   "/merchant-subscription-payment",
- // isAuthenticated,
+  isAuthenticated,
   createSubscriptionLog
 );
 
 subscriptionLogRoute.post(
   "/merchant-subscription-payment-verification",
- // isAuthenticated,
+  isAuthenticated,
+  verifyRazorpayPayment
+);
+
+subscriptionLogRoute.post(
+  "/customer-subscription-payment",
+  isAuthenticated,
+  createSubscriptionLog
+);
+
+subscriptionLogRoute.post(
+  "/customer-subscription-payment-verification",
+  isAuthenticated,
   verifyRazorpayPayment
 );
 
