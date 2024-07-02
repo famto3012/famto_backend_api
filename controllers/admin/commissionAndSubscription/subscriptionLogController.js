@@ -31,17 +31,65 @@ const createSubscriptionLog = async (req, res, next) => {
       razorpayOrderId = razorpayOrderResponse.orderId;
       paymentStatus = "Pending";
     } else {
-      
+      const merchant = await Merchant.findById(userId);
+
+    function addDays(date, days) {
+      let result = new Date(date);
+      result.setDate(result.getDate() + days);
+      return result;
     }
 
-    res.status(201).json({
-      message: "Subscription order created successfully",
-      amount,
-      orderId: razorpayOrderId,
-      currentPlan: planId,
+    let startDate;
+
+      if (merchant.merchantDetail.pricing.length === 0) {
+        startDate = new Date();
+      } else {
+        let sub = await SubscriptionLog.findById(
+          merchant.merchantDetail.pricing[
+            merchant.merchantDetail.pricing.length - 1
+          ]
+        );
+        console.log(sub);
+        startDate = sub.endDate;
+      }
+
+    const endDate = addDays(startDate, duration);
+    console.log(endDate);
+
+    const subscriptionLog = new SubscriptionLog({
+      planId,
       userId,
-      paymentMode,
+      amount,
+      paymentMode: "Cash",
+      startDate,
+      endDate,
+      typeOfUser: "Merchant",
+      paymentStatus: "Unpaid",
+      razorpayOrderId: null,
     });
+
+    await subscriptionLog.save();
+    }
+
+    if (paymentMode === "Online") {
+      res.status(201).json({
+        message: "Subscription order created successfully",
+        amount,
+        orderId: razorpayOrderId,
+        currentPlan: planId,
+        userId,
+        paymentMode,
+      });
+    }else{
+      res.status(201).json({
+        message: "Subscription order created successfully",
+        amount,
+        currentPlan: planId,
+        userId,
+        paymentMode,
+      });
+    }
+
   } catch (err) {
     next(appError(err.message));
   }
