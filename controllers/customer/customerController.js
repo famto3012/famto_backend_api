@@ -17,10 +17,12 @@ const Category = require("../../models/Category");
 const {
   sortMerchantsBySponsorship,
   getDistanceFromPickupToDelivery,
+  calculateDeliveryCharges,
 } = require("../../utils/customerAppHelpers");
 const CustomerCart = require("../../models/CustomerCart");
 const mongoose = require("mongoose");
 const CustomerPricing = require("../../models/CustomerPricing");
+const PromoCode = require("../../models/PromoCode");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -1131,10 +1133,10 @@ const addCartDetailsController = async (req, res, next) => {
 
     const pickupCoordinates = merchant.merchantDetail.location;
 
-    let updatedAddressDetails;
+    let updatedCartDetails;
 
     if (deliveryMode === "Takeaway") {
-      updatedAddressDetails = {
+      updatedCartDetails = {
         pickupLocation: pickupCoordinates,
         deliveryLocation: pickupCoordinates,
         deliveryMode,
@@ -1147,7 +1149,7 @@ const addCartDetailsController = async (req, res, next) => {
         distance: 0,
       };
     } else {
-      updatedAddressDetails = {
+      updatedCartDetails = {
         pickupLocation: pickupCoordinates,
         deliveryLocation: deliveryCoordinates,
         deliveryMode,
@@ -1169,10 +1171,10 @@ const addCartDetailsController = async (req, res, next) => {
 
       console.log(distanceFromPickupToDelivery);
 
-      updatedAddressDetails.distance = distanceFromPickupToDelivery;
+      updatedCartDetails.distance = distanceFromPickupToDelivery;
     }
 
-    cart.addressDetails = updatedAddressDetails;
+    cart.cartDetails = updatedCartDetails;
 
     const businessCategoryId = merchant.merchantDetail.businessCategoryId;
 
@@ -1194,15 +1196,16 @@ const addCartDetailsController = async (req, res, next) => {
     const baseDistance = customerPricing.baseDistance;
     const fareAfterBaseDistance = customerPricing.fareAfterBaseDistance;
 
-    let deliveryCharges;
+    const deliveryCharges = calculateDeliveryCharges(
+      updatedCartDetails.distance,
+      baseFare,
+      baseDistance,
+      fareAfterBaseDistance
+    );
 
-    if (updatedAddressDetails.distance <= baseDistance) {
-      deliveryCharges = baseFare;
-    } else {
-      deliveryCharges =
-        baseFare +
-        (updatedAddressDetails.distance - baseDistance) * fareAfterBaseDistance;
-    }
+    updatedCartDetails.deliveryCharge = deliveryCharges.toFixed(2);
+
+    cart.cartDetails = updatedCartDetails;
 
     // TODO: Add tac to the grand total
 
@@ -1221,6 +1224,118 @@ const addCartDetailsController = async (req, res, next) => {
     res.status(200).json({
       success: "Delivery address and details added to cart successfully",
       data: cart,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const applyPromocodeController = async (req, res, next) => {
+  try {
+    const { promoCode } = req.body;
+    const customerId = req.userAuth;
+
+    // Ensure customer is authenticated
+    if (!customerId) {
+      return next(appError("Customer is not authenticated", 401));
+    }
+
+    const customerFound = await Customer.findById(customerId);
+    if (!customerFound) {
+      return next(appError("Customer not found", 404));
+    }
+
+    // Find the customer's cart
+    const cart = await CustomerCart.findOne({ customerId });
+    if (!cart) {
+      return next(appError("Cart not found", 404));
+    }
+
+    // Find the promo code
+    const promoCodeFound = await PromoCode.findOne({
+      promoCode,
+      geofenceId: customerFound.customerDetails.geofenceId,
+      status: true,
+    });
+
+    if (!promoCodeFound) {
+      return next(appError("Promo code not found or inactive", 404));
+    }
+
+    // Check if promo code's merchant matches cart's merchant
+    if (promoCodeFound.merchantId.toString() !== cart.merchantId.toString()) {
+      return next(
+        appError("Promo code is not applicable for this merchant", 400)
+      );
+    }
+
+    // Check if total cart price meets minimum order amount
+    const totalCartPrice = cart.totalCartPrice;
+    if (totalCartPrice < promoCodeFound.minOrderAmount) {
+      return next(
+        appError(
+          `Minimum order amount is ${promoCodeFound.minOrderAmount}`,
+          400
+        )
+      );
+    }
+
+    // Check promo code validity dates
+    const now = new Date();
+    if (now < promoCodeFound.fromDate || now > promoCodeFound.toDate) {
+      return next(appError("Promo code is not valid at this time", 400));
+    }
+
+    // Check user limit for promo code
+    if (promoCodeFound.noOfUserUsed >= promoCodeFound.maxAllowedUsers) {
+      return next(appError("Promo code usage limit reached", 400));
+    }
+
+    // Calculate discount amount
+    let discountAmount = 0;
+    if (promoCodeFound.promoType === "Flat-discount") {
+      discountAmount = promoCodeFound.discount;
+    } else if (promoCodeFound.promoType === "Percentage-discount") {
+      discountAmount = (
+        (totalCartPrice * promoCodeFound.discount) /
+        100
+      ).toFixed(2);
+      if (discountAmount > promoCodeFound.maxDiscountValue) {
+        discountAmount = promoCodeFound.maxDiscountValue;
+      }
+    }
+
+    // Apply discount based on where it should be applied
+    let updatedTotal = totalCartPrice;
+    if (promoCodeFound.appliedOn === "Cart-value") {
+      updatedTotal -= discountAmount;
+    } else if (promoCodeFound.appliedOn === "Delivery-charge") {
+      if (cart.cartDetails.deliveryCharge) {
+        cart.cartDetails.deliveryCharge -= discountAmount;
+        if (cart.cartDetails.deliveryCharge < 0) {
+          cart.cartDetails.deliveryCharge = 0;
+        }
+        updatedTotal -= discountAmount;
+      }
+    }
+
+    // Ensure updated total is not negative
+    if (updatedTotal < 0) {
+      updatedTotal = 0;
+    }
+
+    // Update cart and save
+    cart.grandTotal = updatedTotal;
+    promoCodeFound.noOfUserUsed += 1;
+    await promoCodeFound.save();
+    await cart.save();
+
+    res.status(200).json({
+      success: "Promo code applied successfully",
+      data: {
+        cart,
+        promocodeApplied: discountAmount,
+      },
     });
   } catch (err) {
     next(appError(err.message));
@@ -1246,4 +1361,5 @@ module.exports = {
   getTotalRatingOfMerchantController,
   addOrUpdateCartItemController,
   addCartDetailsController,
+  applyPromocodeController,
 };

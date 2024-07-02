@@ -27,7 +27,7 @@ const cartItemSchema = mongoose.Schema(
   }
 );
 
-const addressDetailsSchema = mongoose.Schema(
+const cartDetailsSchema = mongoose.Schema(
   {
     pickupLocation: {
       type: [Number],
@@ -54,6 +54,9 @@ const addressDetailsSchema = mongoose.Schema(
       default: null,
     },
     distance: {
+      type: Number,
+    },
+    deliveryCharge: {
       type: Number,
     },
     startDate: {
@@ -88,7 +91,7 @@ const CustomerCartSchema = mongoose.Schema(
       required: true,
     },
     items: [cartItemSchema],
-    addressDetails: addressDetailsSchema,
+    cartDetails: cartDetailsSchema,
     grandTotal: {
       type: Number,
       default: null,
