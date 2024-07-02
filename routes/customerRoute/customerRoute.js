@@ -19,6 +19,9 @@ const {
   filterAndSortProductsController,
   getTotalRatingOfMerchantController,
   addItemsToCartController,
+  updateCartItemQuantityController,
+  addOrUpdateCartItemController,
+  addCartDetailsController,
 } = require("../../controllers/customer/customerController");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const { upload } = require("../../utils/imageOperation");
@@ -26,6 +29,7 @@ const {
   customerAuthenticateValidations,
   updateAddressValidations,
   ratingValidations,
+  updateCartProductValidations,
 } = require("../../middlewares/validators/customerAppValidations/customerAppValidations");
 
 const customerRoute = express.Router();
@@ -120,6 +124,19 @@ customerRoute.get(
   getTotalRatingOfMerchantController
 );
 
-customerRoute.post("/add-to-cart", addItemsToCartController);
+// Update cart items
+customerRoute.put(
+  "/update-cart",
+  updateCartProductValidations,
+  isAuthenticated,
+  addOrUpdateCartItemController
+);
+
+// Update cart address details
+customerRoute.post(
+  "/cart/add-details",
+  isAuthenticated,
+  addCartDetailsController
+);
 
 module.exports = customerRoute;

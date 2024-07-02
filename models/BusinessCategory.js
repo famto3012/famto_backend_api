@@ -7,7 +7,7 @@ const BusinessCategorySchema = new mongoose.Schema(
       required: true,
     },
     geofenceId: {
-      type: mongoose.Schema.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "Geofence",
       required: true,
     },

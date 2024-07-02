@@ -16,9 +16,13 @@ const Merchant = require("../../models/Merchant");
 const Category = require("../../models/Category");
 const {
   sortMerchantsBySponsorship,
+  getDistanceFromPickupToDelivery,
 } = require("../../utils/customerAppHelpers");
 const CustomerCart = require("../../models/CustomerCart");
+const mongoose = require("mongoose");
+const CustomerPricing = require("../../models/CustomerPricing");
 
+// Register or login customer
 const registerAndLoginController = async (req, res, next) => {
   const errors = validationResult(req);
 
@@ -100,6 +104,7 @@ const registerAndLoginController = async (req, res, next) => {
   }
 };
 
+// Get the profile details of customer
 const getCustomerProfileController = async (req, res, next) => {
   try {
     const currentCustomer = await Customer.findById(req.userAuth).select(
@@ -127,6 +132,7 @@ const getCustomerProfileController = async (req, res, next) => {
   }
 };
 
+// Update profile details of customer
 const updateCustomerProfileController = async (req, res, next) => {
   const { fullName, email } = req.body;
 
@@ -195,6 +201,7 @@ const updateCustomerProfileController = async (req, res, next) => {
   }
 };
 
+// Update customer address details
 const updateCustomerAddressController = async (req, res, next) => {
   const { addresses } = req.body;
 
@@ -211,10 +218,19 @@ const updateCustomerAddressController = async (req, res, next) => {
       return next(appError("Customer not found", 404));
     }
 
-    let newOtherAddresses = [];
+    let newOtherAddresses = [...currentCustomer.customerDetails.otherAddress];
 
     addresses.forEach((address) => {
-      const { type, fullName, phoneNumber, flat, area, landmark } = address;
+      const {
+        id,
+        type,
+        fullName,
+        phoneNumber,
+        flat,
+        area,
+        landmark,
+        coordinates,
+      } = address;
 
       const updatedAddress = {
         fullName,
@@ -222,6 +238,7 @@ const updateCustomerAddressController = async (req, res, next) => {
         flat,
         area,
         landmark,
+        coordinates,
       };
 
       switch (type) {
@@ -232,7 +249,23 @@ const updateCustomerAddressController = async (req, res, next) => {
           currentCustomer.customerDetails.workAddress = updatedAddress;
           break;
         case "other":
-          newOtherAddresses.push(updatedAddress);
+          if (id) {
+            // Update existing other address
+            const index = newOtherAddresses.findIndex(
+              (addr) => addr.id.toString() === id.toString()
+            );
+            if (index !== -1) {
+              newOtherAddresses[index] = { id, ...updatedAddress };
+            } else {
+              newOtherAddresses.push({ id, ...updatedAddress });
+            }
+          } else {
+            // Add new other address with a new id
+            newOtherAddresses.push({
+              id: new mongoose.Types.ObjectId(),
+              ...updatedAddress,
+            });
+          }
           break;
         default:
           throw new Error("Invalid address type");
@@ -252,6 +285,7 @@ const updateCustomerAddressController = async (req, res, next) => {
   }
 };
 
+// Get the address details of customer
 const getCustomerAddressController = async (req, res, next) => {
   try {
     const currentCustomer = await Customer.findById(req.userAuth);
@@ -273,6 +307,7 @@ const getCustomerAddressController = async (req, res, next) => {
   }
 };
 
+// Get all available business categories according to the order
 const getAllBusinessCategoryController = async (req, res, next) => {
   try {
     const allBusinessCategories = await BusinessCategory.find({})
@@ -288,6 +323,7 @@ const getAllBusinessCategoryController = async (req, res, next) => {
   }
 };
 
+// search for Product OR Business category OR Merchant in the home
 const homeSearchController = async (req, res, next) => {
   const { query } = req.query;
 
@@ -349,6 +385,7 @@ const homeSearchController = async (req, res, next) => {
   }
 };
 
+// List the available restaurants in the customers geofence
 const listRestaurantsController = async (req, res, next) => {
   const { latitude, longitude, customerId } = req.body;
   try {
@@ -449,6 +486,7 @@ const listRestaurantsController = async (req, res, next) => {
   }
 };
 
+// Get all the availbel categories and products of a merchant
 const getMerchantWithCategoriesAndProductsController = async (
   req,
   res,
@@ -597,6 +635,7 @@ const getMerchantWithCategoriesAndProductsController = async (
   }
 };
 
+// Filter merchants based on (Pure veg, Rating, Nearby)
 const filterMerchantController = async (req, res, next) => {
   try {
     const { filterType, latitude, longitude } = req.body;
@@ -670,6 +709,7 @@ const filterMerchantController = async (req, res, next) => {
   }
 };
 
+// Search for a product in the merchant
 const searchProductsInMerchantController = async (req, res, next) => {
   try {
     const { merchantId } = req.params;
@@ -703,6 +743,7 @@ const searchProductsInMerchantController = async (req, res, next) => {
   }
 };
 
+// Filter and sort products
 const filterAndSortProductsController = async (req, res, next) => {
   try {
     const { merchantId } = req.params;
@@ -761,6 +802,7 @@ const filterAndSortProductsController = async (req, res, next) => {
   }
 };
 
+// Add or remove Products from favorite
 const toggleProductFavoriteController = async (req, res, next) => {
   try {
     const currentCustomer = await Customer.findById(req.userAuth);
@@ -804,6 +846,7 @@ const toggleProductFavoriteController = async (req, res, next) => {
   }
 };
 
+// Add or remove Merchants from favorite
 const toggleMerchantFavoriteController = async (req, res, next) => {
   try {
     const currentCustomer = await Customer.findById(req.userAuth);
@@ -847,6 +890,7 @@ const toggleMerchantFavoriteController = async (req, res, next) => {
   }
 };
 
+// Add ratings to the merchant
 const addRatingToMerchantController = async (req, res, next) => {
   const { review, rating } = req.body;
 
@@ -891,6 +935,7 @@ const addRatingToMerchantController = async (req, res, next) => {
   }
 };
 
+// Get average rating and total rating count of merchant
 const getTotalRatingOfMerchantController = async (req, res, next) => {
   try {
     const { merchantId } = req.params;
@@ -915,9 +960,16 @@ const getTotalRatingOfMerchantController = async (req, res, next) => {
   }
 };
 
-const addItemsToCartController = async (req, res, next) => {
+// Update cart items
+const addOrUpdateCartItemController = async (req, res, next) => {
   try {
-    const { customerId, productId, quantity, variantTypeId } = req.body;
+    const { productId, quantity, price, variantTypeId } = req.body;
+
+    const customerId = req.userAuth;
+
+    if (!customerId) {
+      return next(appError("Customer is not authenticated", 401));
+    }
 
     const product = await Product.findById(productId).populate("categoryId");
 
@@ -925,8 +977,13 @@ const addItemsToCartController = async (req, res, next) => {
       return res.status(404).json({ error: "Product not found" });
     }
 
-    const price = product.price; // Getting the product price
     const merchantId = product.categoryId.merchantId; // Getting the merchantId
+
+    if (product.variants.length > 0 && !variantTypeId) {
+      return res
+        .status(400)
+        .json({ error: "Variant ID is required for this product" });
+    }
 
     let cart = await CustomerCart.findOne({ customerId });
 
@@ -942,35 +999,228 @@ const addItemsToCartController = async (req, res, next) => {
       cart = new CustomerCart({ customerId, merchantId, items: [] });
     }
 
-    // Add the new item to the cart
-    const itemIndex = cart.items.findIndex(
+    // Calculate the total price for the new item
+    const totalPriceForItem = quantity * price;
+
+    // Check for existing item with the same productId and variantTypeId
+    const existingItemIndex = cart.items.findIndex(
       (item) =>
         item.productId.equals(productId) &&
-        (variantTypeId
-          ? item.variantTypeId?.equals(variantTypeId)
-          : !item.variantTypeId)
+        ((variantTypeId &&
+          item.variantTypeId &&
+          item.variantTypeId.equals(variantTypeId)) ||
+          (!variantTypeId && !item.variantTypeId))
     );
 
-    if (itemIndex >= 0) {
+    if (existingItemIndex >= 0) {
       // Update the quantity if the item already exists in the cart
-      cart.items[itemIndex].quantity += quantity;
+      cart.items[existingItemIndex].quantity = quantity;
+      cart.items[existingItemIndex].totalPrice =
+        quantity * cart.items[existingItemIndex].price;
+
+      if (cart.items[existingItemIndex].quantity <= 0) {
+        cart.items.splice(existingItemIndex, 1); // Remove item if quantity is zero or less
+      }
     } else {
-      // Add a new item to the cart
-      const newItem = {
-        productId,
-        quantity,
-        price,
-        variantTypeId: variantTypeId || null, // Handle variantTypeId if it's not provided
-      };
-      cart.items.push(newItem);
+      // Add a new item to the cart or replace an existing variant
+      if (variantTypeId) {
+        const sameProductDifferentVariantIndex = cart.items.findIndex(
+          (item) =>
+            item.productId.equals(productId) &&
+            !item.variantTypeId.equals(variantTypeId)
+        );
+
+        if (sameProductDifferentVariantIndex >= 0) {
+          cart.items.splice(sameProductDifferentVariantIndex, 1); // Remove existing item with different variant
+        }
+      }
+
+      if (quantity > 0) {
+        const newItem = {
+          productId,
+          quantity,
+          price,
+          totalPrice: totalPriceForItem,
+          variantTypeId: variantTypeId || null, // Handle variantTypeId if it's not provided
+        };
+        cart.items.push(newItem);
+      }
     }
+
+    // Calculate total price for the cart
+    cart.totalPrice = cart.items.reduce(
+      (total, item) => total + item.totalPrice,
+      0
+    );
+
+    // Save the cart and return the updated cart
+    await cart.save();
+
+    // If all items are removed, delete the cart
+    if (cart.items.length === 0) {
+      await CustomerCart.findByIdAndDelete(cart._id);
+      return res
+        .status(200)
+        .json({ message: "Cart is empty and has been deleted" });
+    }
+
+    res.status(200).json({
+      success: "Cart updated successfully",
+      data: cart,
+      totalPrice: cart.totalPrice,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const addCartDetailsController = async (req, res, next) => {
+  try {
+    const {
+      addressType,
+      deliveryMode,
+      instructionToMerchant,
+      instructionToDeliveryAgent,
+      addedTip,
+      startDate,
+      endDate,
+      time,
+    } = req.body;
+
+    const customerId = req.userAuth;
+
+    if (!customerId) {
+      return next(appError("Customer is not authenticated", 401));
+    }
+
+    const customer = await Customer.findById(customerId);
+
+    if (!customer) {
+      return res.status(404).json({ error: "Customer not found" });
+    }
+
+    // Retrieve the specified address coordinates from the customer data
+    let deliveryCoordinates;
+
+    if (addressType === "home") {
+      deliveryCoordinates = customer.customerDetails.homeAddress.coordinates;
+    } else if (addressType === "work") {
+      deliveryCoordinates = customer.customerDetails.workAddress.coordinates;
+    } else {
+      const otherAddress = customer.customerDetails.otherAddress.find(
+        (addr) => addr._id.toString() === addressType
+      );
+      if (otherAddress) {
+        deliveryCoordinates = otherAddress.coordinates;
+      } else {
+        return res.status(404).json({ error: "Address not found" });
+      }
+    }
+
+    const cart = await CustomerCart.findOne({ customerId });
+
+    if (!cart) {
+      return res.status(404).json({ error: "Cart not found" });
+    }
+
+    const merchant = await Merchant.findById(cart.merchantId);
+
+    if (!merchant) {
+      return res.status(404).json({ error: "Merchant not found" });
+    }
+
+    const pickupCoordinates = merchant.merchantDetail.location;
+
+    let updatedAddressDetails;
+
+    if (deliveryMode === "Takeaway") {
+      updatedAddressDetails = {
+        pickupLocation: pickupCoordinates,
+        deliveryLocation: pickupCoordinates,
+        deliveryMode,
+        instructionToMerchant,
+        instructionToDeliveryAgent,
+        addedTip,
+        startDate,
+        endDate,
+        time,
+        distance: 0,
+      };
+    } else {
+      updatedAddressDetails = {
+        pickupLocation: pickupCoordinates,
+        deliveryLocation: deliveryCoordinates,
+        deliveryMode,
+        instructionToMerchant,
+        instructionToDeliveryAgent,
+        addedTip,
+        startDate,
+        endDate,
+        time,
+        distance: 0,
+      };
+
+      // Calculate distance using MapMyIndia API
+      const distanceFromPickupToDelivery =
+        await getDistanceFromPickupToDelivery(
+          pickupCoordinates,
+          deliveryCoordinates
+        );
+
+      console.log(distanceFromPickupToDelivery);
+
+      updatedAddressDetails.distance = distanceFromPickupToDelivery;
+    }
+
+    cart.addressDetails = updatedAddressDetails;
+
+    const businessCategoryId = merchant.merchantDetail.businessCategoryId;
+
+    const businessCategoryTitle = await BusinessCategory.findById(
+      businessCategoryId
+    );
+
+    const customerPricing = await CustomerPricing.findOne({
+      ruleName: businessCategoryTitle.title,
+      geofenceId: customer.customerDetails.geofenceId,
+      status: true,
+    });
+
+    if (!customerPricing) {
+      return res.status(404).json({ error: "Customer pricing not found" });
+    }
+
+    const baseFare = customerPricing.baseFare;
+    const baseDistance = customerPricing.baseDistance;
+    const fareAfterBaseDistance = customerPricing.fareAfterBaseDistance;
+
+    let deliveryCharges;
+
+    if (updatedAddressDetails.distance <= baseDistance) {
+      deliveryCharges = baseFare;
+    } else {
+      deliveryCharges =
+        baseFare +
+        (updatedAddressDetails.distance - baseDistance) * fareAfterBaseDistance;
+    }
+
+    // TODO: Add tac to the grand total
+
+    const grandTotal =
+      cart.items.reduce(
+        (total, item) => total + item.price * item.quantity,
+        0
+      ) +
+      deliveryCharges +
+      addedTip;
+
+    cart.grandTotal = grandTotal;
 
     await cart.save();
 
     res.status(200).json({
-      success: "Item added to cart successfully",
+      success: "Delivery address and details added to cart successfully",
       data: cart,
-      totalPrice: cart.totalPrice,
     });
   } catch (err) {
     next(appError(err.message));
@@ -994,5 +1244,6 @@ module.exports = {
   toggleMerchantFavoriteController,
   addRatingToMerchantController,
   getTotalRatingOfMerchantController,
-  addItemsToCartController,
+  addOrUpdateCartItemController,
+  addCartDetailsController,
 };

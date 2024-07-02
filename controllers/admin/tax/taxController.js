@@ -17,7 +17,7 @@ const addTaxController = async (req, res, next) => {
   }
 
   try {
-    const normalizedTaxName = taxName.trim().replace(/\s+/g, " ").toLowerCase();
+    const normalizedTaxName = taxName.trim().replace(/\s+/g, "_").toLowerCase();
 
     const taxNameFound = await Tax.findOne({
       taxName: new RegExp(`^${normalizedTaxName}$`, "i"),
@@ -103,10 +103,10 @@ const editTaxController = async (req, res, next) => {
       return next(appError("Tax not found", 404));
     }
 
-    const normalizedTaxName = taxName.trim().replace(/\s+/g, " ").toLowerCase();
+    const normalizedTaxName = taxName.trim().replace(/\s+/g, "_").toLowerCase();
     const normalizedDbTaxName = taxFound.taxName
       .trim()
-      .replace(/\s+/g, " ")
+      .replace(/\s+/g, "_")
       .toLowerCase();
 
     if (normalizedTaxName !== normalizedDbTaxName) {

@@ -2,6 +2,12 @@ const mongoose = require("mongoose");
 
 const addressSchema = new mongoose.Schema(
   {
+    id: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: function () {
+        return new mongoose.Types.ObjectId();
+      },
+    },
     fullName: {
       type: String,
       required: true,
@@ -21,6 +27,10 @@ const addressSchema = new mongoose.Schema(
     landmark: {
       type: String,
       default: null,
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      required: true,
     },
   },
   {
@@ -60,7 +70,7 @@ const customerDetailSchema = new mongoose.Schema(
       type: [[Number]],
     },
     geofenceId: {
-      type: mongoose.Schema.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "Geofence",
     },
     pricing: [
@@ -93,15 +103,7 @@ const customerDetailSchema = new mongoose.Schema(
       type: addressSchema,
       default: null,
     },
-    otherAddress: [
-      {
-        fullName: String,
-        phoneNumber: String,
-        flat: String,
-        area: String,
-        landmark: String,
-      },
-    ],
+    otherAddress: [addressSchema],
     favoriteProducts: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -135,7 +137,6 @@ const customerSchema = new mongoose.Schema(
     },
     lastPlatformUsed: {
       type: String,
-      //required:true
     },
     role: {
       type: String,

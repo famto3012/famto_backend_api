@@ -11,13 +11,13 @@ const pushNotificationSchema = new mongoose.Schema(
       required: true,
     },
     geofenceId: {
-        type: mongoose.Schema.ObjectId,
-        ref: "Geofence",
-        required: true,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Geofence",
+      required: true,
     },
     imageUrl: {
       type: String,
-      required: true
+      required: true,
     },
     merchant: {
       type: Boolean,
@@ -29,7 +29,7 @@ const pushNotificationSchema = new mongoose.Schema(
     },
     customer: {
       type: Boolean,
-      default: false
+      default: false,
     },
   },
   {
@@ -37,5 +37,8 @@ const pushNotificationSchema = new mongoose.Schema(
   }
 );
 
-const PushNotification = mongoose.model("PushNotification", pushNotificationSchema);
+const PushNotification = mongoose.model(
+  "PushNotification",
+  pushNotificationSchema
+);
 module.exports = PushNotification;
