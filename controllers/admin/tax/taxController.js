@@ -4,7 +4,8 @@ const appError = require("../../../utils/appError");
 
 //Add tax
 const addTaxController = async (req, res, next) => {
-  const { taxName, tax, taxType, geofenceId, assignToMerchantId } = req.body;
+  const { taxName, tax, taxType, geofenceId, assignToBusinessCategoryId } =
+    req.body;
 
   const errors = validationResult(req);
 
@@ -17,10 +18,11 @@ const addTaxController = async (req, res, next) => {
   }
 
   try {
-    const normalizedTaxName = taxName.trim().replace(/\s+/g, "_").toLowerCase();
+    const normalizedTaxName = taxName.trim();
 
     const taxNameFound = await Tax.findOne({
-      taxName: new RegExp(`^${normalizedTaxName}$`, "i"),
+      taxName: normalizedTaxName,
+      assignToBusinessCategoryId,
     });
 
     if (taxNameFound) {
@@ -33,7 +35,7 @@ const addTaxController = async (req, res, next) => {
       tax,
       taxType,
       geofenceId,
-      assignToMerchantId,
+      assignToBusinessCategoryId,
     });
 
     if (!newTax) {
@@ -51,7 +53,7 @@ const getAllTaxController = async (req, res, next) => {
   try {
     const allTaxes = await Tax.find({})
       .populate("geofenceId", "name")
-      .populate("assignToMerchantId", "fullName");
+      .populate("assignToBusinessCategoryId", "title");
 
     res.status(200).json({
       message: "All taxes",
@@ -67,7 +69,7 @@ const getSinglTaxController = async (req, res, next) => {
   try {
     const taxFound = await Tax.findById(req.params.taxId)
       .populate("geofenceId", "name")
-      .populate("assignToMerchantId", "fullName");
+      .populate("assignToBusinessCategoryId", "title");
 
     if (!taxFound) {
       return next(appError("Tax not found", 404));
@@ -84,7 +86,8 @@ const getSinglTaxController = async (req, res, next) => {
 
 //Edit tax
 const editTaxController = async (req, res, next) => {
-  const { taxName, tax, taxType, geofenceId, assignToMerchantId } = req.body;
+  const { taxName, tax, taxType, geofenceId, assignToBusinessCategoryId } =
+    req.body;
 
   const errors = validationResult(req);
 
@@ -127,7 +130,7 @@ const editTaxController = async (req, res, next) => {
         tax,
         taxType,
         geofenceId,
-        assignToMerchantId,
+        assignToBusinessCategoryId,
       },
       { new: true }
     );

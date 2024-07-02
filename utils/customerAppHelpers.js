@@ -1,4 +1,6 @@
 const axios = require("axios");
+const Tax = require("../models/Tax");
+const appError = require("./appError");
 
 // Helper function to sort merchants by sponsorship
 const sortMerchantsBySponsorship = (merchants) => {
@@ -44,8 +46,35 @@ const calculateDeliveryCharges = (
   }
 };
 
+const getTaxAmount = async (
+  businessCategoryId,
+  geofenceId,
+  itemTotal,
+  deliveryCharges
+) => {
+  try {
+    const taxFound = await Tax.findOne({
+      assignToBusinessCategoryId: businessCategoryId,
+      geofenceId,
+    });
+
+    if (!taxFound) {
+      return next(appError("Tax not found", 404));
+    }
+
+    const taxPercentage = taxFound.tax;
+
+    const taxAmount = ((itemTotal + deliveryCharges) * taxPercentage) / 100;
+
+    return parseFloat(taxAmount.toFixed(2));
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   sortMerchantsBySponsorship,
   getDistanceFromPickupToDelivery,
   calculateDeliveryCharges,
+  getTaxAmount,
 };

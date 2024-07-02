@@ -14,4 +14,6 @@ settingsRoute.put(
   updateUserProfileController
 );
 
+// TODO: Add route and controller for change password
+
 module.exports = settingsRoute;
