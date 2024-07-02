@@ -31,7 +31,21 @@ const getDistanceFromPickupToDelivery = async (
   }
 };
 
+const calculateDeliveryCharges = (
+  distance,
+  baseFare,
+  baseDistance,
+  fareAfterBaseDistance
+) => {
+  if (distance <= baseDistance) {
+    return baseFare;
+  } else {
+    return baseFare + (distance - baseDistance) * fareAfterBaseDistance;
+  }
+};
+
 module.exports = {
   sortMerchantsBySponsorship,
   getDistanceFromPickupToDelivery,
+  calculateDeliveryCharges,
 };

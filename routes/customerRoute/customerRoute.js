@@ -22,6 +22,7 @@ const {
   updateCartItemQuantityController,
   addOrUpdateCartItemController,
   addCartDetailsController,
+  applyPromocodeController,
 } = require("../../controllers/customer/customerController");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const { upload } = require("../../utils/imageOperation");
@@ -137,6 +138,12 @@ customerRoute.post(
   "/cart/add-details",
   isAuthenticated,
   addCartDetailsController
+);
+
+customerRoute.post(
+  "/apply-promocode",
+  isAuthenticated,
+  applyPromocodeController
 );
 
 module.exports = customerRoute;

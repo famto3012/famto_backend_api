@@ -59,16 +59,12 @@ merchantRoute.put(
 //Sponsorship payment
 merchantRoute.post(
   "/sponsorship-payment",
-  // isAuthenticated,
+  isAuthenticated,
   sponsorshipPaymentController
 );
 
 //Verify sponsorship payment
-merchantRoute.post(
-  "/verify-payment",
-  // isAuthenticated,
-  verifyPaymentController
-);
+merchantRoute.post("/verify-payment", isAuthenticated, verifyPaymentController);
 
 //-------------------------------
 //For Admin
@@ -125,16 +121,16 @@ merchantRoute.get(
 //Get all merchants
 merchantRoute.get(
   "/admin/all-merchants",
-  // isAuthenticated,
-  // isAdmin,
+  isAuthenticated,
+  isAdmin,
   getAllMerchantsController
 );
 
 //Get single merchant
 merchantRoute.get(
   "/admin/:merchantId",
-  // isAuthenticated,
-  // isAdmin,
+  isAuthenticated,
+  isAdmin,
   getSingleMerchantController
 );
 
@@ -171,16 +167,16 @@ merchantRoute.put(
 //Sponsorship payment
 merchantRoute.post(
   "/admin/sponsorship-payment/:merchantId",
-  // isAuthenticated,
-  // isAdmin,
+  isAuthenticated,
+  isAdmin,
   sponsorshipPaymentController
 );
 
 //Verify sponsorship payment
 merchantRoute.post(
   "/admin/verify-payment/:merchantId",
-  // isAuthenticated,
-  // isAdmin,
+  isAuthenticated,
+  isAdmin,
   verifyPaymentController
 );
 
