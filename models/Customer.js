@@ -63,6 +63,13 @@ const customerDetailSchema = new mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       ref: "Geofence",
     },
+    pricing: [
+      {
+        type: mongoose.Schema.Types.Mixed,
+        required: true,
+        default: [],
+      },
+    ],
     walletBalance: {
       type: Number,
       default: 0,
