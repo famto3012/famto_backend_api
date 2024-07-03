@@ -2,6 +2,7 @@ const { validationResult } = require("express-validator");
 const MerchantSubscription = require("../../../models/MerchantSubscription");
 const appError = require("../../../utils/appError");
 const CustomerSubscription = require("../../../models/CustomerSubscription");
+const Tax = require("../../../models/Tax");
 
 const addMerchantSubscriptionPlanController = async (req, res, next) => {
   const errors = validationResult(req);
@@ -18,11 +19,18 @@ const addMerchantSubscriptionPlanController = async (req, res, next) => {
     const { name, amount, duration, taxId, renewalReminder, description } =
       req.body;
 
+      let totalAmount = "" 
+      if(taxId){
+        const tax = await Tax.findById(taxId)
+        const taxAmount = amount * (tax.tax / 100)
+        totalAmount = amount + taxAmount
+      }
+
     const subscriptionPlan = new MerchantSubscription({
       name,
-      amount,
+      amount: totalAmount,
       duration,
-      taxId,
+      taxId: taxId || null,
       renewalReminder,
       description,
     });
@@ -150,11 +158,19 @@ const addCustomerSubscriptionPlanController = async (req, res, next) => {
     const { name, amount, duration, taxId, noOfOrder, renewalReminder, description } =
       req.body;
 
+      let totalAmount = ""
+
+      if(taxId){
+        const tax = await Tax.findById(taxId)
+        const taxAmount = amount * (tax.tax / 100)
+        totalAmount = amount + taxAmount
+      }
+
     const subscriptionPlan = new CustomerSubscription({
       name,
-      amount,
+      amount: totalAmount,
       duration,
-      taxId,
+      taxId: taxId || null,
       renewalReminder,
       noOfOrder,
       description,
