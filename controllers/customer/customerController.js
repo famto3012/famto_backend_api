@@ -3,6 +3,7 @@ const turf = require("@turf/turf");
 const generateToken = require("../../utils/generateToken");
 const os = require("os");
 const Customer = require("../../models/Customer");
+const { Product } = require("../../models/Product");
 const { validationResult } = require("express-validator");
 const geoLocation = require("../../utils/getGeoLocation");
 const {
@@ -10,7 +11,6 @@ const {
   uploadToFirebase,
 } = require("../../utils/imageOperation");
 const BusinessCategory = require("../../models/BusinessCategory");
-const Product = require("../../models/Product");
 const Geofence = require("../../models/Geofence");
 const Merchant = require("../../models/Merchant");
 const Category = require("../../models/Category");
@@ -24,6 +24,11 @@ const CustomerCart = require("../../models/CustomerCart");
 const mongoose = require("mongoose");
 const CustomerPricing = require("../../models/CustomerPricing");
 const PromoCode = require("../../models/PromoCode");
+const {
+  createRazorpayOrderId,
+  verifyPayment,
+} = require("../../utils/razorpayPayment");
+const Order = require("../../models/Order");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -982,10 +987,27 @@ const addOrUpdateCartItemController = async (req, res, next) => {
 
     const merchantId = product.categoryId.merchantId; // Getting the merchantId
 
-    if (product.variants.length > 0 && !variantTypeId) {
-      return res
-        .status(400)
-        .json({ error: "Variant ID is required for this product" });
+    if (!product.variants || product.variants.length === 0) {
+      // Handle case where product has no variants
+      return res.status(400).json({ error: "Product has no variants" });
+    }
+
+    // Find the correct variantType if provided
+    let variantType = null;
+    if (variantTypeId) {
+      for (const variant of product.variants) {
+        variantType = variant.variantTypes.find((vt) =>
+          vt._id.equals(variantTypeId)
+        );
+        if (variantType) {
+          break;
+        }
+      }
+      if (!variantType) {
+        return res
+          .status(400)
+          .json({ error: "VariantType not found for this product" });
+      }
     }
 
     let cart = await CustomerCart.findOne({ customerId });
@@ -1067,6 +1089,32 @@ const addOrUpdateCartItemController = async (req, res, next) => {
         .json({ message: "Cart is empty and has been deleted" });
     }
 
+    // Retrieve the updated cart with populated variantTypeId
+    // const updatedCart = await CustomerCart.findOne({ customerId })
+    //   .populate({
+    //     path: "items.productId",
+    //     select: "productName variants.variantTypes",
+    //   })
+    //   .exec();
+
+    // // Map the cart items to include variant type names
+    // const updatedCartWithVariantNames = updatedCart.toObject();
+    // updatedCartWithVariantNames.items = updatedCartWithVariantNames.items.map(
+    //   (item) => {
+    //     const product = item.productId;
+    //     if (item.variantTypeId && product.variants) {
+    //       const variantType = product.variants
+    //         .flatMap((variant) => variant.variantTypes)
+    //         .find((type) => type._id.equals(item.variantTypeId));
+    //       return {
+    //         ...item,
+    //         variantTypeName: variantType ? variantType.typeName : null,
+    //       };
+    //     }
+    //     return item;
+    //   }
+    // );
+
     res.status(200).json({
       success: "Cart updated successfully",
       data: cart,
@@ -1081,10 +1129,11 @@ const addCartDetailsController = async (req, res, next) => {
   try {
     const {
       addressType,
+      otherAddressId,
       deliveryMode,
       instructionToMerchant,
       instructionToDeliveryAgent,
-      addedTip,
+      addedTip = 0,
       startDate,
       endDate,
       time,
@@ -1105,18 +1154,20 @@ const addCartDetailsController = async (req, res, next) => {
     // Retrieve the specified address coordinates from the customer data
     let deliveryCoordinates;
 
-    if (addressType === "home") {
-      deliveryCoordinates = customer.customerDetails.homeAddress.coordinates;
-    } else if (addressType === "work") {
-      deliveryCoordinates = customer.customerDetails.workAddress.coordinates;
-    } else {
-      const otherAddress = customer.customerDetails.otherAddress.find(
-        (addr) => addr._id.toString() === addressType
-      );
-      if (otherAddress) {
-        deliveryCoordinates = otherAddress.coordinates;
+    if (deliveryMode === "Delivery") {
+      if (addressType === "home") {
+        deliveryCoordinates = customer.customerDetails.homeAddress.coordinates;
+      } else if (addressType === "work") {
+        deliveryCoordinates = customer.customerDetails.workAddress.coordinates;
       } else {
-        return res.status(404).json({ error: "Address not found" });
+        const otherAddress = customer.customerDetails.otherAddress.find(
+          (addr) => addr.id.toString() === otherAddressId
+        );
+        if (otherAddress) {
+          deliveryCoordinates = otherAddress.coordinates;
+        } else {
+          return res.status(404).json({ error: "Address not found" });
+        }
       }
     }
 
@@ -1136,7 +1187,7 @@ const addCartDetailsController = async (req, res, next) => {
 
     let updatedCartDetails;
 
-    if (deliveryMode === "Takeaway") {
+    if (deliveryMode === "Take-away") {
       updatedCartDetails = {
         pickupLocation: pickupCoordinates,
         deliveryLocation: pickupCoordinates,
@@ -1148,11 +1199,23 @@ const addCartDetailsController = async (req, res, next) => {
         endDate,
         time,
         distance: 0,
+        isScheduled: !!startDate && !!endDate && !!time, // Check if all are provided
       };
+
+      // Set originalGrandTotal without tax and delivery charges
+      cart.originalGrandTotal = parseFloat(
+        cart.items.reduce(
+          (total, item) => total + item.price * item.quantity,
+          0
+        )
+      ).toFixed(2);
+
+      cart.cartDetails = updatedCartDetails;
     } else {
       updatedCartDetails = {
         pickupLocation: pickupCoordinates,
         deliveryLocation: deliveryCoordinates,
+        deliveryAddressType: addressType,
         deliveryMode,
         instructionToMerchant,
         instructionToDeliveryAgent,
@@ -1161,6 +1224,7 @@ const addCartDetailsController = async (req, res, next) => {
         endDate,
         time,
         distance: 0,
+        isScheduled: !!startDate && !!endDate && !!time, // Check if all are provided
       };
 
       // Calculate distance using MapMyIndia API
@@ -1171,61 +1235,96 @@ const addCartDetailsController = async (req, res, next) => {
         );
 
       updatedCartDetails.distance = distanceFromPickupToDelivery;
+
+      cart.cartDetails = updatedCartDetails;
+
+      const businessCategoryId = merchant.merchantDetail.businessCategoryId;
+
+      const businessCategoryTitle = await BusinessCategory.findById(
+        businessCategoryId
+      );
+
+      const customerPricing = await CustomerPricing.findOne({
+        ruleName: businessCategoryTitle.title,
+        geofenceId: customer.customerDetails.geofenceId,
+        status: true,
+      });
+
+      if (!customerPricing) {
+        return res.status(404).json({ error: "Customer pricing not found" });
+      }
+
+      const baseFare = customerPricing.baseFare;
+      const baseDistance = customerPricing.baseDistance;
+      const fareAfterBaseDistance = customerPricing.fareAfterBaseDistance;
+
+      const deliveryCharges = calculateDeliveryCharges(
+        updatedCartDetails.distance,
+        baseFare,
+        baseDistance,
+        fareAfterBaseDistance
+      );
+
+      const itemTotal = cart.items.reduce(
+        (total, item) => total + item.price * item.quantity,
+        0
+      );
+
+      // Calculate total based on number of days
+      if (startDate && endDate) {
+        const startDateTime = new Date(startDate + " " + time);
+        const endDateTime = new Date(endDate + " " + time);
+
+        const diffTime = Math.abs(endDateTime - startDateTime);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        const scheduledDeliveryCharge = (deliveryCharges * diffDays).toFixed(2);
+        const cartTotal = (itemTotal * diffDays).toFixed(2);
+
+        updatedCartDetails.originalDeliveryCharge = scheduledDeliveryCharge;
+
+        const taxAmount = await getTaxAmount(
+          businessCategoryId,
+          merchant.merchantDetail.geofenceId,
+          parseFloat(cartTotal),
+          parseFloat(scheduledDeliveryCharge)
+        );
+
+        updatedCartDetails.taxAmount = taxAmount.toFixed(2);
+
+        const grandTotal = (
+          parseFloat(cartTotal) +
+          parseFloat(scheduledDeliveryCharge) +
+          parseFloat(addedTip) +
+          parseFloat(taxAmount)
+        ).toFixed(2);
+
+        cart.originalGrandTotal = parseFloat(grandTotal);
+      } else {
+        updatedCartDetails.originalDeliveryCharge = deliveryCharges.toFixed(2);
+
+        const taxAmount = await getTaxAmount(
+          businessCategoryId,
+          merchant.merchantDetail.geofenceId,
+          parseFloat(itemTotal),
+          parseFloat(deliveryCharges)
+        );
+
+        updatedCartDetails.taxAmount = taxAmount.toFixed(2);
+
+        // If startDate or endDate is missing, calculate without days multiplier
+        const grandTotal = (
+          parseFloat(itemTotal) +
+          parseFloat(deliveryCharges) +
+          parseFloat(addedTip) +
+          parseFloat(taxAmount)
+        ).toFixed(2);
+
+        cart.originalGrandTotal = parseFloat(grandTotal);
+      }
+
+      cart.cartDetails = updatedCartDetails;
     }
-
-    cart.cartDetails = updatedCartDetails;
-
-    const businessCategoryId = merchant.merchantDetail.businessCategoryId;
-
-    const businessCategoryTitle = await BusinessCategory.findById(
-      businessCategoryId
-    );
-
-    const customerPricing = await CustomerPricing.findOne({
-      ruleName: businessCategoryTitle.title,
-      geofenceId: customer.customerDetails.geofenceId,
-      status: true,
-    });
-
-    if (!customerPricing) {
-      return res.status(404).json({ error: "Customer pricing not found" });
-    }
-
-    const baseFare = customerPricing.baseFare;
-    const baseDistance = customerPricing.baseDistance;
-    const fareAfterBaseDistance = customerPricing.fareAfterBaseDistance;
-
-    const deliveryCharges = calculateDeliveryCharges(
-      updatedCartDetails.distance,
-      baseFare,
-      baseDistance,
-      fareAfterBaseDistance
-    );
-
-    updatedCartDetails.originalDeliveryCharge = deliveryCharges.toFixed(2);
-
-    cart.cartDetails = updatedCartDetails;
-
-    const itemTotal = cart.items.reduce(
-      (total, item) => total + item.price * item.quantity,
-      0
-    );
-
-    const taxAmount = await getTaxAmount(
-      businessCategoryId,
-      merchant.merchantDetail.geofenceId,
-      itemTotal,
-      deliveryCharges
-    );
-
-    const grandTotal = (
-      itemTotal +
-      parseFloat(deliveryCharges) +
-      parseFloat(addedTip) +
-      parseFloat(taxAmount)
-    ).toFixed(2);
-
-    cart.originalGrandTotal = parseFloat(grandTotal);
 
     await cart.save();
 
@@ -1279,7 +1378,7 @@ const applyPromocodeController = async (req, res, next) => {
     }
 
     // Check if total cart price meets minimum order amount
-    const totalCartPrice = cart.totalCartPrice;
+    const totalCartPrice = cart.itemTotal;
     if (totalCartPrice < promoCodeFound.minOrderAmount) {
       return next(
         appError(
@@ -1353,6 +1452,282 @@ const applyPromocodeController = async (req, res, next) => {
   }
 };
 
+// Order Product
+const orderPaymentController = async (req, res, next) => {
+  try {
+    const { paymentMode } = req.body;
+    const customerId = req.userAuth;
+
+    if (!customerId) {
+      return next(appError("Customer is not authenticated", 401));
+    }
+
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      return next(appError("Customer not found", 404));
+    }
+
+    const cart = await CustomerCart.findOne({ customerId });
+    if (!cart) {
+      return next(appError("Cart not found", 404));
+    }
+
+    const orderAmount = cart.discountedGrandTotal || cart.originalGrandTotal;
+
+    const deliveryMode = cart.cartDetails.deliveryMode;
+    let deliveryAddress;
+
+    if (deliveryMode === "Delivery") {
+      if (cart.cartDetails.deliveryAddressType === "home") {
+        deliveryAddress = customer.customerDetails.homeAddress;
+      } else if (cart.cartDetails.deliveryAddressType === "work") {
+        deliveryAddress = customer.customerDetails.workAddress;
+      } else {
+        deliveryAddress = customer.customerDetails.otherAddress.find(
+          (addr) => addr._id.toString() === cart.cartDetails.deliveryAddressType
+        );
+      }
+    }
+
+    const merchant = await Merchant.findById(cart.merchantId);
+
+    if (!merchant) {
+      return next(appError("Merchant not found", 404));
+    }
+
+    let newOrder;
+
+    if (paymentMode === "Famto-cash") {
+      if (customer.customerDetails.walletBalance < orderAmount) {
+        return next(appError("Insufficient funds in wallet", 400));
+      }
+
+      // Deduct the amount from wallet
+      customer.customerDetails.walletBalance -= orderAmount;
+      await customer.save();
+
+      // Create the order
+      newOrder = await Order.create({
+        customerId,
+        merchantId: cart.merchantId,
+        items: cart.items,
+        orderDetail: cart.cartDetails,
+        totalAmount: orderAmount,
+        paymentMode: "Famto-cash",
+        paymentStatus: "Completed",
+        status: "Pending",
+      });
+
+      // Clear the cart
+      await CustomerCart.deleteOne({ customerId });
+    } else if (paymentMode === "Cash-on-delivery") {
+      newOrder = await Order.create({
+        customerId,
+        merchantId: cart.merchantId,
+        items: cart.items,
+        orderDetail: cart.cartDetails,
+        totalAmount: orderAmount,
+        paymentMode: "Cash-on-delivery",
+        paymentStatus: "Pending",
+        status: "Pending",
+      });
+
+      // Clear the cart
+      await CustomerCart.deleteOne({ customerId });
+    } else if (paymentMode === "Online-payment") {
+      const { success, orderId, error } = await createRazorpayOrderId(
+        orderAmount
+      );
+
+      if (!success) {
+        return next(appError("Error in creating Razorpay order", 500));
+      }
+
+      res.status(200).json({ success: true, orderId, amount: orderAmount });
+      return;
+    } else {
+      return next(appError("Invalid payment mode", 400));
+    }
+
+    if (deliveryMode === "Delivery") {
+      const orderResponse = {
+        _id: newOrder._id,
+        customerId: newOrder.customerId,
+        customerName: customer.fullName || deliveryAddress.fullName,
+        merchantId: newOrder.merchantId,
+        merchantName: merchant.merchantDetail.merchantName,
+        status: newOrder.status,
+        totalAmount: newOrder.totalAmount,
+        paymentMode: newOrder.paymentMode,
+        paymentStatus: newOrder.paymentStatus,
+        items: newOrder.items,
+        deliveryAddress: {
+          fullName: deliveryAddress.fullName,
+          phoneNumber: deliveryAddress.phoneNumber,
+          flat: deliveryAddress.flat,
+          area: deliveryAddress.area,
+          landmark: deliveryAddress.landmark || null,
+        },
+        orderDetail: {
+          pickupLocation: merchant.merchantDetail.location,
+          deliveryLocation: cart.cartDetails.deliveryLocation,
+          deliveryMode: cart.cartDetails.deliveryMode,
+          instructionToMerchant: cart.cartDetails.instructionToMerchant,
+          instructionToDeliveryAgent:
+            cart.cartDetails.instructionToDeliveryAgent,
+          addedTip: cart.cartDetails.addedTip,
+          distance: cart.cartDetails.distance,
+          taxAmount: cart.cartDetails.taxAmount,
+        },
+        createdAt: newOrder.createdAt,
+        updatedAt: newOrder.updatedAt,
+      };
+
+      res.status(200).json({
+        message: "Order created successfully",
+        data: orderResponse,
+      });
+    } else {
+      const orderResponse = {
+        _id: newOrder._id,
+        customerId: newOrder.customerId,
+        customerName: customer.fullName || deliveryAddress.fullName,
+        merchantId: newOrder.merchantId,
+        merchantName: merchant.merchantDetail.merchantName,
+        status: newOrder.status,
+        totalAmount: newOrder.totalAmount,
+        paymentMode: newOrder.paymentMode,
+        paymentStatus: newOrder.paymentStatus,
+        items: newOrder.items,
+        pickupLocation: {
+          merchantName: merchant.merchantDetail.merchantName,
+          location: merchant.merchantDetail.displayAddress,
+        },
+        orderDetail: {
+          pickupLocation: merchant.merchantDetail.location,
+          deliveryMode: cart.cartDetails.deliveryMode,
+          instructionToMerchant: cart.cartDetails.instructionToMerchant,
+          instructionToDeliveryAgent:
+            cart.cartDetails.instructionToDeliveryAgent,
+          addedTip: cart.cartDetails.addedTip,
+          distance: cart.cartDetails.distance,
+          taxAmount: cart.cartDetails.taxAmount,
+        },
+        createdAt: newOrder.createdAt,
+        updatedAt: newOrder.updatedAt,
+      };
+
+      res.status(200).json({
+        message: "Order created successfully",
+        data: orderResponse,
+      });
+    }
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Verify online payment
+const verifyOnlinePaymentController = async (req, res, next) => {
+  try {
+    const { paymentDetails } = req.body;
+    const customerId = req.userAuth;
+
+    if (!customerId) {
+      return next(appError("Customer is not authenticated", 401));
+    }
+
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      return next(appError("Customer not found", 404));
+    }
+
+    const cart = await CustomerCart.findOne({ customerId });
+    if (!cart) {
+      return next(appError("Cart not found", 404));
+    }
+
+    const isPaymentValid = await verifyPayment(paymentDetails);
+    if (!isPaymentValid) {
+      return next(appError("Invalid payment", 400));
+    }
+
+    let deliveryAddress;
+
+    if (cart.cartDetails.deliveryAddressType === "home") {
+      deliveryAddress = customer.customerDetails.homeAddress;
+    } else if (cart.cartDetails.deliveryAddressType === "work") {
+      deliveryAddress = customer.customerDetails.workAddress;
+    } else {
+      deliveryAddress = customer.customerDetails.otherAddress.find(
+        (addr) => addr._id.toString() === cart.cartDetails.deliveryAddressType
+      );
+    }
+
+    const merchant = await Merchant.findById(cart.merchantId);
+
+    if (!merchant) {
+      return next(appError("Merchant not found", 404));
+    }
+
+    const orderAmount = cart.discountedGrandTotal || cart.originalGrandTotal;
+
+    // Create the order
+    const newOrder = await Order.create({
+      customerId,
+      merchantId: cart.merchantId,
+      items: cart.items,
+      orderDetail: cart.cartDetails,
+      totalAmount: orderAmount,
+      paymentMode: "Online-payment",
+      paymentStatus: "Completed",
+      status: "Pending",
+    });
+
+    // Clear the cart
+    await CustomerCart.deleteOne({ customerId });
+
+    const orderResponse = {
+      _id: newOrder._id,
+      customerId: newOrder.customerId,
+      customerName: customer.fullName || deliveryAddress.fullName,
+      merchantId: newOrder.merchantId,
+      merchantName: merchant.merchantDetail.merchantName,
+      status: newOrder.status,
+      totalAmount: newOrder.totalAmount,
+      paymentMode: newOrder.paymentMode,
+      paymentStatus: newOrder.paymentStatus,
+      items: newOrder.items,
+      deliveryAddress: {
+        fullName: deliveryAddress.fullName,
+        phoneNumber: deliveryAddress.phoneNumber,
+        flat: deliveryAddress.flat,
+        area: deliveryAddress.area,
+        landmark: deliveryAddress.landmark || null,
+      },
+      orderDetail: {
+        pickupLocation: merchant.merchantDetail.location,
+        deliveryLocation: cart.cartDetails.deliveryLocation,
+        deliveryMode: cart.cartDetails.deliveryMode,
+        instructionToMerchant: cart.cartDetails.instructionToMerchant,
+        instructionToDeliveryAgent: cart.cartDetails.instructionToDeliveryAgent,
+        addedTip: cart.cartDetails.addedTip,
+        distance: cart.cartDetails.distance,
+        taxAmount: cart.cartDetails.taxAmount,
+      },
+      createdAt: newOrder.createdAt,
+      updatedAt: newOrder.updatedAt,
+    };
+
+    res.status(200).json({
+      message: "Order created successfully",
+      data: orderResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerAndLoginController,
   getCustomerProfileController,
@@ -1373,4 +1748,6 @@ module.exports = {
   addOrUpdateCartItemController,
   addCartDetailsController,
   applyPromocodeController,
+  orderPaymentController,
+  verifyOnlinePaymentController,
 };

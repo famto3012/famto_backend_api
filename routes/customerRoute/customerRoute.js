@@ -23,6 +23,8 @@ const {
   addOrUpdateCartItemController,
   addCartDetailsController,
   applyPromocodeController,
+  orderPaymentController,
+  verifyOnlinePaymentController,
 } = require("../../controllers/customer/customerController");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const { upload } = require("../../utils/imageOperation");
@@ -144,6 +146,14 @@ customerRoute.post(
   "/apply-promocode",
   isAuthenticated,
   applyPromocodeController
+);
+
+customerRoute.post("/confirm-order", isAuthenticated, orderPaymentController);
+
+customerRoute.post(
+  "/verify-payment",
+  isAuthenticated,
+  verifyOnlinePaymentController
 );
 
 module.exports = customerRoute;
