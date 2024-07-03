@@ -18,7 +18,6 @@ const cartItemSchema = mongoose.Schema(
     },
     variantTypeId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "VariantType",
       default: null,
     },
   },
@@ -39,7 +38,12 @@ const cartDetailsSchema = mongoose.Schema(
     },
     deliveryMode: {
       type: String,
+      enum: ["Delivery", "Take-away"],
       required: true,
+    },
+    deliveryAddressType: {
+      type: String,
+      default: null,
     },
     instructionToMerchant: {
       type: String,
@@ -55,12 +59,23 @@ const cartDetailsSchema = mongoose.Schema(
     },
     distance: {
       type: Number,
+      required: true,
     },
     originalDeliveryCharge: {
       type: Number,
+      required: true,
     },
     discountedDeliveryCharge: {
       type: Number,
+      default: null,
+    },
+    taxAmount: {
+      type: Number,
+      required: true,
+    },
+    isScheduled: {
+      type: Boolean,
+      default: false,
     },
     startDate: {
       type: Date,

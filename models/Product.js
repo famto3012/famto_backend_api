@@ -128,5 +128,6 @@ const productSchema = mongoose.Schema(
   }
 );
 
+const VariantType = mongoose.model("VariantType", variantTypeSchema);
 const Product = mongoose.model("Product", productSchema);
-module.exports = Product;
+module.exports = { Product, VariantType };

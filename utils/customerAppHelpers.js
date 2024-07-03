@@ -16,7 +16,7 @@ const getDistanceFromPickupToDelivery = async (
   deliveryCoordinates
 ) => {
   const { data } = await axios.get(
-    `https://apis.mapmyindia.com/advancedmaps/v1/${process.env.MapMyIndiaRESTKey}/distance_matrix_eta/biking/${pickupCoordinates[1]},${pickupCoordinates[0]};${deliveryCoordinates[1]},${deliveryCoordinates[0]}`
+    `https://apis.mapmyindia.com/advancedmaps/v1/${process.env.MapMyIndiaAPIKey}/distance_matrix_eta/biking/${pickupCoordinates[1]},${pickupCoordinates[0]};${deliveryCoordinates[1]},${deliveryCoordinates[0]}`
   );
 
   if (
@@ -64,7 +64,9 @@ const getTaxAmount = async (
 
     const taxPercentage = taxFound.tax;
 
-    const taxAmount = ((itemTotal + deliveryCharges) * taxPercentage) / 100;
+    const taxAmount =
+      ((parseFloat(itemTotal) + parseFloat(deliveryCharges)) * taxPercentage) /
+      100;
 
     return parseFloat(taxAmount.toFixed(2));
   } catch (err) {
