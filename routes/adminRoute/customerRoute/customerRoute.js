@@ -9,6 +9,8 @@ const {
   blockCustomerController,
   editCustomerDetailsController,
   getAllRatingsAndReviewsByAgentController,
+  addMoneyToWalletController,
+  deductMoneyFromWalletCOntroller,
 } = require("../../../controllers/admin/customer/customerController");
 const adminCustomerRoute = express.Router();
 
@@ -59,6 +61,22 @@ adminCustomerRoute.get(
   isAuthenticated,
   isAdmin,
   getAllRatingsAndReviewsByAgentController
+);
+
+// TODO: need to test API
+adminCustomerRoute.patch(
+  "/add-money-to-wallet/:customerId",
+  isAuthenticated,
+  isAdmin,
+  addMoneyToWalletController
+);
+
+// TODO: need to test API
+adminCustomerRoute.patch(
+  "/deduct-money-from-wallet/:customerId",
+  isAuthenticated,
+  isAdmin,
+  deductMoneyFromWalletCOntroller
 );
 
 module.exports = adminCustomerRoute;

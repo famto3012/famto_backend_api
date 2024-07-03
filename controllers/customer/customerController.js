@@ -1728,6 +1728,50 @@ const verifyOnlinePaymentController = async (req, res, next) => {
   }
 };
 
+const addWalletBalanceController = async (req, res, next) => {
+  try {
+    const { amount } = req.body;
+
+    const { success, orderId } = await createRazorpayOrderId(amount);
+
+    if (!success) {
+      return next(appError("Error in creating Razorpay order", 500));
+    }
+
+    res.status(200).json({ success: true, orderId, amount });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const verifyWalletRechargeController = async (req, res, next) => {
+  try {
+    const { paymentDetails, amount } = req.body;
+    const customerId = req.userAuth;
+
+    if (!customerId) {
+      return next(appError("Customer is not authenticated", 401));
+    }
+
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      return next(appError("Customer not found", 404));
+    }
+
+    const isPaymentValid = await verifyPayment(paymentDetails);
+    if (!isPaymentValid) {
+      return next(appError("Invalid payment", 400));
+    }
+
+    customer.customerDetails.walletBalance += amount;
+    await customer.save();
+
+    res.status(200).josn({ message: "Wallet recharged successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerAndLoginController,
   getCustomerProfileController,
@@ -1750,4 +1794,6 @@ module.exports = {
   applyPromocodeController,
   orderPaymentController,
   verifyOnlinePaymentController,
+  addWalletBalanceController,
+  verifyWalletRechargeController,
 };

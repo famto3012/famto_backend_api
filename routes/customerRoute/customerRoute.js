@@ -25,6 +25,8 @@ const {
   applyPromocodeController,
   orderPaymentController,
   verifyOnlinePaymentController,
+  addWalletBalanceController,
+  verifyWalletRechargeController,
 } = require("../../controllers/customer/customerController");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const { upload } = require("../../utils/imageOperation");
@@ -154,6 +156,20 @@ customerRoute.post(
   "/verify-payment",
   isAuthenticated,
   verifyOnlinePaymentController
+);
+
+// TODO: need to test API
+customerRoute.post(
+  "/wallet-recharge",
+  isAuthenticated,
+  addWalletBalanceController
+);
+
+// TODO: need to test API
+customerRoute.post(
+  "/verify-wallet-recharge",
+  isAuthenticated,
+  verifyWalletRechargeController
 );
 
 module.exports = customerRoute;

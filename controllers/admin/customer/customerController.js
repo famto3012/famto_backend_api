@@ -166,8 +166,8 @@ const blockCustomerController = async (req, res, next) => {
       fullName: customerFound.fullName,
       role: customerFound.role,
       description: reason,
-    })
-    await accountLogs.save()
+    });
+    await accountLogs.save();
 
     await customerFound.save();
 
@@ -176,7 +176,6 @@ const blockCustomerController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
-
 
 const editCustomerDetailsController = async (req, res, next) => {
   const {
@@ -257,6 +256,50 @@ const getAllRatingsAndReviewsByAgentController = async (req, res, next) => {
   }
 };
 
+const addMoneyToWalletController = async (req, res, next) => {
+  try {
+    const { amount } = req.body;
+    const { customerId } = req.params;
+
+    const customerFound = await Customer.findById(customerId);
+
+    if (!customerFound) {
+      return next(appError("Customer not found", 404));
+    }
+
+    customerFound.customerDetails.walletBalance += amount;
+    await customerFound.save();
+
+    res
+      .status(200)
+      .json({ message: `${amount} Rs is added to customer's wallet` });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const deductMoneyFromWalletCOntroller = async (req, res, next) => {
+  try {
+    const { amount } = req.body;
+    const { customerId } = req.params;
+
+    const customerFound = await Customer.findById(customerId);
+
+    if (!customerFound) {
+      return next(appError("Customer not found", 404));
+    }
+
+    customerFound.customerDetails.walletBalance -= amount;
+    await customerFound.save();
+
+    res
+      .status(200)
+      .json({ message: `${amount} Rs is deducted from customer's wallet` });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getAllCustomersController,
   searchCustomerByNameController,
@@ -265,4 +308,6 @@ module.exports = {
   blockCustomerController,
   editCustomerDetailsController,
   getAllRatingsAndReviewsByAgentController,
+  addMoneyToWalletController,
+  deductMoneyFromWalletCOntroller,
 };
