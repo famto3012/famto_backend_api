@@ -1,12 +1,22 @@
-
 const express = require("express");
 const { body } = require("express-validator");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
-const { createSubscriptionLog, verifyRazorpayPayment, createSubscriptionLogUser, setAsPaidController, getAllMerchantSubscriptionLogController, getAllCustomerSubscriptionLogController, getByMerchantIdSubscriptionLogController, getMerchantSubscriptionLogsByName, getMerchantSubscriptionLogsByStartDate, getCustomerSubscriptionLogsByName } = require("../../../controllers/admin/commissionAndSubscription/subscriptionLogController");
+const {
+  createSubscriptionLog,
+  verifyRazorpayPayment,
+  createSubscriptionLogUser,
+  setAsPaidController,
+  getAllMerchantSubscriptionLogController,
+  getAllCustomerSubscriptionLogController,
+  getByMerchantIdSubscriptionLogController,
+  getMerchantSubscriptionLogsByName,
+  getMerchantSubscriptionLogsByStartDate,
+  getCustomerSubscriptionLogsByName,
+  getCustomerSubscriptionLogsByStartDate,
+} = require("../../../controllers/admin/commissionAndSubscription/subscriptionLogController");
 const isAdmin = require("../../../middlewares/isAdmin");
 
 const subscriptionLogRoute = express.Router();
-
 
 subscriptionLogRoute.post(
   "/merchant-subscription-payment",
@@ -93,6 +103,13 @@ subscriptionLogRoute.get(
   isAuthenticated,
   isAdmin,
   getCustomerSubscriptionLogsByName
+);
+
+subscriptionLogRoute.get(
+  "/customer-subscription-log-date",
+  isAuthenticated,
+  isAdmin,
+  getCustomerSubscriptionLogsByStartDate
 );
 
 module.exports = subscriptionLogRoute;

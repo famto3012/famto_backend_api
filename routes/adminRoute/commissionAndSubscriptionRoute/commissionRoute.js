@@ -3,6 +3,11 @@ const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const isAdmin = require("../../../middlewares/isAdmin");
 const {
   addAndEditCommissionController,
+  getAllCommissionLogController,
+  getCommissionLogsByMerchantName,
+  getCommissionLogsByCreatedDate,
+  getCommissionLogsByMerchantId,
+  updateCommissionLogStatus,
 } = require("../../../controllers/admin/commissionAndSubscription/commissionController");
 const { body } = require("express-validator");
 
@@ -26,5 +31,39 @@ commissionRoute.post(
   addAndEditCommissionController
 );
 
+commissionRoute.get(
+  "/all-commission-log",
+  isAuthenticated,
+  isAdmin,
+  getAllCommissionLogController
+);
 
-module.exports = commissionRoute
+commissionRoute.get(
+  "/commission-log-name",
+  isAuthenticated,
+  isAdmin,
+  getCommissionLogsByMerchantName
+);
+
+commissionRoute.get(
+  "/commission-log-date",
+  isAuthenticated,
+  isAdmin,
+  getCommissionLogsByCreatedDate
+);
+
+commissionRoute.get(
+  "/commission-log/:merchantId",
+  isAuthenticated,
+  isAdmin,
+  getCommissionLogsByMerchantId
+);
+
+commissionRoute.put(
+  "/commission-log/:commissionLogId",
+  isAuthenticated,
+  isAdmin,
+  updateCommissionLogStatus
+);
+
+module.exports = commissionRoute;
