@@ -41,7 +41,12 @@ const accountLogRoute = require("./routes/adminRoute/accountLogRoute/accountLogR
 const commissionRoute = require("./routes/adminRoute/commissionAndSubscriptionRoute/commissionRoute");
 const subscriptionRoute = require("./routes/adminRoute/commissionAndSubscriptionRoute/subscriptionRoute");
 const subscriptionLogRoute = require("./routes/adminRoute/subscriptionLogRoute/subscriptionLogRoute");
-const { deleteExpiredSubscriptionPlans } = require("./utils/subscriptionHelpers");
+const {
+  deleteExpiredSubscriptionPlans,
+} = require("./utils/subscriptionHelpers");
+const {
+  orderCommissionLogHelper,
+} = require("./utils/orderCommissionLogHelper");
 
 require("dotenv").config();
 require("./config/dbConnect");
@@ -94,22 +99,22 @@ app.use("/api/v1/admin/customers", adminCustomerRoute);
 app.use("/api/v1/admin/account-log", accountLogRoute);
 app.use("/api/v1/admin/commission", commissionRoute);
 app.use("/api/v1/admin/subscription", subscriptionRoute);
-app.use("/api/v1/admin/subscription-payment", subscriptionLogRoute); 
-app.use("/api/v1/merchant/subscription-payment", subscriptionLogRoute); 
+app.use("/api/v1/admin/subscription-payment", subscriptionLogRoute);
+app.use("/api/v1/merchant/subscription-payment", subscriptionLogRoute);
 
 //agent
 app.use("/api/v1/agents", agentRoute);
 
 //customer
 app.use("/api/v1/customers", customerRoute);
-app.use("/api/v1/customers/subscription-payment", subscriptionLogRoute); 
+app.use("/api/v1/customers/subscription-payment", subscriptionLogRoute);
 
 // Schedule the task to run daily at midnight for deleting expired plans of Merchants and customer
-cron.schedule("16 12 * * *", async () => {
+cron.schedule("32 15 * * *", async () => {
   // cron.schedule("23 22 * * *", async () => {
   console.log("Running scheduled task to delete expired plans");
   await deleteExpiredSponsorshipPlans();
-  await deleteExpiredSubscriptionPlans()
+  await deleteExpiredSubscriptionPlans();
 });
 
 //global errors

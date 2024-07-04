@@ -1,4 +1,5 @@
 const Customer = require("../../../models/Customer");
+const moment = require("moment");
 const CustomerSubscription = require("../../../models/CustomerSubscription");
 const Merchant = require("../../../models/Merchant");
 const MerchantSubscription = require("../../../models/MerchantSubscription");
@@ -400,24 +401,53 @@ const getMerchantSubscriptionLogsByName = async (req, res, next) => {
 };
 
 const getMerchantSubscriptionLogsByStartDate = async (req, res, next) => {
-  const { startDate } = req.query;
-
   try {
-    // Validate startDate
+    const { startDate } = req.query;
+
     if (!startDate) {
-      return res.status(400).json({ message: 'Start date is required' });
+      return res.status(400).json({ message: "Start date is required" });
     }
 
-    // Find subscription logs by start date
+    // Parse the user-provided date using moment
+    let inputDate = moment(startDate, moment.ISO_8601, true);
+
+    // Check if the date is valid
+    if (!inputDate.isValid()) {
+      // Attempt to convert the invalid date format to a valid format
+      const formattedDate = moment(startDate, "MM/DD/YYYY", true);
+
+      // Check if the conversion to a valid format was successful
+      if (!formattedDate.isValid()) {
+        return res.status(400).json({
+          message: "Invalid date format. Please use YYYY-MM-DD or MM/DD/YYYY.",
+        });
+      }
+
+      inputDate = formattedDate;
+    }
+
+    // Get the start and end of the day
+    const startOfDay = inputDate.startOf("day").toDate();
+    const endOfDay = inputDate.endOf("day").toDate();
+    // Find subscription logs by date range
     const subscriptionLogs = await SubscriptionLog.find({
-      startDate: new Date(startDate),
+      startDate: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
+      typeOfUser: "Merchant",
     });
 
     if (subscriptionLogs.length === 0) {
-      return res.status(404).json({ message: 'No subscription logs found for the provided start date' });
+      return res.status(404).json({
+        message: "No subscription logs found for the provided start date",
+      });
     }
 
-    res.status(200).json(subscriptionLogs);
+    res.status(200).json({
+      message: "Data fetched successfully",
+      data: subscriptionLogs,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -430,7 +460,7 @@ const getCustomerSubscriptionLogsByName = async (req, res, next) => {
     // Find merchants whose names start with the given letter, case-insensitive
     const customers = await Customer.find({
       fullName: new RegExp(`^${name}`, "i"),
-    }).populate("customerDetails.pricing")
+    }).populate("customerDetails.pricing");
 
     if (customers.length === 0) {
       return res.status(404).json({ message: "No customers found" });
@@ -452,6 +482,58 @@ const getCustomerSubscriptionLogsByName = async (req, res, next) => {
   }
 };
 
+const getCustomerSubscriptionLogsByStartDate = async (req, res, next) => {
+  try {
+    const { startDate } = req.query;
+
+    if (!startDate) {
+      return res.status(400).json({ message: "Start date is required" });
+    }
+
+    // Parse the user-provided date using moment
+    let inputDate = moment(startDate, moment.ISO_8601, true);
+
+    // Check if the date is valid
+    if (!inputDate.isValid()) {
+      // Attempt to convert the invalid date format to a valid format
+      const formattedDate = moment(startDate, "MM/DD/YYYY", true);
+
+      // Check if the conversion to a valid format was successful
+      if (!formattedDate.isValid()) {
+        return res.status(400).json({
+          message: "Invalid date format. Please use YYYY-MM-DD or MM/DD/YYYY.",
+        });
+      }
+
+      inputDate = formattedDate;
+    }
+
+    // Get the start and end of the day
+    const startOfDay = inputDate.startOf("day").toDate();
+    const endOfDay = inputDate.endOf("day").toDate();
+    // Find subscription logs by date range
+    const subscriptionLogs = await SubscriptionLog.find({
+      startDate: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
+      typeOfUser: "Customer",
+    });
+
+    if (subscriptionLogs.length === 0) {
+      return res.status(404).json({
+        message: "No subscription logs found for the provided start date",
+      });
+    }
+
+    res.status(200).json({
+      message: "Data fetched successfully",
+      data: subscriptionLogs,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
 
 module.exports = {
   createSubscriptionLog,
@@ -463,5 +545,6 @@ module.exports = {
   getByMerchantIdSubscriptionLogController,
   getMerchantSubscriptionLogsByName,
   getMerchantSubscriptionLogsByStartDate,
+  getCustomerSubscriptionLogsByStartDate,
   getCustomerSubscriptionLogsByName,
 };
