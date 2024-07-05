@@ -292,6 +292,8 @@ const searchMerchantController = async (req, res, next) => {
       });
     }
 
+    const searchTerm = query.toLowerCase();
+
     const searchResults = await Merchant.find({
       fullName: { $regex: searchTerm, $options: "i" },
     }).select("fullName phoneNumber isApproved");
