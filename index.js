@@ -47,10 +47,13 @@ const {
 const {
   orderCommissionLogHelper,
 } = require("./utils/orderCommissionLogHelper");
+const orderRoute = require("./routes/adminRoute/orderRoute/orderRoute");
 const autoAllocationRoute = require("./routes/adminRoute/deliveryManagementRoute/autoAllocationRoute");
 
 require("dotenv").config();
 require("./config/dbConnect");
+const { createOrdersFromScheduled } = require("./utils/customerAppHelpers");
+createOrdersFromScheduled();
 
 const {app,server} = require("./socket/socket.js");
 
@@ -104,6 +107,7 @@ app.use("/api/v1/admin/commission", commissionRoute);
 app.use("/api/v1/admin/subscription", subscriptionRoute);
 app.use("/api/v1/admin/subscription-payment", subscriptionLogRoute);
 app.use("/api/v1/merchant/subscription-payment", subscriptionLogRoute);
+app.use("/api/v1/orders", orderRoute);
 app.use("/api/v1/admin/auto-allocation", autoAllocationRoute)
 
 //agent

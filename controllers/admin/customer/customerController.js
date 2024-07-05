@@ -1,7 +1,7 @@
 const AccountLogs = require("../../../models/AccountLogs");
 const Customer = require("../../../models/Customer");
 const appError = require("../../../utils/appError");
-const formatDate = require("../../../utils/formatDate");
+const { formatDate } = require("../../../utils/formatDate");
 
 const getAllCustomersController = async (req, res, next) => {
   try {

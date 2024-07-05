@@ -29,6 +29,7 @@ const {
   verifyPayment,
 } = require("../../utils/razorpayPayment");
 const Order = require("../../models/Order");
+const ScheduledOrder = require("../../models/ScheduledOrder");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -984,7 +985,7 @@ const addOrUpdateCartItemController = async (req, res, next) => {
       return res.status(404).json({ error: "Product not found" });
     }
 
-    const merchantId = product.categoryId.merchantId; // Getting the merchantId
+    const merchantId = product.categoryId.merchantId;
 
     let variantType = null;
     if (variantTypeId) {
@@ -1002,14 +1003,11 @@ const addOrUpdateCartItemController = async (req, res, next) => {
     let cart = await CustomerCart.findOne({ customerId });
 
     if (cart) {
-      // Check if the existing cart is from a different merchant
       if (!cart.merchantId.equals(merchantId)) {
-        // Replace the cart items if the merchant is different
         cart.merchantId = merchantId;
         cart.items = [];
       }
     } else {
-      // Create a new cart if none exists
       cart = new CustomerCart({ customerId, merchantId, items: [] });
     }
 
@@ -1023,13 +1021,12 @@ const addOrUpdateCartItemController = async (req, res, next) => {
     );
 
     if (existingItemIndex >= 0) {
-      // Update the quantity if the item already exists in the cart
       cart.items[existingItemIndex].quantity = quantity;
       cart.items[existingItemIndex].price = price;
       cart.items[existingItemIndex].totalPrice = quantity * price;
 
       if (cart.items[existingItemIndex].quantity <= 0) {
-        cart.items.splice(existingItemIndex, 1); // Remove item if quantity is zero or less
+        cart.items.splice(existingItemIndex, 1);
       }
     } else {
       if (quantity > 0) {
@@ -1044,9 +1041,16 @@ const addOrUpdateCartItemController = async (req, res, next) => {
       }
     }
 
+    // Calculate the itemTotal ensuring no NaN values
+    cart.itemTotal = cart.items.reduce(
+      (total, item) => total + item.price * item.quantity,
+      0
+    );
+
+    console.log(cart.itemTotal);
+
     await cart.save();
 
-    // If all items are removed, delete the cart
     if (cart.items.length === 0) {
       await CustomerCart.findByIdAndDelete(cart._id);
       return res
@@ -1096,10 +1100,7 @@ const addOrUpdateCartItemController = async (req, res, next) => {
       success: "Cart updated successfully",
       data: {
         ...updatedCartWithVariantNames,
-        itemTotal: updatedCartWithVariantNames.items.reduce(
-          (total, item) => total + item.totalPrice,
-          0
-        ),
+        itemTotal: updatedCart.itemTotal,
       },
     });
   } catch (err) {
@@ -1136,18 +1137,49 @@ const addCartDetailsController = async (req, res, next) => {
 
     // Retrieve the specified address coordinates from the customer data
     let deliveryCoordinates;
+    let deliveryAddress = {
+      fullName: "",
+      phoneNumber: "",
+      flat: "",
+      area: "",
+      landmark: "",
+    };
 
     if (deliveryMode === "Delivery") {
       if (addressType === "home") {
         deliveryCoordinates = customer.customerDetails.homeAddress.coordinates;
+        deliveryAddress.fullName =
+          customer.customerDetails.homeAddress.fullName;
+        deliveryAddress.phoneNumber =
+          customer.customerDetails.homeAddress.phoneNumber;
+        deliveryAddress.flat = customer.customerDetails.homeAddress.flat;
+        deliveryAddress.area = customer.customerDetails.homeAddress.area;
+        deliveryAddress.landmark =
+          customer.customerDetails.homeAddress.landmark || null;
       } else if (addressType === "work") {
         deliveryCoordinates = customer.customerDetails.workAddress.coordinates;
+        deliveryAddress.fullName =
+          customer.customerDetails.workAddress.fullName;
+        deliveryAddress.phoneNumber =
+          customer.customerDetails.workAddress.phoneNumber;
+        deliveryAddress.flat = customer.customerDetails.workAddress.flat;
+        deliveryAddress.area = customer.customerDetails.workAddress.area;
+        deliveryAddress.landmarklandmark =
+          customer.customerDetails.workAddress.landmarklandmark || null;
       } else {
         const otherAddress = customer.customerDetails.otherAddress.find(
           (addr) => addr.id.toString() === otherAddressId
         );
         if (otherAddress) {
           deliveryCoordinates = otherAddress.coordinates;
+          deliveryAddress.fullName =
+            customer.customerDetails.otherAddress.fullName;
+          deliveryAddress.phoneNumber =
+            customer.customerDetails.otherAddress.phoneNumber;
+          deliveryAddress.flat = customer.customerDetails.otherAddress.flat;
+          deliveryAddress.area = customer.customerDetails.otherAddress.area;
+          deliveryAddress.landmarklandmark =
+            customer.customerDetails.otherAddress.landmarklandmark || null;
         } else {
           return res.status(404).json({ error: "Address not found" });
         }
@@ -1168,6 +1200,14 @@ const addCartDetailsController = async (req, res, next) => {
 
     const pickupCoordinates = merchant.merchantDetail.location;
 
+    // Calculate itemTotal in the controller
+    const itemTotal = cart.items.reduce(
+      (total, item) => total + item.price * item.quantity,
+      0
+    );
+
+    console.log("itemTotal", itemTotal);
+
     let updatedCartDetails;
 
     if (deliveryMode === "Take-away") {
@@ -1186,19 +1226,14 @@ const addCartDetailsController = async (req, res, next) => {
       };
 
       // Set originalGrandTotal without tax and delivery charges
-      cart.originalGrandTotal = parseFloat(
-        cart.items.reduce(
-          (total, item) => total + item.price * item.quantity,
-          0
-        )
-      ).toFixed(2);
+      cart.originalGrandTotal = parseFloat(itemTotal).toFixed(2);
 
       cart.cartDetails = updatedCartDetails;
     } else {
       updatedCartDetails = {
         pickupLocation: pickupCoordinates,
         deliveryLocation: deliveryCoordinates,
-        deliveryAddressType: addressType,
+        deliveryAddress,
         deliveryMode,
         instructionToMerchant,
         instructionToDeliveryAgent,
@@ -1218,8 +1253,6 @@ const addCartDetailsController = async (req, res, next) => {
         );
 
       updatedCartDetails.distance = distanceFromPickupToDelivery;
-
-      cart.cartDetails = updatedCartDetails;
 
       const businessCategoryId = merchant.merchantDetail.businessCategoryId;
 
@@ -1248,23 +1281,24 @@ const addCartDetailsController = async (req, res, next) => {
         fareAfterBaseDistance
       );
 
-      const itemTotal = cart.items.reduce(
-        (total, item) => total + item.price * item.quantity,
-        0
-      );
+      console.log("delivery charge", deliveryCharges);
 
-      // Calculate total based on number of days
       if (startDate && endDate) {
         const startDateTime = new Date(startDate + " " + time);
         const endDateTime = new Date(endDate + " " + time);
 
         const diffTime = Math.abs(endDateTime - startDateTime);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
+        const oneTimeDeliveryCharge = deliveryCharges;
         const scheduledDeliveryCharge = (deliveryCharges * diffDays).toFixed(2);
         const cartTotal = (itemTotal * diffDays).toFixed(2);
 
         updatedCartDetails.originalDeliveryCharge = scheduledDeliveryCharge;
+        updatedCartDetails.deliveryChargePerday = oneTimeDeliveryCharge;
+
+        // Update the itemTotal with multiplied value
+        cart.itemTotal = parseFloat(cartTotal);
 
         const taxAmount = await getTaxAmount(
           businessCategoryId,
@@ -1294,8 +1328,8 @@ const addCartDetailsController = async (req, res, next) => {
         );
 
         updatedCartDetails.taxAmount = taxAmount.toFixed(2);
+        console.log("Tax amount", taxAmount);
 
-        // If startDate or endDate is missing, calculate without days multiplier
         const grandTotal = (
           parseFloat(itemTotal) +
           parseFloat(deliveryCharges) +
@@ -1304,6 +1338,8 @@ const addCartDetailsController = async (req, res, next) => {
         ).toFixed(2);
 
         cart.originalGrandTotal = parseFloat(grandTotal);
+
+        console.log("GrandTotal", grandTotal);
       }
 
       cart.cartDetails = updatedCartDetails;
@@ -1311,9 +1347,49 @@ const addCartDetailsController = async (req, res, next) => {
 
     await cart.save();
 
+    // Populate the cart with product and variant details
+    const populatedCart = await CustomerCart.findOne({ customerId })
+      .populate({
+        path: "items.productId",
+        select: "productName productImageURL description variants",
+      })
+      .exec();
+
+    const populatedCartWithVariantNames = populatedCart.toObject();
+    populatedCartWithVariantNames.items =
+      populatedCartWithVariantNames.items.map((item) => {
+        const product = item.productId;
+        let variantTypeName = null;
+        let variantTypeData = null;
+        if (item.variantTypeId && product.variants) {
+          const variantType = product.variants
+            .flatMap((variant) => variant.variantTypes)
+            .find((type) => type._id.equals(item.variantTypeId));
+          if (variantType) {
+            variantTypeName = variantType.typeName;
+            variantTypeData = {
+              _id: variantType._id,
+              variantTypeName: variantTypeName,
+            };
+          }
+        }
+        return {
+          ...item,
+          productId: {
+            _id: product._id,
+            productName: product.productName,
+            description: product.description,
+            productImageURL: product.productImageURL,
+          },
+          variantTypeId: variantTypeData,
+        };
+      });
+
+    console.log("Original grand", cart.originalGrandTotal);
+
     res.status(200).json({
       success: "Delivery address and details added to cart successfully",
-      data: cart,
+      data: populatedCartWithVariantNames,
     });
   } catch (err) {
     next(appError(err.message));
@@ -1459,6 +1535,8 @@ const orderPaymentController = async (req, res, next) => {
 
     const deliveryMode = cart.cartDetails.deliveryMode;
     let deliveryAddress;
+    let deliveryCharge;
+    let deliveryChargePerDay;
 
     if (deliveryMode === "Delivery") {
       if (cart.cartDetails.deliveryAddressType === "home") {
@@ -1470,6 +1548,10 @@ const orderPaymentController = async (req, res, next) => {
           (addr) => addr._id.toString() === cart.cartDetails.deliveryAddressType
         );
       }
+      deliveryCharge = cart.cartDetails.originalDeliveryCharge;
+      deliveryChargePerDay = cart.cartDetails.deliveryChargePerday;
+    } else {
+      deliveryCharge = 0;
     }
 
     const merchant = await Merchant.findById(cart.merchantId);
@@ -1489,20 +1571,50 @@ const orderPaymentController = async (req, res, next) => {
       customer.customerDetails.walletBalance -= orderAmount;
       await customer.save();
 
-      // Create the order
-      newOrder = await Order.create({
-        customerId,
-        merchantId: cart.merchantId,
-        items: cart.items,
-        orderDetail: cart.cartDetails,
-        totalAmount: orderAmount,
-        paymentMode: "Famto-cash",
-        paymentStatus: "Completed",
-        status: "Pending",
-      });
+      if (cart.cartDetails.isScheduled) {
+        // Create a scheduled order
+        newOrder = await ScheduledOrder.create({
+          customerId,
+          merchantId: cart.merchantId,
+          items: cart.items,
+          orderDetail: cart.cartDetails,
+          totalAmount: orderAmount,
+          paymentMode: "Famto-cash",
+          paymentStatus: "Completed",
+          status: "Pending",
+          deliveryCharge,
+          deliveryChargePerDay,
+          startDate: cart.cartDetails.startDate,
+          endDate: cart.cartDetails.endDate,
+          time: cart.cartDetails.time,
+        });
 
-      // Clear the cart
-      await CustomerCart.deleteOne({ customerId });
+        // Clear the cart
+        await CustomerCart.deleteOne({ customerId });
+
+        res.status(200).json({
+          message: "Scheduled order created successfully",
+          data: newOrder,
+        });
+        return;
+      } else {
+        // Create the order
+        newOrder = await Order.create({
+          customerId,
+          merchantId: cart.merchantId,
+          items: cart.items,
+          orderDetail: cart.cartDetails,
+          totalAmount: orderAmount,
+          paymentMode: "Famto-cash",
+          paymentStatus: "Completed",
+          status: "Pending",
+          deliveryCharge,
+          deliveryChargePerDay,
+        });
+
+        // Clear the cart
+        await CustomerCart.deleteOne({ customerId });
+      }
     } else if (paymentMode === "Cash-on-delivery") {
       newOrder = await Order.create({
         customerId,
@@ -1513,6 +1625,8 @@ const orderPaymentController = async (req, res, next) => {
         paymentMode: "Cash-on-delivery",
         paymentStatus: "Pending",
         status: "Pending",
+        deliveryCharge,
+        deliveryChargePerDay,
       });
 
       // Clear the cart
@@ -1613,8 +1727,8 @@ const orderPaymentController = async (req, res, next) => {
 // Verify online payment
 const verifyOnlinePaymentController = async (req, res, next) => {
   try {
-    const { paymentDetails } = req.body;
-    const customerId = req.userAuth;
+    const { paymentDetails, customerId } = req.body;
+    // const customerId = req.userAuth;
 
     if (!customerId) {
       return next(appError("Customer is not authenticated", 401));
@@ -1635,16 +1749,26 @@ const verifyOnlinePaymentController = async (req, res, next) => {
       return next(appError("Invalid payment", 400));
     }
 
-    let deliveryAddress;
+    const deliveryMode = cart.cartDetails.deliveryMode;
 
-    if (cart.cartDetails.deliveryAddressType === "home") {
-      deliveryAddress = customer.customerDetails.homeAddress;
-    } else if (cart.cartDetails.deliveryAddressType === "work") {
-      deliveryAddress = customer.customerDetails.workAddress;
+    let deliveryAddress;
+    let deliveryCharge;
+    let deliveryChargePerDay;
+
+    if (deliveryMode === "Delivery") {
+      if (cart.cartDetails.deliveryAddressType === "home") {
+        deliveryAddress = customer.customerDetails.homeAddress;
+      } else if (cart.cartDetails.deliveryAddressType === "work") {
+        deliveryAddress = customer.customerDetails.workAddress;
+      } else {
+        deliveryAddress = customer.customerDetails.otherAddress.find(
+          (addr) => addr._id.toString() === cart.cartDetails.deliveryAddressType
+        );
+      }
+      deliveryCharge = cart.cartDetails.originalDeliveryCharge;
+      deliveryChargePerDay = cart.cartDetails.deliveryChargePerday;
     } else {
-      deliveryAddress = customer.customerDetails.otherAddress.find(
-        (addr) => addr._id.toString() === cart.cartDetails.deliveryAddressType
-      );
+      deliveryCharge = 0;
     }
 
     const merchant = await Merchant.findById(cart.merchantId);
@@ -1655,62 +1779,97 @@ const verifyOnlinePaymentController = async (req, res, next) => {
 
     const orderAmount = cart.discountedGrandTotal || cart.originalGrandTotal;
 
-    // Create the order
-    const newOrder = await Order.create({
-      customerId,
-      merchantId: cart.merchantId,
-      items: cart.items,
-      orderDetail: cart.cartDetails,
-      totalAmount: orderAmount,
-      paymentMode: "Online-payment",
-      paymentStatus: "Completed",
-      status: "Pending",
-    });
+    // Check if the order is scheduled
+    if (cart.cartDetails.isScheduled) {
+      // Create a scheduled order
+      const newOrder = await ScheduledOrder.create({
+        customerId,
+        merchantId: cart.merchantId,
+        items: cart.items,
+        orderDetail: cart.cartDetails,
+        totalAmount: orderAmount,
+        paymentMode: "Online-payment",
+        paymentStatus: "Completed",
+        status: "Pending",
+        deliveryCharge,
+        deliveryChargePerDay,
+        startDate: cart.cartDetails.startDate,
+        endDate: cart.cartDetails.endDate,
+        time: cart.cartDetails.time,
+        paymentId: paymentDetails.razorpay_payment_id,
+      });
 
-    // Clear the cart
-    await CustomerCart.deleteOne({ customerId });
+      // Clear the cart
+      await CustomerCart.deleteOne({ customerId });
 
-    const orderResponse = {
-      _id: newOrder._id,
-      customerId: newOrder.customerId,
-      customerName: customer.fullName || deliveryAddress.fullName,
-      merchantId: newOrder.merchantId,
-      merchantName: merchant.merchantDetail.merchantName,
-      status: newOrder.status,
-      totalAmount: newOrder.totalAmount,
-      paymentMode: newOrder.paymentMode,
-      paymentStatus: newOrder.paymentStatus,
-      items: newOrder.items,
-      deliveryAddress: {
-        fullName: deliveryAddress.fullName,
-        phoneNumber: deliveryAddress.phoneNumber,
-        flat: deliveryAddress.flat,
-        area: deliveryAddress.area,
-        landmark: deliveryAddress.landmark || null,
-      },
-      orderDetail: {
-        pickupLocation: merchant.merchantDetail.location,
-        deliveryLocation: cart.cartDetails.deliveryLocation,
-        deliveryMode: cart.cartDetails.deliveryMode,
-        instructionToMerchant: cart.cartDetails.instructionToMerchant,
-        instructionToDeliveryAgent: cart.cartDetails.instructionToDeliveryAgent,
-        addedTip: cart.cartDetails.addedTip,
-        distance: cart.cartDetails.distance,
-        taxAmount: cart.cartDetails.taxAmount,
-      },
-      createdAt: newOrder.createdAt,
-      updatedAt: newOrder.updatedAt,
-    };
+      res.status(200).json({
+        message: "Scheduled order created successfully",
+        data: newOrder,
+      });
+      return;
+    } else {
+      // Create the order
+      const newOrder = await Order.create({
+        customerId,
+        merchantId: cart.merchantId,
+        items: cart.items,
+        orderDetail: cart.cartDetails,
+        totalAmount: orderAmount,
+        paymentMode: "Online-payment",
+        paymentStatus: "Completed",
+        status: "Pending",
+        deliveryCharge,
+        deliveryChargePerDay,
+        paymentId: paymentDetails.razorpay_payment_id,
+      });
 
-    res.status(200).json({
-      message: "Order created successfully",
-      data: orderResponse,
-    });
+      // Clear the cart
+      await CustomerCart.deleteOne({ customerId });
+
+      const orderResponse = {
+        _id: newOrder._id,
+        customerId: newOrder.customerId,
+        customerName: customer.fullName || deliveryAddress.fullName,
+        merchantId: newOrder.merchantId,
+        merchantName: merchant.merchantDetail.merchantName,
+        status: newOrder.status,
+        totalAmount: newOrder.totalAmount,
+        paymentMode: newOrder.paymentMode,
+        paymentStatus: newOrder.paymentStatus,
+        items: newOrder.items,
+        deliveryAddress: {
+          fullName: deliveryAddress.fullName,
+          phoneNumber: deliveryAddress.phoneNumber,
+          flat: deliveryAddress.flat,
+          area: deliveryAddress.area,
+          landmark: deliveryAddress.landmark || null,
+        },
+        orderDetail: {
+          pickupLocation: merchant.merchantDetail.location,
+          deliveryLocation: cart.cartDetails.deliveryLocation,
+          deliveryMode: cart.cartDetails.deliveryMode,
+          instructionToMerchant: cart.cartDetails.instructionToMerchant,
+          instructionToDeliveryAgent:
+            cart.cartDetails.instructionToDeliveryAgent,
+          addedTip: cart.cartDetails.addedTip,
+          distance: cart.cartDetails.distance,
+          taxAmount: cart.cartDetails.taxAmount,
+        },
+        createdAt: newOrder.createdAt,
+        updatedAt: newOrder.updatedAt,
+      };
+
+      res.status(200).json({
+        message: "Order created successfully",
+        data: orderResponse,
+      });
+    }
   } catch (err) {
     next(appError(err.message));
   }
 };
 
+// Adding money to wallet
 const addWalletBalanceController = async (req, res, next) => {
   try {
     const { amount } = req.body;
@@ -1727,6 +1886,7 @@ const addWalletBalanceController = async (req, res, next) => {
   }
 };
 
+// Verifying adding money to wallet
 const verifyWalletRechargeController = async (req, res, next) => {
   try {
     const { paymentDetails, amount } = req.body;
