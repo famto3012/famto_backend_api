@@ -47,9 +47,12 @@ const {
 const {
   orderCommissionLogHelper,
 } = require("./utils/orderCommissionLogHelper");
+const orderRoute = require("./routes/adminRoute/orderRoute/orderRoute");
 
 require("dotenv").config();
 require("./config/dbConnect");
+const { createOrdersFromScheduled } = require("./utils/customerAppHelpers");
+createOrdersFromScheduled();
 
 const app = express();
 
@@ -101,6 +104,7 @@ app.use("/api/v1/admin/commission", commissionRoute);
 app.use("/api/v1/admin/subscription", subscriptionRoute);
 app.use("/api/v1/admin/subscription-payment", subscriptionLogRoute);
 app.use("/api/v1/merchant/subscription-payment", subscriptionLogRoute);
+app.use("/api/v1/orders", orderRoute);
 
 //agent
 app.use("/api/v1/agents", agentRoute);

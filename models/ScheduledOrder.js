@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 
-// Define the CartItem schema
-const cartItemSchema = mongoose.Schema(
+const scheduledOrderItemSchema = mongoose.Schema(
   {
     productId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -18,6 +17,7 @@ const cartItemSchema = mongoose.Schema(
     },
     variantTypeId: {
       type: mongoose.Schema.Types.ObjectId,
+      ref: "VariantType",
       default: null,
     },
   },
@@ -26,7 +26,7 @@ const cartItemSchema = mongoose.Schema(
   }
 );
 
-const cartDetailsSchema = mongoose.Schema(
+const scheduledOrderDetailSchema = mongoose.Schema(
   {
     pickupLocation: {
       type: [Number],
@@ -38,15 +38,7 @@ const cartDetailsSchema = mongoose.Schema(
     },
     deliveryMode: {
       type: String,
-      enum: ["Delivery", "Take-away"],
       required: true,
-    },
-    deliveryAddress: {
-      fullName: String,
-      phoneNumber: String,
-      flat: String,
-      area: String,
-      landmark: String || null,
     },
     instructionToMerchant: {
       type: String,
@@ -56,13 +48,19 @@ const cartDetailsSchema = mongoose.Schema(
       type: String,
       default: null,
     },
+    deliveryAddressType: {
+      type: String,
+      required: true,
+    },
     addedTip: {
       type: Number,
       default: null,
     },
     distance: {
       type: Number,
-      required: true,
+    },
+    taxAmount: {
+      type: Number,
     },
     deliveryChargePerday: {
       type: Number,
@@ -76,34 +74,13 @@ const cartDetailsSchema = mongoose.Schema(
       type: Number,
       default: null,
     },
-    taxAmount: {
-      type: Number,
-      required: true,
-    },
-    isScheduled: {
-      type: Boolean,
-      default: false,
-    },
-    startDate: {
-      type: Date,
-      default: null,
-    },
-    endDate: {
-      type: Date,
-      default: null,
-    },
-    time: {
-      type: String,
-      default: null,
-    },
   },
   {
     _id: false,
   }
 );
 
-// Define the Cart schema
-const CustomerCartSchema = mongoose.Schema(
+const scheduledOrderSchema = mongoose.Schema(
   {
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -115,27 +92,53 @@ const CustomerCartSchema = mongoose.Schema(
       ref: "Merchant",
       required: true,
     },
-    items: [cartItemSchema],
-    cartDetails: cartDetailsSchema,
-    originalGrandTotal: {
-      type: Number,
-      default: null,
+    status: {
+      type: String,
+      required: true,
+      enum: ["Pending", "Completed"],
+      default: "Pending",
     },
-    discountedGrandTotal: {
+    totalAmount: {
       type: Number,
-      default: null,
+      required: true,
+    },
+    paymentMode: {
+      type: String,
+      required: true,
+      enum: ["Famto-cash", "Online-payment"],
+    },
+    paymentStatus: {
+      type: String,
+      required: true,
+      enum: ["Pending", "Completed", "Failed"],
+      default: "Pending",
+    },
+    startDate: {
+      type: Date,
+      required: true,
+    },
+    endDate: {
+      type: Date,
+      required: true,
+    },
+    time: {
+      type: String,
+      required: true,
+    },
+    paymentId: {
+      type: String,
     },
     itemTotal: {
       type: Number,
       default: 0,
     },
+    items: [scheduledOrderItemSchema],
+    orderDetail: scheduledOrderDetailSchema,
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
   }
 );
 
-const CustomerCart = mongoose.model("CustomerCart", CustomerCartSchema);
-module.exports = CustomerCart;
+const ScheduledOrder = mongoose.model("ScheduledOrder", scheduledOrderSchema);
+module.exports = ScheduledOrder;

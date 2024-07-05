@@ -36,6 +36,10 @@ const orderDetailSchema = mongoose.Schema(
       type: [Number],
       required: true,
     },
+    deliveryAddressType: {
+      type: String,
+      required: true,
+    },
     deliveryMode: {
       type: String,
       required: true,
@@ -90,10 +94,22 @@ const orderSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
+    deliveryCharge: {
+      type: Number,
+      required: true,
+    },
+    deliveryChargePerday: {
+      type: Number,
+      default: null,
+    },
     paymentMode: {
       type: String,
       required: true,
       enum: ["Famto-cash", "Online-payment", "Cash-on-delivery"],
+    },
+    paymentId: {
+      type: String,
+      default: null,
     },
     paymentStatus: {
       type: String,
