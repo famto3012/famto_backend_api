@@ -48,13 +48,16 @@ const {
   orderCommissionLogHelper,
 } = require("./utils/orderCommissionLogHelper");
 const orderRoute = require("./routes/adminRoute/orderRoute/orderRoute");
+const autoAllocationRoute = require("./routes/adminRoute/deliveryManagementRoute/autoAllocationRoute");
 
 require("dotenv").config();
 require("./config/dbConnect");
 const { createOrdersFromScheduled } = require("./utils/customerAppHelpers");
 createOrdersFromScheduled();
 
-const app = express();
+const {app,server} = require("./socket/socket.js");
+
+// const app = express();
 
 //middlewares
 app.use(express.json());
@@ -105,6 +108,7 @@ app.use("/api/v1/admin/subscription", subscriptionRoute);
 app.use("/api/v1/admin/subscription-payment", subscriptionLogRoute);
 app.use("/api/v1/merchant/subscription-payment", subscriptionLogRoute);
 app.use("/api/v1/orders", orderRoute);
+app.use("/api/v1/admin/auto-allocation", autoAllocationRoute)
 
 //agent
 app.use("/api/v1/agents", agentRoute);
@@ -133,6 +137,6 @@ app.use("*", (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
