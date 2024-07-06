@@ -36,9 +36,12 @@ const orderDetailSchema = mongoose.Schema(
       type: [Number],
       required: true,
     },
-    deliveryAddressType: {
-      type: String,
-      required: true,
+    deliveryAddress: {
+      fullName: String,
+      phoneNumber: String,
+      flat: String,
+      area: String,
+      landmark: String || null,
     },
     deliveryMode: {
       type: String,
@@ -84,15 +87,17 @@ const orderSchema = mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Agent",
     },
+    items: [orderItemSchema],
+    orderDetail: orderDetailSchema,
+    totalAmount: {
+      type: Number,
+      required: true,
+    },
     status: {
       type: String,
       required: true,
       enum: ["Pending", "On-going", "Completed", "Cancelled"],
       default: "Pending",
-    },
-    totalAmount: {
-      type: Number,
-      required: true,
     },
     deliveryCharge: {
       type: Number,
@@ -117,8 +122,6 @@ const orderSchema = mongoose.Schema(
       enum: ["Pending", "Completed", "Failed"],
       default: "Pending",
     },
-    items: [orderItemSchema],
-    orderDetail: orderDetailSchema,
   },
   {
     timestamps: true,
