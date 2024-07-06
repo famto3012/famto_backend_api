@@ -1539,15 +1539,15 @@ const orderPaymentController = async (req, res, next) => {
     let deliveryChargePerDay;
 
     if (deliveryMode === "Delivery") {
-      if (cart.cartDetails.deliveryAddressType === "home") {
-        deliveryAddress = customer.customerDetails.homeAddress;
-      } else if (cart.cartDetails.deliveryAddressType === "work") {
-        deliveryAddress = customer.customerDetails.workAddress;
-      } else {
-        deliveryAddress = customer.customerDetails.otherAddress.find(
-          (addr) => addr._id.toString() === cart.cartDetails.deliveryAddressType
-        );
-      }
+      // if (cart.cartDetails.deliveryAddressType === "home") {
+      //   deliveryAddress = customer.customerDetails.homeAddress;
+      // } else if (cart.cartDetails.deliveryAddressType === "work") {
+      //   deliveryAddress = customer.customerDetails.workAddress;
+      // } else {
+      //   deliveryAddress = customer.customerDetails.otherAddress.find(
+      //     (addr) => addr._id.toString() === cart.cartDetails.deliveryAddressType
+      //   );
+      // }
       deliveryCharge = cart.cartDetails.originalDeliveryCharge;
       deliveryChargePerDay = cart.cartDetails.deliveryChargePerday;
     } else {
