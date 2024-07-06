@@ -53,8 +53,11 @@ require("dotenv").config();
 require("./config/dbConnect");
 const { createOrdersFromScheduled } = require("./utils/customerAppHelpers");
 
+
 const { app, server } = require("./socket/socket.js");
 const ScheduledOrder = require("./models/ScheduledOrder.js");
+const { orderCreateTaskHelper } = require("./utils/orderCreateTaskHelper.js");
+
 
 // const app = express();
 
@@ -116,11 +119,13 @@ app.use("/api/v1/customers", customerRoute);
 app.use("/api/v1/customers/subscription-payment", subscriptionLogRoute);
 
 // Schedule the task to run daily at midnight for deleting expired plans of Merchants and customer
-// cron.schedule("32 15 * * *", async () => {
 cron.schedule("23 22 * * *", async () => {
   console.log("Running scheduled task to delete expired plans");
   await deleteExpiredSponsorshipPlans();
   await deleteExpiredSubscriptionPlans();
+  const  id = "668914382a3582a353b35f44"
+ await orderCreateTaskHelper(id)
+
 });
 
 cron.schedule("* * * * *", async () => {
