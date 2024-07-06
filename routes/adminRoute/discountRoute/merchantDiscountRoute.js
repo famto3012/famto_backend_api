@@ -70,7 +70,7 @@ merchantDiscountRoute.get(
   "/get-merchant-discount-id/:id",
   isAuthenticated,
   getMerchantDiscountByIdController
-)
+);
 
 //For Admin
 
@@ -128,7 +128,5 @@ merchantDiscountRoute.put(
   isAdmin,
   updateAllDiscountAdminController
 );
-
-
 
 module.exports = merchantDiscountRoute;

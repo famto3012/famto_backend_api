@@ -21,12 +21,10 @@ const addGeofence = async (req, res, next) => {
       !Array.isArray(coordinates) ||
       !coordinates.every((coord) => Array.isArray(coord) && coord.length === 2)
     ) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "Invalid coordinates format. Coordinates should be an array of [ latitude, longitude] pairs.",
-        });
+      return res.status(400).json({
+        error:
+          "Invalid coordinates format. Coordinates should be an array of [ latitude, longitude] pairs.",
+      });
     }
 
     const newGeofence = new Geofence({

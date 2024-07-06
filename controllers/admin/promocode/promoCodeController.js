@@ -1,7 +1,10 @@
 const { validationResult } = require("express-validator");
 const PromoCode = require("../../../models/PromoCode");
 const appError = require("../../../utils/appError");
-const { uploadToFirebase, deleteFromFirebase } = require("../../../utils/imageOperation");
+const {
+  uploadToFirebase,
+  deleteFromFirebase,
+} = require("../../../utils/imageOperation");
 
 const addPromoCodeController = async (req, res, next) => {
   // Validate request body
@@ -49,10 +52,9 @@ const addPromoCodeController = async (req, res, next) => {
       appliedOn,
       merchantId,
       geofenceId,
-      imageUrl
+      imageUrl,
     });
 
- 
     const savedPromoCode = await newPromoCode.save();
 
     // Send a success response
@@ -159,28 +161,28 @@ const editPromoCodeController = async (req, res, next) => {
 
     // Update image if a new file is provided
     let imageUrl = existingPromoCode.imageUrl;
-        if (req.file) {
-          await deleteFromFirebase(imageUrl)
-         imageUrl = await uploadToFirebase(req.file, "PromoCodeImages");
-        }
+    if (req.file) {
+      await deleteFromFirebase(imageUrl);
+      imageUrl = await uploadToFirebase(req.file, "PromoCodeImages");
+    }
 
     // Update only the fields provided by the user
     const updateFields = [
-      'promoCode',
-      'promoType',
-      'discount',
-      'description',
-      'fromDate',
-      'toDate',
-      'maxDiscountValue',
-      'minOrderAmount',
-      'maxAllowedUsers',
-      'appliedOn',
-      'merchantId',
-      'geofenceId'
+      "promoCode",
+      "promoType",
+      "discount",
+      "description",
+      "fromDate",
+      "toDate",
+      "maxDiscountValue",
+      "minOrderAmount",
+      "maxAllowedUsers",
+      "appliedOn",
+      "merchantId",
+      "geofenceId",
     ];
 
-    updateFields.forEach(field => {
+    updateFields.forEach((field) => {
       if (req.body[field] !== undefined) {
         existingPromoCode[field] = req.body[field];
       }
@@ -243,32 +245,32 @@ const deletePromoCodeController = async (req, res, next) => {
   }
 };
 
-const editPromoCodeStatusController = async (req,res,next)=>{
-  try{
-      const {id} = req.params
-      const promoCode = await PromoCode.findById(id)
-      if(!promoCode){
-         return res.status(400).json({
-          error: "PromoCode not found"
-         })
-      }
+const editPromoCodeStatusController = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const promoCode = await PromoCode.findById(id);
+    if (!promoCode) {
+      return res.status(400).json({
+        error: "PromoCode not found",
+      });
+    }
 
-      if(promoCode.status){
-         promoCode.status = false
-      }else{
-        promoCode.status = true
-      }
+    if (promoCode.status) {
+      promoCode.status = false;
+    } else {
+      promoCode.status = true;
+    }
 
-      await promoCode.save()
-      
-      return res.status(200).json({
-        success: "PromoCode status updated successfully",
-        data: promoCode
-      })
-  }catch(err){
+    await promoCode.save();
+
+    return res.status(200).json({
+      success: "PromoCode status updated successfully",
+      data: promoCode,
+    });
+  } catch (err) {
     next(appError(err.message));
   }
-}
+};
 
 const updateAllPromoCodesStatusController = async (req, res, next) => {
   try {
@@ -296,14 +298,11 @@ const updateAllPromoCodesStatusController = async (req, res, next) => {
   }
 };
 
-
-
-
 module.exports = {
   addPromoCodeController,
   editPromoCodeController,
   deletePromoCodeController,
   getAllPromoCodesController,
   editPromoCodeStatusController,
-  updateAllPromoCodesStatusController
+  updateAllPromoCodesStatusController,
 };

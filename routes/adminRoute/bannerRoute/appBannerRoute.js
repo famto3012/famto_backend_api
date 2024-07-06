@@ -3,7 +3,14 @@ const { body } = require("express-validator");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const isAdmin = require("../../../middlewares/isAdmin");
 const { upload } = require("../../../utils/imageOperation");
-const { addAppBannerController, editAppBannerController, getAllAppBannersController, deleteAppBannerController, updateStatusAppBannerController, getAppBannerByIdController } = require("../../../controllers/admin/banner/appBannerController");
+const {
+  addAppBannerController,
+  editAppBannerController,
+  getAllAppBannersController,
+  deleteAppBannerController,
+  updateStatusAppBannerController,
+  getAppBannerByIdController,
+} = require("../../../controllers/admin/banner/appBannerController");
 
 const appBannerRoute = express.Router();
 

@@ -50,7 +50,6 @@ const editBannerController = async (req, res, next) => {
 
     const banner = await Banner.findOne({ _id: id });
 
-    
     let imageUrl = banner.imageUrl;
     if (req.file) {
       await deleteFromFirebase(banner.imageUrl);
@@ -99,10 +98,10 @@ const getAllBannersController = async (req, res, next) => {
   }
 };
 
-const getBannerByIdController = async(req,res,next)=>{
+const getBannerByIdController = async (req, res, next) => {
   try {
-    const {id} = req.params
-    const banners = await Banner.findOne({_id: id});
+    const { id } = req.params;
+    const banners = await Banner.findOne({ _id: id });
 
     if (!banners) {
       return next(appError("No banners found", 404));
@@ -115,7 +114,7 @@ const getBannerByIdController = async(req,res,next)=>{
   } catch (err) {
     next(appError(err.message));
   }
-}
+};
 
 const deleteBannerController = async (req, res, next) => {
   try {

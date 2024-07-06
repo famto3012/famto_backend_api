@@ -5,28 +5,28 @@ const geofenceSchema = new mongoose.Schema(
     name: {
       type: String,
       required: true,
-      unique: true
+      unique: true,
     },
     description: {
       type: String,
       required: true,
-      unique: true
+      unique: true,
     },
     coordinates: {
       type: [[Number]],
       required: true,
-      unique: true
+      unique: true,
     },
     color: {
       type: String,
       required: true,
-      unique: true
+      unique: true,
     },
     orderManager: {
       type: String,
       required: true,
     },
-    //ToDo: other manager
+    //TODO: other manager
     // otherManager: [{
     //   type:  mongoose.Schema.Types.ObjectId,
     //   ref: "Manager"

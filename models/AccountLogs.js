@@ -4,7 +4,7 @@ const accountLogsSchema = new mongoose.Schema(
   {
     _id: {
       type: mongoose.Schema.ObjectId,
-      required: true
+      required: true,
     },
     fullName: {
       type: String,

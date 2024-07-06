@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const bannerSchema = new mongoose.Schema(
   {
@@ -12,23 +12,23 @@ const bannerSchema = new mongoose.Schema(
     },
     merchantId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Merchant',
+      ref: "Merchant",
       required: true,
     },
     geofenceId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Geofence',
-        required: true,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Geofence",
+      required: true,
     },
     status: {
       type: Boolean,
       default: true,
     },
-},
+  },
   {
     timestamps: true,
   }
 );
 
-const Banner = mongoose.model('Banner', bannerSchema);
+const Banner = mongoose.model("Banner", bannerSchema);
 module.exports = Banner;

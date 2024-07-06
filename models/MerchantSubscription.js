@@ -1,10 +1,10 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const merchantSubscriptionSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      default: "subscription"
+      default: "subscription",
     },
     name: {
       type: String,
@@ -15,26 +15,29 @@ const merchantSubscriptionSchema = new mongoose.Schema(
       required: true,
     },
     duration: {
-        type: Number,
-        required:true
+      type: Number,
+      required: true,
     },
     taxId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Tax",
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Tax",
     },
     renewalReminder: {
-        type: Number,
-        required:true
+      type: Number,
+      required: true,
     },
     description: {
-        type: String,
-        required: true
-    }   
-},
+      type: String,
+      required: true,
+    },
+  },
   {
     timestamps: true,
   }
 );
 
-const MerchantSubscription = mongoose.model('MerchantSubscription', merchantSubscriptionSchema);
+const MerchantSubscription = mongoose.model(
+  "MerchantSubscription",
+  merchantSubscriptionSchema
+);
 module.exports = MerchantSubscription;

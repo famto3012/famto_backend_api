@@ -11,8 +11,8 @@ const merchantAppCustomizationSchema = new mongoose.Schema(
       default: true,
     },
     phoneNumber: {
-        type: Boolean,
-        default: true,
+      type: Boolean,
+      default: true,
     },
     emailVerification: {
       type: Boolean,
@@ -44,5 +44,8 @@ const merchantAppCustomizationSchema = new mongoose.Schema(
   }
 );
 
-const MerchantAppCustomization = mongoose.model("MerchantAppCustomization", merchantAppCustomizationSchema);
+const MerchantAppCustomization = mongoose.model(
+  "MerchantAppCustomization",
+  merchantAppCustomizationSchema
+);
 module.exports = MerchantAppCustomization;
