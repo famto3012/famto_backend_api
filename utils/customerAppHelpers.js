@@ -83,8 +83,6 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
   try {
     const customer = await Customer.findById(scheduledOrder.customerId);
 
-    console.log(scheduledOrder.customerId);
-
     if (!customer) {
       throw new Error("Customer not found", 404);
     }
@@ -95,11 +93,6 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
       throw new Error("Merchant not found", 404);
     }
 
-    const deliveryAddress = customer.customerDetails.otherAddress.find(
-      (addr) =>
-        addr.id.toString() === scheduledOrder.orderDetail.deliveryAddressType
-    );
-
     const newOrder = await Order.create({
       customerId: scheduledOrder.customerId,
       merchantId: scheduledOrder.merchantId,
@@ -109,47 +102,9 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
       paymentMode: scheduledOrder.paymentMode,
       paymentStatus: scheduledOrder.paymentStatus,
       status: "Pending",
-      deliveryCharge: scheduledOrder.deliveryCharge,
-      deliveryChargePerDay: scheduledOrder.deliveryChargePerDay,
     });
 
-    const orderResponse = {
-      _id: newOrder._id,
-      customerId: newOrder.customerId,
-      customerName:
-        customer.fullName || (deliveryAddress && deliveryAddress.fullName),
-      merchantId: newOrder.merchantId,
-      merchantName: merchant.merchantDetail.merchantName,
-      status: newOrder.status,
-      totalAmount: newOrder.totalAmount,
-      paymentMode: newOrder.paymentMode,
-      paymentStatus: newOrder.paymentStatus,
-      items: newOrder.items,
-      deliveryAddress: deliveryAddress
-        ? {
-            fullName: deliveryAddress.fullName,
-            phoneNumber: deliveryAddress.phoneNumber,
-            flat: deliveryAddress.flat,
-            area: deliveryAddress.area,
-            landmark: deliveryAddress.landmark || null,
-          }
-        : null,
-      orderDetail: {
-        pickupLocation: merchant.merchantDetail.location,
-        deliveryLocation: scheduledOrder.orderDetail.deliveryLocation,
-        deliveryMode: scheduledOrder.orderDetail.deliveryMode,
-        instructionToMerchant: scheduledOrder.orderDetail.instructionToMerchant,
-        instructionToDeliveryAgent:
-          scheduledOrder.orderDetail.instructionToDeliveryAgent,
-        addedTip: scheduledOrder.orderDetail.addedTip,
-        distance: scheduledOrder.orderDetail.distance,
-        taxAmount: scheduledOrder.orderDetail.taxAmount,
-      },
-      createdAt: newOrder.createdAt,
-      updatedAt: newOrder.updatedAt,
-    };
-
-    console.log("Order created successfully:", orderResponse);
+    console.log("Order created successfully with order ID: " + newOrder._id);
 
     if (new Date() < new Date(scheduledOrder.endDate)) {
       const nextTime = new Date();
@@ -168,23 +123,6 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
   }
 };
 
-cron.schedule("* * * * *", async () => {
-  console.log("Running scheduled order job...");
-  const now = new Date();
-  const scheduledOrders = await ScheduledOrder.find({
-    status: "Pending",
-    startDate: { $lte: now },
-    endDate: { $gte: now },
-    time: { $lte: now },
-  });
-
-  for (const scheduledOrder of scheduledOrders) {
-    await createOrdersFromScheduled(scheduledOrder);
-  }
-});
-
-console.log("Scheduled order job started");
-
 module.exports = {
   sortMerchantsBySponsorship,
   getDistanceFromPickupToDelivery,
@@ -192,3 +130,31 @@ module.exports = {
   getTaxAmount,
   createOrdersFromScheduled,
 };
+
+// const orderResponse = {
+//   _id: newOrder._id,
+//   customerId: newOrder.customerId,
+//   customerName:
+//     customer.fullName || (deliveryAddress && deliveryAddress.fullName),
+//   merchantId: newOrder.merchantId,
+//   merchantName: merchant.merchantDetail.merchantName,
+//   status: newOrder.status,
+//   totalAmount: newOrder.totalAmount,
+//   paymentMode: newOrder.paymentMode,
+//   paymentStatus: newOrder.paymentStatus,
+//   items: newOrder.items,
+//   deliveryAddress: newOrder.orderDetail.deliveryAddress,
+//   orderDetail: {
+//     pickupLocation: merchant.merchantDetail.location,
+//     deliveryLocation: scheduledOrder.orderDetail.deliveryLocation,
+//     deliveryMode: scheduledOrder.orderDetail.deliveryMode,
+//     instructionToMerchant: scheduledOrder.orderDetail.instructionToMerchant,
+//     instructionToDeliveryAgent:
+//       scheduledOrder.orderDetail.instructionToDeliveryAgent,
+//     addedTip: scheduledOrder.orderDetail.addedTip,
+//     distance: scheduledOrder.orderDetail.distance,
+//     taxAmount: scheduledOrder.orderDetail.taxAmount,
+//   },
+//   createdAt: newOrder.createdAt,
+//   updatedAt: newOrder.updatedAt,
+// };

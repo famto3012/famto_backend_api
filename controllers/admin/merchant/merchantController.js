@@ -335,24 +335,60 @@ const searchMerchantController = async (req, res, next) => {
   }
 };
 
-// Filter merchant by serviceable
-const filterMerchantByServiceableController = async (req, res, next) => {
+const filterMerchantsController = async (req, res, next) => {
   try {
-    const { filter } = req.query;
-    if (!filter || !["open", "closed"].includes(filter.toLowerCase())) {
-      return res.status(400).json({ message: "Invalid filter value" });
+    const { serviceable, businessCategory, geofence } = req.query;
+
+    // Validate query parameters
+    if (!serviceable && !businessCategory && !geofence) {
+      return res
+        .status(400)
+        .json({ message: "At least one filter is required" });
     }
 
-    const merchants = await Merchant.find()
+    const filterCriteria = {};
+
+    // Add filters based on query parameters
+    if (serviceable) {
+      if (!["open", "closed"].includes(serviceable.toLowerCase())) {
+        return res.status(400).json({ message: "Invalid serviceable value" });
+      }
+    }
+
+    if (businessCategory) {
+      try {
+        filterCriteria["merchantDetail.businessCategoryId"] =
+          new mongoose.Types.ObjectId(businessCategory.trim());
+      } catch (err) {
+        return res
+          .status(400)
+          .json({ message: "Invalid business category ID" });
+      }
+    }
+
+    if (geofence) {
+      try {
+        filterCriteria["merchantDetail.geofenceId"] =
+          new mongoose.Types.ObjectId(geofence.trim());
+      } catch (err) {
+        return res.status(400).json({ message: "Invalid geofence ID" });
+      }
+    }
+
+    // Fetch merchants based on the constructed filter criteria
+    const merchants = await Merchant.find(filterCriteria)
       .populate("merchantDetail.geofenceId")
       .populate("merchantDetail.businessCategoryId");
 
-    // Filter merchants based on the virtual field isServiceableToday
-    const filteredMerchants = merchants.filter((merchant) => {
-      return (
-        merchant.merchantDetail.isServiceableToday === filter.toLowerCase()
-      );
-    });
+    // Filter merchants based on the serviceable virtual field if specified
+    const filteredMerchants = serviceable
+      ? merchants.filter((merchant) => {
+          return (
+            merchant.merchantDetail.isServiceableToday ===
+            serviceable.toLowerCase()
+          );
+        })
+      : merchants;
 
     const merchantsWithDetails = filteredMerchants.map((merchant) => {
       const merchantDetail = merchant.merchantDetail;
@@ -375,95 +411,7 @@ const filterMerchantByServiceableController = async (req, res, next) => {
     });
 
     res.status(200).json({
-      message: "Filtered merchants by servieceable",
-      data: merchantsWithDetails,
-    });
-  } catch (err) {
-    next(new Error(err.message));
-  }
-};
-
-// Filter merchant by business category
-const filterMerchantByBusinessCategoryController = async (req, res, next) => {
-  try {
-    const { filter } = req.query;
-
-    if (!filter) {
-      return res.status(400).json({ message: "Business category is required" });
-    }
-
-    // Convert geofence query parameter to ObjectId
-    const businessCategoryObjectId = new mongoose.Types.ObjectId(filter.trim());
-
-    const searchResults = await Merchant.find(
-      { "merchantDetail.businessCategoryId": businessCategoryObjectId },
-      // Specifying the fields needed to include in the response
-      "_id fullName email phoneNumber status isApproved"
-    );
-
-    const merchantsWithDetails = await Promise.all(
-      searchResults.map(async (merchant) => {
-        // Fetch additional details if available, or set them to null if not
-        let merchantDetail = await Merchant.findById(merchant._id).select(
-          "merchantDetail.isServiceableToday"
-        );
-
-        return {
-          ...merchant.toObject(),
-          isServiceableToday:
-            merchantDetail && merchantDetail.merchantDetail
-              ? merchantDetail.merchantDetail.isServiceableToday
-              : "unknown",
-        };
-      })
-    );
-
-    res.status(200).json({
-      message: "Filtering merchants by geofence",
-      data: merchantsWithDetails,
-    });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
-// Filter merchant by geofence
-const filterMerchantByGeofenceController = async (req, res, next) => {
-  try {
-    const { filter } = req.query;
-
-    if (!filter) {
-      return res.status(400).json({ message: "Geofence is required" });
-    }
-
-    // Convert geofence query parameter to ObjectId
-    const geofenceObjectId = new mongoose.Types.ObjectId(filter.trim());
-
-    const searchResults = await Merchant.find(
-      { "merchantDetail.geofenceId": geofenceObjectId },
-      // Specifying the fields needed to include in the response
-      "_id fullName email phoneNumber status isApproved"
-    );
-
-    const merchantsWithDetails = await Promise.all(
-      searchResults.map(async (merchant) => {
-        // Fetch additional details if available, or set them to null if not
-        let merchantDetail = await Merchant.findById(merchant._id).select(
-          "merchantDetail.isServiceableToday"
-        );
-
-        return {
-          ...merchant.toObject(),
-          isServiceableToday:
-            merchantDetail && merchantDetail.merchantDetail
-              ? merchantDetail.merchantDetail.isServiceableToday
-              : "unknown",
-        };
-      })
-    );
-
-    res.status(200).json({
-      message: "Filtering merchants by geofence",
+      message: "Filtered merchants",
       data: merchantsWithDetails,
     });
   } catch (err) {
@@ -928,9 +876,6 @@ module.exports = {
   verifyPaymentByMerchantController,
   updateMerchantDetailsController,
   searchMerchantController,
-  filterMerchantByServiceableController,
-  filterMerchantByGeofenceController,
-  filterMerchantByBusinessCategoryController,
   getRatingsAndReviewsByCustomerController,
   getAllMerchantsController,
   getSingleMerchantController,
@@ -941,4 +886,5 @@ module.exports = {
   verifyPaymentController,
   blockMerchant,
   editMerchantController,
+  filterMerchantsController,
 };

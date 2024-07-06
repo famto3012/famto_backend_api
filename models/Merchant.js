@@ -192,7 +192,7 @@ const merchantDetailSchema = new mongoose.Schema(
       required: true,
     },
     deliveryTime: {
-      type: String,
+      type: Number,
       required: true,
     },
     preOrderStatus: {

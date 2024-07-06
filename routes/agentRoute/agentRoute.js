@@ -8,8 +8,7 @@ const {
   checkIsApprovedController,
   addVehicleDetailsController,
   addGovernmentCertificatesController,
-  goOnlineController,
-  goOfflineController,
+  toggleOnlineController,
   getAllVehicleDetailsController,
   updateAgentBankDetailController,
   getSingleVehicleDetailController,
@@ -98,11 +97,8 @@ agentRoute.post(
   addGovernmentCertificatesController
 );
 
-// Change agents status to Free
-agentRoute.patch("/go-online", isAuthenticated, goOnlineController);
-
-// Change agent's status to Inactive
-agentRoute.patch("/go-offline", isAuthenticated, goOfflineController);
+// Change agents status to Free or Inactive
+agentRoute.patch("/toggle-online", isAuthenticated, toggleOnlineController);
 
 // Get all vehicle details of agent
 agentRoute.get(

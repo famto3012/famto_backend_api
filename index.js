@@ -1,5 +1,4 @@
 const express = require("express");
-// const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const cron = require("node-cron");
 
@@ -53,15 +52,14 @@ const autoAllocationRoute = require("./routes/adminRoute/deliveryManagementRoute
 require("dotenv").config();
 require("./config/dbConnect");
 const { createOrdersFromScheduled } = require("./utils/customerAppHelpers");
-createOrdersFromScheduled();
 
-const {app,server} = require("./socket/socket.js");
+const { app, server } = require("./socket/socket.js");
+const ScheduledOrder = require("./models/ScheduledOrder.js");
 
 // const app = express();
 
 //middlewares
 app.use(express.json());
-// app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
@@ -108,7 +106,7 @@ app.use("/api/v1/admin/subscription", subscriptionRoute);
 app.use("/api/v1/admin/subscription-payment", subscriptionLogRoute);
 app.use("/api/v1/merchant/subscription-payment", subscriptionLogRoute);
 app.use("/api/v1/orders", orderRoute);
-app.use("/api/v1/admin/auto-allocation", autoAllocationRoute)
+app.use("/api/v1/admin/auto-allocation", autoAllocationRoute);
 
 //agent
 app.use("/api/v1/agents", agentRoute);
@@ -118,11 +116,44 @@ app.use("/api/v1/customers", customerRoute);
 app.use("/api/v1/customers/subscription-payment", subscriptionLogRoute);
 
 // Schedule the task to run daily at midnight for deleting expired plans of Merchants and customer
-cron.schedule("32 15 * * *", async () => {
-  // cron.schedule("23 22 * * *", async () => {
+// cron.schedule("32 15 * * *", async () => {
+cron.schedule("23 22 * * *", async () => {
   console.log("Running scheduled task to delete expired plans");
   await deleteExpiredSponsorshipPlans();
   await deleteExpiredSubscriptionPlans();
+});
+
+cron.schedule("* * * * *", async () => {
+  console.log("Running scheduled order job...");
+  const now = new Date();
+  console.log("Current Date and Time:", now);
+
+  // Format the current date and time for comparison
+  const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+  const endOfDay = new Date(now.setHours(23, 59, 59, 999));
+
+  const scheduledOrders = await ScheduledOrder.find({
+    status: "Pending",
+    $and: [
+      { startDate: { $lte: now } },
+      {
+        $or: [{ endDate: { $lte: now } }, { endDate: { $gte: now } }],
+      },
+      { time: { $lte: now } },
+    ],
+  });
+
+  console.log("Found Scheduled Orders:", scheduledOrders);
+
+  if (!scheduledOrders.length) {
+    console.log("No scheduled orders to process at this time.");
+    return;
+  }
+
+  for (const scheduledOrder of scheduledOrders) {
+    console.log("Processing Scheduled Order ID:", scheduledOrder._id);
+    await createOrdersFromScheduled(scheduledOrder);
+  }
 });
 
 //global errors

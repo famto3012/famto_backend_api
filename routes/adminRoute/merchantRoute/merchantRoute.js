@@ -11,11 +11,9 @@ const {
   changeMerchantStatusController,
   changeMerchantStatusByMerchantController,
   searchMerchantController,
-  filterMerchantByServiceableController,
-  filterMerchantByGeofenceController,
-  filterMerchantByBusinessCategoryController,
   blockMerchant,
   editMerchantController,
+  filterMerchantsController,
 } = require("../../../controllers/admin/merchant/merchantController");
 const { upload } = require("../../../utils/imageOperation");
 const isAdmin = require("../../../middlewares/isAdmin");
@@ -94,28 +92,12 @@ merchantRoute.get(
   searchMerchantController
 );
 
-// Filter merchant by serviceable
+// Filter merchant
 merchantRoute.get(
-  "/admin/serviceable",
+  "/admin/filter",
   isAuthenticated,
   isAdmin,
-  filterMerchantByServiceableController
-);
-
-// Filter merchant by geofence
-merchantRoute.get(
-  "/admin/geofence",
-  isAuthenticated,
-  isAdmin,
-  filterMerchantByGeofenceController
-);
-
-// Filter merchant by business category
-merchantRoute.get(
-  "/admin/business-category",
-  isAuthenticated,
-  isAdmin,
-  filterMerchantByBusinessCategoryController
+  filterMerchantsController
 );
 
 //Get all merchants

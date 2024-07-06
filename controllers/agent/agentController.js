@@ -512,35 +512,31 @@ const addGovernmentCertificatesController = async (req, res, next) => {
 };
 
 //Change agent's status to Free
-const goOnlineController = async (req, res, next) => {
+const toggleOnlineController = async (req, res, next) => {
   try {
     const currentAgent = await Agent.findById(req.userAuth);
 
-    currentAgent.status = "Free";
+    if (!currentAgent) {
+      return res.status(404).json({ message: "Agent not found" });
+    }
 
-    currentAgent.save();
+    if (currentAgent.status === "Free") {
+      currentAgent.status = "Inactive";
+    } else {
+      currentAgent.status = "Free";
+    }
 
-    res.status(200).json({ message: "Agent is online" });
+    await currentAgent.save();
+
+    res
+      .status(200)
+      .json({ message: `Agent status changed to ${currentAgent.status}` });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
-//Change agent's status to Inactive
-const goOfflineController = async (req, res, next) => {
-  try {
-    const currentAgent = await Agent.findById(req.userAuth);
-
-    currentAgent.status = "Inactive";
-
-    currentAgent.save();
-
-    res.status(200).json({ message: "Agent is offline" });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
+// Delete vehicle
 const deleteAgentVehicleController = async (req, res, next) => {
   try {
     const agentFound = await Agent.findById(req.userAuth);
@@ -572,6 +568,7 @@ const deleteAgentVehicleController = async (req, res, next) => {
   }
 };
 
+// Change status of vehicle
 const changeVehicleStatusController = async (req, res, next) => {
   try {
     const agentFound = await Agent.findById(req.userAuth);
@@ -619,8 +616,7 @@ module.exports = {
   checkIsApprovedController,
   addVehicleDetailsController,
   addGovernmentCertificatesController,
-  goOnlineController,
-  goOfflineController,
+  toggleOnlineController,
   getAllVehicleDetailsController,
   getSingleVehicleDetailController,
   editAgentVehicleController,

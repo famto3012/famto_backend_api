@@ -17,7 +17,6 @@ const scheduledOrderItemSchema = mongoose.Schema(
     },
     variantTypeId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "VariantType",
       default: null,
     },
   },
@@ -38,7 +37,20 @@ const scheduledOrderDetailSchema = mongoose.Schema(
     },
     deliveryMode: {
       type: String,
+      enum: ["Delivery", "Take-away"],
       required: true,
+    },
+    deliveryOption: {
+      type: String,
+      enum: ["On-demand", "Scheduled"],
+      required: true,
+    },
+    deliveryAddress: {
+      fullName: String,
+      phoneNumber: String,
+      flat: String,
+      area: String,
+      landmark: String || null,
     },
     instructionToMerchant: {
       type: String,
@@ -47,10 +59,6 @@ const scheduledOrderDetailSchema = mongoose.Schema(
     instructionToDeliveryAgent: {
       type: String,
       default: null,
-    },
-    deliveryAddressType: {
-      type: String,
-      required: true,
     },
     addedTip: {
       type: Number,
@@ -62,15 +70,7 @@ const scheduledOrderDetailSchema = mongoose.Schema(
     taxAmount: {
       type: Number,
     },
-    deliveryChargePerday: {
-      type: Number,
-      default: null,
-    },
-    originalDeliveryCharge: {
-      type: Number,
-      required: true,
-    },
-    discountedDeliveryCharge: {
+    numOfDays: {
       type: Number,
       default: null,
     },
@@ -92,15 +92,17 @@ const scheduledOrderSchema = mongoose.Schema(
       ref: "Merchant",
       required: true,
     },
+    items: [scheduledOrderItemSchema],
+    orderDetail: scheduledOrderDetailSchema,
+    totalAmount: {
+      type: Number,
+      required: true,
+    },
     status: {
       type: String,
       required: true,
       enum: ["Pending", "Completed"],
       default: "Pending",
-    },
-    totalAmount: {
-      type: Number,
-      required: true,
     },
     paymentMode: {
       type: String,
@@ -128,12 +130,6 @@ const scheduledOrderSchema = mongoose.Schema(
     paymentId: {
       type: String,
     },
-    itemTotal: {
-      type: Number,
-      default: 0,
-    },
-    items: [scheduledOrderItemSchema],
-    orderDetail: scheduledOrderDetailSchema,
   },
   {
     timestamps: true,
