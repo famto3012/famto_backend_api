@@ -41,6 +41,11 @@ const cartDetailsSchema = mongoose.Schema(
       enum: ["Delivery", "Take-away"],
       required: true,
     },
+    deliveryOption: {
+      type: String,
+      enum: ["On-demand", "Scheduled"],
+      required: true,
+    },
     deliveryAddress: {
       fullName: String,
       phoneNumber: String,
@@ -80,10 +85,6 @@ const cartDetailsSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
-    isScheduled: {
-      type: Boolean,
-      default: false,
-    },
     startDate: {
       type: Date,
       default: null,
@@ -94,6 +95,10 @@ const cartDetailsSchema = mongoose.Schema(
     },
     time: {
       type: String,
+      default: null,
+    },
+    numOfDays: {
+      type: Number,
       default: null,
     },
   },

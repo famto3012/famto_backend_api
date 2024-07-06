@@ -35,4 +35,20 @@ const verifyPayment = async (paymentDetails) => {
   return expectedSignature === razorpay_signature;
 };
 
-module.exports = { createRazorpayOrderId, verifyPayment };
+const razorpayRefund = async (paymentId, amount) => {
+  try {
+    const refundOptions = {
+      payment_id: paymentId,
+      amount: amount * 100,
+    };
+
+    const refund = await razorpay.payments.refund(refundOptions);
+
+    return { success: true, refundId: refund.id };
+  } catch (err) {
+    console.error("Error in processing refund:", err);
+    return { success: false, error: err.message };
+  }
+};
+
+module.exports = { createRazorpayOrderId, verifyPayment, razorpayRefund };

@@ -17,7 +17,6 @@ const orderItemSchema = mongoose.Schema(
     },
     variantTypeId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "VariantType",
       default: null,
     },
   },
@@ -36,16 +35,22 @@ const orderDetailSchema = mongoose.Schema(
       type: [Number],
       required: true,
     },
+    deliveryMode: {
+      type: String,
+      enum: ["Delivery", "Take-away"],
+      required: true,
+    },
+    deliveryOption: {
+      type: String,
+      enum: ["On-demand", "Scheduled"],
+      required: true,
+    },
     deliveryAddress: {
       fullName: String,
       phoneNumber: String,
       flat: String,
       area: String,
       landmark: String || null,
-    },
-    deliveryMode: {
-      type: String,
-      required: true,
     },
     instructionToMerchant: {
       type: String,
@@ -64,6 +69,10 @@ const orderDetailSchema = mongoose.Schema(
     },
     taxAmount: {
       type: Number,
+    },
+    numOfDays: {
+      type: Number,
+      default: null,
     },
   },
   {
@@ -99,20 +108,16 @@ const orderSchema = mongoose.Schema(
       enum: ["Pending", "On-going", "Completed", "Cancelled"],
       default: "Pending",
     },
-    deliveryCharge: {
-      type: Number,
-      required: true,
-    },
-    deliveryChargePerday: {
-      type: Number,
-      default: null,
-    },
     paymentMode: {
       type: String,
       required: true,
       enum: ["Famto-cash", "Online-payment", "Cash-on-delivery"],
     },
     paymentId: {
+      type: String,
+      default: null,
+    },
+    refundId: {
       type: String,
       default: null,
     },

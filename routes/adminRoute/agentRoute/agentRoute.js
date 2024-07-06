@@ -4,8 +4,7 @@ const {
   editAgentByAdminController,
   getSingleAgentController,
   getRatingsByCustomerController,
-  getAgentByVehicleTypeController,
-  getAgentByGeofenceController,
+  filterAgentsController,
   approveAgentRegistrationController,
   rejectAgentRegistrationController,
   blockAgentController,
@@ -58,18 +57,10 @@ adminAgentRoute.put(
 
 //Get Agent by vehicle type
 adminAgentRoute.get(
-  "/filter-by-vehicle",
+  "/filter",
   isAuthenticated,
   isAdmin,
-  getAgentByVehicleTypeController
-);
-
-//Get Agent by geofence
-adminAgentRoute.get(
-  "/filter-by-geofence",
-  isAuthenticated,
-  isAdmin,
-  getAgentByGeofenceController
+  filterAgentsController
 );
 
 //Get single agent

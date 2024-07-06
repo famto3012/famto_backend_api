@@ -169,7 +169,7 @@ const agentSchema = mongoose.Schema(
     ratingsByCustomers: [ratingsByCustomerSchema],
   },
   {
-    timestamp: true,
+    timestamps: true,
   }
 );
 

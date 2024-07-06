@@ -100,10 +100,10 @@ const addAgentByAdminController = async (req, res, next) => {
       fullName,
       phoneNumber,
       email,
-      managerId,
       geofenceId,
       agentImageURL,
       workStructure: {
+        managerId,
         salaryStructureId,
         tag,
       },
@@ -384,50 +384,45 @@ const getRatingsByCustomerController = async (req, res, next) => {
   }
 };
 
-const getAgentByVehicleTypeController = async (req, res, next) => {
+const filterAgentsController = async (req, res, next) => {
   try {
-    const { vehicleType } = req.query;
+    const { vehicleType, geofence, status } = req.query;
 
-    if (!vehicleType) {
-      return res.status(400).json({ message: "Vehicle type is required" });
+    if (!vehicleType && !geofence) {
+      return res
+        .status(400)
+        .json({ message: "Vehicle type or geofence is required" });
     }
 
-    const searchTerm = vehicleType.trim();
+    const filterCriteria = {};
+
+    if (status) {
+      filterCriteria.status = { $regex: status.trim(), $options: "i" };
+    }
+
+    if (vehicleType) {
+      filterCriteria["vehicleDetail.type"] = {
+        $regex: vehicleType.trim(),
+        $options: "i",
+      };
+    }
+
+    if (geofence) {
+      try {
+        const geofenceObjectId = new mongoose.Types.ObjectId(geofence.trim());
+        filterCriteria.geofenceId = geofenceObjectId;
+      } catch (err) {
+        return res.status(400).json({ message: "Invalid geofence ID" });
+      }
+    }
 
     const searchResults = await Agent.find(
-      { "vehicleDetail.type": { $regex: searchTerm, $options: "i" } },
-      // Specifying the fields needed to include in the response
+      filterCriteria,
       "_id fullName email phoneNumber manager geofence status isApproved"
     );
 
     res.status(200).json({
-      message: "Getting agent by vehicle type",
-      data: searchResults,
-    });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
-const getAgentByGeofenceController = async (req, res, next) => {
-  try {
-    const { geofence } = req.query;
-
-    if (!geofence) {
-      return res.status(400).json({ message: "Geofence is required" });
-    }
-
-    // Convert geofence query parameter to ObjectId
-    const geofenceObjectId = new mongoose.Types.ObjectId(geofence.trim());
-
-    const searchResults = await Agent.find(
-      { geofenceId: geofenceObjectId },
-      // Specifying the fields needed to include in the response
-      "_id fullName email phoneNumber manager geofenceId status isApproved"
-    );
-
-    res.status(200).json({
-      message: "Getting agent by geofence",
+      message: "Getting agents",
       data: searchResults,
     });
   } catch (err) {
@@ -454,16 +449,14 @@ const blockAgentController = async (req, res, next) => {
       fullName: agentFound.fullName,
       role: agentFound.role,
       description: reason,
-    })
-    await accountLogs.save()
+    });
+    await accountLogs.save();
 
     res.status(200).json({ message: "Agent blocked successfully" });
   } catch (err) {
     next(appError(err.message));
   }
 };
-
-
 
 module.exports = {
   addAgentByAdminController,
@@ -472,7 +465,6 @@ module.exports = {
   approveAgentRegistrationController,
   rejectAgentRegistrationController,
   getRatingsByCustomerController,
-  getAgentByVehicleTypeController,
-  getAgentByGeofenceController,
+  filterAgentsController,
   blockAgentController,
 };
