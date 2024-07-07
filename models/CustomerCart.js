@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 
-// Define the CartItem schema
 const cartItemSchema = mongoose.Schema(
   {
     productId: {
@@ -26,7 +25,7 @@ const cartItemSchema = mongoose.Schema(
   }
 );
 
-const cartDetailsSchema = mongoose.Schema(
+const cartDetailSchema = mongoose.Schema(
   {
     pickupLocation: {
       type: [Number],
@@ -51,7 +50,7 @@ const cartDetailsSchema = mongoose.Schema(
       phoneNumber: String,
       flat: String,
       area: String,
-      landmark: String || null,
+      landmark: { type: String, default: null },
     },
     instructionToMerchant: {
       type: String,
@@ -61,27 +60,7 @@ const cartDetailsSchema = mongoose.Schema(
       type: String,
       default: null,
     },
-    addedTip: {
-      type: Number,
-      default: null,
-    },
     distance: {
-      type: Number,
-      required: true,
-    },
-    deliveryChargePerday: {
-      type: Number,
-      default: null,
-    },
-    originalDeliveryCharge: {
-      type: Number,
-      required: true,
-    },
-    discountedDeliveryCharge: {
-      type: Number,
-      default: null,
-    },
-    taxAmount: {
       type: Number,
       required: true,
     },
@@ -107,6 +86,58 @@ const cartDetailsSchema = mongoose.Schema(
   }
 );
 
+const billSchema = mongoose.Schema(
+  {
+    deliveryChargePerDay: {
+      type: Number,
+      default: null,
+    },
+    originalDeliveryCharge: {
+      type: Number,
+      required: true,
+    },
+    discountedDeliveryCharge: {
+      type: Number,
+      default: null,
+    },
+    taxAmount: {
+      type: Number,
+      required: true,
+    },
+    discountedAmount: {
+      type: Number,
+      default: null,
+    },
+    originalGrandTotal: {
+      type: Number,
+      default: null,
+    },
+    discountedGrandTotal: {
+      type: Number,
+      default: null,
+    },
+    itemTotal: {
+      type: Number,
+      default: 0,
+    },
+    addedTip: {
+      type: Number,
+      default: null,
+    },
+    discountedAmount: {
+      type: Number,
+      default: null,
+    },
+    subTotal: {
+      type: Number,
+      required: true,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
 // Define the Cart schema
 const CustomerCartSchema = mongoose.Schema(
   {
@@ -121,19 +152,8 @@ const CustomerCartSchema = mongoose.Schema(
       required: true,
     },
     items: [cartItemSchema],
-    cartDetails: cartDetailsSchema,
-    originalGrandTotal: {
-      type: Number,
-      default: null,
-    },
-    discountedGrandTotal: {
-      type: Number,
-      default: null,
-    },
-    itemTotal: {
-      type: Number,
-      default: 0,
-    },
+    cartDetail: cartDetailSchema,
+    billDetail: billSchema,
   },
   {
     timestamps: true,

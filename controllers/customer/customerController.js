@@ -1047,8 +1047,6 @@ const addOrUpdateCartItemController = async (req, res, next) => {
       0
     );
 
-    console.log(cart.itemTotal);
-
     await cart.save();
 
     if (cart.items.length === 0) {
@@ -1179,34 +1177,36 @@ const addCartDetailsController = async (req, res, next) => {
       0
     );
 
-    console.log("itemTotal", itemTotal);
-
-    let updatedCartDetails = {
+    let updatedCartDetail = {
       pickupLocation: pickupCoordinates,
       deliveryMode,
       deliveryOption: startDate && endDate && time ? "Scheduled" : "On-demand",
       instructionToMerchant,
       instructionToDeliveryAgent,
-      addedTip,
       startDate,
       endDate,
       time,
     };
 
+    let updatedBill = {
+      addedTip,
+      itemTotal: parseFloat(itemTotal).toFixed(2),
+    };
+
     if (deliveryMode === "Take-away") {
-      updatedCartDetails = {
-        ...updatedCartDetails,
+      updatedCartDetail = {
+        ...updatedCartDetail,
         deliveryLocation: pickupCoordinates,
         distance: 0,
       };
 
       // Set originalGrandTotal without tax and delivery charges
-      cart.originalGrandTotal = parseFloat(itemTotal).toFixed(2);
+      updatedBill.originalGrandTotal = parseFloat(itemTotal).toFixed(2);
 
-      cart.cartDetails = updatedCartDetails;
+      cart.cartDetail = updatedCartDetail;
     } else {
-      updatedCartDetails = {
-        ...updatedCartDetails,
+      updatedCartDetail = {
+        ...updatedCartDetail,
         deliveryLocation: deliveryCoordinates,
         deliveryAddress,
         distance: 0,
@@ -1219,7 +1219,7 @@ const addCartDetailsController = async (req, res, next) => {
           deliveryCoordinates
         );
 
-      updatedCartDetails.distance = distanceFromPickupToDelivery;
+      updatedCartDetail.distance = distanceFromPickupToDelivery;
 
       const businessCategoryId = merchant.merchantDetail.businessCategoryId;
 
@@ -1242,7 +1242,7 @@ const addCartDetailsController = async (req, res, next) => {
       const fareAfterBaseDistance = customerPricing.fareAfterBaseDistance;
 
       const deliveryCharges = calculateDeliveryCharges(
-        updatedCartDetails.distance,
+        distanceFromPickupToDelivery,
         baseFare,
         baseDistance,
         fareAfterBaseDistance
@@ -1258,12 +1258,12 @@ const addCartDetailsController = async (req, res, next) => {
         const scheduledDeliveryCharge = (deliveryCharges * diffDays).toFixed(2);
         const cartTotal = (itemTotal * diffDays).toFixed(2);
 
-        updatedCartDetails.originalDeliveryCharge = scheduledDeliveryCharge;
-        updatedCartDetails.deliveryChargePerday = deliveryCharges;
-        updatedCartDetails.numOfDays = diffDays;
+        updatedBill.originalDeliveryCharge = scheduledDeliveryCharge;
+        updatedBill.deliveryChargePerday = deliveryCharges;
+        updatedCartDetail.numOfDays = diffDays;
 
         // Update the itemTotal with multiplied value
-        cart.itemTotal = parseFloat(cartTotal);
+        updatedBill.itemTotal = parseFloat(cartTotal);
 
         const taxAmount = await getTaxAmount(
           businessCategoryId,
@@ -1272,7 +1272,7 @@ const addCartDetailsController = async (req, res, next) => {
           parseFloat(scheduledDeliveryCharge)
         );
 
-        updatedCartDetails.taxAmount = taxAmount.toFixed(2);
+        updatedBill.taxAmount = taxAmount.toFixed(2);
 
         const grandTotal = (
           parseFloat(cartTotal) +
@@ -1281,9 +1281,9 @@ const addCartDetailsController = async (req, res, next) => {
           parseFloat(taxAmount)
         ).toFixed(2);
 
-        cart.originalGrandTotal = parseFloat(grandTotal);
+        updatedBill.originalGrandTotal = parseFloat(grandTotal);
       } else {
-        updatedCartDetails.originalDeliveryCharge = deliveryCharges.toFixed(2);
+        updatedBill.originalDeliveryCharge = deliveryCharges.toFixed(2);
 
         const taxAmount = await getTaxAmount(
           businessCategoryId,
@@ -1292,7 +1292,7 @@ const addCartDetailsController = async (req, res, next) => {
           parseFloat(deliveryCharges)
         );
 
-        updatedCartDetails.taxAmount = taxAmount.toFixed(2);
+        updatedBill.taxAmount = taxAmount.toFixed(2);
 
         const grandTotal = (
           parseFloat(itemTotal) +
@@ -1301,11 +1301,18 @@ const addCartDetailsController = async (req, res, next) => {
           parseFloat(taxAmount)
         ).toFixed(2);
 
-        cart.originalGrandTotal = parseFloat(grandTotal);
+        updatedBill.originalGrandTotal = parseFloat(grandTotal);
       }
 
-      cart.cartDetails = updatedCartDetails;
+      const subTotal = itemTotal + deliveryCharges;
+
+      updatedBill.subTotal = parseFloat(subTotal);
     }
+
+    // Ensure billDetail is initialized
+    cart.billDetail = cart.billDetail || {};
+    cart.cartDetail = updatedCartDetail;
+    cart.billDetail = updatedBill;
 
     await cart.save();
 
@@ -1397,7 +1404,7 @@ const applyPromocodeController = async (req, res, next) => {
     }
 
     // Check if total cart price meets minimum order amount
-    const totalCartPrice = cart.itemTotal;
+    const totalCartPrice = cart.billDetail.itemTotal;
     if (totalCartPrice < promoCodeFound.minOrderAmount) {
       return next(
         appError(
@@ -1437,11 +1444,13 @@ const applyPromocodeController = async (req, res, next) => {
     if (promoCodeFound.appliedOn === "Cart-value") {
       updatedTotal -= discountAmount;
     } else if (promoCodeFound.appliedOn === "Delivery-charge") {
-      if (cart.cartDetails.deliveryCharge) {
-        cart.cartDetails.deliveryCharge -= discountAmount;
-        if (cart.cartDetails.deliveryCharge < 0) {
-          cart.cartDetails.deliveryCharge = 0;
-        }
+      if (cart.billDetail.originalDeliveryCharge) {
+        const discountedDeliveryCharge =
+          cart.billDetail.originalDeliveryCharge - discountAmount;
+
+        cart.billDetail.discountedDeliveryCharge =
+          discountedDeliveryCharge < 0 ? 0 : discountedDeliveryCharge;
+
         updatedTotal -= discountAmount;
       }
     }
@@ -1452,10 +1461,25 @@ const applyPromocodeController = async (req, res, next) => {
     }
 
     // Update cart and save
-    cart.cartDetails.discountedDeliveryCharge =
-      cart.cartDetails.originalDeliveryCharge - discountAmount;
-    cart.discountedGrandTotal = cart.originalGrandTotal - discountAmount;
+    const discountedDeliveryCharge =
+      parseFloat(cart.billDetail.originalDeliveryCharge) -
+      parseFloat(discountAmount);
+
+    const discountedGrandTotal =
+      cart.billDetail.originalGrandTotal - discountAmount;
+
+    const discountedAmount = discountAmount;
+
+    const subTotal = updatedTotal + discountedDeliveryCharge - discountAmount;
+
+    cart.billDetail.discountedDeliveryCharge =
+      discountedDeliveryCharge.toFixed(2);
+    cart.billDetail.discountedGrandTotal = discountedGrandTotal;
+    cart.billDetail.discountedAmount = discountedAmount;
+    cart.billDetail.subTotal = subTotal;
+
     promoCodeFound.noOfUserUsed += 1;
+
     await promoCodeFound.save();
     await cart.save();
 

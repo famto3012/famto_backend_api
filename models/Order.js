@@ -67,10 +67,18 @@ const orderDetailSchema = mongoose.Schema(
     distance: {
       type: Number,
     },
+    deliveryCharge: {
+      type: Number,
+      required: true,
+    },
     taxAmount: {
       type: Number,
     },
     numOfDays: {
+      type: Number,
+      default: null,
+    },
+    discountedAmount: {
       type: Number,
       default: null,
     },
