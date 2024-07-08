@@ -98,6 +98,7 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
       merchantId: scheduledOrder.merchantId,
       items: scheduledOrder.items,
       orderDetail: scheduledOrder.orderDetail,
+      billDetail: scheduledOrder.billDetail,
       totalAmount: scheduledOrder.totalAmount,
       paymentMode: scheduledOrder.paymentMode,
       paymentStatus: scheduledOrder.paymentStatus,
@@ -105,6 +106,11 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
     });
 
     console.log("Order created successfully with order ID: " + newOrder._id);
+
+    console.log(
+      new Date(scheduledOrder.endDate).toUTCString(),
+      "Create order date in indian"
+    );
 
     if (new Date() < new Date(scheduledOrder.endDate)) {
       const nextTime = new Date();
@@ -130,31 +136,3 @@ module.exports = {
   getTaxAmount,
   createOrdersFromScheduled,
 };
-
-// const orderResponse = {
-//   _id: newOrder._id,
-//   customerId: newOrder.customerId,
-//   customerName:
-//     customer.fullName || (deliveryAddress && deliveryAddress.fullName),
-//   merchantId: newOrder.merchantId,
-//   merchantName: merchant.merchantDetail.merchantName,
-//   status: newOrder.status,
-//   totalAmount: newOrder.totalAmount,
-//   paymentMode: newOrder.paymentMode,
-//   paymentStatus: newOrder.paymentStatus,
-//   items: newOrder.items,
-//   deliveryAddress: newOrder.orderDetail.deliveryAddress,
-//   orderDetail: {
-//     pickupLocation: merchant.merchantDetail.location,
-//     deliveryLocation: scheduledOrder.orderDetail.deliveryLocation,
-//     deliveryMode: scheduledOrder.orderDetail.deliveryMode,
-//     instructionToMerchant: scheduledOrder.orderDetail.instructionToMerchant,
-//     instructionToDeliveryAgent:
-//       scheduledOrder.orderDetail.instructionToDeliveryAgent,
-//     addedTip: scheduledOrder.orderDetail.addedTip,
-//     distance: scheduledOrder.orderDetail.distance,
-//     taxAmount: scheduledOrder.orderDetail.taxAmount,
-//   },
-//   createdAt: newOrder.createdAt,
-//   updatedAt: newOrder.updatedAt,
-// };

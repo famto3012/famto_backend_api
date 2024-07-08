@@ -15,6 +15,7 @@ const addManagerController = async (req, res, next) => {
     merchants,
     geofenceId,
     viewCustomers,
+    domain,
   } = req.body;
 
   const errors = validationResult(req);
@@ -49,6 +50,7 @@ const addManagerController = async (req, res, next) => {
       merchants,
       geofenceId,
       viewCustomers,
+      domain,
     });
 
     if (!newManager) {
@@ -93,6 +95,7 @@ const editManagerController = async (req, res, next) => {
     merchants,
     geofenceId,
     viewCustomers,
+    domain,
   } = req.body;
 
   const errors = validationResult(req);
@@ -136,6 +139,7 @@ const editManagerController = async (req, res, next) => {
         merchants,
         geofenceId,
         viewCustomers,
+        domain,
       },
       { new: true }
     );

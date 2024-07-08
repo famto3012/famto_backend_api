@@ -3,6 +3,7 @@ const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const {
   getUserProfileController,
   updateUserProfileController,
+  changeUserPasswordController,
 } = require("../../../controllers/admin/settings/settingsController");
 const settingsRoute = express.Router();
 
@@ -14,6 +15,10 @@ settingsRoute.put(
   updateUserProfileController
 );
 
-// TODO: Add route and controller for change password
+settingsRoute.patch(
+  "/change-password",
+  isAuthenticated,
+  changeUserPasswordController
+);
 
 module.exports = settingsRoute;
