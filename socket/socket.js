@@ -27,10 +27,18 @@ io.on("connection", (socket) => {
 
   socket.on("Accepted", async (data) => {
     const task = await Task.find({ orderId: data.orderId });
-    await Task.findByIdAndUpdate(task[0]._id, {
-      agentId: data.agentId,
-      taskStatus: "Assigned",
-    });
+    if (task.taskStatus === "Assigned") {
+      appError("Task already assigned");
+    } else {
+      await Task.findByIdAndUpdate(task[0]._id, {
+        agentId: data.agentId,
+        taskStatus: "Assigned",
+      });
+    }
+  });
+
+  socket.on("Rejected", () => {
+    console.log("Task rejected");
   });
 
   socket.on("disconnect", () => {
