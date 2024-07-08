@@ -107,11 +107,6 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
 
     console.log("Order created successfully with order ID: " + newOrder._id);
 
-    console.log(
-      new Date(scheduledOrder.endDate).toUTCString(),
-      "Create order date in indian"
-    );
-
     if (new Date() < new Date(scheduledOrder.endDate)) {
       const nextTime = new Date();
       nextTime.setDate(nextTime.getDate() + 1);

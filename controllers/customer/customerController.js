@@ -3,7 +3,7 @@ const turf = require("@turf/turf");
 const generateToken = require("../../utils/generateToken");
 const os = require("os");
 const Customer = require("../../models/Customer");
-const { Product } = require("../../models/Product");
+const Product = require("../../models/Product");
 const { validationResult } = require("express-validator");
 const geoLocation = require("../../utils/getGeoLocation");
 const {
@@ -30,6 +30,12 @@ const {
 } = require("../../utils/razorpayPayment");
 const Order = require("../../models/Order");
 const ScheduledOrder = require("../../models/ScheduledOrder");
+const Agent = require("../../models/Agent");
+const {
+  convertToUTC,
+  formatDate,
+  formatTime,
+} = require("../../utils/formatters");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -451,40 +457,37 @@ const listRestaurantsController = async (req, res, next) => {
     });
 
     // Sort merchants by sponsorship status (sponsored merchants first)
-    const sortedMerchants = filteredMerchants.sort((a, b) => {
-      const aSponsorship = a.sponsorshipDetail.some((s) => s.sponsorshipStatus);
-      const bSponsorship = b.sponsorshipDetail.some((s) => s.sponsorshipStatus);
-      return bSponsorship - aSponsorship;
-    });
+    const sortedMerchants = await sortMerchantsBySponsorship(filteredMerchants);
 
     // Extracting required fields from filtered merchants including distance and favorite status
-    const simplifiedMerchants = sortedMerchants.map((merchant) => {
-      const merchantLocation = merchant.merchantDetail.location;
-      const distance = turf
-        .distance(turf.point(merchantLocation), turf.point(customerLocation), {
-          units: "kilometers",
-        })
-        .toFixed(2);
+    const simplifiedMerchants = await Promise.all(
+      sortedMerchants.map(async (merchant) => {
+        const merchantLocation = merchant.merchantDetail.location;
+        const distance = await getDistanceFromPickupToDelivery(
+          merchantLocation,
+          customerLocation
+        );
 
-      // Determine if the merchant is a favorite
-      const isFavorite =
-        currentCustomer?.customerDetails?.favoriteMerchants?.includes(
-          merchant._id
-        ) ?? false;
+        // Determine if the merchant is a favorite
+        const isFavorite =
+          currentCustomer?.customerDetails?.favoriteMerchants?.includes(
+            merchant._id
+          ) ?? false;
 
-      return {
-        _id: merchant._id,
-        merchantName: merchant.merchantDetail.merchantName,
-        preparationTime: merchant.merchantDetail.deliveryTime,
-        description: merchant.merchantDetail.description,
-        averageRating: merchant.merchantDetail.averageRating,
-        status: merchant.status,
-        distanceInKM: parseFloat(distance),
-        restaurantType: merchant.merchantDetail.ifRestaurant || "N/A",
-        merchantImageURL: merchant.merchantDetail.merchantImageURL,
-        isFavorite,
-      };
-    });
+        return {
+          _id: merchant._id,
+          merchantName: merchant.merchantDetail.merchantName,
+          deliveryTime: merchant.merchantDetail.deliveryTime,
+          description: merchant.merchantDetail.description,
+          averageRating: merchant.merchantDetail.averageRating,
+          status: merchant.status,
+          distanceInKM: parseFloat(distance),
+          restaurantType: merchant.merchantDetail.ifRestaurant || "N/A",
+          merchantImageURL: merchant.merchantDetail.merchantImageURL,
+          isFavorite,
+        };
+      })
+    );
 
     res.status(200).json({
       message: "Available merchants",
@@ -1185,7 +1188,7 @@ const addCartDetailsController = async (req, res, next) => {
       instructionToDeliveryAgent,
       startDate,
       endDate,
-      time,
+      time: convertToUTC(time),
     };
 
     let updatedBill = {
@@ -1605,6 +1608,12 @@ const orderPaymentController = async (req, res, next) => {
       subTotal: cart.billDetail.subTotal,
     };
 
+    let transactionDetail = {
+      closingBalance: customer?.customerDetails?.walletBalance,
+      transactionAmount: orderAmount,
+      date: new Date(),
+    };
+
     if (paymentMode === "Famto-cash") {
       if (customer.customerDetails.walletBalance < orderAmount) {
         return next(appError("Insufficient funds in wallet", 400));
@@ -1662,6 +1671,10 @@ const orderPaymentController = async (req, res, next) => {
         // Clear the cart
         await CustomerCart.deleteOne({ customerId });
       }
+
+      transactionDetail.orderId = newOrder._id;
+      customer.walletTransactionDetail.push(transactionDetail);
+      await customer.save();
     } else if (paymentMode === "Cash-on-delivery") {
       newOrder = await Order.create({
         customerId,
@@ -1767,8 +1780,8 @@ const orderPaymentController = async (req, res, next) => {
 // Verify online payment
 const verifyOnlinePaymentController = async (req, res, next) => {
   try {
-    const { paymentDetails, customerId } = req.body;
-    // const customerId = req.userAuth;
+    const { paymentDetails } = req.body;
+    const customerId = req.userAuth;
 
     if (!customerId) {
       return next(appError("Customer is not authenticated", 401));
@@ -1979,15 +1992,270 @@ const verifyWalletRechargeController = async (req, res, next) => {
       return next(appError("Customer not found", 404));
     }
 
+    const parsedAmount = parseFloat(amount);
+
     const isPaymentValid = await verifyPayment(paymentDetails);
     if (!isPaymentValid) {
       return next(appError("Invalid payment", 400));
     }
 
-    customer.customerDetails.walletBalance += amount;
+    let transactionDetail = {
+      closingBalance: customer?.customerDetails?.walletBalance || 0,
+      transactionAmount: parsedAmount,
+      transactionId: paymentDetails.razorpay_payment_id,
+      date: new Date(),
+    };
+
+    // Ensure walletBalance is initialized
+    customer.customerDetails.walletBalance =
+      parseFloat(customer?.customerDetails?.walletBalance) || 0;
+    customer.customerDetails.walletBalance += parsedAmount;
+
+    customer.walletTransactionDetail.push(transactionDetail);
+
     await customer.save();
 
-    res.status(200).josn({ message: "Wallet recharged successfully" });
+    res.status(200).json({ message: "Wallet recharged successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Rate agent with Order
+const rateDeliveryAgentController = async (req, res, next) => {
+  try {
+    const currentCustomer = req.userAuth;
+
+    const { orderId } = req.params;
+
+    const { rating, review } = req.body;
+
+    const orderFound = await Order.findById(orderId);
+
+    if (!orderFound) {
+      return next(appError("Order not found", 404));
+    }
+
+    const agentFound = await Agent.findById(orderFound.agentId);
+
+    if (!agentFound) {
+      return next(appError("Agent not found", 404));
+    }
+
+    orderFound.orderRating.ratingToDeliveryAgent.review = review;
+    orderFound.orderRating.ratingToDeliveryAgent.rating = rating;
+
+    let updatedAgentRating = {
+      customerId: currentCustomer,
+      review,
+      rating,
+    };
+
+    agentFound.ratingsByCustomers.push(updatedAgentRating);
+
+    await orderFound.save();
+    await agentFound.save();
+
+    res.status(200).josn({ message: "Agent rated successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get favourite merchants
+const getFavoriteMerchantsController = async (req, res, next) => {
+  try {
+    const currentCustomer = req.userAuth;
+
+    const customer = await Customer.findById(currentCustomer)
+      .select("customerDetails.location customerDetails.favoriteMerchants")
+      .populate("customerDetails.favoriteMerchants");
+
+    if (!customer || !customer.customerDetails) {
+      return next(appError("Customer details not found", 404));
+    }
+
+    const favoriteMerchants = customer.customerDetails.favoriteMerchants;
+
+    const customerLocation = customer.customerDetails.location?.[0];
+
+    const simplifiedMerchants = await Promise.all(
+      favoriteMerchants.map(async (merchant) => {
+        const merchantLocation = merchant.merchantDetail.location;
+        const distance = await getDistanceFromPickupToDelivery(
+          merchantLocation,
+          customerLocation
+        );
+
+        // Determine if the merchant is a favorite
+        const isFavorite =
+          currentCustomer?.customerDetails?.favoriteMerchants?.includes(
+            merchant._id
+          ) ?? false;
+
+        return {
+          _id: merchant._id,
+          merchantName: merchant.merchantDetail.merchantName,
+          deliveryTime: merchant.merchantDetail.deliveryTime,
+          description: merchant.merchantDetail.description,
+          averageRating: merchant.merchantDetail.averageRating,
+          status: merchant.status,
+          distanceInKM: parseFloat(distance),
+          restaurantType: merchant.merchantDetail.ifRestaurant || "N/A",
+          merchantImageURL: merchant.merchantDetail.merchantImageURL,
+          isFavorite,
+        };
+      })
+    );
+
+    res.status(200).json({
+      message: "Favourite merchants retrieved successfully",
+      data: simplifiedMerchants,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get all orders of customer in latest order
+const getCustomerOrdersController = async (req, res, next) => {
+  try {
+    const currentCustomer = req.userAuth;
+
+    const ordersOfCustomer = await Order.find({ customerId: currentCustomer })
+      .sort({ createdAt: -1 })
+      .populate({
+        path: "merchantId",
+        select: "merchantDetail",
+      })
+      .populate({
+        path: "items.productId",
+        select: "productName productImageURL description variants",
+      })
+      .exec();
+
+    const populatedOrdersWithVariantNames = ordersOfCustomer.map((order) => {
+      const orderObj = order.toObject();
+      orderObj.items = orderObj.items.map((item) => {
+        const product = item.productId;
+        let variantTypeName = null;
+        let variantTypeData = null;
+        if (item.variantTypeId && product.variants) {
+          const variantType = product.variants
+            .flatMap((variant) => variant.variantTypes)
+            .find((type) => type._id.equals(item.variantTypeId));
+          if (variantType) {
+            variantTypeName = variantType.typeName;
+            variantTypeData = {
+              _id: variantType._id,
+              variantTypeName: variantTypeName,
+            };
+          }
+        }
+        return {
+          ...item,
+          productId: {
+            _id: product._id,
+            productName: product.productName,
+            description: product.description,
+            productImageURL: product.productImageURL,
+          },
+          variantTypeId: variantTypeData,
+        };
+      });
+      return orderObj;
+    });
+
+    const formattedResponse = populatedOrdersWithVariantNames.map((order) => {
+      return {
+        _id: order._id,
+        merchantName: order.merchantId.merchantDetail.merchantName,
+        displayAddress: order.merchantId.merchantDetail.displayAddress,
+        orderStatus: order.status,
+        orderDate: `${formatDate(order.createdAt)} | ${formatTime(
+          order.createdAt
+        )}`,
+        items: order.items,
+        grandTotal: order.billDetail.grandTotal,
+      };
+    });
+
+    console.log(formattedResponse);
+
+    res.status(200).json({
+      message: "Orders of customer",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get single order detail
+const getsingleOrderDetailController = async (req, res, next) => {
+  try {
+    const currentCustomer = req.userAuth;
+
+    const { orderId } = req.params;
+
+    const singleOrderDetail = await Order.findOne({
+      _id: orderId,
+      customerId: currentCustomer,
+    })
+      .populate({
+        path: "merchantId",
+        select: "merchantDetail",
+      })
+      .populate({
+        path: "items.productId",
+        select: "productName productImageURL description variants",
+      })
+      .exec();
+
+    console.log(singleOrderDetail);
+
+    if (!singleOrderDetail) {
+      return next(appError("Order not found", 404));
+    }
+
+    const orderObj = singleOrderDetail.toObject();
+    orderObj.items = orderObj.items.map((item) => {
+      const product = item.productId;
+      let variantTypeName = null;
+      let variantTypeData = null;
+      if (item.variantTypeId && product.variants) {
+        const variantType = product.variants
+          .flatMap((variant) => variant.variantTypes)
+          .find((type) => type._id.equals(item.variantTypeId));
+        if (variantType) {
+          variantTypeName = variantType.typeName;
+          variantTypeData = {
+            _id: variantType._id,
+            variantTypeName: variantTypeName,
+          };
+        }
+      }
+      return {
+        ...item,
+        productId: {
+          _id: product._id,
+          productName: product.productName,
+          description: product.description,
+          productImageURL: product.productImageURL,
+        },
+        variantTypeId: variantTypeData,
+      };
+    });
+
+    const formattedResponse = {
+      _id: orderObj._id,
+      // TODO: COmplete the other fields
+    };
+
+    res.status(200).json({
+      message: "Single order detail",
+      data: formattedResponse,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -2017,4 +2285,8 @@ module.exports = {
   verifyOnlinePaymentController,
   addWalletBalanceController,
   verifyWalletRechargeController,
+  rateDeliveryAgentController,
+  getFavoriteMerchantsController,
+  getCustomerOrdersController,
+  getsingleOrderDetailController,
 };

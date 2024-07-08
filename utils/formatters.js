@@ -1,3 +1,5 @@
+const moment = require("moment");
+
 const formatDate = (date) => {
   const options = {
     day: "2-digit",
@@ -24,4 +26,15 @@ const formatTime = (createdAt) => {
   return formattedTime;
 };
 
-module.exports = { formatDate, formatTime };
+const convertToUTC = (time12hr) => {
+  // Parse the 12-hour time using a known format
+  const localTime = moment(time12hr, "hh:mm A");
+
+  // Convert to UTC
+  const utcTime = localTime.utc();
+
+  // Return the UTC time in desired format
+  return utcTime.format();
+};
+
+module.exports = { formatDate, formatTime, convertToUTC };

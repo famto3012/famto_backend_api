@@ -1,7 +1,8 @@
 const AccountLogs = require("../../../models/AccountLogs");
 const Customer = require("../../../models/Customer");
+const Order = require("../../../models/Order");
 const appError = require("../../../utils/appError");
-const { formatDate } = require("../../../utils/formatDate");
+const { formatDate, formatTime } = require("../../../utils/formatters");
 
 const getAllCustomersController = async (req, res, next) => {
   try {
@@ -120,13 +121,59 @@ const getSingleCustomerController = async (req, res, next) => {
 
     const customerFound = await Customer.findById(customerId)
       .select(
-        "fullName email phoneNumber lastPlatformUsed createdAt customerDetails"
+        "fullName email phoneNumber lastPlatformUsed createdAt customerDetails walletTransactionDetail"
       )
       .lean({ virtuals: true });
 
     if (!customerFound) {
       return next(appError("Customer not found", 404));
     }
+
+    const ordersOfCustomer = await Order.find({ customerId }).populate({
+      path: "merchantId",
+      select: "merchantDetail",
+    });
+
+    const formattedCustomerOrders = ordersOfCustomer.map((order) => {
+      const merchantDetail = order.merchantId?.merchantDetail;
+      const deliveryTimeMinutes = merchantDetail
+        ? parseInt(merchantDetail.deliveryTime, 10)
+        : 0;
+      const orderDeliveryTime = new Date(order.createdAt);
+      orderDeliveryTime.setMinutes(
+        orderDeliveryTime.getMinutes() + deliveryTimeMinutes
+      );
+      return {
+        orderId: order._id,
+        orderStatus: order.status,
+        merchantName: order.merchantId.merchantDetail.merchantName,
+        deliveryMode: order.orderDetail.deliveryMode,
+        orderTime: `${formatDate(order.createdAt)} | ${formatTime(
+          order.createdAt
+        )}`,
+        deliveryTime: `${formatDate(order.createdAt)} | ${formatTime(
+          orderDeliveryTime
+        )}`,
+        paymentMethod: order.paymentMode,
+        deliveryOption: order.orderDetail.deliveryOption,
+        amount: order.billDetail.grandTotal,
+        paymentStatus: order.paymentStatus,
+      };
+    });
+
+    const formattedcustomerTransactions =
+      customerFound?.walletTransactionDetail.map((transaction) => {
+        return {
+          closingBalance: transaction.closingBalance || 0,
+          transactionAmount: transaction.transactionAmount || 0,
+          transactionId: transaction.transactionId || "N/A",
+          orderId: transaction.orderId || "N/A",
+          date:
+            `${formatDate(transaction.date)} | ${formatTime(
+              transaction.date
+            )}` || "N/A",
+        };
+      });
 
     const formattedCustomer = {
       _id: customerFound._id,
@@ -135,9 +182,12 @@ const getSingleCustomerController = async (req, res, next) => {
       phoneNumber: customerFound.phoneNumber,
       lastPlatformUsed: customerFound.lastPlatformUsed,
       registrationDate: formatDate(customerFound.createdAt),
+      walletBalance: customerFound.customerDetails.walletBalance,
       homeAddress: customerFound.customerDetails?.homeAddress || "N/A",
       workAddress: customerFound.customerDetails?.workAddress || "N/A",
       otherAddress: customerFound.customerDetails?.otherAddress || "N/A",
+      walletDetails: formattedcustomerTransactions,
+      orderDetails: formattedCustomerOrders,
     };
 
     res.status(200).json({

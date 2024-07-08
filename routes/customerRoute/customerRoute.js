@@ -27,6 +27,10 @@ const {
   verifyOnlinePaymentController,
   addWalletBalanceController,
   verifyWalletRechargeController,
+  rateDeliveryAgentController,
+  getFavoriteMerchantsController,
+  getCustomerOrdersController,
+  getsingleOrderDetailController,
 } = require("../../controllers/customer/customerController");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const { upload } = require("../../utils/imageOperation");
@@ -158,18 +162,36 @@ customerRoute.post(
   verifyOnlinePaymentController
 );
 
-// TODO: need to test API
 customerRoute.post(
   "/wallet-recharge",
   isAuthenticated,
   addWalletBalanceController
 );
 
-// TODO: need to test API
 customerRoute.post(
   "/verify-wallet-recharge",
   isAuthenticated,
   verifyWalletRechargeController
+);
+
+customerRoute.post(
+  "/rate-agent/:orderId",
+  isAuthenticated,
+  rateDeliveryAgentController
+);
+
+customerRoute.get(
+  "/favorite-merchants",
+  isAuthenticated,
+  getFavoriteMerchantsController
+);
+
+customerRoute.get("/orders", isAuthenticated, getCustomerOrdersController);
+
+customerRoute.get(
+  "/orders/:orderId",
+  isAuthenticated,
+  getsingleOrderDetailController
 );
 
 module.exports = customerRoute;
