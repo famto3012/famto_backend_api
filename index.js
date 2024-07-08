@@ -53,11 +53,9 @@ require("dotenv").config();
 require("./config/dbConnect");
 const { createOrdersFromScheduled } = require("./utils/customerAppHelpers");
 
-
 const { app, server } = require("./socket/socket.js");
 const ScheduledOrder = require("./models/ScheduledOrder.js");
 const { orderCreateTaskHelper } = require("./utils/orderCreateTaskHelper.js");
-
 
 // const app = express();
 
@@ -125,17 +123,12 @@ cron.schedule("53 10 * * *", async () => {
   await deleteExpiredSubscriptionPlans();
   const  id = "668b02e53606efbfa84bd024"
   await orderCreateTaskHelper(id)
-
 });
 
 cron.schedule("* * * * *", async () => {
   console.log("Running scheduled order job...");
   const now = new Date();
   console.log("Current Date and Time:", now);
-
-  // Format the current date and time for comparison
-  const startOfDay = new Date(now.setHours(0, 0, 0, 0));
-  const endOfDay = new Date(now.setHours(23, 59, 59, 999));
 
   const scheduledOrders = await ScheduledOrder.find({
     status: "Pending",

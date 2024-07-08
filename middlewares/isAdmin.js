@@ -12,8 +12,6 @@ const isAdmin = async (req, res, next) => {
   //Save the user into req object
   req.userAuth = decodedUser.id;
 
-  //Find the user in DB
-  // const user = await Admin.findById(decodedUser.id);
   //Check if the user is Admin or not
   if (decodedUser.role === "Admin") {
     return next();

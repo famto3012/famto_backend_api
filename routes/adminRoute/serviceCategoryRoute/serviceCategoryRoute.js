@@ -38,7 +38,7 @@ serviceCategoryRoute.get(
   isAuthenticated,
   isAdmin,
   getAllServiceCategoriesController
-); 
+);
 
 serviceCategoryRoute.get(
   "/get-service/:id",

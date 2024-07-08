@@ -24,7 +24,7 @@ const notificationSettingSchema = new mongoose.Schema(
     },
     customer: {
       type: Boolean,
-      default: false
+      default: false,
     },
     whatsapp: {
       type: Boolean,
@@ -44,5 +44,8 @@ const notificationSettingSchema = new mongoose.Schema(
   }
 );
 
-const NotificationSetting = mongoose.model("NotificationSetting", notificationSettingSchema);
+const NotificationSetting = mongoose.model(
+  "NotificationSetting",
+  notificationSettingSchema
+);
 module.exports = NotificationSetting;

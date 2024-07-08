@@ -3,7 +3,14 @@ const { body } = require("express-validator");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const isAdmin = require("../../../middlewares/isAdmin");
 const { upload } = require("../../../utils/imageOperation");
-const { addPromoCodeController, editPromoCodeController, getAllPromoCodesController, deletePromoCodeController, editPromoCodeStatusController, updateAllPromoCodesStatusController } = require("../../../controllers/admin/promocode/promoCodeController");
+const {
+  addPromoCodeController,
+  editPromoCodeController,
+  getAllPromoCodesController,
+  deletePromoCodeController,
+  editPromoCodeStatusController,
+  updateAllPromoCodesStatusController,
+} = require("../../../controllers/admin/promocode/promoCodeController");
 
 const promoCodeRoute = express.Router();
 
@@ -17,9 +24,15 @@ promoCodeRoute.post(
     body("description").notEmpty().withMessage("Description is required"),
     body("fromDate").notEmpty().withMessage("From date is required"),
     body("toDate").notEmpty().withMessage("To date is required"),
-    body("maxDiscountValue").notEmpty().withMessage("Max discount value is required"),
-    body("minOrderAmount").notEmpty().withMessage("Min order amount is required"),
-    body("maxAllowedUsers").notEmpty().withMessage("Max allowed users is required"),
+    body("maxDiscountValue")
+      .notEmpty()
+      .withMessage("Max discount value is required"),
+    body("minOrderAmount")
+      .notEmpty()
+      .withMessage("Min order amount is required"),
+    body("maxAllowedUsers")
+      .notEmpty()
+      .withMessage("Max allowed users is required"),
     body("appliedOn").notEmpty().withMessage("applied on is required"),
     body("merchantId").notEmpty().withMessage("Merchant Id is required"),
     body("geofenceId").notEmpty().withMessage("Geofence id is required"),
@@ -29,37 +42,40 @@ promoCodeRoute.post(
   addPromoCodeController
 );
 
-promoCodeRoute.put("/edit-promocode/:id",
-    upload.single("promoImage"),
-    isAuthenticated,
-    isAdmin,
-    editPromoCodeController
-)
+promoCodeRoute.put(
+  "/edit-promocode/:id",
+  upload.single("promoImage"),
+  isAuthenticated,
+  isAdmin,
+  editPromoCodeController
+);
 
-promoCodeRoute.get("/get-promocode",
-    isAuthenticated,
-    isAdmin,
-    getAllPromoCodesController
-)
+promoCodeRoute.get(
+  "/get-promocode",
+  isAuthenticated,
+  isAdmin,
+  getAllPromoCodesController
+);
 
-promoCodeRoute.delete("/delete-promocode/:id",
-    isAuthenticated,
-    isAdmin,
-    deletePromoCodeController
-)
+promoCodeRoute.delete(
+  "/delete-promocode/:id",
+  isAuthenticated,
+  isAdmin,
+  deletePromoCodeController
+);
 
-promoCodeRoute.put("/edit-promocode-status/:id",
-    isAuthenticated,
-    isAdmin,
-    editPromoCodeStatusController
-)
+promoCodeRoute.put(
+  "/edit-promocode-status/:id",
+  isAuthenticated,
+  isAdmin,
+  editPromoCodeStatusController
+);
 
-promoCodeRoute.put("/edit-all-promocode",
+promoCodeRoute.put(
+  "/edit-all-promocode",
   isAuthenticated,
   isAdmin,
   updateAllPromoCodesStatusController
-)
-
-
+);
 
 module.exports = promoCodeRoute;

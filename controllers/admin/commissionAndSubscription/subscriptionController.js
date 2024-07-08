@@ -19,12 +19,12 @@ const addMerchantSubscriptionPlanController = async (req, res, next) => {
     const { name, amount, duration, taxId, renewalReminder, description } =
       req.body;
 
-      let totalAmount = "" 
-      if(taxId){
-        const tax = await Tax.findById(taxId)
-        const taxAmount = amount * (tax.tax / 100)
-        totalAmount = amount + taxAmount
-      }
+    let totalAmount = "";
+    if (taxId) {
+      const tax = await Tax.findById(taxId);
+      const taxAmount = amount * (tax.tax / 100);
+      totalAmount = amount + taxAmount;
+    }
 
     const subscriptionPlan = new MerchantSubscription({
       name,
@@ -155,16 +155,23 @@ const addCustomerSubscriptionPlanController = async (req, res, next) => {
   }
 
   try {
-    const { name, amount, duration, taxId, noOfOrder, renewalReminder, description } =
-      req.body;
+    const {
+      name,
+      amount,
+      duration,
+      taxId,
+      noOfOrder,
+      renewalReminder,
+      description,
+    } = req.body;
 
-      let totalAmount = ""
+    let totalAmount = "";
 
-      if(taxId){
-        const tax = await Tax.findById(taxId)
-        const taxAmount = amount * (tax.tax / 100)
-        totalAmount = amount + taxAmount
-      }
+    if (taxId) {
+      const tax = await Tax.findById(taxId);
+      const taxAmount = amount * (tax.tax / 100);
+      totalAmount = amount + taxAmount;
+    }
 
     const subscriptionPlan = new CustomerSubscription({
       name,
@@ -213,8 +220,15 @@ const editCustomerSubscriptionPlanController = async (req, res, next) => {
 
   try {
     const { id } = req.params;
-    const { name, amount, duration, taxId, noOfOrder, renewalReminder, description } =
-      req.body;
+    const {
+      name,
+      amount,
+      duration,
+      taxId,
+      noOfOrder,
+      renewalReminder,
+      description,
+    } = req.body;
 
     const subscriptionPlan = await CustomerSubscription.findById(id);
     if (!subscriptionPlan) {
@@ -223,16 +237,17 @@ const editCustomerSubscriptionPlanController = async (req, res, next) => {
 
     subscriptionPlan.name = name !== undefined ? name : subscriptionPlan.name;
     subscriptionPlan.amount =
-    amount !== undefined ? amount : subscriptionPlan.amount;
+      amount !== undefined ? amount : subscriptionPlan.amount;
     subscriptionPlan.duration =
-    duration !== undefined ? duration : subscriptionPlan.duration;
+      duration !== undefined ? duration : subscriptionPlan.duration;
     subscriptionPlan.taxId =
-    taxId !== undefined ? taxId : subscriptionPlan.taxId;
+      taxId !== undefined ? taxId : subscriptionPlan.taxId;
     subscriptionPlan.renewalReminder =
-    renewalReminder !== undefined
-    ? renewalReminder
-    : subscriptionPlan.renewalReminder;
-    subscriptionPlan.noOfOrder = noOfOrder !== undefined ? noOfOrder : subscriptionPlan.noOfOrder;
+      renewalReminder !== undefined
+        ? renewalReminder
+        : subscriptionPlan.renewalReminder;
+    subscriptionPlan.noOfOrder =
+      noOfOrder !== undefined ? noOfOrder : subscriptionPlan.noOfOrder;
     subscriptionPlan.description =
       description !== undefined ? description : subscriptionPlan.description;
 
@@ -285,7 +300,6 @@ const deleteCustomerSubscriptionPlanController = async (req, res, next) => {
   }
 };
 
-
 module.exports = {
   addMerchantSubscriptionPlanController,
   getAllMerchantSubscriptionPlansController,
@@ -296,5 +310,5 @@ module.exports = {
   getAllCustomerSubscriptionPlansController,
   editCustomerSubscriptionPlanController,
   getSingleCustomerSubscriptionPlanController,
-  deleteCustomerSubscriptionPlanController
-}
+  deleteCustomerSubscriptionPlanController,
+};

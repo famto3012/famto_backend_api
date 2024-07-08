@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const pickAndDropBannerSchema = new mongoose.Schema(
   {
@@ -18,11 +18,14 @@ const pickAndDropBannerSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-},
+  },
   {
     timestamps: true,
   }
 );
 
-const PickAndDropBanner = mongoose.model('PickAndDropBanner', pickAndDropBannerSchema);
+const PickAndDropBanner = mongoose.model(
+  "PickAndDropBanner",
+  pickAndDropBannerSchema
+);
 module.exports = PickAndDropBanner;

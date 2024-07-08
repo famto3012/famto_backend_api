@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const customOrderBannerSchema = new mongoose.Schema(
   {
@@ -18,11 +18,14 @@ const customOrderBannerSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-},
+  },
   {
     timestamps: true,
   }
 );
 
-const CustomOrderBanner = mongoose.model('CustomOrderBanner', customOrderBannerSchema);
+const CustomOrderBanner = mongoose.model(
+  "CustomOrderBanner",
+  customOrderBannerSchema
+);
 module.exports = CustomOrderBanner;

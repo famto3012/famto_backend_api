@@ -321,12 +321,10 @@ const addAlertNotificationController = async (req, res, next) => {
     // Save the alert notification to the database
     await newAlertNotification.save();
 
-    res
-      .status(201)
-      .json({
-        message: "Alert notification added successfully!",
-        alertNotification: newAlertNotification,
-      });
+    res.status(201).json({
+      message: "Alert notification added successfully!",
+      alertNotification: newAlertNotification,
+    });
   } catch (err) {
     next(appError(err.message));
   }

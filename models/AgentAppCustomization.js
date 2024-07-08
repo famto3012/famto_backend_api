@@ -11,8 +11,8 @@ const agentAppCustomizationSchema = new mongoose.Schema(
       default: true,
     },
     phoneNumber: {
-        type: Boolean,
-        default: true,
+      type: Boolean,
+      default: true,
     },
     emailVerification: {
       type: Boolean,
@@ -44,5 +44,8 @@ const agentAppCustomizationSchema = new mongoose.Schema(
   }
 );
 
-const AgentAppCustomization = mongoose.model("AgentAppCustomization", agentAppCustomizationSchema);
+const AgentAppCustomization = mongoose.model(
+  "AgentAppCustomization",
+  agentAppCustomizationSchema
+);
 module.exports = AgentAppCustomization;

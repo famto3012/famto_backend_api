@@ -71,12 +71,10 @@ const editPickAndDropBannerController = async (req, res, next) => {
       return next(appError("Pick and drop Banner not found", 404));
     }
 
-    res
-      .status(200)
-      .json({
-        message: "Pick and drop Banner updated successfully!",
-        banner: updatedBanner,
-      });
+    res.status(200).json({
+      message: "Pick and drop Banner updated successfully!",
+      banner: updatedBanner,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -143,22 +141,21 @@ const deletePickAndDropBannerController = async (req, res, next) => {
 
 const updateStatusPickAndDropBannerController = async (req, res, next) => {
   try {
-
     // Find the banner by ID and delete it
     const updateBanner = await PickAndDropBanner.find();
 
     const updatedBanner = await Promise.all(
-        updateBanner.map(async (Banner) => {
-          if (Banner.status === true) {
-            Banner.status = false;
-            await Banner.save();
-          }else{
-            Banner.status = true;
-            await Banner.save();
-          }
-          return Banner;
-        })
-      );
+      updateBanner.map(async (Banner) => {
+        if (Banner.status === true) {
+          Banner.status = false;
+          await Banner.save();
+        } else {
+          Banner.status = true;
+          await Banner.save();
+        }
+        return Banner;
+      })
+    );
 
     res.status(200).json({
       success: true,

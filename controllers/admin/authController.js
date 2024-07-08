@@ -1,12 +1,10 @@
 const appError = require("../../utils/appError");
 const generateToken = require("../../utils/generateToken");
 const bcrypt = require("bcryptjs");
-const Customer = require("../../models/Customer");
 const Admin = require("../../models/Admin");
 const { validationResult } = require("express-validator");
 const Merchant = require("../../models/Merchant");
 const Manager = require("../../models/Manager");
-
 
 //For Admin and Merchant
 // -----------------------------

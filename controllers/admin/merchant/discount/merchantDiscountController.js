@@ -331,5 +331,5 @@ module.exports = {
   getAllDiscountAdminController,
   updateAllDiscountAdminController,
   updateAllDiscountController,
-  getMerchantDiscountByIdController
+  getMerchantDiscountByIdController,
 };

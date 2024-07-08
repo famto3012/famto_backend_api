@@ -2,8 +2,18 @@ const express = require("express");
 const { body } = require("express-validator");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const isAdmin = require("../../../middlewares/isAdmin");
-const { addProductDiscountController, editProductDiscountController, deleteProductDiscountController, getAllProductDiscountController, updateProductDiscountStatusController, addProductDiscountAdminController, getProductDiscountByIdController } = require("../../../controllers/admin/merchant/discount/productDiscountController");
-const { getAllDiscountAdminController } = require("../../../controllers/admin/merchant/discount/merchantDiscountController");
+const {
+  addProductDiscountController,
+  editProductDiscountController,
+  deleteProductDiscountController,
+  getAllProductDiscountController,
+  updateProductDiscountStatusController,
+  addProductDiscountAdminController,
+  getProductDiscountByIdController,
+} = require("../../../controllers/admin/merchant/discount/productDiscountController");
+const {
+  getAllDiscountAdminController,
+} = require("../../../controllers/admin/merchant/discount/merchantDiscountController");
 
 const productDiscountRoute = express.Router();
 //For Merchant
@@ -12,9 +22,7 @@ productDiscountRoute.post(
   "/add-product-discount",
   [
     body("discountName").notEmpty().withMessage("Discount Name is required"),
-    body("maxAmount")
-      .notEmpty()
-      .withMessage("Max amount is required"),
+    body("maxAmount").notEmpty().withMessage("Max amount is required"),
     body("geofenceId").notEmpty().withMessage("Geofence is required"),
     body("discountType").notEmpty().withMessage("Discount Type is required"),
     body("discountValue").notEmpty().withMessage("Discount value is required"),
@@ -56,8 +64,7 @@ productDiscountRoute.get(
   "/get-product-discount-id/:id",
   isAuthenticated,
   getProductDiscountByIdController
-)
-
+);
 
 //For Admin
 
@@ -65,9 +72,7 @@ productDiscountRoute.post(
   "/add-product-discount-admin",
   [
     body("discountName").notEmpty().withMessage("Discount Name is required"),
-    body("maxAmount")
-      .notEmpty()
-      .withMessage("Max amount is required"),
+    body("maxAmount").notEmpty().withMessage("Max amount is required"),
     body("geofenceId").notEmpty().withMessage("Geofence is required"),
     body("discountType").notEmpty().withMessage("Discount Type is required"),
     body("discountValue").notEmpty().withMessage("Discount value is required"),
@@ -110,6 +115,5 @@ productDiscountRoute.put(
   isAdmin,
   updateProductDiscountStatusController
 );
-
 
 module.exports = productDiscountRoute;

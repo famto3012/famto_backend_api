@@ -10,7 +10,10 @@ const {
   createOrUpdateMerchantCustomizationController,
   getMerchantCustomizationController,
 } = require("../../../controllers/admin/appCustomization/merchantAppCustomizationController");
-const { createOrUpdateCustomerCustomizationController, getCustomerCustomizationController } = require("../../../controllers/admin/appCustomization/customerAppCustomization");
+const {
+  createOrUpdateCustomerCustomizationController,
+  getCustomerCustomizationController,
+} = require("../../../controllers/admin/appCustomization/customerAppCustomization");
 
 const appCustomizationRoute = express.Router();
 
