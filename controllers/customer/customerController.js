@@ -1193,6 +1193,8 @@ const addCartDetailsController = async (req, res, next) => {
       itemTotal: parseFloat(itemTotal).toFixed(2),
     };
 
+    let subTotal;
+
     if (deliveryMode === "Take-away") {
       updatedCartDetail = {
         ...updatedCartDetail,
@@ -1204,6 +1206,8 @@ const addCartDetailsController = async (req, res, next) => {
       updatedBill.originalGrandTotal = parseFloat(itemTotal).toFixed(2);
 
       cart.cartDetail = updatedCartDetail;
+
+      subTotal = itemTotal + parseFloat(addedTip);
     } else {
       updatedCartDetail = {
         ...updatedCartDetail,
@@ -1259,7 +1263,7 @@ const addCartDetailsController = async (req, res, next) => {
         const cartTotal = (itemTotal * diffDays).toFixed(2);
 
         updatedBill.originalDeliveryCharge = scheduledDeliveryCharge;
-        updatedBill.deliveryChargePerday = deliveryCharges;
+        updatedBill.deliveryChargePerDay = deliveryCharges;
         updatedCartDetail.numOfDays = diffDays;
 
         // Update the itemTotal with multiplied value
@@ -1282,6 +1286,10 @@ const addCartDetailsController = async (req, res, next) => {
         ).toFixed(2);
 
         updatedBill.originalGrandTotal = parseFloat(grandTotal);
+        subTotal =
+          parseFloat(itemTotal) * diffDays +
+          parseFloat(scheduledDeliveryCharge) +
+          parseFloat(addedTip);
       } else {
         updatedBill.originalDeliveryCharge = deliveryCharges.toFixed(2);
 
@@ -1302,12 +1310,13 @@ const addCartDetailsController = async (req, res, next) => {
         ).toFixed(2);
 
         updatedBill.originalGrandTotal = parseFloat(grandTotal);
+        subTotal =
+          parseFloat(itemTotal) +
+          parseFloat(deliveryCharges) +
+          parseFloat(addedTip);
       }
-
-      const subTotal = itemTotal + deliveryCharges;
-
-      updatedBill.subTotal = parseFloat(subTotal);
     }
+    updatedBill.subTotal = parseFloat(subTotal).toFixed(2);
 
     // Ensure billDetail is initialized
     cart.billDetail = cart.billDetail || {};
@@ -1450,8 +1459,6 @@ const applyPromocodeController = async (req, res, next) => {
 
         cart.billDetail.discountedDeliveryCharge =
           discountedDeliveryCharge < 0 ? 0 : discountedDeliveryCharge;
-
-        updatedTotal -= discountAmount;
       }
     }
 
@@ -1470,7 +1477,8 @@ const applyPromocodeController = async (req, res, next) => {
 
     const discountedAmount = discountAmount;
 
-    const subTotal = updatedTotal + discountedDeliveryCharge - discountAmount;
+    const subTotal =
+      updatedTotal + discountedDeliveryCharge + (cart.billDetail.addedTip || 0);
 
     cart.billDetail.discountedDeliveryCharge =
       discountedDeliveryCharge.toFixed(2);
@@ -1483,11 +1491,49 @@ const applyPromocodeController = async (req, res, next) => {
     await promoCodeFound.save();
     await cart.save();
 
+    // Populate the cart with product and variant details
+    const populatedCart = await CustomerCart.findOne({ customerId })
+      .populate({
+        path: "items.productId",
+        select: "productName productImageURL description variants",
+      })
+      .exec();
+
+    const populatedCartWithVariantNames = populatedCart.toObject();
+    populatedCartWithVariantNames.items =
+      populatedCartWithVariantNames.items.map((item) => {
+        const product = item.productId;
+        let variantTypeName = null;
+        let variantTypeData = null;
+        if (item.variantTypeId && product.variants) {
+          const variantType = product.variants
+            .flatMap((variant) => variant.variantTypes)
+            .find((type) => type._id.equals(item.variantTypeId));
+          if (variantType) {
+            variantTypeName = variantType.typeName;
+            variantTypeData = {
+              _id: variantType._id,
+              variantTypeName: variantTypeName,
+            };
+          }
+        }
+        return {
+          ...item,
+          productId: {
+            _id: product._id,
+            productName: product.productName,
+            description: product.description,
+            productImageURL: product.productImageURL,
+          },
+          variantTypeId: variantTypeData,
+        };
+      });
+
     res.status(200).json({
       success: "Promo code applied successfully",
       data: {
-        cart,
-        promocodeApplied: discountAmount,
+        data: populatedCartWithVariantNames,
+        // promocodeApplied: discountAmount,
       },
     });
   } catch (err) {
@@ -1515,9 +1561,11 @@ const orderPaymentController = async (req, res, next) => {
       return next(appError("Cart not found", 404));
     }
 
-    const orderAmount = cart.discountedGrandTotal || cart.originalGrandTotal;
+    const orderAmount =
+      cart.billDetail.discountedGrandTotal ||
+      cart.billDetail.originalGrandTotal;
 
-    const deliveryMode = cart.cartDetails.deliveryMode;
+    const deliveryMode = cart.cartDetail.deliveryMode;
 
     const merchant = await Merchant.findById(cart.merchantId);
 
@@ -1525,19 +1573,37 @@ const orderPaymentController = async (req, res, next) => {
       return next(appError("Merchant not found", 404));
     }
 
-    // Parse the provided time and set it to the end date
-    const [hours, minutes] = cart.cartDetails.time.split(":");
-    const ampm = cart.cartDetails.time.slice(-2).toUpperCase();
-    const parsedHours =
-      ampm === "PM" ? (parseInt(hours) % 12) + 12 : parseInt(hours) % 12;
+    let endDate;
+    if (cart.cartDetail.deliveryOption === "Scheduled") {
+      // Parse the provided time and set it to the end date
+      const [hours, minutes] = cart.cartDetail.time.split(":");
+      const ampm = cart.cartDetail.time.slice(-2).toUpperCase();
+      const parsedHours =
+        ampm === "PM" ? (parseInt(hours) % 12) + 12 : parseInt(hours) % 12;
 
-    let endDate = new Date(cart.cartDetails.endDate);
-    endDate.setHours(parsedHours);
-    endDate.setMinutes(parseInt(minutes));
-    endDate.setSeconds(0);
-    endDate.setMilliseconds(0);
+      endDate = new Date(cart.cartDetail.endDate);
+      endDate.setHours(parsedHours);
+      endDate.setMinutes(parseInt(minutes));
+      endDate.setSeconds(0);
+      endDate.setMilliseconds(0);
+    }
 
     let newOrder;
+
+    let orderBill = {
+      deliveryChargePerDay: cart.billDetail.deliveryChargePerDay,
+      deliveryCharge:
+        cart.billDetail.discountedDeliveryCharge ||
+        cart.billDetail.originalDeliveryCharge,
+      taxAmount: cart.billDetail.taxAmount,
+      discountedAmount: cart.billDetail.discountedAmount,
+      grandTotal:
+        cart.billDetail.discountedGrandTotal ||
+        cart.billDetail.originalGrandTotal,
+      itemTotal: cart.billDetail.itemTotal,
+      addedTip: cart.billDetail.addedTip,
+      subTotal: cart.billDetail.subTotal,
+    };
 
     if (paymentMode === "Famto-cash") {
       if (customer.customerDetails.walletBalance < orderAmount) {
@@ -1553,20 +1619,22 @@ const orderPaymentController = async (req, res, next) => {
       );
       await customer.save();
 
-      if (cart.cartDetails.deliveryOption === "Scheduled") {
+      if (cart.cartDetail.deliveryOption === "Scheduled") {
         // Create a scheduled order
+
         newOrder = await ScheduledOrder.create({
           customerId,
           merchantId: cart.merchantId,
           items: cart.items,
-          orderDetail: cart.cartDetails,
+          orderDetail: cart.cartDetail,
+          billDetail: orderBill,
           totalAmount: orderAmount,
           status: "Pending",
           paymentMode: "Famto-cash",
           paymentStatus: "Completed",
-          startDate: cart.cartDetails.startDate,
+          startDate: cart.cartDetail.startDate,
           endDate, //: cart.cartDetails.endDate,
-          time: cart.cartDetails.time,
+          time: cart.cartDetail.time,
         });
 
         // Clear the cart
@@ -1583,7 +1651,8 @@ const orderPaymentController = async (req, res, next) => {
           customerId,
           merchantId: cart.merchantId,
           items: cart.items,
-          orderDetail: cart.cartDetails,
+          orderDetail: cart.cartDetail,
+          billDetail: orderBill,
           totalAmount: orderAmount,
           status: "Pending",
           paymentMode: "Famto-cash",
@@ -1598,7 +1667,8 @@ const orderPaymentController = async (req, res, next) => {
         customerId,
         merchantId: cart.merchantId,
         items: cart.items,
-        orderDetail: cart.cartDetails,
+        orderDetail: cart.cartDetail,
+        billDetail: orderBill,
         totalAmount: orderAmount,
         status: "Pending",
         paymentMode: "Cash-on-delivery",
@@ -1635,17 +1705,16 @@ const orderPaymentController = async (req, res, next) => {
         paymentStatus: newOrder.paymentStatus,
         items: newOrder.items,
         deliveryAddress: newOrder.orderDetail.deliveryAddress,
+        billDetail: newOrder.billDetail,
         orderDetail: {
           pickupLocation: merchant.merchantDetail.location,
-          deliveryLocation: cart.cartDetails.deliveryLocation,
-          deliveryMode: cart.cartDetails.deliveryMode,
-          deliveryOption: cart.cartDetails.deliveryOption,
-          instructionToMerchant: cart.cartDetails.instructionToMerchant,
+          deliveryLocation: cart.cartDetail.deliveryLocation,
+          deliveryMode: cart.cartDetail.deliveryMode,
+          deliveryOption: cart.cartDetail.deliveryOption,
+          instructionToMerchant: cart.cartDetail.instructionToMerchant,
           instructionToDeliveryAgent:
-            cart.cartDetails.instructionToDeliveryAgent,
-          addedTip: cart.cartDetails.addedTip,
-          distance: cart.cartDetails.distance,
-          taxAmount: cart.cartDetails.taxAmount,
+            cart.cartDetail.instructionToDeliveryAgent,
+          distance: cart.cartDetail.distance,
         },
         createdAt: newOrder.createdAt,
         updatedAt: newOrder.updatedAt,
@@ -1671,16 +1740,15 @@ const orderPaymentController = async (req, res, next) => {
           merchantName: merchant.merchantDetail.merchantName,
           location: merchant.merchantDetail.displayAddress,
         },
+        billDetail: newOrder.billDetail,
         orderDetail: {
           pickupLocation: merchant.merchantDetail.location,
-          deliveryMode: cart.cartDetails.deliveryMode,
-          deliveryOption: cart.cartDetails.deliveryOption,
-          instructionToMerchant: cart.cartDetails.instructionToMerchant,
+          deliveryMode: cart.cartDetail.deliveryMode,
+          deliveryOption: cart.cartDetail.deliveryOption,
+          instructionToMerchant: cart.cartDetail.instructionToMerchant,
           instructionToDeliveryAgent:
-            cart.cartDetails.instructionToDeliveryAgent,
-          addedTip: cart.cartDetails.addedTip,
-          distance: cart.cartDetails.distance,
-          taxAmount: cart.cartDetails.taxAmount,
+            cart.cartDetail.instructionToDeliveryAgent,
+          distance: cart.cartDetail.distance,
         },
         createdAt: newOrder.createdAt,
         updatedAt: newOrder.updatedAt,
@@ -1721,7 +1789,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
       return next(appError("Invalid payment", 400));
     }
 
-    const deliveryMode = cart.cartDetails.deliveryMode;
+    const deliveryMode = cart.cartDetail.deliveryMode;
 
     const merchant = await Merchant.findById(cart.merchantId);
 
@@ -1731,33 +1799,52 @@ const verifyOnlinePaymentController = async (req, res, next) => {
 
     const orderAmount = cart.discountedGrandTotal || cart.originalGrandTotal;
 
-    // Parse the provided time and set it to the end date
-    const [hours, minutes] = cart.cartDetails.time.split(":");
-    const ampm = cart.cartDetails.time.slice(-2).toUpperCase();
-    const parsedHours =
-      ampm === "PM" ? (parseInt(hours) % 12) + 12 : parseInt(hours) % 12;
+    let endDate;
+    if (cart.cartDetail.deliveryOption === "Scheduled") {
+      // Parse the provided time and set it to the end date
+      const [hours, minutes] = cart.cartDetail.time.split(":");
+      const ampm = cart.cartDetail.time.slice(-2).toUpperCase();
+      const parsedHours =
+        ampm === "PM" ? (parseInt(hours) % 12) + 12 : parseInt(hours) % 12;
 
-    let endDate = new Date(cart.cartDetails.endDate);
-    endDate.setHours(parsedHours);
-    endDate.setMinutes(parseInt(minutes));
-    endDate.setSeconds(0);
-    endDate.setMilliseconds(0);
+      endDate = new Date(cart.cartDetail.endDate);
+      endDate.setHours(parsedHours);
+      endDate.setMinutes(parseInt(minutes));
+      endDate.setSeconds(0);
+      endDate.setMilliseconds(0);
+    }
+
+    let orderBill = {
+      deliveryChargePerDay: cart.billDetail.deliveryChargePerDay,
+      deliveryCharge:
+        cart.billDetail.discountedDeliveryCharge ||
+        cart.billDetail.originalDeliveryCharge,
+      taxAmount: cart.billDetail.taxAmount,
+      discountedAmount: cart.billDetail.discountedAmount,
+      grandTotal:
+        cart.billDetail.discountedGrandTotal ||
+        cart.billDetail.originalGrandTotal,
+      itemTotal: cart.billDetail.itemTotal,
+      addedTip: cart.billDetail.addedTip,
+      subTotal: cart.billDetail.subTotal,
+    };
 
     // Check if the order is scheduled
-    if (cart.cartDetails.deliveryOption === "Scheduled") {
+    if (cart.cartDetail.deliveryOption === "Scheduled") {
       // Create a scheduled order
       const newOrder = await ScheduledOrder.create({
         customerId,
         merchantId: cart.merchantId,
         items: cart.items,
-        orderDetail: cart.cartDetails,
+        orderDetail: cart.cartDetail,
+        billDetail: orderBill,
         totalAmount: orderAmount,
         status: "Pending",
         paymentMode: "Online-payment",
         paymentStatus: "Completed",
-        startDate: cart.cartDetails.startDate,
+        startDate: cart.cartDetail.startDate,
         endDate, //: cart.cartDetails.endDate,
-        time: cart.cartDetails.time,
+        time: cart.cartDetail.time,
         paymentId: paymentDetails.razorpay_payment_id,
       });
 
@@ -1775,7 +1862,8 @@ const verifyOnlinePaymentController = async (req, res, next) => {
         customerId,
         merchantId: cart.merchantId,
         items: cart.items,
-        orderDetail: cart.cartDetails,
+        orderDetail: cart.cartDetail,
+        billDetail: orderBill,
         totalAmount: orderAmount,
         status: "Pending",
         paymentMode: "Online-payment",
@@ -1799,17 +1887,16 @@ const verifyOnlinePaymentController = async (req, res, next) => {
           paymentStatus: newOrder.paymentStatus,
           items: newOrder.items,
           deliveryAddress: newOrder.orderDetail.deliveryAddress,
+          billDetail: newOrder.billDetail,
           orderDetail: {
             pickupLocation: merchant.merchantDetail.location,
-            deliveryLocation: cart.cartDetails.deliveryLocation,
-            deliveryMode: cart.cartDetails.deliveryMode,
-            deliveryOption: cart.cartDetails.deliveryOption,
-            instructionToMerchant: cart.cartDetails.instructionToMerchant,
+            deliveryLocation: cart.cartDetail.deliveryLocation,
+            deliveryMode: cart.cartDetail.deliveryMode,
+            deliveryOption: cart.cartDetail.deliveryOption,
+            instructionToMerchant: cart.cartDetail.instructionToMerchant,
             instructionToDeliveryAgent:
-              cart.cartDetails.instructionToDeliveryAgent,
-            addedTip: cart.cartDetails.addedTip,
-            distance: cart.cartDetails.distance,
-            taxAmount: cart.cartDetails.taxAmount,
+              cart.cartDetail.instructionToDeliveryAgent,
+            distance: cart.cartDetail.distance,
           },
           createdAt: newOrder.createdAt,
           updatedAt: newOrder.updatedAt,
@@ -1835,16 +1922,15 @@ const verifyOnlinePaymentController = async (req, res, next) => {
             merchantName: merchant.merchantDetail.merchantName,
             location: merchant.merchantDetail.displayAddress,
           },
+          billDetail: newOrder.billDetail,
           orderDetail: {
             pickupLocation: merchant.merchantDetail.location,
-            deliveryMode: cart.cartDetails.deliveryMode,
-            deliveryOption: cart.cartDetails.deliveryOption,
-            instructionToMerchant: cart.cartDetails.instructionToMerchant,
+            deliveryMode: cart.cartDetail.deliveryMode,
+            deliveryOption: cart.cartDetail.deliveryOption,
+            instructionToMerchant: cart.cartDetail.instructionToMerchant,
             instructionToDeliveryAgent:
-              cart.cartDetails.instructionToDeliveryAgent,
-            addedTip: cart.cartDetails.addedTip,
-            distance: cart.cartDetails.distance,
-            taxAmount: cart.cartDetails.taxAmount,
+              cart.cartDetail.instructionToDeliveryAgent,
+            distance: cart.cartDetail.distance,
           },
           createdAt: newOrder.createdAt,
           updatedAt: newOrder.updatedAt,

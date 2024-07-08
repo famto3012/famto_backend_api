@@ -124,10 +124,6 @@ const billSchema = mongoose.Schema(
       type: Number,
       default: null,
     },
-    discountedAmount: {
-      type: Number,
-      default: null,
-    },
     subTotal: {
       type: Number,
       required: true,

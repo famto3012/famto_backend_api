@@ -50,7 +50,7 @@ const scheduledOrderDetailSchema = mongoose.Schema(
       phoneNumber: String,
       flat: String,
       area: String,
-      landmark: String || null,
+      landmark: { type: String, default: null },
     },
     instructionToMerchant: {
       type: String,
@@ -60,19 +60,52 @@ const scheduledOrderDetailSchema = mongoose.Schema(
       type: String,
       default: null,
     },
-    addedTip: {
-      type: Number,
-      default: null,
-    },
     distance: {
-      type: Number,
-    },
-    taxAmount: {
       type: Number,
     },
     numOfDays: {
       type: Number,
       default: null,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
+const billSchema = mongoose.Schema(
+  {
+    deliveryChargePerDay: {
+      type: Number,
+      default: null,
+    },
+    deliveryCharge: {
+      type: Number,
+      required: true,
+    },
+    taxAmount: {
+      type: Number,
+      required: true,
+    },
+    discountedAmount: {
+      type: Number,
+      default: null,
+    },
+    grandTotal: {
+      type: Number,
+      required: true,
+    },
+    itemTotal: {
+      type: Number,
+      default: 0,
+    },
+    addedTip: {
+      type: Number,
+      default: 0,
+    },
+    subTotal: {
+      type: Number,
+      required: true,
     },
   },
   {
@@ -94,6 +127,7 @@ const scheduledOrderSchema = mongoose.Schema(
     },
     items: [scheduledOrderItemSchema],
     orderDetail: scheduledOrderDetailSchema,
+    billDetail: billSchema,
     totalAmount: {
       type: Number,
       required: true,

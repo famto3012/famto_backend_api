@@ -47,7 +47,7 @@ managerRoute.post(
       .isMobilePhone()
       .withMessage("Invalid phone number"),
     body("password").trim().notEmpty().withMessage("Password is required"),
-    body("role").trim().notEmpty().withMessage("Please select a role"),
+    body("domain").trim().notEmpty().withMessage("Please select a domain"),
     body("merchants").trim().notEmpty().withMessage("Please select a merchant"),
     body("geofenceId")
       .trim()
@@ -89,7 +89,7 @@ managerRoute.put(
       .isMobilePhone()
       .withMessage("Invalid phone number"),
     body("password").trim().notEmpty().withMessage("Password is required"),
-    body("role").trim().notEmpty().withMessage("Please select a role"),
+    body("domain").trim().notEmpty().withMessage("Please select a domain"),
     body("merchants").trim().notEmpty().withMessage("Please select a merchant"),
     body("geofenceId")
       .trim()
