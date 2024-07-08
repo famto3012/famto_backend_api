@@ -2,6 +2,10 @@ const { Server } = require("socket.io");
 const http = require("http");
 const express = require("express");
 const Task = require("../models/Task");
+const Agent = require("../models/Agent");
+const Customer = require("../models/Customer");
+const Merchant = require("../models/Merchant");
+const Order = require("../models/Order");
 
 const app = express();
 const server = http.createServer(app);
@@ -27,12 +31,37 @@ io.on("connection", (socket) => {
 
   socket.on("Accepted", async (data) => {
     const task = await Task.find({ orderId: data.orderId });
+    await Order.findByIdAndUpdate(data.orderId, {
+      agentId: data.agentId,
+    });
     if (task.taskStatus === "Assigned") {
       appError("Task already assigned");
     } else {
       await Task.findByIdAndUpdate(task[0]._id, {
         agentId: data.agentId,
         taskStatus: "Assigned",
+      });
+    }
+  });
+
+  socket.on("locationUpdated", async (data) => {
+    const location = [data.latitude, data.longitude];
+
+    const agent = await Agent.findById(userId);
+
+    const merchant = await Merchant.findById(userId);
+
+    if (agent) {
+      await Agent.findByIdAndUpdate(userId, {
+        location,
+      });
+    } else if (merchant) {
+      await Merchant.findByIdAndUpdate(userId, {
+        "merchantDetail.location": location,
+      });
+    } else {
+      await Customer.findByIdAndUpdate(userId, {
+        location,
       });
     }
   });

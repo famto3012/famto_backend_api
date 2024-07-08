@@ -22,6 +22,7 @@ const getManager = async (geofenceId) => {
 };
 
 //Agent register Controller
+//TODO location change from register to login
 const registerAgentController = async (req, res, next) => {
   const { fullName, email, phoneNumber, latitude, longitude } = req.body;
   const location = [latitude, longitude];
