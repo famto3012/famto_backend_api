@@ -15,6 +15,7 @@ const {
   editAgentVehicleController,
   deleteAgentVehicleController,
   changeVehicleStatusController,
+  rateCustomerController,
 } = require("../../controllers/agent/agentController");
 const { body, check } = require("express-validator");
 const { upload } = require("../../utils/imageOperation");
@@ -136,6 +137,13 @@ agentRoute.put(
   "/change-vehicle-status/:vehicleId",
   isAuthenticated,
   changeVehicleStatusController
+);
+
+// Rate customer by order
+agentRoute.post(
+  "/rate-customer/:orderId",
+  isAuthenticated,
+  rateCustomerController
 );
 
 module.exports = agentRoute;

@@ -43,9 +43,6 @@ const subscriptionLogRoute = require("./routes/adminRoute/subscriptionLogRoute/s
 const {
   deleteExpiredSubscriptionPlans,
 } = require("./utils/subscriptionHelpers");
-const {
-  orderCommissionLogHelper,
-} = require("./utils/orderCommissionLogHelper");
 const orderRoute = require("./routes/adminRoute/orderRoute/orderRoute");
 const autoAllocationRoute = require("./routes/adminRoute/deliveryManagementRoute/autoAllocationRoute");
 
@@ -121,8 +118,12 @@ cron.schedule("22 15 * * *", async () => {
   console.log("Running scheduled task to delete expired plans");
   await deleteExpiredSponsorshipPlans();
   await deleteExpiredSubscriptionPlans();
+<<<<<<< HEAD
   const  id = "668b9610ef28ae11d7944639"
   await orderCreateTaskHelper(id)
+=======
+  await orderCreateTaskHelper(id);
+>>>>>>> 5315641f1c0ff628a6763cf94303de39c86f25c3
 });
 
 cron.schedule("* * * * *", async () => {
@@ -133,7 +134,10 @@ cron.schedule("* * * * *", async () => {
   const scheduledOrders = await ScheduledOrder.find({
     status: "Pending",
     $and: [
-      { startDate: { $lte: now } },
+      // { startDate: { $lte: now } },
+      {
+        $or: [{ startDate: { $lte: now } }, { startDate: { $gte: now } }],
+      },
       {
         $or: [{ endDate: { $lte: now } }, { endDate: { $gte: now } }],
       },

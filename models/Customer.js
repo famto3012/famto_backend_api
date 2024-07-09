@@ -29,7 +29,7 @@ const addressSchema = new mongoose.Schema(
       default: null,
     },
     coordinates: {
-      type: [Number], // [longitude, latitude]
+      type: [Number],
       required: true,
     },
   },
@@ -113,7 +113,7 @@ const customerDetailSchema = new mongoose.Schema(
     favoriteMerchants: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Merchants",
+        ref: "Merchant",
       },
     ],
   },
@@ -121,6 +121,32 @@ const customerDetailSchema = new mongoose.Schema(
     _id: false,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
+  }
+);
+
+const walletTransactionDetailSchema = mongoose.Schema(
+  {
+    closingBalance: {
+      type: Number,
+      required: true,
+    },
+    transactionAmount: {
+      type: Number,
+      required: true,
+    },
+    transactionId: {
+      type: String,
+    },
+    orderId: {
+      type: mongoose.Schema.Types.ObjectId,
+    },
+    date: {
+      type: Date,
+      required: true,
+    },
+  },
+  {
+    _id: false,
   }
 );
 
@@ -143,6 +169,7 @@ const customerSchema = new mongoose.Schema(
       default: "Customer",
     },
     customerDetails: customerDetailSchema,
+    walletTransactionDetail: [walletTransactionDetailSchema],
   },
   {
     timestamps: true,

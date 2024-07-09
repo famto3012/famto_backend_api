@@ -6,6 +6,7 @@ const {
   rejectOrderController,
   searchOrderByIdController,
   filterOrdersController,
+  getOrderDetailController,
   getAllOrdersForAdminController,
   confirmOrderByAdminContrroller,
   rejectOrderByAdminController,
@@ -40,6 +41,8 @@ orderRoute.put(
 orderRoute.get("/search-order", isAuthenticated, searchOrderByIdController);
 
 orderRoute.get("/filter", isAuthenticated, filterOrdersController);
+
+orderRoute.get("/:orderId", isAuthenticated, getOrderDetailController);
 
 // -------------------------------------------------
 // For Admin

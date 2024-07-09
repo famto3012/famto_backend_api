@@ -128,6 +128,6 @@ const productSchema = mongoose.Schema(
   }
 );
 
-const VariantType = mongoose.model("VariantType", variantTypeSchema);
+// const VariantType = mongoose.model("VariantType", variantTypeSchema);
 const Product = mongoose.model("Product", productSchema);
-module.exports = { Product, VariantType };
+module.exports = Product;

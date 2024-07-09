@@ -9,6 +9,8 @@ const generateToken = require("../../utils/generateToken");
 const geoLocation = require("../../utils/getGeoLocation");
 const appError = require("../../utils/appError");
 const { default: mongoose } = require("mongoose");
+const Customer = require("../../models/Customer");
+const Order = require("../../models/Order");
 
 //Function for getting agent's manager from geofence
 const getManager = async (geofenceId) => {
@@ -607,6 +609,46 @@ const changeVehicleStatusController = async (req, res, next) => {
   }
 };
 
+const rateCustomerController = async (req, res, next) => {
+  try {
+    const currentAgent = req.userAuth;
+
+    const { orderId } = req.params;
+
+    const { rating, review } = req.body;
+
+    const orderFound = await Order.findById(orderId);
+
+    if (!orderFound) {
+      return next(appError("Order not found", 404));
+    }
+
+    const customerFound = await Customer.findById(orderFound.customerId);
+
+    if (!customerFound) {
+      return next(appError("Customer not found", 404));
+    }
+
+    orderFound.orderRating.ratingByDeliveryAgent.review = review;
+    orderFound.orderRating.ratingByDeliveryAgent.rating = rating;
+
+    let updatedCustomerRating = {
+      agentId: currentAgent,
+      review,
+      rating,
+    };
+
+    customerFound.ratingsByAgents.push(updatedCustomerRating);
+
+    await orderFound.save();
+    await customerFound.save();
+
+    res.status(200).josn({ message: "Customer rated successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerAgentController,
   agentLoginController,
@@ -623,4 +665,5 @@ module.exports = {
   editAgentVehicleController,
   deleteAgentVehicleController,
   changeVehicleStatusController,
+  rateCustomerController,
 };

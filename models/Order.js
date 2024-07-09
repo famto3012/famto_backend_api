@@ -113,6 +113,54 @@ const billSchema = mongoose.Schema(
   }
 );
 
+const orderRatingSchema = mongoose.Schema(
+  {
+    ratingToDeliveryAgent: {
+      review: {
+        type: String,
+        required: true,
+      },
+      rating: {
+        type: Number,
+        required: true,
+        min: 1,
+        max: 5,
+      },
+    },
+    ratingByDeliveryAgent: {
+      review: {
+        type: String,
+        required: true,
+      },
+      rating: {
+        type: Number,
+        required: true,
+        min: 1,
+        max: 5,
+      },
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
+const commissionDetailSchema = mongoose.Schema(
+  {
+    merchantEarnings: {
+      type: Number,
+      required: true,
+    },
+    famtoEarnings: {
+      type: Number,
+      required: true,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
 const orderSchema = mongoose.Schema(
   {
     customerId: {
@@ -157,6 +205,8 @@ const orderSchema = mongoose.Schema(
       enum: ["Pending", "Completed", "Failed"],
       default: "Pending",
     },
+    orderRating: orderRatingSchema,
+    commissionDetail: commissionDetailSchema,
   },
   {
     timestamps: true,
