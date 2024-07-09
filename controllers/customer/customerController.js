@@ -2249,12 +2249,21 @@ const getsingleOrderDetailController = async (req, res, next) => {
 
     const formattedResponse = {
       _id: orderObj._id,
-      // TODO: COmplete the other fields
+      merchantName: orderObj.merchantId.merchantdetail.merchantName,
+      displayAddress: orderObj.merchantId.merchantDetail.displayAddress,
+      deliveryTime: orderObj.merchantId.merchantDetail.deliveryTime,
+      distance: "Need to do",
+      items: orderObj.items,
+      bollDetail: orderObj.billDetail,
+      deliveryAddress: orderObj.orderDetail.deliveryAddress,
+      orderDate: `${formatDate(orderObj.createdAt)}`,
+      orderTime: `${formatTime(orderObj.createdAt)}`,
+      paymentMode: orderObj.paymentMode,
     };
 
     res.status(200).json({
       message: "Single order detail",
-      data: formattedResponse,
+      data: orderObj,
     });
   } catch (err) {
     next(appError(err.message));
