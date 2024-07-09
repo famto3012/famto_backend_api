@@ -10,13 +10,11 @@ const orderCommissionLogHelper = async (orderId) => {
     if (!order) {
       throw new Error("Order not found");
     }
-    console.log("Order:", order);
 
     const merchant = await Merchant.findById(order.merchantId);
     if (!merchant) {
       throw new Error("Merchant not found");
     }
-    console.log("Merchant:", merchant);
 
     const merchantName = merchant.merchantDetail.merchantName;
 
@@ -25,13 +23,8 @@ const orderCommissionLogHelper = async (orderId) => {
       throw new Error("No commission found for the merchant");
     }
     const commission = commissions[0];
-    console.log("Commission:", commission);
 
-    const totalAmount = order.items.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0
-    );
-    console.log("Total Amount:", totalAmount);
+    const totalAmount = order.billDetail.itemTotal;
 
     let payableAmountToMerchant = 0;
     let payableAmountToFamto = 0;
@@ -42,9 +35,6 @@ const orderCommissionLogHelper = async (orderId) => {
       payableAmountToFamto = commission.commissionValue;
       payableAmountToMerchant = totalAmount - payableAmountToFamto;
     }
-
-    console.log("Payable Amount to Famto:", payableAmountToFamto);
-    console.log("Payable Amount to Merchant:", payableAmountToMerchant);
 
     const commissionLog = new CommissionLogs({
       orderId,
@@ -57,8 +47,9 @@ const orderCommissionLogHelper = async (orderId) => {
       status: "Unpaid",
     });
 
-    const saved = await commissionLog.save();
-    console.log("Commission Log Saved:", saved);
+    await commissionLog.save();
+
+    return { payableAmountToFamto, payableAmountToMerchant };
   } catch (err) {
     appError(err.message);
   }

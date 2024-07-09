@@ -94,18 +94,26 @@ const workStructureSchema = mongoose.Schema(
   { _id: false }
 );
 
-const personalDetailSchema = mongoose.Schema({
-  username: {
-    type: String,
-    required: true,
+const agentAppDetailSchema = mongoose.Schema({
+  orders: {
+    type: Number,
+    default: 0,
   },
-  password: {
-    type: String,
-    required: true,
+  pendingOrder: {
+    type: Number,
+    default: 0,
   },
-  homeAddress: {
-    type: String,
-    required: true,
+  totalDistance: {
+    type: Number,
+    default: 0,
+  },
+  cancelledOrders: {
+    type: Number,
+    default: 0,
+  },
+  totalDistance: {
+    type: Number,
+    default: 0,
   },
 });
 
@@ -165,8 +173,8 @@ const agentSchema = mongoose.Schema(
     governmentCertificateDetail: governmentCertificateDetailSchema,
     bankDetail: bankDetailSchema,
     workStructure: workStructureSchema,
-    personalDetail: personalDetailSchema,
     ratingsByCustomers: [ratingsByCustomerSchema],
+    appDetail: agentAppDetailSchema,
   },
   {
     timestamps: true,

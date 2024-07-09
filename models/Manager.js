@@ -39,7 +39,7 @@ const managerSchema = mongoose.Schema(
     },
     domain: {
       type: String,
-      enum: ["role1", "role2"],
+      enum: ["Order", "Finance", "Marketing"],
       required: true,
     },
   },
