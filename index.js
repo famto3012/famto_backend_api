@@ -118,12 +118,9 @@ cron.schedule("22 15 * * *", async () => {
   console.log("Running scheduled task to delete expired plans");
   await deleteExpiredSponsorshipPlans();
   await deleteExpiredSubscriptionPlans();
-<<<<<<< HEAD
-  const  id = "668b9610ef28ae11d7944639"
-  await orderCreateTaskHelper(id)
-=======
+
+  const id = "668b9610ef28ae11d7944639";
   await orderCreateTaskHelper(id);
->>>>>>> 5315641f1c0ff628a6763cf94303de39c86f25c3
 });
 
 cron.schedule("* * * * *", async () => {
