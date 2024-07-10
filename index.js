@@ -49,10 +49,13 @@ const autoAllocationRoute = require("./routes/adminRoute/deliveryManagementRoute
 require("dotenv").config();
 require("./config/dbConnect");
 const { createOrdersFromScheduled } = require("./utils/customerAppHelpers");
-
 const { app, server } = require("./socket/socket.js");
 const ScheduledOrder = require("./models/ScheduledOrder.js");
 const { orderCreateTaskHelper } = require("./utils/orderCreateTaskHelper.js");
+const {
+  resetAllAgentTaskHelper,
+} = require("./utils/resetAllAgentTaskHelper.js");
+const taskRoute = require("./routes/adminRoute/deliveryManagementRoute/taskRoute.js");
 
 // const app = express();
 
@@ -105,6 +108,7 @@ app.use("/api/v1/admin/subscription-payment", subscriptionLogRoute);
 app.use("/api/v1/merchant/subscription-payment", subscriptionLogRoute);
 app.use("/api/v1/orders", orderRoute);
 app.use("/api/v1/admin/auto-allocation", autoAllocationRoute);
+app.use("/api/v1/admin/delivery-management", taskRoute);
 
 //agent
 app.use("/api/v1/agents", agentRoute);
@@ -118,8 +122,6 @@ cron.schedule("22 15 * * *", async () => {
   console.log("Running scheduled task to delete expired plans");
   await deleteExpiredSponsorshipPlans();
   await deleteExpiredSubscriptionPlans();
-  const id = "668b9610ef28ae11d7944639";
-  await orderCreateTaskHelper(id);
 });
 
 cron.schedule("* * * * *", async () => {
@@ -152,6 +154,10 @@ cron.schedule("* * * * *", async () => {
     console.log("Processing Scheduled Order ID:", scheduledOrder._id);
     await createOrdersFromScheduled(scheduledOrder);
   }
+});
+
+cron.schedule("0 0 * * *", async () => {
+  await resetAllAgentTaskHelper();
 });
 
 //global errors

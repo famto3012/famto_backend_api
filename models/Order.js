@@ -45,6 +45,10 @@ const orderDetailSchema = mongoose.Schema(
       enum: ["On-demand", "Scheduled"],
       required: true,
     },
+    deliveryTime: {
+      type: Date,
+      default: null,
+    },
     deliveryAddress: {
       fullName: String,
       phoneNumber: String,
