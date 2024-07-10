@@ -33,6 +33,10 @@ const {
   getsingleOrderDetailController,
   getTransactionOfCustomerController,
   getCustomerSubscriptionDetailController,
+  getPromocodesOfCustomerController,
+  searchPromocodeController,
+  searchOrderController,
+  getWalletAndLoyaltyController,
 } = require("../../controllers/customer/customerController");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const { upload } = require("../../utils/imageOperation");
@@ -196,6 +200,8 @@ customerRoute.get(
   getsingleOrderDetailController
 );
 
+customerRoute.get("/search-orders", isAuthenticated, searchOrderController);
+
 customerRoute.get(
   "/transaction-details",
   isAuthenticated,
@@ -206,6 +212,24 @@ customerRoute.get(
   "/subscription-details",
   isAuthenticated,
   getCustomerSubscriptionDetailController
+);
+
+customerRoute.get(
+  "/all-promocodes",
+  isAuthenticated,
+  getPromocodesOfCustomerController
+);
+
+customerRoute.get(
+  "/search-promocodes",
+  isAuthenticated,
+  searchPromocodeController
+);
+
+customerRoute.get(
+  "/get-wallet-and-loyalty",
+  isAuthenticated,
+  getWalletAndLoyaltyController
 );
 
 module.exports = customerRoute;

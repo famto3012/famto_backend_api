@@ -124,10 +124,25 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
   }
 };
 
+const updateOneDayLoyaltyPointEarning = async () => {
+  console.log("Running Update Loyalty point updation");
+  try {
+    await Customer.updateMany(
+      {},
+      { "customerDetails.loyaltyPointEarnedToday": 0 }
+    );
+
+    console.log("Loyalty points reset successfully");
+  } catch (err) {
+    console.log(`Error in updating loyalty point: ${err}`);
+  }
+};
+
 module.exports = {
   sortMerchantsBySponsorship,
   getDistanceFromPickupToDelivery,
   calculateDeliveryCharges,
   getTaxAmount,
   createOrdersFromScheduled,
+  updateOneDayLoyaltyPointEarning,
 };

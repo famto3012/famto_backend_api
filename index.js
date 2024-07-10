@@ -48,7 +48,10 @@ const autoAllocationRoute = require("./routes/adminRoute/deliveryManagementRoute
 
 require("dotenv").config();
 require("./config/dbConnect");
-const { createOrdersFromScheduled } = require("./utils/customerAppHelpers");
+const {
+  createOrdersFromScheduled,
+  updateOneDayLoyaltyPointEarning,
+} = require("./utils/customerAppHelpers");
 const { app, server } = require("./socket/socket.js");
 const ScheduledOrder = require("./models/ScheduledOrder.js");
 const { orderCreateTaskHelper } = require("./utils/orderCreateTaskHelper.js");
@@ -157,6 +160,7 @@ cron.schedule("* * * * *", async () => {
 });
 
 cron.schedule("0 0 * * *", async () => {
+  await updateOneDayLoyaltyPointEarning();
   await resetAllAgentTaskHelper();
 });
 
