@@ -75,7 +75,8 @@ const customerDetailSchema = new mongoose.Schema(
     },
     pricing: [
       {
-        type: mongoose.Schema.Types.Mixed,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "SubscriptionLog",
         required: true,
         default: [],
       },
@@ -150,6 +151,26 @@ const walletTransactionDetailSchema = mongoose.Schema(
   }
 );
 
+const transactionDetailSchema = mongoose.Schema(
+  {
+    transactionAmount: {
+      type: Number,
+      required: true,
+    },
+    transactionType: {
+      type: String,
+      required: true,
+    },
+    madeOn: {
+      type: Date,
+      required: true,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
 const customerSchema = new mongoose.Schema(
   {
     fullName: {
@@ -170,6 +191,7 @@ const customerSchema = new mongoose.Schema(
     },
     customerDetails: customerDetailSchema,
     walletTransactionDetail: [walletTransactionDetailSchema],
+    transactionDetail: [transactionDetailSchema],
   },
   {
     timestamps: true,

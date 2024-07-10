@@ -4,7 +4,7 @@ const customerSubscriptionSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      default: "subscription",
+      default: "Subscription",
     },
     name: {
       type: String,
