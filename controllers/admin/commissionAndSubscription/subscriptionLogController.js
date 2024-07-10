@@ -196,6 +196,7 @@ const verifyRazorpayPayment = async (req, res, next) => {
       transactionAmount: amount,
       transactionType: "Subscription",
       madeOn: new Date(),
+      type: "Debit",
     };
 
     if (typeOfUser === "Merchant") {

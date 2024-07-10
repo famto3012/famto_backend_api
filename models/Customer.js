@@ -105,6 +105,12 @@ const customerDetailSchema = new mongoose.Schema(
       default: null,
     },
     otherAddress: [addressSchema],
+    loyaltyPointEarnedToday: {
+      type: Number,
+    },
+    totalLoyaltyPointEarned: {
+      type: Number,
+    },
     favoriteProducts: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -159,6 +165,11 @@ const transactionDetailSchema = mongoose.Schema(
     },
     transactionType: {
       type: String,
+      required: true,
+    },
+    type: {
+      type: String,
+      enum: ["Credit", "Debit"],
       required: true,
     },
     madeOn: {

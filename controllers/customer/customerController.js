@@ -37,6 +37,7 @@ const {
   formatTime,
 } = require("../../utils/formatters");
 const CustomerSubscription = require("../../models/CustomerSubscription");
+const LoyaltyPoint = require("../../models/LoyaltyPoint");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -403,7 +404,9 @@ const homeSearchController = async (req, res, next) => {
 
 // List the available restaurants in the customers geofence
 const listRestaurantsController = async (req, res, next) => {
-  const { latitude, longitude, customerId } = req.body;
+  const { latitude, longitude, customerId, businessCategoryId } = req.body;
+
+  console.log(businessCategoryId);
   try {
     // Fetch the authenticated customer to get their favorite merchants, if they exist
     let currentCustomer = null;
@@ -438,6 +441,7 @@ const listRestaurantsController = async (req, res, next) => {
     // Query merchants based on geofence and other conditions
     const merchants = await Merchant.find({
       "merchantDetail.geofenceId": foundGeofence._id,
+      "merchantDetail.businessCategoryId": businessCategoryId,
       isBlocked: false,
       isApproved: "Approved",
     }).exec();
@@ -483,7 +487,7 @@ const listRestaurantsController = async (req, res, next) => {
           averageRating: merchant.merchantDetail.averageRating,
           status: merchant.status,
           distanceInKM: parseFloat(distance),
-          restaurantType: merchant.merchantDetail.ifRestaurant || "N/A",
+          restaurantType: merchant.merchantDetail.merchantFoodType || "N/A",
           merchantImageURL: merchant.merchantDetail.merchantImageURL,
           isFavorite,
         };
@@ -708,7 +712,7 @@ const filterMerchantController = async (req, res, next) => {
         description: merchant.merchantDetail.description,
         deliveryTime: merchant.merchantDetail.deliveryTime,
         displayAddress: merchant.merchantDetail.displayAddress,
-        ifRestaurant: merchant.merchantDetail.ifRestaurant,
+        merchantFoodType: merchant.merchantDetail.merchantFoodType,
         distance: distance.toFixed(2),
       };
     });
@@ -1613,6 +1617,7 @@ const orderPaymentController = async (req, res, next) => {
       closingBalance: customer?.customerDetails?.walletBalance,
       transactionAmount: orderAmount,
       date: new Date(),
+      type: "Debit",
     };
 
     let customerTransation = {
@@ -1620,6 +1625,33 @@ const orderPaymentController = async (req, res, next) => {
       transactionType: "Bill",
       transactionAmount: orderAmount,
     };
+
+    const loyaltyPointCriteria = await LoyaltyPoint.findOne({ status: true });
+
+    let loyaltyPoint = 0;
+    const loyaltyPointEarnedToday =
+      customer.customerDetails?.loyaltyPointEarnedToday || 0;
+
+    if (loyaltyPointCriteria) {
+      if (orderAmount >= loyaltyPointCriteria.minOrderAmountForEarning) {
+        if (loyaltyPointEarnedToday < loyaltyPointCriteria.maxEarningPoint) {
+          const calculatedLoyaltyPoint = Math.min(
+            orderAmount * loyaltyPointCriteria.earningCriteraPoint,
+            loyaltyPointCriteria.maxEarningPoint - loyaltyPointEarnedToday
+          );
+          customer.customerDetails.loyaltyPointEarnedToday =
+            customer.customerDetails.loyaltyPointEarnedToday +
+            Number(calculatedLoyaltyPoint);
+          customer.customerDetails.totalLoyaltyPointEarned =
+            customer.customerDetails.totalLoyaltyPointEarned +
+            Number(calculatedLoyaltyPoint);
+        }
+      }
+    }
+    // TODO: Correct loyalty point adding to DB
+
+    console.log("loyaltyPointEarnedToday", loyaltyPointEarnedToday);
+    console.log("loyaltyPoint", loyaltyPoint);
 
     if (paymentMode === "Famto-cash") {
       if (customer.customerDetails.walletBalance < orderAmount) {
@@ -1857,6 +1889,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
       madeOn: new Date(),
       transactionType: "Bill",
       transactionAmount: orderAmount,
+      type: "Debit",
     };
 
     // Check if the order is scheduled
@@ -2032,6 +2065,7 @@ const verifyWalletRechargeController = async (req, res, next) => {
       madeOn: new Date(),
       transactionType: "Top-up",
       transactionAmount: parsedAmount,
+      type: "Credit",
     };
 
     // Ensure walletBalance is initialized
@@ -2131,7 +2165,7 @@ const getFavoriteMerchantsController = async (req, res, next) => {
           averageRating: merchant.merchantDetail.averageRating,
           status: merchant.status,
           distanceInKM: parseFloat(distance),
-          restaurantType: merchant.merchantDetail.ifRestaurant || "N/A",
+          restaurantType: merchant.merchantDetail.taurant || "N/A",
           merchantImageURL: merchant.merchantDetail.merchantImageURL,
           isFavorite,
         };
@@ -2309,6 +2343,102 @@ const getsingleOrderDetailController = async (req, res, next) => {
   }
 };
 
+// Search order by dish or Merchant
+const searchOrderController = async (req, res, next) => {
+  try {
+    const currentCustomer = req.userAuth;
+    const { query } = req.query;
+
+    if (!query) {
+      return next(appError("Search query is required", 400));
+    }
+
+    console.log("Customer ID:", currentCustomer);
+    console.log("Search Query:", query);
+
+    const ordersOfCustomer = await Order.find({
+      customerId: currentCustomer,
+    })
+      .sort({ createdAt: -1 })
+      .populate({
+        path: "merchantId",
+        select: "merchantDetail",
+      })
+      .populate({
+        path: "items.productId",
+        select: "productName productImageURL description variants",
+      })
+      .exec();
+
+    // Filter orders based on the search query
+    const filteredOrders = ordersOfCustomer.filter((order) => {
+      const merchantName =
+        order.merchantId.merchantDetail.merchantName.toLowerCase();
+      const items = order.items.some((item) => {
+        return item.productId.productName
+          .toLowerCase()
+          .includes(query.toLowerCase());
+      });
+      return merchantName.includes(query.toLowerCase()) || items;
+    });
+
+    console.log("Orders Found:", filteredOrders.length);
+
+    const populatedOrdersWithVariantNames = filteredOrders.map((order) => {
+      const orderObj = order.toObject();
+      orderObj.items = orderObj.items.map((item) => {
+        const product = item.productId;
+        let variantTypeName = null;
+        let variantTypeData = null;
+        if (item.variantTypeId && product.variants) {
+          const variantType = product.variants
+            .flatMap((variant) => variant.variantTypes)
+            .find((type) => type._id.equals(item.variantTypeId));
+          if (variantType) {
+            variantTypeName = variantType.typeName;
+            variantTypeData = {
+              _id: variantType._id,
+              variantTypeName: variantTypeName,
+            };
+          }
+        }
+        return {
+          ...item,
+          productId: {
+            _id: product._id,
+            productName: product.productName,
+            description: product.description,
+            productImageURL: product.productImageURL,
+          },
+          variantTypeId: variantTypeData,
+        };
+      });
+      return orderObj;
+    });
+
+    const formattedResponse = populatedOrdersWithVariantNames.map((order) => {
+      return {
+        _id: order._id,
+        merchantName: order.merchantId.merchantDetail.merchantName,
+        displayAddress: order.merchantId.merchantDetail.displayAddress,
+        orderStatus: order.status,
+        orderDate: `${formatDate(order.createdAt)} | ${formatTime(
+          order.createdAt
+        )}`,
+        items: order.items,
+        grandTotal: order.billDetail.grandTotal,
+      };
+    });
+
+    res.status(200).json({
+      message: "Search results for orders",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 // Get transaction details of customer
 const getTransactionOfCustomerController = async (req, res, next) => {
   try {
@@ -2415,6 +2545,110 @@ const getCustomerSubscriptionDetailController = async (req, res, next) => {
   }
 };
 
+// Get all promocodes by customer geofence
+const getPromocodesOfCustomerController = async (req, res, next) => {
+  try {
+    const currentCustomer = req.userAuth;
+    const customerFound = await Customer.findById(currentCustomer);
+
+    if (!customerFound) {
+      return next(appError("Customer not found", 404));
+    }
+
+    const currentDate = new Date();
+
+    const promocodesFound = await PromoCode.find({
+      status: true,
+      geofenceId: customerFound.customerDetails.geofenceId,
+      fromDate: { $lte: currentDate },
+      toDate: { $gte: currentDate },
+      $expr: { $lt: ["$noOfUserUsed", "$maxAllowedUsers"] },
+    });
+
+    const formattedResponse = promocodesFound.map((promo) => {
+      return {
+        _id: promo._id,
+        imageURL: promo.imageUrl,
+        promoCode: promo.promoCode,
+        validUpTo: formatDate(promo.toDate),
+      };
+    });
+
+    res.status(200).json({
+      status: "Available promocodes",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Search available promo codes
+const searchPromocodeController = async (req, res, next) => {
+  try {
+    const currentCustomer = req.userAuth;
+
+    const customerFound = await Customer.findById(currentCustomer);
+
+    if (!customerFound) {
+      return next(appError("Customer not found", 404));
+    }
+
+    const { query } = req.query;
+
+    const currentDate = new Date();
+
+    const promocodesFound = await PromoCode.find({
+      promoCode: { $regex: query.trim(), $options: "i" },
+      status: true,
+      geofenceId: customerFound.customerDetails.geofenceId,
+      fromDate: { $lte: currentDate },
+      toDate: { $gte: currentDate },
+      $expr: { $lt: ["$noOfUserUsed", "$maxAllowedUsers"] },
+    });
+
+    const formattedResponse = promocodesFound.map((promo) => {
+      return {
+        _id: promo._id,
+        imageURL: promo.imageUrl,
+        promoCode: promo.promoCode,
+        validUpTo: formatDate(promo.toDate),
+      };
+    });
+
+    res.status(200).json({
+      status: "Search results of promocode",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get wallet balance and Loyalty points of customer
+const getWalletAndLoyaltyController = async (req, res, next) => {
+  try {
+    const currentCustomer = req.userAuth;
+
+    const customerFound = await Customer.findById(currentCustomer).select(
+      "customerDetails.walletBalance customerDetails.LotaltyPoints"
+    );
+
+    const customerData = {
+      walletBalance: customerFound.customerDetails?.walletBalance || 0,
+      loyaltyPoints:
+        customerFound.customerDetails?.totalLoyaltyPointEarned || 0,
+    };
+
+    res.status(200).json({
+      message: "Wallet balance and loyalty points of customer",
+      data: customerData,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerAndLoginController,
   getCustomerProfileController,
@@ -2445,4 +2679,8 @@ module.exports = {
   getsingleOrderDetailController,
   getTransactionOfCustomerController,
   getCustomerSubscriptionDetailController,
+  getPromocodesOfCustomerController,
+  searchPromocodeController,
+  searchOrderController,
+  getWalletAndLoyaltyController,
 };

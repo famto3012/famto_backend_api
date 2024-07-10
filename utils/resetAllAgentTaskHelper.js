@@ -3,6 +3,7 @@ const appError = require("./appError");
 
 // Helper function to reset all agents' tasks to zero
 const resetAllAgentTaskHelper = async (req, res, next) => {
+  console.log("Running Agent's task updation");
   try {
     const agents = await Agent.find();
     for (const agent of agents) {

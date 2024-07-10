@@ -9,7 +9,7 @@ const promoCodeSchema = new mongoose.Schema(
     promoType: {
       type: String,
       required: true,
-      enum: ["Flat-discount", "Percentage-discount"], // assuming these are the only two types
+      enum: ["Flat-discount", "Percentage-discount"],
     },
     discount: {
       type: Number,
@@ -41,7 +41,7 @@ const promoCodeSchema = new mongoose.Schema(
     appliedOn: {
       type: String,
       required: true,
-      enum: ["Cart-value", "Delivery-charge"], // assuming these are the only two options
+      enum: ["Cart-value", "Delivery-charge"],
     },
     merchantId: {
       type: mongoose.Schema.Types.ObjectId,
