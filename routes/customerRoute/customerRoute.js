@@ -31,6 +31,8 @@ const {
   getFavoriteMerchantsController,
   getCustomerOrdersController,
   getsingleOrderDetailController,
+  getTransactionOfCustomerController,
+  getCustomerSubscriptionDetailController,
 } = require("../../controllers/customer/customerController");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const { upload } = require("../../utils/imageOperation");
@@ -164,13 +166,13 @@ customerRoute.post(
 
 customerRoute.post(
   "/wallet-recharge",
-  isAuthenticated,
+  // isAuthenticated,
   addWalletBalanceController
 );
 
 customerRoute.post(
   "/verify-wallet-recharge",
-  isAuthenticated,
+  // isAuthenticated,
   verifyWalletRechargeController
 );
 
@@ -192,6 +194,18 @@ customerRoute.get(
   "/orders/:orderId",
   isAuthenticated,
   getsingleOrderDetailController
+);
+
+customerRoute.get(
+  "/transaction-details",
+  isAuthenticated,
+  getTransactionOfCustomerController
+);
+
+customerRoute.get(
+  "/subscription-details",
+  isAuthenticated,
+  getCustomerSubscriptionDetailController
 );
 
 module.exports = customerRoute;

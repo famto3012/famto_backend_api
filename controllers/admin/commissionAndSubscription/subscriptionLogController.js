@@ -192,13 +192,22 @@ const verifyRazorpayPayment = async (req, res, next) => {
 
     await subscriptionLog.save();
 
+    let transactionDetail = {
+      transactionAmount: amount,
+      transactionType: "Subscription",
+      madeOn: new Date(),
+    };
+
     if (typeOfUser === "Merchant") {
       const merchantFound = await Merchant.findById(userId);
       merchantFound.merchantDetail.pricing.push(subscriptionLog._id);
       await merchantFound.save();
     } else {
       const customerFound = await Customer.findById(userId);
+
       customerFound.customerDetails.pricing.push(subscriptionLog._id);
+      customerFound.transactionDetail.push(transactionDetail);
+
       await customerFound.save();
     }
 

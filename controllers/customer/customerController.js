@@ -36,6 +36,7 @@ const {
   formatDate,
   formatTime,
 } = require("../../utils/formatters");
+const CustomerSubscription = require("../../models/CustomerSubscription");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -498,7 +499,7 @@ const listRestaurantsController = async (req, res, next) => {
   }
 };
 
-// Get all the availbel categories and products of a merchant
+// Get all the availble categories and products of a merchant
 const getMerchantWithCategoriesAndProductsController = async (
   req,
   res,
@@ -1608,10 +1609,16 @@ const orderPaymentController = async (req, res, next) => {
       subTotal: cart.billDetail.subTotal,
     };
 
-    let transactionDetail = {
+    let walletTransaction = {
       closingBalance: customer?.customerDetails?.walletBalance,
       transactionAmount: orderAmount,
       date: new Date(),
+    };
+
+    let customerTransation = {
+      madeOn: new Date(),
+      transactionType: "Bill",
+      transactionAmount: orderAmount,
     };
 
     if (paymentMode === "Famto-cash") {
@@ -1672,8 +1679,9 @@ const orderPaymentController = async (req, res, next) => {
         await CustomerCart.deleteOne({ customerId });
       }
 
-      transactionDetail.orderId = newOrder._id;
-      customer.walletTransactionDetail.push(transactionDetail);
+      walletTransaction.orderId = newOrder._id;
+      customer.walletTransactionDetail.push(walletTransaction);
+      customer.transactionDetail.push(customerTransation);
       await customer.save();
     } else if (paymentMode === "Cash-on-delivery") {
       newOrder = await Order.create({
@@ -1687,6 +1695,9 @@ const orderPaymentController = async (req, res, next) => {
         paymentMode: "Cash-on-delivery",
         paymentStatus: "Pending",
       });
+
+      customer.transactionDetail.push(customerTransation);
+      await customer.save();
 
       // Clear the cart
       await CustomerCart.deleteOne({ customerId });
@@ -1842,6 +1853,12 @@ const verifyOnlinePaymentController = async (req, res, next) => {
       subTotal: cart.billDetail.subTotal,
     };
 
+    let customerTransation = {
+      madeOn: new Date(),
+      transactionType: "Bill",
+      transactionAmount: orderAmount,
+    };
+
     // Check if the order is scheduled
     if (cart.cartDetail.deliveryOption === "Scheduled") {
       // Create a scheduled order
@@ -1863,6 +1880,9 @@ const verifyOnlinePaymentController = async (req, res, next) => {
 
       // Clear the cart
       await CustomerCart.deleteOne({ customerId });
+
+      customer.transactionDetail.push(customerTransation);
+      await customer.save();
 
       res.status(200).json({
         message: "Scheduled order created successfully",
@@ -1886,6 +1906,8 @@ const verifyOnlinePaymentController = async (req, res, next) => {
 
       // Clear the cart
       await CustomerCart.deleteOne({ customerId });
+      customer.transactionDetail.push(customerTransation);
+      await customer.save();
 
       if (deliveryMode === "Delivery") {
         const orderResponse = {
@@ -1980,8 +2002,8 @@ const addWalletBalanceController = async (req, res, next) => {
 // Verifying adding money to wallet
 const verifyWalletRechargeController = async (req, res, next) => {
   try {
-    const { paymentDetails, amount } = req.body;
-    const customerId = req.userAuth;
+    const { paymentDetails, amount, customerId } = req.body;
+    // const customerId = req.userAuth;
 
     if (!customerId) {
       return next(appError("Customer is not authenticated", 401));
@@ -1999,11 +2021,17 @@ const verifyWalletRechargeController = async (req, res, next) => {
       return next(appError("Invalid payment", 400));
     }
 
-    let transactionDetail = {
+    let walletTransaction = {
       closingBalance: customer?.customerDetails?.walletBalance || 0,
       transactionAmount: parsedAmount,
       transactionId: paymentDetails.razorpay_payment_id,
       date: new Date(),
+    };
+
+    let customerTransation = {
+      madeOn: new Date(),
+      transactionType: "Top-up",
+      transactionAmount: parsedAmount,
     };
 
     // Ensure walletBalance is initialized
@@ -2011,7 +2039,9 @@ const verifyWalletRechargeController = async (req, res, next) => {
       parseFloat(customer?.customerDetails?.walletBalance) || 0;
     customer.customerDetails.walletBalance += parsedAmount;
 
-    customer.walletTransactionDetail.push(transactionDetail);
+    customer.walletTransactionDetail.push(walletTransaction);
+
+    customer.transactionDetail.push(customerTransation);
 
     await customer.save();
 
@@ -2204,7 +2234,7 @@ const getsingleOrderDetailController = async (req, res, next) => {
     })
       .populate({
         path: "merchantId",
-        select: "merchantDetail",
+        select: "phoneNumber merchantDetail",
       })
       .populate({
         path: "items.productId",
@@ -2212,11 +2242,13 @@ const getsingleOrderDetailController = async (req, res, next) => {
       })
       .exec();
 
-    console.log(singleOrderDetail);
-
     if (!singleOrderDetail) {
       return next(appError("Order not found", 404));
     }
+
+    const customer = await Customer.findById(currentCustomer).select(
+      "customerDetails.location"
+    );
 
     const orderObj = singleOrderDetail.toObject();
     orderObj.items = orderObj.items.map((item) => {
@@ -2247,23 +2279,136 @@ const getsingleOrderDetailController = async (req, res, next) => {
       };
     });
 
+    const distance = await getDistanceFromPickupToDelivery(
+      orderObj.merchantId.merchantDetail.location,
+      customer.customerDetails.location[0]
+    );
+
     const formattedResponse = {
       _id: orderObj._id,
-      merchantName: orderObj.merchantId.merchantdetail.merchantName,
+      merchantName: orderObj.merchantId.merchantDetail.merchantName,
       displayAddress: orderObj.merchantId.merchantDetail.displayAddress,
       deliveryTime: orderObj.merchantId.merchantDetail.deliveryTime,
-      distance: "Need to do",
+      distance,
       items: orderObj.items,
-      bollDetail: orderObj.billDetail,
+      billDetail: orderObj.billDetail,
       deliveryAddress: orderObj.orderDetail.deliveryAddress,
       orderDate: `${formatDate(orderObj.createdAt)}`,
       orderTime: `${formatTime(orderObj.createdAt)}`,
       paymentMode: orderObj.paymentMode,
+      merchantPhone: orderObj.merchantId.phoneNumber,
+      fssaiNumber: orderObj.merchantId.merchantDetail.FSSAINumber,
     };
 
     res.status(200).json({
       message: "Single order detail",
-      data: orderObj,
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get transaction details of customer
+const getTransactionOfCustomerController = async (req, res, next) => {
+  try {
+    const currentCustomer = req.userAuth;
+
+    const customerFound = await Customer.findById(currentCustomer)
+      .select("fullName customerDetails.customerImageURL transactionDetail")
+      .exec();
+
+    if (!customerFound) {
+      return next(appError("Customer not found", 404));
+    }
+
+    const sortedTransactions = customerFound?.transactionDetail.sort(
+      (a, b) => new Date(b.madeOn) - new Date(a.madeOn)
+    );
+
+    const formattedData = sortedTransactions.map((transaction) => {
+      return {
+        customerName: customerFound.fullName || "N/A",
+        customerImage:
+          customerFound.customerDetails.customerImageURL ||
+          "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/AgentImages%2Fdemo-image.png-0fe7a62e-6d1c-4e5f-9d3c-87698bdfc32e?alt=media&token=97737725-250d-481e-a8db-69bdaedbb073",
+        transactionAmount: transaction.transactionAmount,
+        transactionType: transaction.transactionType,
+        transactionDate: `${formatDate(transaction.madeOn)}`,
+        transactionTime: `${formatTime(transaction.madeOn)}`,
+      };
+    });
+
+    res.status(200).json({
+      message: "Customer transaction detail",
+      data: formattedData,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get subscriptions details of customer
+const getCustomerSubscriptionDetailController = async (req, res, next) => {
+  try {
+    const currentCustomer = req.userAuth;
+
+    const allSubscriptionPlans = await CustomerSubscription.find({});
+
+    const currentSubscriptionLog = await Customer.findById(currentCustomer)
+      .select("customerDetails")
+      .populate({
+        path: "customerDetails.pricing",
+        model: "SubscriptionLog",
+      })
+      .exec();
+
+    if (
+      !currentSubscriptionLog ||
+      !currentSubscriptionLog.customerDetails.pricing ||
+      !currentSubscriptionLog.customerDetails.pricing.length
+    ) {
+      return res.status(404).json({
+        message: "No active subscription plan found for the customer.",
+      });
+    }
+
+    const currentSubscriptionPlanId =
+      currentSubscriptionLog.customerDetails.pricing[0].planId;
+
+    const currentSubscription = await CustomerSubscription.findById(
+      currentSubscriptionPlanId
+    );
+
+    if (!currentSubscription) {
+      return res.status(404).json({
+        message: "Subscription plan not found.",
+      });
+    }
+
+    const startDate =
+      currentSubscriptionLog.customerDetails.pricing[0].startDate;
+    const endDate = currentSubscriptionLog.customerDetails.pricing[0].endDate;
+
+    const currentDate = new Date(startDate);
+    const endDateObject = new Date(endDate);
+    const timeDiff = endDateObject - currentDate;
+    const daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+    const formattedCurrentSubscriptionPlan = {
+      planName: currentSubscription.name,
+      duration: currentSubscription.duration,
+      amount: currentSubscription.amount,
+      description: currentSubscription.description,
+      daysLeft,
+    };
+
+    res.status(200).json({
+      message: "Subscription plan details",
+      data: {
+        allSubscriptionPlans,
+        currentSubscription: formattedCurrentSubscriptionPlan,
+      },
     });
   } catch (err) {
     next(appError(err.message));
@@ -2298,4 +2443,6 @@ module.exports = {
   getFavoriteMerchantsController,
   getCustomerOrdersController,
   getsingleOrderDetailController,
+  getTransactionOfCustomerController,
+  getCustomerSubscriptionDetailController,
 };
