@@ -152,6 +152,10 @@ const agentSchema = mongoose.Schema(
       enum: ["Inactive", "Free", "Busy"],
       default: "Inactive",
     },
+    taskCompleted: {
+      type: Number,
+      default: 0,
+    },
     isBlocked: {
       type: Boolean,
       default: false,
