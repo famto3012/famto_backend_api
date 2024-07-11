@@ -1120,6 +1120,13 @@ const addCartDetailsController = async (req, res, next) => {
     const {
       addressType,
       otherAddressId,
+      fullName,
+      phoneNumber,
+      flat,
+      area,
+      landmark,
+      coordinates,
+      addToAddressBook,
       deliveryMode,
       instructionToMerchant,
       instructionToDeliveryAgent,
@@ -1146,24 +1153,55 @@ const addCartDetailsController = async (req, res, next) => {
     let deliveryAddress = {};
 
     if (deliveryMode === "Delivery") {
-      if (addressType === "home") {
-        deliveryCoordinates = customer.customerDetails.homeAddress.coordinates;
-        deliveryAddress = { ...customer.customerDetails.homeAddress };
-      } else if (addressType === "work") {
-        deliveryCoordinates = customer.customerDetails.workAddress.coordinates;
-        deliveryAddress = { ...customer.customerDetails.workAddress };
+      if (fullName && phoneNumber && flat && area && coordinates) {
+        deliveryAddress = {
+          fullName,
+          phoneNumber,
+          flat,
+          area,
+          landmark,
+        };
+
+        deliveryCoordinates = coordinates;
+
+        if (addToAddressBook) {
+          if (addressType === "home") {
+            customer.customerDetails.homeAddress = deliveryAddress;
+          } else if (addressType === "work") {
+            customer.customerDetails.workAddress = deliveryAddress;
+          } else if (addressType === "other") {
+            customer.customerDetails.otherAddress.push({
+              id: new mongoose.Types.ObjectId(),
+              ...deliveryAddress,
+            });
+          }
+
+          await customer.save();
+        }
       } else {
-        const otherAddress = customer.customerDetails.otherAddress.find(
-          (addr) => addr.id.toString() === otherAddressId
-        );
-        if (otherAddress) {
-          deliveryCoordinates = otherAddress.coordinates;
-          deliveryAddress = { ...otherAddress };
+        if (addressType === "home") {
+          deliveryCoordinates =
+            customer.customerDetails.homeAddress.coordinates;
+          deliveryAddress = { ...customer.customerDetails.homeAddress };
+        } else if (addressType === "work") {
+          deliveryCoordinates =
+            customer.customerDetails.workAddress.coordinates;
+          deliveryAddress = { ...customer.customerDetails.workAddress };
         } else {
-          return res.status(404).json({ error: "Address not found" });
+          const otherAddress = customer.customerDetails.otherAddress.find(
+            (addr) => addr.id.toString() === otherAddressId
+          );
+          if (otherAddress) {
+            deliveryCoordinates = otherAddress.coordinates;
+            deliveryAddress = { ...otherAddress };
+          } else {
+            return res.status(404).json({ error: "Address not found" });
+          }
         }
       }
     }
+
+    console.log("Current delivery address of this order is: ", deliveryAddress);
 
     const cart = await CustomerCart.findOne({ customerId });
 
@@ -1624,11 +1662,12 @@ const orderPaymentController = async (req, res, next) => {
       madeOn: new Date(),
       transactionType: "Bill",
       transactionAmount: orderAmount,
+      type: "Debit",
     };
 
     const loyaltyPointCriteria = await LoyaltyPoint.findOne({ status: true });
 
-    let loyaltyPoint = 0;
+    // let loyaltyPoint = 0;
     const loyaltyPointEarnedToday =
       customer.customerDetails?.loyaltyPointEarnedToday || 0;
 
@@ -1648,10 +1687,6 @@ const orderPaymentController = async (req, res, next) => {
         }
       }
     }
-    // TODO: Correct loyalty point adding to DB
-
-    console.log("loyaltyPointEarnedToday", loyaltyPointEarnedToday);
-    console.log("loyaltyPoint", loyaltyPoint);
 
     if (paymentMode === "Famto-cash") {
       if (customer.customerDetails.walletBalance < orderAmount) {
@@ -2631,7 +2666,7 @@ const getWalletAndLoyaltyController = async (req, res, next) => {
     const currentCustomer = req.userAuth;
 
     const customerFound = await Customer.findById(currentCustomer).select(
-      "customerDetails.walletBalance customerDetails.LotaltyPoints"
+      "customerDetails.walletBalance customerDetails.totalLoyaltyPointEarned"
     );
 
     const customerData = {
@@ -2644,6 +2679,99 @@ const getWalletAndLoyaltyController = async (req, res, next) => {
       message: "Wallet balance and loyalty points of customer",
       data: customerData,
     });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get customers cart
+const getCustomerCartController = async (req, res, next) => {
+  try {
+    const currentCustomer = req.userAuth;
+
+    const populatedCart = await CustomerCart.findOne({
+      customerId: currentCustomer,
+    })
+      .populate({
+        path: "items.productId",
+        select: "productName productImageURL description variants",
+      })
+      .exec();
+
+    let populatedCartWithVariantNames;
+    if (populatedCart) {
+      populatedCartWithVariantNames = populatedCart.toObject();
+      populatedCartWithVariantNames.items =
+        populatedCartWithVariantNames.items.map((item) => {
+          const product = item.productId;
+          let variantTypeName = null;
+          let variantTypeData = null;
+          if (item.variantTypeId && product.variants) {
+            const variantType = product.variants
+              .flatMap((variant) => variant.variantTypes)
+              .find((type) => type._id.equals(item.variantTypeId));
+            if (variantType) {
+              variantTypeName = variantType.typeName;
+              variantTypeData = {
+                _id: variantType._id,
+                variantTypeName: variantTypeName,
+              };
+            }
+          }
+          return {
+            ...item,
+            productId: {
+              _id: product._id,
+              productName: product.productName,
+              description: product.description,
+              productImageURL: product.productImageURL,
+            },
+            variantTypeId: variantTypeData,
+          };
+        });
+    }
+
+    res.status(200).json({
+      message: "Customer cart found",
+      data: populatedCartWithVariantNames || {},
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// ------------------------------------------
+// PICK & DROP
+// ------------------------------------------
+
+const addPickUpAddressController = async (req, res, next) => {
+  try {
+    const {
+      addressType,
+      otherAddressId,
+      fullName,
+      phoneNumber,
+      flat,
+      area,
+      landmark,
+      coordinates,
+      addToAddressBook,
+      deliveryMode,
+      instructionToMerchant,
+      instructionToDeliveryAgent,
+      addedTip = 0,
+      startDate,
+      endDate,
+      time,
+    } = req.body;
+
+    const currentCustomer = req.userAuth;
+
+    const customerFound = await Customer.findById(currentCustomer);
+
+    if (!customerFound) {
+      return next(appError("Customer not found", 404));
+    }
   } catch (err) {
     next(appError(err.message));
   }
@@ -2683,4 +2811,5 @@ module.exports = {
   searchPromocodeController,
   searchOrderController,
   getWalletAndLoyaltyController,
+  getCustomerCartController,
 };

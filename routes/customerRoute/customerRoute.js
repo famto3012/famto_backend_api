@@ -37,6 +37,7 @@ const {
   searchPromocodeController,
   searchOrderController,
   getWalletAndLoyaltyController,
+  getCustomerCartController,
 } = require("../../controllers/customer/customerController");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const { upload } = require("../../utils/imageOperation");
@@ -231,5 +232,7 @@ customerRoute.get(
   isAuthenticated,
   getWalletAndLoyaltyController
 );
+
+customerRoute.get("/get-cart", isAuthenticated, getCustomerCartController);
 
 module.exports = customerRoute;
