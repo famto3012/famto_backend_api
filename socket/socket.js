@@ -1,3 +1,164 @@
+// const { Server } = require("socket.io");
+// const http = require("http");
+// const express = require("express");
+// const Task = require("../models/Task");
+// const Agent = require("../models/Agent");
+// const Customer = require("../models/Customer");
+// const Merchant = require("../models/Merchant");
+// const Order = require("../models/Order");
+// const turf = require("@turf/turf");
+
+// const app = express();
+// const server = http.createServer(app);
+// const io = new Server(server, {
+//   cors: {
+//     origin: "http://localhost:5173", // Replace with the correct URL of your React app
+//     methods: ["GET", "POST"],
+//     credentials: true,
+//   },
+//   pingInterval: 10000, // 10 seconds
+//   pingTimeout: 5000, // 5 seconds
+//   reconnection: true,
+//   reconnectionAttempts: Infinity, // Unlimited attempts
+//   //reconnectionDelay: 1000, // 1 second delay
+//  //reconnectionDelayMax: 5000,
+// });
+
+// const getRecipientSocketId = (recipientId) => {
+//   return userSocketMap[recipientId];
+// };
+
+// const userSocketMap = {};
+// //Connection socket
+// io.on("connection", (socket) => {
+//   console.log("user connected", socket.id);
+//   const userId = socket.handshake.query.userId;
+//   if (userId != "undefined") userSocketMap[userId] = socket.id;
+//   //Get online user socket
+//   io.emit("getOnlineUsers", Object.keys(userSocketMap));
+//   console.log(userSocketMap);
+//   //Order accepted by agent socket
+//   socket.on("Accepted", async (data) => {
+//     const task = await Task.find({ orderId: data.orderId });
+//     await Order.findByIdAndUpdate(data.orderId, {
+//       agentId: data.agentId,
+//     });
+//     await Agent.findByIdAndUpdate(data.agentId, {
+//       status: "Busy",
+//     });
+//     if (task.taskStatus === "Assigned") {
+//       appError("Task already assigned");
+//     } else {
+//       await Task.findByIdAndUpdate(task[0]._id, {
+//         agentId: data.agentId,
+//         taskStatus: "Assigned",
+//         deliveryStatus: "In-progress",
+//       });
+//     }
+//   });
+//   //user location update socket
+//   socket.on("locationUpdated", async (data) => {
+//     const location = [data.latitude, data.longitude];
+
+//     const agent = await Agent.findById(userId);
+
+//     const merchant = await Merchant.findById(userId);
+
+//     if (agent) {
+//       await Agent.findByIdAndUpdate(userId, {
+//         location,
+//       });
+//     } else if (merchant) {
+//       await Merchant.findByIdAndUpdate(userId, {
+//         "merchantDetail.location": location,
+//       });
+//     } else {
+//       await Customer.findByIdAndUpdate(userId, {
+//         "customerDetails.location": location,
+//       });
+//     }
+//   });
+//   //Order rejected socket
+//   socket.on("Rejected", () => {
+//     console.log("Task rejected");
+//   });
+//   //Agent reached drop location socket
+//   socket.on("reachedDropLocation", async () => {
+//     const agent = await Agent.findById(userId);
+//     if (agent) {
+//       const task = await Task.find({ agentId: userId });
+//       console.log(task);
+//       const order = await Order.findById(task[0].orderId);
+//       console.log(order);
+//       const maxRadius = 0.1;
+//       if (maxRadius > 0) {
+//         const customerLocation = order.orderDetail.deliveryLocation;
+//         const agentLocation = agent.location;
+//         const distance = turf.distance(
+//           turf.point(customerLocation),
+//           turf.point(agentLocation),
+//           { units: "kilometers" }
+//         );
+//         console.log(distance);
+//         if (distance < maxRadius) {
+//           const data = {
+//             message: "Agent reached your location",
+//             orderId: task.orderId,
+//             agentId: userId,
+//             agentName: agent.fullName,
+//           };
+//           const socketId = await getRecipientSocketId(order.customerId);
+//           console.log("CustomerSocket", socketId);
+//           socket.to(socketId).emit("agentReached", data);
+//         } else {
+//           const data = {
+//             message: "Not reached delivery location",
+//           };
+//           const socketId = await getRecipientSocketId(userId);
+//           console.log("AgentSocket", socketId);
+//           console.log("Data", data);
+//           io.to(socketId).emit("notReachedLocation", data);
+//         }
+//       }
+//     }
+//   });
+//   //Agent delivery completed
+//   socket.on("deliveryCompleted", async () => {
+//     const agent = await Agent.findByIdAndUpdate(userId, {
+//       status: "Free",
+//       $inc: { taskCompleted: 1 },
+//     });
+//     if (agent) {
+//       const task = await Task.find({ agentId: userId });
+//       const order = await Order.findByIdAndUpdate(task[0].orderId, {
+//         status: "Completed",
+//         "orderDetail.deliveryTime": new Date(),
+//       });
+//       console.log(task);
+//       await Task.findByIdAndUpdate(task[0].id, {
+//         deliveryStatus: "Completed",
+//       });
+//     }
+//   });
+//   //User  disconnected socket
+//   socket.on("disconnect", () => {
+//     console.log("user disconnected", socket.id);
+//     delete userSocketMap[userId];
+    
+//     io.emit("getOnlineUsers", Object.keys(userSocketMap));
+//     // setTimeout(() => {
+//     //  if (io.sockets.connected && io.sockets.connected[socket.id]) {
+//     //     io.sockets.connected[socket.id].connect(); // Reconnect the socket
+//     //   } else {
+//     //     console.log("Socket not found for reconnection:", socket.id);
+//     //   }
+//     // }, 1000); // 
+//   });
+// });
+
+// module.exports = { io, server, app, getRecipientSocketId };
+
+
 const { Server } = require("socket.io");
 const http = require("http");
 const express = require("express");
@@ -5,8 +166,14 @@ const Task = require("../models/Task");
 const Agent = require("../models/Agent");
 const Customer = require("../models/Customer");
 const Merchant = require("../models/Merchant");
-const Order = require("../models/Order");
 const turf = require("@turf/turf");
+const admin = require('firebase-admin');
+
+const serviceAccount = require('./path/to/serviceAccountKey.json');
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 
 const app = express();
 const server = http.createServer(app);
@@ -16,22 +183,64 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
     credentials: true,
   },
+  pingInterval: 10000, // 10 seconds
+  pingTimeout: 5000, // 5 seconds
+  reconnection: true,
+  reconnectionAttempts: Infinity, // Unlimited attempts
 });
 
-const getRecipientSocketId = (recipientId) => {
-  return userSocketMap[recipientId];
-};
-
 const userSocketMap = {};
-//Connection socket
+
+// Function to send push notification via FCM
+function sendPushNotificationToUser(fcmToken, message) {
+  const payload = {
+    notification: {
+      title: message.title,
+      body: message.body,
+    },
+  };
+
+  admin.messaging().sendToDevice(fcmToken, payload)
+    .then(response => {
+      console.log('Successfully sent message:', response);
+    })
+    .catch(error => {
+      console.error('Error sending message:', error);
+    });
+}
+
+// Function to send notification to user (using Socket.IO if available, else FCM)
+function sendNotification(userId, eventName, data) {
+  const socketId = userSocketMap[userId]?.socketId;
+  const fcmToken = userSocketMap[userId]?.fcmToken;
+
+  if (socketId) {
+    io.to(socketId).emit(eventName, data);
+  } else if (fcmToken) {
+    sendPushNotificationToUser(fcmToken, {
+      title: "Notification",
+      body: `You have a new notification: ${eventName}`,
+    });
+  } else {
+    console.error(`No socketId or fcmToken found for userId: ${userId}`);
+  }
+}
+
+// Connection socket
 io.on("connection", (socket) => {
   console.log("user connected", socket.id);
   const userId = socket.handshake.query.userId;
-  if (userId != "undefined") userSocketMap[userId] = socket.id;
-  //Get online user socket
+  const fcmToken = socket.handshake.query.fcmToken;
+
+  if (userId !== "undefined") {
+    userSocketMap[userId] = { socketId: socket.id, fcmToken };
+  }
+
+  // Get online user socket
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
   console.log(userSocketMap);
-  //Order accepted by agent socket
+
+  // Order accepted by agent socket
   socket.on("Accepted", async (data) => {
     const task = await Task.find({ orderId: data.orderId });
     await Order.findByIdAndUpdate(data.orderId, {
@@ -49,13 +258,15 @@ io.on("connection", (socket) => {
         deliveryStatus: "In-progress",
       });
     }
+
+    // Send notification to user
+    sendNotification(task.customerId, "Accepted", data);
   });
-  //user location update socket
+
+  // User location update socket
   socket.on("locationUpdated", async (data) => {
     const location = [data.latitude, data.longitude];
-
     const agent = await Agent.findById(userId);
-
     const merchant = await Merchant.findById(userId);
 
     if (agent) {
@@ -72,11 +283,16 @@ io.on("connection", (socket) => {
       });
     }
   });
-  //Order rejected socket
+
+  // Order rejected socket
   socket.on("Rejected", () => {
     console.log("Task rejected");
+
+    // Send notification to user
+    sendNotification(userId, "Rejected", {});
   });
-  //Agent reached drop location socket
+
+  // Agent reached drop location socket
   socket.on("reachedDropLocation", async () => {
     const agent = await Agent.findById(userId);
     if (agent) {
@@ -101,22 +317,43 @@ io.on("connection", (socket) => {
             agentId: userId,
             agentName: agent.fullName,
           };
-          const socketId = await getRecipientSocketId(order.customerId);
+          const socketId = userSocketMap[order.customerId]?.socketId;
           console.log("CustomerSocket", socketId);
-          socket.to(socketId).emit("agentReached", data);
+          if (socketId) {
+            io.to(socketId).emit("agentReached", data);
+          } else {
+            const fcmToken = userSocketMap[order.customerId]?.fcmToken;
+            if (fcmToken) {
+              sendPushNotificationToUser(fcmToken, {
+                title: "Agent reached your location",
+                body: `Agent ${agent.fullName} has reached your location for order ${task.orderId}`,
+              });
+            }
+          }
         } else {
           const data = {
             message: "Not reached delivery location",
           };
-          const socketId = await getRecipientSocketId(userId);
+          const socketId = userSocketMap[userId]?.socketId;
           console.log("AgentSocket", socketId);
           console.log("Data", data);
-          io.to(socketId).emit("notReachedLocation", data);
+          if (socketId) {
+            io.to(socketId).emit("notReachedLocation", data);
+          } else {
+            const fcmToken = userSocketMap[userId]?.fcmToken;
+            if (fcmToken) {
+              sendPushNotificationToUser(fcmToken, {
+                title: "Not reached delivery location",
+                body: "Agent has not reached the delivery location.",
+              });
+            }
+          }
         }
       }
     }
   });
-  //Agent delivery completed
+
+  // Agent delivery completed
   socket.on("deliveryCompleted", async () => {
     const agent = await Agent.findByIdAndUpdate(userId, {
       status: "Free",
@@ -132,14 +369,20 @@ io.on("connection", (socket) => {
       await Task.findByIdAndUpdate(task[0].id, {
         deliveryStatus: "Completed",
       });
+
+      // Send notification to user
+      sendNotification(task.customerId, "deliveryCompleted", {});
     }
   });
-  //User  disconnected socket
+
+  // User disconnected socket
   socket.on("disconnect", () => {
     console.log("user disconnected", socket.id);
     delete userSocketMap[userId];
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
+
+    // No need to send notification here because it's handled in sendNotification function
   });
 });
 
-module.exports = { io, server, app, getRecipientSocketId };
+module.exports = { io, server, app };
