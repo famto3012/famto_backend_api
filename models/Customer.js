@@ -107,9 +107,11 @@ const customerDetailSchema = new mongoose.Schema(
     otherAddress: [addressSchema],
     loyaltyPointEarnedToday: {
       type: Number,
+      default: 0,
     },
     totalLoyaltyPointEarned: {
       type: Number,
+      default: 0,
     },
     favoriteProducts: [
       {
