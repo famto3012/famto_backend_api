@@ -7,21 +7,24 @@ const Agent = require("../models/Agent");
 const AgentPricing = require("../models/AgentPricing");
 const Customer = require("../models/Customer");
 const Merchant = require("../models/Merchant");
-const { getRecipientSocketId, io } = require("../socket/socket");
+const { getRecipientSocketId, io, getRecipientFcmToken, sendNotification } = require("../socket/socket");
 const BusinessCategory = require("../models/BusinessCategory");
 
 const orderCreateTaskHelper = async (orderId) => {
   try {
     const order = await Order.findById(orderId);
-    const task = await Task.find({ orderId });
+    let task = await Task.find({ orderId });
+    console.log("task", task);
     console.log("order", order);
     if (order) {
-      if (!task) {
+      if (task.length === 0) {
         await Task.create({
           orderId,
         });
       }
     }
+    task = await Task.find({ orderId });
+    console.log("task", task);
 
     const autoAllocation = await AutoAllocation.findOne();
     console.log("Auto", autoAllocation);
@@ -68,6 +71,7 @@ const notifyAgents = async (order, priorityType, io) => {
       console.log("AgentId", agent.id);
       const socketId = await getRecipientSocketId(agent.id);
       console.log("SocketId", socketId);
+
       if (socketId) {
         // Emit notification to agent
         const orderDetails = {
@@ -82,6 +86,11 @@ const notifyAgents = async (order, priorityType, io) => {
           title: "New Order",
           orderDetails,
         });
+      }else{
+        const fcmToken = await getRecipientFcmToken(agent.id);
+        console.log("FCM TOKEN",fcmToken)
+        await sendNotification(agent.id, "newOrder", data)
+
       }
     }
   } catch (err) {
