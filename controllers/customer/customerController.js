@@ -38,6 +38,7 @@ const {
 } = require("../../utils/formatters");
 const CustomerSubscription = require("../../models/CustomerSubscription");
 const LoyaltyPoint = require("../../models/LoyaltyPoint");
+const PickAndCustomCart = require("../../models/PickAndCustomCart");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -2756,22 +2757,72 @@ const addPickUpAddressController = async (req, res, next) => {
       landmark,
       coordinates,
       addToAddressBook,
-      deliveryMode,
-      instructionToMerchant,
-      instructionToDeliveryAgent,
+      instructionInPickup,
+      instructionInDelivery,
       addedTip = 0,
       startDate,
       endDate,
       time,
     } = req.body;
 
-    const currentCustomer = req.userAuth;
+    const currentId = req.userAuth;
 
-    const customerFound = await Customer.findById(currentCustomer);
+    const customer = await Customer.findById(currentId);
 
-    if (!customerFound) {
+    if (!customer) {
       return next(appError("Customer not found", 404));
     }
+
+    // Retrieve the specified address coordinates from the customer data
+    let deliveryCoordinates;
+    let deliveryAddress = {};
+
+    if (fullName && phoneNumber && flat && area && coordinates) {
+      deliveryAddress = {
+        fullName,
+        phoneNumber,
+        flat,
+        area,
+        landmark,
+      };
+
+      deliveryCoordinates = coordinates;
+
+      if (addToAddressBook) {
+        if (addressType === "home") {
+          customer.customerDetails.homeAddress = deliveryAddress;
+        } else if (addressType === "work") {
+          customer.customerDetails.workAddress = deliveryAddress;
+        } else if (addressType === "other") {
+          customer.customerDetails.otherAddress.push({
+            id: new mongoose.Types.ObjectId(),
+            ...deliveryAddress,
+          });
+        }
+
+        await customer.save();
+      }
+    } else {
+      if (addressType === "home") {
+        deliveryCoordinates = customer.customerDetails.homeAddress.coordinates;
+        deliveryAddress = { ...customer.customerDetails.homeAddress };
+      } else if (addressType === "work") {
+        deliveryCoordinates = customer.customerDetails.workAddress.coordinates;
+        deliveryAddress = { ...customer.customerDetails.workAddress };
+      } else {
+        const otherAddress = customer.customerDetails.otherAddress.find(
+          (addr) => addr.id.toString() === otherAddressId
+        );
+        if (otherAddress) {
+          deliveryCoordinates = otherAddress.coordinates;
+          deliveryAddress = { ...otherAddress };
+        } else {
+          return res.status(404).json({ error: "Address not found" });
+        }
+      }
+    }
+
+    console.log("Current delivery address of this order is: ", deliveryAddress);
   } catch (err) {
     next(appError(err.message));
   }
