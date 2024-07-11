@@ -167,6 +167,7 @@ const Customer = require("../models/Customer");
 const Merchant = require("../models/Merchant");
 const turf = require("@turf/turf");
 const admin = require("firebase-admin");
+const Order = require("../models/Order");
 
 // const serviceAccount = require("./path/to/serviceAccountKey.json");
 
@@ -174,7 +175,7 @@ const serviceAccount = {
   type: process.env.TYPE,
   project_id: process.env.PROJECT_ID,
   private_key_id: process.env.PRIVATE_KEY_ID,
-  private_key: process.env.PRIVATE_KEY, 
+  private_key: process.env.PRIVATE_KEY,
   client_email: process.env.CLIENT_EMAIL,
   client_id: process.env.CLIENT_ID,
   auth_uri: process.env.AUTH_URI,
@@ -241,6 +242,17 @@ function sendNotification(userId, eventName, data) {
   }
 }
 
+const getRecipientSocketId = (recipientId) => {
+   
+      return userSocketMap[recipientId].socketId;
+    
+  };
+
+  const getRecipientFcmToken = (recipientId)=>{
+    return userSocketMap[recipientId].fcmToken
+  }
+
+
 // Connection socket
 io.on("connection", (socket) => {
   console.log("user connected", socket.id);
@@ -248,7 +260,11 @@ io.on("connection", (socket) => {
   const fcmToken = socket.handshake.query.fcmToken;
 
   if (userId !== "undefined") {
-    userSocketMap[userId] = { socketId: socket.id, fcmToken };
+    if(userSocketMap[userId]){
+      userSocketMap[userId].socketId = socket.id;
+    }else{
+      userSocketMap[userId] = { socketId: socket.id, fcmToken };
+    }
   }
 
   // Get online user socket
@@ -281,19 +297,19 @@ io.on("connection", (socket) => {
   // User location update socket
   socket.on("locationUpdated", async (data) => {
     const location = [data.latitude, data.longitude];
-    const agent = await Agent.findById(userId);
-    const merchant = await Merchant.findById(userId);
+    const agent = await Agent.findById(data.userId);
+    const merchant = await Merchant.findById(data.userId);
 
     if (agent) {
-      await Agent.findByIdAndUpdate(userId, {
+      await Agent.findByIdAndUpdate(data.userId, {
         location,
       });
     } else if (merchant) {
-      await Merchant.findByIdAndUpdate(userId, {
+      await Merchant.findByIdAndUpdate(data.userId, {
         "merchantDetail.location": location,
       });
     } else {
-      await Customer.findByIdAndUpdate(userId, {
+      await Customer.findByIdAndUpdate(data.userId, {
         "customerDetails.location": location,
       });
     }
@@ -312,9 +328,9 @@ io.on("connection", (socket) => {
     const agent = await Agent.findById(userId);
     if (agent) {
       const task = await Task.find({ agentId: userId });
-      console.log(task);
+      console.log("Task",task);
       const order = await Order.findById(task[0].orderId);
-      console.log(order);
+      console.log("Order",order);
       const maxRadius = 0.1;
       if (maxRadius > 0) {
         const customerLocation = order.orderDetail.deliveryLocation;
@@ -393,11 +409,11 @@ io.on("connection", (socket) => {
   // User disconnected socket
   socket.on("disconnect", () => {
     console.log("user disconnected", socket.id);
-    delete userSocketMap[userId];
+    delete userSocketMap[userId].socketId;
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
-
+   console.log(userSocketMap)
     // No need to send notification here because it's handled in sendNotification function
   });
 });
 
-module.exports = { io, server, app };
+module.exports = { io, server, app, getRecipientSocketId , getRecipientFcmToken, sendNotification};
