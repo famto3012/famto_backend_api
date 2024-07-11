@@ -51,6 +51,11 @@ const customerPricingSchema = new mongoose.Schema({
     default: true,
     required: true,
   },
+  vehicleType: {
+    type: String,
+    enum: ["Scooter", "Bike"],
+    default: null,
+  },
 });
 
 const CustomerPricing = mongoose.model(

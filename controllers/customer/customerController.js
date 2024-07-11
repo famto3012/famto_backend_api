@@ -469,7 +469,7 @@ const listRestaurantsController = async (req, res, next) => {
     const simplifiedMerchants = await Promise.all(
       sortedMerchants.map(async (merchant) => {
         const merchantLocation = merchant.merchantDetail.location;
-        const distance = await getDistanceFromPickupToDelivery(
+        const { distanceInKM } = await getDistanceFromPickupToDelivery(
           merchantLocation,
           customerLocation
         );
@@ -487,7 +487,7 @@ const listRestaurantsController = async (req, res, next) => {
           description: merchant.merchantDetail.description,
           averageRating: merchant.merchantDetail.averageRating,
           status: merchant.status,
-          distanceInKM: parseFloat(distance),
+          distanceInKM: parseFloat(distanceInKM),
           restaurantType: merchant.merchantDetail.merchantFoodType || "N/A",
           merchantImageURL: merchant.merchantDetail.merchantImageURL,
           isFavorite,
@@ -1264,13 +1264,12 @@ const addCartDetailsController = async (req, res, next) => {
       };
 
       // Calculate distance using MapMyIndia API
-      const distanceFromPickupToDelivery =
-        await getDistanceFromPickupToDelivery(
-          pickupCoordinates,
-          deliveryCoordinates
-        );
+      const { distanceInKm } = await getDistanceFromPickupToDelivery(
+        pickupCoordinates,
+        deliveryCoordinates
+      );
 
-      updatedCartDetail.distance = distanceFromPickupToDelivery;
+      updatedCartDetail.distance = distanceInKm;
 
       const businessCategoryId = merchant.merchantDetail.businessCategoryId;
 
@@ -1293,7 +1292,7 @@ const addCartDetailsController = async (req, res, next) => {
       const fareAfterBaseDistance = customerPricing.fareAfterBaseDistance;
 
       const deliveryCharges = calculateDeliveryCharges(
-        distanceFromPickupToDelivery,
+        distanceInKm,
         baseFare,
         baseDistance,
         fareAfterBaseDistance
@@ -2748,81 +2747,218 @@ const getCustomerCartController = async (req, res, next) => {
 const addPickUpAddressController = async (req, res, next) => {
   try {
     const {
-      addressType,
-      otherAddressId,
-      fullName,
-      phoneNumber,
-      flat,
-      area,
-      landmark,
-      coordinates,
-      addToAddressBook,
+      pickupAddressType,
+      pickupAddressOtherAddressId,
+      newPickupAddress,
+      addNewPickupToAddressBook,
       instructionInPickup,
+      dropAddressType,
+      dropAddressOtherAddressId,
+      newDropAddress,
+      addNewDropToAddressBook,
       instructionInDelivery,
-      addedTip = 0,
       startDate,
       endDate,
       time,
     } = req.body;
 
-    const currentId = req.userAuth;
+    const customerId = req.userAuth;
 
-    const customer = await Customer.findById(currentId);
+    const customer = await Customer.findById(customerId);
 
     if (!customer) {
       return next(appError("Customer not found", 404));
     }
 
-    // Retrieve the specified address coordinates from the customer data
-    let deliveryCoordinates;
-    let deliveryAddress = {};
+    // Retrieve the specified pickup address coordinates from the customer data
+    let pickupCoordinates;
+    let pickupAddress = {};
 
-    if (fullName && phoneNumber && flat && area && coordinates) {
-      deliveryAddress = {
-        fullName,
-        phoneNumber,
-        flat,
-        area,
-        landmark,
+    if (newPickupAddress) {
+      pickupAddress = {
+        ...newPickupAddress,
       };
 
-      deliveryCoordinates = coordinates;
+      pickupCoordinates = newPickupAddress.coordinates;
 
-      if (addToAddressBook) {
-        if (addressType === "home") {
-          customer.customerDetails.homeAddress = deliveryAddress;
-        } else if (addressType === "work") {
-          customer.customerDetails.workAddress = deliveryAddress;
-        } else if (addressType === "other") {
+      if (addNewPickupToAddressBook) {
+        if (pickupAddressType === "home") {
+          customer.customerDetails.homeAddress = pickupAddress;
+        } else if (pickupAddressType === "work") {
+          customer.customerDetails.workAddress = pickupAddress;
+        } else if (pickupAddressType === "other") {
           customer.customerDetails.otherAddress.push({
             id: new mongoose.Types.ObjectId(),
-            ...deliveryAddress,
+            ...pickupAddress,
           });
         }
 
         await customer.save();
       }
     } else {
-      if (addressType === "home") {
-        deliveryCoordinates = customer.customerDetails.homeAddress.coordinates;
-        deliveryAddress = { ...customer.customerDetails.homeAddress };
-      } else if (addressType === "work") {
-        deliveryCoordinates = customer.customerDetails.workAddress.coordinates;
-        deliveryAddress = { ...customer.customerDetails.workAddress };
+      if (pickupAddressType === "home") {
+        pickupCoordinates = customer.customerDetails.homeAddress.coordinates;
+        pickupAddress = { ...customer.customerDetails.homeAddress };
+      } else if (pickupAddressType === "work") {
+        pickupCoordinates = customer.customerDetails.workAddress.coordinates;
+        pickupAddress = { ...customer.customerDetails.workAddress };
       } else {
         const otherAddress = customer.customerDetails.otherAddress.find(
-          (addr) => addr.id.toString() === otherAddressId
+          (addr) => addr.id.toString() === pickupAddressOtherAddressId
         );
         if (otherAddress) {
-          deliveryCoordinates = otherAddress.coordinates;
-          deliveryAddress = { ...otherAddress };
+          pickupCoordinates = otherAddress.coordinates;
+          pickupAddress = { ...otherAddress };
         } else {
           return res.status(404).json({ error: "Address not found" });
         }
       }
     }
 
-    console.log("Current delivery address of this order is: ", deliveryAddress);
+    // Retrieve the specified drop address coordinates from the customer data
+    let dropCoordinates;
+    let dropAddress = {};
+
+    if (newDropAddress) {
+      dropAddress = {
+        ...newDropAddress,
+      };
+
+      dropCoordinates = newDropAddress.coordinates;
+
+      if (addNewDropToAddressBook) {
+        if (dropAddressType === "home") {
+          customer.customerDetails.homeAddress = dropAddress;
+        } else if (dropAddressType === "work") {
+          customer.customerDetails.workAddress = dropAddress;
+        } else if (dropAddressType === "other") {
+          customer.customerDetails.otherAddress.push({
+            id: new mongoose.Types.ObjectId(),
+            ...dropAddress,
+          });
+        }
+
+        await customer.save();
+      }
+    } else {
+      if (dropAddressType === "home") {
+        dropCoordinates = customer.customerDetails.homeAddress.coordinates;
+        dropAddress = { ...customer.customerDetails.homeAddress };
+      } else if (dropAddressType === "work") {
+        dropCoordinates = customer.customerDetails.workAddress.coordinates;
+        dropAddress = { ...customer.customerDetails.workAddress };
+      } else {
+        const otherAddress = customer.customerDetails.otherAddress.find(
+          (addr) => addr.id.toString() === dropAddressOtherAddressId
+        );
+        if (otherAddress) {
+          dropCoordinates = otherAddress.coordinates;
+          dropAddress = { ...otherAddress };
+        } else {
+          return res.status(404).json({ error: "Address not found" });
+        }
+      }
+    }
+
+    let updatedCartDetail = {
+      // pickupAddress,
+      pickupLocation: pickupCoordinates,
+      // dropAddress,
+      dropLocation: dropCoordinates,
+      deliveryOption: startDate && endDate && time ? "Scheduled" : "On-demand",
+      instructionInPickup,
+      instructionInDelivery,
+      startDate,
+      endDate,
+      time: time && convertToUTC(time),
+    };
+
+    // Calculate distance using MapMyIndia API
+    const { distanceInKM, durationInMinutes } =
+      await getDistanceFromPickupToDelivery(pickupCoordinates, dropCoordinates);
+
+    updatedCartDetail.distance = parseFloat(distanceInKM);
+    updatedCartDetail.duration = parseFloat(durationInMinutes);
+
+    // Fetch all available vehicle types from the Agent model
+    const agents = await Agent.find({});
+    const vehicleTypes = agents.flatMap((agent) =>
+      agent.vehicleDetail.map((vehicle) => vehicle.type)
+    );
+    const uniqueVehicleTypes = [...new Set(vehicleTypes)];
+
+    // Fetch the customer pricing details
+    const customerPricingArray = await CustomerPricing.find({
+      ruleName: "Pick And Drop Order", // TODO: Check the pricing name
+      geofenceId: customer.customerDetails.geofenceId,
+      status: true,
+    });
+
+    if (!customerPricingArray || customerPricingArray.length === 0) {
+      return res.status(404).json({ error: "Customer pricing not found" });
+    }
+
+    const vehicleCharges = uniqueVehicleTypes
+      .map((vehicleType) => {
+        const pricing = customerPricingArray.find(
+          (price) => price.vehicleType === vehicleType
+        );
+
+        if (pricing) {
+          const baseFare = pricing.baseFare;
+          const baseDistance = pricing.baseDistance;
+          const fareAfterBaseDistance = pricing.fareAfterBaseDistance;
+
+          const deliveryCharges = calculateDeliveryCharges(
+            distanceInKM,
+            baseFare,
+            baseDistance,
+            fareAfterBaseDistance
+          );
+
+          return {
+            vehicleType,
+            deliveryCharges: parseFloat(deliveryCharges.toFixed(2)),
+          };
+        } else {
+          return null;
+        }
+      })
+      .filter(Boolean);
+
+    res.status(200).json({
+      message: "Pick and Drop locations added successfully",
+      data: {
+        cart: {
+          ...updatedCartDetail,
+          vehicleCharges,
+        },
+      },
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const addPickandDropItemsController = async (req, res, next) => {
+  try {
+    const { items } = req.body;
+
+    const customerId = req.userAuth;
+
+    const cartFound = await PickAndCustomCart.findOne({ customerId });
+
+    // Add the new items to the cart
+    items.forEach((item) => {
+      cartFound.items.push(item);
+    });
+
+    await cartFound.save();
+
+    res.status(200).josn({
+      message: "Added items to pick and drop",
+      data: cartFound,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -2863,4 +2999,53 @@ module.exports = {
   searchOrderController,
   getWalletAndLoyaltyController,
   getCustomerCartController,
+  addPickUpAddressController,
+  addPickandDropItemsController,
 };
+
+// const baseFare = customerPricing.baseFare;
+// const baseDistance = customerPricing.baseDistance;
+// const fareAfterBaseDistance = customerPricing.fareAfterBaseDistance;
+
+// const deliveryCharges = calculateDeliveryCharges(
+//   distanceFromPickupToDrop,
+//   baseFare,
+//   baseDistance,
+//   fareAfterBaseDistance
+// );
+
+// if (startDate && endDate) {
+//   const startDateTime = new Date(`${startDate} ${time}`);
+//   const endDateTime = new Date(`${endDate} ${time}`);
+
+//   const diffTime = Math.abs(endDateTime - startDateTime);
+//   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+//   const scheduledDeliveryCharge = (deliveryCharges * diffDays).toFixed(2);
+
+//   updatedBill.originalDeliveryCharge = scheduledDeliveryCharge;
+//   updatedBill.deliveryChargePerDay = deliveryCharges;
+//   updatedCartDetail.numOfDays = diffDays;
+
+//   const grandTotal = parseFloat(scheduledDeliveryCharge);
+
+//   updatedBill.originalGrandTotal = parseFloat(grandTotal).toFixed(2);
+// } else {
+//   updatedBill.originalDeliveryCharge = deliveryCharges.toFixed(2);
+
+//   const grandTotal = parseFloat(scheduledDeliveryCharge);
+
+//   updatedBill.originalGrandTotal = parseFloat(grandTotal).toFixed(2);
+// }
+
+// // Ensure billDetail is initialized
+// cart.billDetail = cart.billDetail || {};
+// cart.cartDetail = updatedCartDetail;
+// cart.billDetail = updatedBill;
+
+// await cart.save();
+
+// res.status(200).json({
+//   message: "Pick and Drop locations added successfully",
+//   data: cart,
+// });
