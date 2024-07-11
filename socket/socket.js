@@ -144,7 +144,7 @@
 //   socket.on("disconnect", () => {
 //     console.log("user disconnected", socket.id);
 //     delete userSocketMap[userId];
-    
+
 //     io.emit("getOnlineUsers", Object.keys(userSocketMap));
 //     // setTimeout(() => {
 //     //  if (io.sockets.connected && io.sockets.connected[socket.id]) {
@@ -152,12 +152,11 @@
 //     //   } else {
 //     //     console.log("Socket not found for reconnection:", socket.id);
 //     //   }
-//     // }, 1000); // 
+//     // }, 1000); //
 //   });
 // });
 
 // module.exports = { io, server, app, getRecipientSocketId };
-
 
 const { Server } = require("socket.io");
 const http = require("http");
@@ -167,9 +166,23 @@ const Agent = require("../models/Agent");
 const Customer = require("../models/Customer");
 const Merchant = require("../models/Merchant");
 const turf = require("@turf/turf");
-const admin = require('firebase-admin');
+const admin = require("firebase-admin");
 
-const serviceAccount = require('./path/to/serviceAccountKey.json');
+// const serviceAccount = require("./path/to/serviceAccountKey.json");
+
+const serviceAccount = {
+  type: process.env.TYPE,
+  project_id: process.env.PROJECT_ID,
+  private_key_id: process.env.PRIVATE_KEY_ID,
+  private_key: process.env.PRIVATE_KEY.replace(/\\n/g, '\n'), 
+  client_email: process.env.CLIENT_EMAIL,
+  client_id: process.env.CLIENT_ID,
+  auth_uri: process.env.AUTH_URI,
+  token_uri: process.env.TOKEN_URI,
+  auth_provider_x509_cert_url: process.env.AUTH_PROVIDER_X509_CERT_URL,
+  client_x509_cert_url: process.env.CLIENT_X509_CERT_URL,
+  universe_domain: process.env.UNIVERSE_DOMAIN,
+};
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -200,12 +213,14 @@ function sendPushNotificationToUser(fcmToken, message) {
     },
   };
 
-  admin.messaging().sendToDevice(fcmToken, payload)
-    .then(response => {
-      console.log('Successfully sent message:', response);
+  admin
+    .messaging()
+    .sendToDevice(fcmToken, payload)
+    .then((response) => {
+      console.log("Successfully sent message:", response);
     })
-    .catch(error => {
-      console.error('Error sending message:', error);
+    .catch((error) => {
+      console.error("Error sending message:", error);
     });
 }
 
