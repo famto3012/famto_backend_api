@@ -38,6 +38,8 @@ const {
   searchOrderController,
   getWalletAndLoyaltyController,
   getCustomerCartController,
+  addPickUpAddressController,
+  addPickandDropItemsController,
 } = require("../../controllers/customer/customerController");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const { upload } = require("../../utils/imageOperation");
@@ -234,5 +236,21 @@ customerRoute.get(
 );
 
 customerRoute.get("/get-cart", isAuthenticated, getCustomerCartController);
+
+// -------------------------------------
+// PICK AND DROP
+// -------------------------------------
+
+customerRoute.post(
+  "/add-pick-and-drop-address",
+  isAuthenticated,
+  addPickUpAddressController
+);
+
+customerRoute.post(
+  "/add-pick-and-drop-items",
+  isAuthenticated,
+  addPickandDropItemsController
+);
 
 module.exports = customerRoute;

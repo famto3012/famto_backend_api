@@ -18,10 +18,11 @@ const sortMerchantsBySponsorship = (merchants) => {
 
 const getDistanceFromPickupToDelivery = async (
   pickupCoordinates,
-  deliveryCoordinates
+  deliveryCoordinates,
+  profile = "biking"
 ) => {
   const { data } = await axios.get(
-    `https://apis.mapmyindia.com/advancedmaps/v1/${process.env.MapMyIndiaAPIKey}/distance_matrix_eta/biking/${pickupCoordinates[1]},${pickupCoordinates[0]};${deliveryCoordinates[1]},${deliveryCoordinates[0]}`
+    `https://apis.mapmyindia.com/advancedmaps/v1/${process.env.MapMyIndiaAPIKey}/distance_matrix_eta/${profile}/${pickupCoordinates[1]},${pickupCoordinates[0]};${deliveryCoordinates[1]},${deliveryCoordinates[0]}`
   );
 
   if (
@@ -30,11 +31,12 @@ const getDistanceFromPickupToDelivery = async (
     data.results.distances &&
     data.results.distances.length > 0
   ) {
-    const distanceInKm = data.results.distances[0][1] / 1000; // Distance in kilometers
+    const distance = data.results.distances[0][1] / 1000; // Distance in kilometers
+    const durationInMinutes = Math.ceil(data.results.durations[0][1] / 60); // Duration in minutes
 
-    const fixedDistance = distanceInKm.toFixed(2);
+    const distanceInKM = parseFloat(distance).toFixed(2);
 
-    return fixedDistance;
+    return { distanceInKM, durationInMinutes };
   }
 };
 

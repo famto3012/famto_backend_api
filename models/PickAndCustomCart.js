@@ -68,6 +68,10 @@ const cartDetailSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
+    duration: {
+      type: Number,
+      required: true,
+    },
     startDate: {
       type: Date,
       default: null,
@@ -104,10 +108,6 @@ const billSchema = mongoose.Schema(
       type: Number,
       default: null,
     },
-    taxAmount: {
-      type: Number,
-      required: true,
-    },
     discountedAmount: {
       type: Number,
       default: null,
@@ -130,7 +130,7 @@ const billSchema = mongoose.Schema(
     },
     subTotal: {
       type: Number,
-      required: true,
+      default: null,
     },
   },
   {
@@ -145,7 +145,7 @@ const pickAndCustomCartSchema = mongoose.Schema({
   },
   cartDetail: cartDetailSchema,
   billDetail: billSchema,
-  item: [cartItemSchema],
+  items: [cartItemSchema],
 });
 
 const PickAndCustomCart = mongoose.model(
