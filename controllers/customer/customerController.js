@@ -2943,21 +2943,37 @@ const addPickUpAddressController = async (req, res, next) => {
 const addPickandDropItemsController = async (req, res, next) => {
   try {
     const { items } = req.body;
-
     const customerId = req.userAuth;
 
-    const cartFound = await PickAndCustomCart.findOne({ customerId });
+    // Find the cart for the customer
+    const cart = await PickAndCustomCart.findOne({ customerId });
+
+    // If cart doesn't exist, return an error
+    if (!cart) {
+      return res.status(404).json({
+        status: "Failed",
+        message: "Cart not found",
+      });
+    }
 
     // Add the new items to the cart
     items.forEach((item) => {
-      cartFound.items.push(item);
+      const cartItem = {
+        itemType: item.itemType,
+        length: item.length || null,
+        width: item.width || null,
+        height: item.height || null,
+        unit: item.unit,
+        weight: item.weight,
+      };
+      cart.items.push(cartItem);
     });
 
-    await cartFound.save();
+    await cart.save();
 
-    res.status(200).josn({
+    res.status(200).json({
       message: "Added items to pick and drop",
-      data: cartFound,
+      data: cart,
     });
   } catch (err) {
     next(appError(err.message));
