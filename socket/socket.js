@@ -168,6 +168,7 @@ const Merchant = require("../models/Merchant");
 const turf = require("@turf/turf");
 const admin = require("firebase-admin");
 const Order = require("../models/Order");
+const { getMessaging } = require("firebase-admin/messaging");
 
 // const serviceAccount = require("./path/to/serviceAccountKey.json");
 
@@ -207,21 +208,22 @@ const userSocketMap = {};
 
 // Function to send push notification via FCM
 function sendPushNotificationToUser(fcmToken, message) {
-  const payload = {
+  console.log(message);
+  const mes = {
     notification: {
-      title: message.title,
-      body: message.body,
+      title: "Notify",
+      body: message.body.merchantName,
     },
+    token: fcmToken,
   };
 
-  admin
-    .messaging()
-    .sendToDevice(fcmToken, payload)
+  getMessaging()
+    .send(mes)
     .then((response) => {
       console.log("Successfully sent message:", response);
     })
     .catch((error) => {
-      console.error("Error sending message:", error);
+      console.log("Error sending message:", error);
     });
 }
 
@@ -230,12 +232,13 @@ function sendNotification(userId, eventName, data) {
   const socketId = userSocketMap[userId]?.socketId;
   const fcmToken = userSocketMap[userId]?.fcmToken;
 
-  if (socketId) {
-    io.to(socketId).emit(eventName, data);
-  } else if (fcmToken) {
+  // if (socketId) {
+  //   io.to(socketId).emit(eventName, data);
+  // } else
+  if (fcmToken) {
     sendPushNotificationToUser(fcmToken, {
       title: "Notification",
-      body: `You have a new notification: ${eventName}`,
+      body: data,
     });
   } else {
     console.error(`No socketId or fcmToken found for userId: ${userId}`);
@@ -243,15 +246,12 @@ function sendNotification(userId, eventName, data) {
 }
 
 const getRecipientSocketId = (recipientId) => {
-   
-      return userSocketMap[recipientId].socketId;
-    
-  };
+  return userSocketMap[recipientId].socketId;
+};
 
-  const getRecipientFcmToken = (recipientId)=>{
-    return userSocketMap[recipientId].fcmToken
-  }
-
+const getRecipientFcmToken = (recipientId) => {
+  return userSocketMap[recipientId].fcmToken;
+};
 
 // Connection socket
 io.on("connection", (socket) => {
@@ -260,9 +260,9 @@ io.on("connection", (socket) => {
   const fcmToken = socket.handshake.query.fcmToken;
 
   if (userId !== "undefined") {
-    if(userSocketMap[userId]){
+    if (userSocketMap[userId]) {
       userSocketMap[userId].socketId = socket.id;
-    }else{
+    } else {
       userSocketMap[userId] = { socketId: socket.id, fcmToken };
     }
   }
@@ -328,9 +328,9 @@ io.on("connection", (socket) => {
     const agent = await Agent.findById(userId);
     if (agent) {
       const task = await Task.find({ agentId: userId });
-      console.log("Task",task);
+      console.log("Task", task);
       const order = await Order.findById(task[0].orderId);
-      console.log("Order",order);
+      console.log("Order", order);
       const maxRadius = 0.1;
       if (maxRadius > 0) {
         const customerLocation = order.orderDetail.deliveryLocation;
@@ -411,9 +411,16 @@ io.on("connection", (socket) => {
     console.log("user disconnected", socket.id);
     delete userSocketMap[userId].socketId;
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
-   console.log(userSocketMap)
+    console.log(userSocketMap);
     // No need to send notification here because it's handled in sendNotification function
   });
 });
 
-module.exports = { io, server, app, getRecipientSocketId , getRecipientFcmToken, sendNotification};
+module.exports = {
+  io,
+  server,
+  app,
+  getRecipientSocketId,
+  getRecipientFcmToken,
+  sendNotification,
+};
