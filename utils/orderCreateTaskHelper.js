@@ -7,7 +7,12 @@ const Agent = require("../models/Agent");
 const AgentPricing = require("../models/AgentPricing");
 const Customer = require("../models/Customer");
 const Merchant = require("../models/Merchant");
-const { getRecipientSocketId, io, getRecipientFcmToken, sendNotification } = require("../socket/socket");
+const {
+  getRecipientSocketId,
+  io,
+  getRecipientFcmToken,
+  sendNotification,
+} = require("../socket/socket");
 const BusinessCategory = require("../models/BusinessCategory");
 
 const orderCreateTaskHelper = async (orderId) => {
@@ -71,7 +76,8 @@ const notifyAgents = async (order, priorityType, io) => {
       console.log("AgentId", agent.id);
       const socketId = await getRecipientSocketId(agent.id);
       console.log("SocketId", socketId);
-
+      const fcmToken = await getRecipientFcmToken(agent.id);
+      console.log("FCM TOKEN", fcmToken);
       if (socketId) {
         // Emit notification to agent
         const orderDetails = {
@@ -86,11 +92,19 @@ const notifyAgents = async (order, priorityType, io) => {
           title: "New Order",
           orderDetails,
         });
-      }else{
-        const fcmToken = await getRecipientFcmToken(agent.id);
-        console.log("FCM TOKEN",fcmToken)
-        await sendNotification(agent.id, "newOrder", data)
+      } else {
+        const orderDetails = {
+          orderId: order.id,
+          merchantName: merchant.merchantDetail.merchantName,
+          pickAddress: merchant.merchantDetail.displayAddress,
+          customerName: customer.fullName,
+          customerAddress: deliveryAddress,
+        };
 
+        const fcmToken = await getRecipientFcmToken(agent.id);
+        console.log("FCM TOKEN", fcmToken);
+        const eventName = "newOrder";
+        await sendNotification(agent.id, eventName, orderDetails);
       }
     }
   } catch (err) {
@@ -122,6 +136,8 @@ const notifyNearestAgents = async (order, priorityType, maxRadius, io) => {
       console.log("AgentId", agent.id);
       const socketId = await getRecipientSocketId(agent.id);
       console.log("SocketId", socketId);
+      const fcmToken = await getRecipientFcmToken(agent.id);
+      console.log("FCM TOKEN", fcmToken);
       if (socketId) {
         // Emit notification to agent
         const orderDetails = {
@@ -136,6 +152,19 @@ const notifyNearestAgents = async (order, priorityType, maxRadius, io) => {
           title: "New Order",
           orderDetails,
         });
+      } else {
+        const orderDetails = {
+          orderId: order.id,
+          merchantName: merchant.merchantDetail.merchantName,
+          pickAddress: merchant.merchantDetail.displayAddress,
+          customerName: customer.fullName,
+          customerAddress: deliveryAddress,
+        };
+
+        const fcmToken = await getRecipientFcmToken(agent.id);
+        console.log("FCM TOKEN", fcmToken);
+        const eventName = "newOrder";
+        await sendNotification(agent.id, eventName, orderDetails);
       }
     }
   } catch (err) {
@@ -145,10 +174,14 @@ const notifyNearestAgents = async (order, priorityType, maxRadius, io) => {
 
 const fetchMonthlySalaryAgents = async (merchantId) => {
   try {
-    const merchant = await Merchant.findById(merchantId);
-    const merchantBusinessCategory = await BusinessCategory.findById(
-      merchant.merchantDetail.businessCategoryId
-    );
+    let merchant;
+    let merchantBusinessCategory;
+    if (merchantId) {
+      merchant = await Merchant.findById(merchantId);
+      merchantBusinessCategory = await BusinessCategory.findById(
+        merchant.merchantDetail.businessCategoryId
+      );
+    }
     // Find the AgentPricing document where ruleName is "Monthly"
     const monthlySalaryPricing = await AgentPricing.findOne({
       ruleName: "Monthly-salaried",
@@ -159,16 +192,23 @@ const fetchMonthlySalaryAgents = async (merchantId) => {
     }
 
     let agents;
-    if (
-      merchantBusinessCategory.title === "Fish" ||
-      merchantBusinessCategory.title === "Meat"
-    ) {
+    if (merchant) {
+      if (
+        merchantBusinessCategory.title === "Fish" ||
+        merchantBusinessCategory.title === "Meat"
+      ) {
+        agents = await Agent.find({
+          status: "Free",
+          "workStructure.tag": "Fish & Meat",
+        });
+      } else {
+        agents = await Agent.find({ status: "Free" });
+      }
+    } else {
       agents = await Agent.find({
         status: "Free",
-        "workStructure.tag": "Fish & Meat",
+        "workStructure.tag": { $ne: "Fish & Meat" },
       });
-    } else {
-      agents = await Agent.find({ status: "Free" });
     }
 
     // Fetch all agents and filter those with the monthly salary structure ID
@@ -197,27 +237,39 @@ const fetchNearestMonthlySalaryAgents = async (radius, merchantId) => {
     const monthlySalaryPricing = await AgentPricing.findOne({
       ruleName: "Monthly-salaried",
     });
-    const merchant = await Merchant.findById(merchantId);
+    
     //  console.log(monthlySalaryPricing._id)
     if (!monthlySalaryPricing) {
       throw new Error(`No pricing rule found for ruleName: "Monthly"`);
     }
 
     // Fetch all agents and filter those with the monthly salary structure ID
-    const merchantBusinessCategory = await BusinessCategory.findById(
-      merchant.merchantDetail.businessCategoryId
-    );
+    let merchant;
+    let merchantBusinessCategory;
+    if (merchantId) {
+      merchant = await Merchant.findById(merchantId);
+      merchantBusinessCategory = await BusinessCategory.findById(
+        merchant.merchantDetail.businessCategoryId
+      );
+    }
     let agents;
-    if (
-      merchantBusinessCategory.title === "Fish" ||
-      merchantBusinessCategory.title === "Meat"
-    ) {
+    if (merchant) {
+      if (
+        merchantBusinessCategory.title === "Fish" ||
+        merchantBusinessCategory.title === "Meat"
+      ) {
+        agents = await Agent.find({
+          status: "Free",
+          "workStructure.tag": "Fish & Meat",
+        });
+      } else {
+        agents = await Agent.find({ status: "Free" });
+      }
+    } else {
       agents = await Agent.find({
         status: "Free",
-        "workStructure.tag": "Fish & Meat",
+        "workStructure.tag": { $ne: "Fish & Meat" },
       });
-    } else {
-      agents = await Agent.find({ status: "Free" });
     }
     console.log("Agents before distance filter", agents);
     const filteredAgents = agents.filter((agent) => {
@@ -257,41 +309,63 @@ const fetchNearestMonthlySalaryAgents = async (radius, merchantId) => {
 };
 
 const fetchAgents = async (merchantId) => {
-  const merchant = await Merchant.findById(merchantId);
-  const merchantBusinessCategory = await BusinessCategory.findById(
-    merchant.merchantDetail.businessCategoryId
-  );
-  let agents;
-  if (
-    merchantBusinessCategory.title === "Fish" ||
-    merchantBusinessCategory.title === "Meat"
-  ) {
-    agents = await Agent.find({
-      status: "Free",
-      "workStructure.tag": "Fish & Meat",
-    });
-  } else {
-    agents = await Agent.find({ status: "Free" });
+  let merchant;
+  let merchantBusinessCategory;
+  if (merchantId) {
+    merchant = await Merchant.findById(merchantId);
+    merchantBusinessCategory = await BusinessCategory.findById(
+      merchant.merchantDetail.businessCategoryId
+    );
   }
+  let agents;
+    if (merchant) {
+      if (
+        merchantBusinessCategory.title === "Fish" ||
+        merchantBusinessCategory.title === "Meat"
+      ) {
+        agents = await Agent.find({
+          status: "Free",
+          "workStructure.tag": "Fish & Meat",
+        });
+      } else {
+        agents = await Agent.find({ status: "Free" });
+      }
+    } else {
+      agents = await Agent.find({
+        status: "Free",
+        "workStructure.tag": { $ne: "Fish & Meat" },
+      });
+    }
   return agents;
 };
 
 const fetchNearestAgents = async (merchantId) => {
-  const merchant = await Merchant.findById(merchantId);
-  const merchantBusinessCategory = await BusinessCategory.findById(
-    merchant.merchantDetail.businessCategoryId
-  );
+  let merchant;
+  let merchantBusinessCategory;
+  if (merchantId) {
+    merchant = await Merchant.findById(merchantId);
+    merchantBusinessCategory = await BusinessCategory.findById(
+      merchant.merchantDetail.businessCategoryId
+    );
+  }
   let agents;
-  if (
-    merchantBusinessCategory.title === "Fish" ||
-    merchantBusinessCategory.title === "Meat"
-  ) {
+  if (merchant) {
+    if (
+      merchantBusinessCategory.title === "Fish" ||
+      merchantBusinessCategory.title === "Meat"
+    ) {
+      agents = await Agent.find({
+        status: "Free",
+        "workStructure.tag": "Fish & Meat",
+      });
+    } else {
+      agents = await Agent.find({ status: "Free" });
+    }
+  } else {
     agents = await Agent.find({
       status: "Free",
-      "workStructure.tag": "Fish & Meat",
+      "workStructure.tag": { $ne: "Fish & Meat" },
     });
-  } else {
-    agents = await Agent.find({ status: "Free" });
   }
 
   const filteredAgents = agents.filter((agent) => {
