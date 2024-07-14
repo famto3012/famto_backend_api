@@ -9,10 +9,11 @@ const razorpay = new Razorpay({
 const createRazorpayOrderId = async (amount) => {
   try {
     const options = {
-      amount: amount * 100,
+      amount: Math.round(amount * 100), // amount in paise
       currency: "INR",
       receipt: crypto.randomBytes(10).toString("hex"),
     };
+
     const order = await razorpay.orders.create(options);
     return { success: true, orderId: order.id };
   } catch (err) {

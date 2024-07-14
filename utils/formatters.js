@@ -1,4 +1,5 @@
 const moment = require("moment");
+const momentTimezone = require("moment-timezone");
 
 const formatDate = (date) => {
   const options = {
@@ -26,15 +27,62 @@ const formatTime = (createdAt) => {
   return formattedTime;
 };
 
-const convertToUTC = (time12hr) => {
-  // Parse the 12-hour time using a known format
-  const localTime = moment(time12hr, "hh:mm A");
+const convertToUTC = (date, time) => {
+  // Combine date and time
+  const localDateTime = momentTimezone.tz(
+    `${date} ${time}`,
+    "YYYY-MM-DD hh:mm A",
+    momentTimezone.tz.guess()
+  );
 
   // Convert to UTC
-  const utcTime = localTime.utc();
+  const timeUTC = localDateTime.clone().utc();
 
+  console.log("Time in function: ", timeUTC.format());
   // Return the UTC time in desired format
-  return utcTime.format();
+  return timeUTC.format();
 };
 
-module.exports = { formatDate, formatTime, convertToUTC };
+const convertStartDateToUTC = (date, time) => {
+  // Combine date and time
+  const localDateTime = momentTimezone.tz(
+    `${date} ${time}`,
+    "YYYY-MM-DD hh:mm A",
+    momentTimezone.tz.guess()
+  );
+
+  // Convert to UTC
+  const orderStartDateinUTC = localDateTime.clone().utc();
+
+  console.log(
+    "Start date in function: ",
+    orderStartDateinUTC.startOf("day").format()
+  );
+  // Return the UTC time in desired format
+  return orderStartDateinUTC.startOf("day").format();
+};
+
+const convertEndDateToUTC = (date, time) => {
+  // Combine date and time
+  const localDateTime = momentTimezone.tz(
+    `${date} ${time}`,
+    "YYYY-MM-DD hh:mm A",
+    momentTimezone.tz.guess()
+  );
+
+  // Convert to UTC
+  const orderEndDateInUTC = localDateTime.clone().utc();
+
+  console.log("End date in function: ", orderEndDateInUTC.format());
+
+  // Return the UTC time in desired format
+  return orderEndDateInUTC.format();
+};
+
+module.exports = {
+  formatDate,
+  formatTime,
+  convertToUTC,
+  convertStartDateToUTC,
+  convertEndDateToUTC,
+};

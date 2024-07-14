@@ -51,6 +51,7 @@ require("./config/dbConnect");
 const {
   createOrdersFromScheduled,
   updateOneDayLoyaltyPointEarning,
+  createOrdersFromScheduledPickAndDrop,
 } = require("./utils/customerAppHelpers");
 const { app, server } = require("./socket/socket.js");
 const ScheduledOrder = require("./models/ScheduledOrder.js");
@@ -59,6 +60,7 @@ const {
   resetAllAgentTaskHelper,
 } = require("./utils/resetAllAgentTaskHelper.js");
 const taskRoute = require("./routes/adminRoute/deliveryManagementRoute/taskRoute.js");
+const scheduledPickAndDrop = require("./models/ScheduledPickAndDrop.js");
 
 // const app = express();
 
@@ -125,7 +127,7 @@ cron.schedule("05 20 * * *", async () => {
   console.log("Running scheduled task to delete expired plans");
   await deleteExpiredSponsorshipPlans();
   await deleteExpiredSubscriptionPlans();
-  const orderId = "669251885c5a5d33c91e8fba";
+  const orderId = "668ba4315d1d6791f5d76e32";
   await orderCreateTaskHelper(orderId);
 });
 
@@ -134,13 +136,14 @@ cron.schedule("* * * * *", async () => {
   const now = new Date();
   console.log("Current Date and Time:", now);
 
-  const scheduledOrders = await ScheduledOrder.find({
+  // Universal order
+  const universalScheduledOrders = await ScheduledOrder.find({
     status: "Pending",
     $and: [
-      // { startDate: { $lte: now } },
-      {
-        $or: [{ startDate: { $lte: now } }, { startDate: { $gte: now } }],
-      },
+      { startDate: { $lte: now } },
+      // {
+      //   $or: [{ startDate: { $lte: now } }, { startDate: { $gte: now } }],
+      // },
       {
         $or: [{ endDate: { $lte: now } }, { endDate: { $gte: now } }],
       },
@@ -148,16 +151,44 @@ cron.schedule("* * * * *", async () => {
     ],
   });
 
-  console.log("Found Scheduled Orders:", scheduledOrders);
+  console.log("Found Universal scheduled Orders:", universalScheduledOrders);
 
-  if (!scheduledOrders.length) {
+  if (!universalScheduledOrders.length) {
     console.log("No scheduled orders to process at this time.");
-    return;
+  } else {
+    for (const scheduledOrder of universalScheduledOrders) {
+      console.log("Processing Scheduled Order ID:", scheduledOrder._id);
+      await createOrdersFromScheduled(scheduledOrder);
+    }
   }
 
-  for (const scheduledOrder of scheduledOrders) {
-    console.log("Processing Scheduled Order ID:", scheduledOrder._id);
-    await createOrdersFromScheduled(scheduledOrder);
+  // Pick and Drop order
+  const pickAndDropScheduledOrders = await scheduledPickAndDrop.find({
+    status: "Pending",
+    $and: [
+      { startDate: { $lte: now } },
+      {
+        $or: [{ endDate: { $lte: now } }, { endDate: { $gte: now } }],
+      },
+      { time: { $lte: now } },
+    ],
+  });
+
+  console.log(
+    "Found Pick and Drop scheduled Orders:",
+    pickAndDropScheduledOrders
+  );
+
+  if (!pickAndDropScheduledOrders.length) {
+    console.log("No scheduled pick and drop orders to process at this time.");
+  } else {
+    for (const scheduledOrder of pickAndDropScheduledOrders) {
+      console.log(
+        "Processing Pick and Drop Scheduled Order ID:",
+        scheduledOrder._id
+      );
+      await createOrdersFromScheduledPickAndDrop(scheduledOrder);
+    }
   }
 });
 

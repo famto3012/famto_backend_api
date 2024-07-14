@@ -16,8 +16,8 @@ const {
   deleteAgentVehicleController,
   changeVehicleStatusController,
   rateCustomerController,
+  updateLocationController,
 } = require("../../controllers/agent/agentController");
-const { body, check } = require("express-validator");
 const { upload } = require("../../utils/imageOperation");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const {
@@ -30,6 +30,9 @@ const {
 } = require("../../middlewares/validators/agentAppValidations/agentAppValidations");
 
 const agentRoute = express.Router();
+
+// Update location
+agentRoute.patch("/update-location", isAuthenticated, updateLocationController);
 
 //Agent register
 agentRoute.post(

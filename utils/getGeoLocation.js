@@ -2,37 +2,11 @@ const Geofence = require("../models/Geofence");
 const appError = require("./appError");
 const { point, polygon, booleanPointInPolygon } = require("@turf/turf");
 
-// const geoLocation = async (latitude, longitude, next) => {
-//   try {
-//     const location = [latitude, longitude];
-
-//     const geofence = await Geofence.findOne({
-//       coordinates: {
-//         $geoIntersects: {
-//           $geometry: {
-//             type: "Point",
-//             coordinates: location,
-//           },
-//         },
-//       },
-//     });
-
-//     if (!geofence) {
-//       throw new Error("No geofence found for this location");
-//     }
-
-//     return geofence._id;
-//   } catch (err) {
-//     next(appError(err.message));
-//   }
-// };
-
 // Function to find the appropriate geofence for given coordinates
-
 const geoLocation = async (latitude, longitude, next) => {
   try {
     // Retrieve all geofences (assuming you have a Geofence model)
-    const geofences = await Geofence.find(); // Adjust this based on your actual model name
+    const geofences = await Geofence.find({}); // Adjust this based on your actual model name
 
     // Convert user coordinates into a Turf.js point
     const userPoint = point([longitude, latitude]);

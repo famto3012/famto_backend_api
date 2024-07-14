@@ -23,7 +23,8 @@ const geofenceSchema = new mongoose.Schema(
       unique: true,
     },
     orderManager: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Manager",
       required: true,
     },
     //TODO: other manager
