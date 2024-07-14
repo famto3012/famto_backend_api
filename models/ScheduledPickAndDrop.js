@@ -1,22 +1,7 @@
 const mongoose = require("mongoose");
 
-const orderItemSchema = mongoose.Schema(
+const scheduledPickAndDropItemSchema = mongoose.Schema(
   {
-    // Food item details
-    productId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
-    },
-    quantity: {
-      type: Number,
-    },
-    price: {
-      type: Number,
-    },
-    variantTypeId: {
-      type: mongoose.Schema.Types.ObjectId,
-    },
-    // PICK AND DROP item details
     itemType: {
       type: String,
     },
@@ -36,12 +21,10 @@ const orderItemSchema = mongoose.Schema(
       type: Number,
     },
   },
-  {
-    _id: false,
-  }
+  { _id: false }
 );
 
-const orderDetailSchema = mongoose.Schema(
+const scheduledPickAndDropDetailSchema = mongoose.Schema(
   {
     pickupLocation: {
       type: [Number],
@@ -75,18 +58,6 @@ const orderDetailSchema = mongoose.Schema(
       enum: ["On-demand", "Scheduled"],
       required: true,
     },
-    deliveryTime: {
-      type: Date,
-      default: null,
-    },
-    instructionToMerchant: {
-      type: String,
-      default: null,
-    },
-    instructionToDeliveryAgent: {
-      type: String,
-      default: null,
-    },
     instructionInDelivery: {
       type: String,
       default: null,
@@ -103,9 +74,7 @@ const orderDetailSchema = mongoose.Schema(
       default: null,
     },
   },
-  {
-    _id: false,
-  }
+  { _id: false }
 );
 
 const billSchema = mongoose.Schema(
@@ -143,95 +112,33 @@ const billSchema = mongoose.Schema(
       default: 0,
     },
   },
-  {
-    _id: false,
-  }
+  { _id: false }
 );
 
-const orderRatingSchema = mongoose.Schema(
-  {
-    ratingToDeliveryAgent: {
-      review: {
-        type: String,
-        required: true,
-      },
-      rating: {
-        type: Number,
-        required: true,
-        min: 1,
-        max: 5,
-      },
-    },
-    ratingByDeliveryAgent: {
-      review: {
-        type: String,
-        required: true,
-      },
-      rating: {
-        type: Number,
-        required: true,
-        min: 1,
-        max: 5,
-      },
-    },
-  },
-  {
-    _id: false,
-  }
-);
-
-const commissionDetailSchema = mongoose.Schema(
-  {
-    merchantEarnings: {
-      type: Number,
-      required: true,
-    },
-    famtoEarnings: {
-      type: Number,
-      required: true,
-    },
-  },
-  {
-    _id: false,
-  }
-);
-
-const orderSchema = mongoose.Schema(
+const scheduledPickAndDropSchema = mongoose.Schema(
   {
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Customer",
       required: true,
     },
-    merchantId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Merchant",
-    },
-    agentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Agent",
-    },
-    items: [orderItemSchema],
-    orderDetail: orderDetailSchema,
+    items: [scheduledPickAndDropItemSchema],
+    orderDetail: scheduledPickAndDropDetailSchema,
     billDetail: billSchema,
+    totalAmount: {
+      type: Number,
+      required: true,
+    },
     status: {
       type: String,
       required: true,
-      enum: ["Pending", "On-going", "Completed", "Cancelled"],
+      enum: ["Pending", "Completed"],
       default: "Pending",
     },
     paymentMode: {
       type: String,
       required: true,
-      enum: ["Famto-cash", "Online-payment", "Cash-on-delivery"],
-    },
-    paymentId: {
-      type: String,
-      default: null,
-    },
-    refundId: {
-      type: String,
-      default: null,
+      enum: ["Famto-cash", "Online-payment"],
     },
     paymentStatus: {
       type: String,
@@ -239,13 +146,29 @@ const orderSchema = mongoose.Schema(
       enum: ["Pending", "Completed", "Failed"],
       default: "Pending",
     },
-    orderRating: orderRatingSchema,
-    commissionDetail: commissionDetailSchema,
+    startDate: {
+      type: Date,
+      required: true,
+    },
+    endDate: {
+      type: Date,
+      required: true,
+    },
+    time: {
+      type: Date,
+      required: true,
+    },
+    paymentId: {
+      type: String,
+    },
   },
   {
     timestamps: true,
   }
 );
 
-const Order = mongoose.model("Order", orderSchema);
-module.exports = Order;
+const scheduledPickAndDrop = mongoose.model(
+  "scheduledPickAndDrop",
+  scheduledPickAndDropSchema
+);
+module.exports = scheduledPickAndDrop;

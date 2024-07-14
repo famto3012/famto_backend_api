@@ -2,7 +2,10 @@ const mongoose = require("mongoose");
 
 const cartItemSchema = mongoose.Schema(
   {
-    itemType: {
+    itemId: {
+      type: mongoose.Schema.Types.ObjectId,
+    },
+    itemName: {
       type: String,
       required: true,
     },
@@ -24,7 +27,19 @@ const cartItemSchema = mongoose.Schema(
     },
     weight: {
       type: Number,
-      required: true,
+      default: null,
+    },
+    numOfUnits: {
+      type: Number,
+      default: null,
+    },
+    quantity: {
+      type: Number,
+      default: null,
+    },
+    itemImageURL: {
+      type: String,
+      default: null,
     },
   },
   {
@@ -63,6 +78,15 @@ const cartDetailSchema = mongoose.Schema(
     instructionInDelivery: {
       type: String,
       default: null,
+    },
+    deliveryMode: {
+      type: String,
+      default: "Pick and Drop",
+    },
+    deliveryOption: {
+      type: String,
+      enum: ["On-demand", "Scheduled"],
+      required: true,
     },
     distance: {
       type: Number,
@@ -130,6 +154,10 @@ const billSchema = mongoose.Schema(
     },
     subTotal: {
       type: Number,
+      default: null,
+    },
+    vehicleType: {
+      type: String,
       default: null,
     },
   },

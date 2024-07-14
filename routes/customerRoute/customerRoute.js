@@ -1,46 +1,4 @@
 const express = require("express");
-const {
-  registerAndLoginController,
-  getCustomerProfileController,
-  updateCustomerProfileController,
-  updateCustomerAddressController,
-  getCustomerAddressController,
-  getAllBusinessCategoryController,
-  homeSearchController,
-  listRestaurantsController,
-  getMerchantWithCategoriesAndProductsController,
-  filterMerchantController,
-  searchProductsInMerchantController,
-  toggleProductFavoriteController,
-  toggleMerchantFavoriteController,
-  filterProductByFavoriteController,
-  addRatingToMerchantController,
-  filterProductsByTypeController,
-  filterAndSortProductsController,
-  getTotalRatingOfMerchantController,
-  addItemsToCartController,
-  updateCartItemQuantityController,
-  addOrUpdateCartItemController,
-  addCartDetailsController,
-  applyPromocodeController,
-  orderPaymentController,
-  verifyOnlinePaymentController,
-  addWalletBalanceController,
-  verifyWalletRechargeController,
-  rateDeliveryAgentController,
-  getFavoriteMerchantsController,
-  getCustomerOrdersController,
-  getsingleOrderDetailController,
-  getTransactionOfCustomerController,
-  getCustomerSubscriptionDetailController,
-  getPromocodesOfCustomerController,
-  searchPromocodeController,
-  searchOrderController,
-  getWalletAndLoyaltyController,
-  getCustomerCartController,
-  addPickUpAddressController,
-  addPickandDropItemsController,
-} = require("../../controllers/customer/customerController");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const { upload } = require("../../utils/imageOperation");
 const {
@@ -49,6 +7,60 @@ const {
   ratingValidations,
   updateCartProductValidations,
 } = require("../../middlewares/validators/customerAppValidations/customerAppValidations");
+const {
+  registerAndLoginController,
+  getCustomerProfileController,
+  updateCustomerProfileController,
+  updateCustomerAddressController,
+  getCustomerAddressController,
+  addWalletBalanceController,
+  verifyWalletRechargeController,
+  rateDeliveryAgentController,
+  getFavoriteMerchantsController,
+  getCustomerOrdersController,
+  getsingleOrderDetailController,
+  searchOrderController,
+  getTransactionOfCustomerController,
+  getCustomerSubscriptionDetailController,
+  getPromocodesOfCustomerController,
+  searchPromocodeController,
+  getWalletAndLoyaltyController,
+  getCustomerCartController,
+} = require("../../controllers/customer/customerController");
+const {
+  getAllBusinessCategoryController,
+  homeSearchController,
+  listRestaurantsController,
+  getMerchantWithCategoriesAndProductsController,
+  filterMerchantController,
+  searchProductsInMerchantController,
+  filterAndSortProductsController,
+  toggleProductFavoriteController,
+  toggleMerchantFavoriteController,
+  addRatingToMerchantController,
+  getTotalRatingOfMerchantController,
+  addOrUpdateCartItemController,
+  addCartDetailsController,
+  applyPromocodeController,
+  orderPaymentController,
+  verifyOnlinePaymentController,
+} = require("../../controllers/customer/universalOrderController");
+const {
+  addPickUpAddressController,
+  addPickandDropItemsController,
+  addTipAndApplyPromocodeInPickAndDropController,
+  confirmPickAndDropController,
+  verifyPickAndDropPaymentController,
+} = require("../../controllers/customer/pickAndDropController");
+const {
+  addShopController,
+  addItemsToCartController,
+  editItemInCartController,
+  deleteItemInCartController,
+  addDeliveryAddressController,
+  addTipAndApplyPromocodeInCustomOrderController,
+  confirmCustomOrderController,
+} = require("../../controllers/customer/customOrderController");
 
 const customerRoute = express.Router();
 
@@ -163,11 +175,15 @@ customerRoute.post(
   applyPromocodeController
 );
 
-customerRoute.post("/confirm-order", isAuthenticated, orderPaymentController);
+customerRoute.post(
+  "/confirm-order",
+  // isAuthenticated,
+  orderPaymentController
+);
 
 customerRoute.post(
   "/verify-payment",
-  isAuthenticated,
+  // isAuthenticated,
   verifyOnlinePaymentController
 );
 
@@ -251,6 +267,68 @@ customerRoute.post(
   "/add-pick-and-drop-items",
   isAuthenticated,
   addPickandDropItemsController
+);
+
+customerRoute.post(
+  "/add-tip-and-promocode",
+  isAuthenticated,
+  addTipAndApplyPromocodeInPickAndDropController
+);
+
+customerRoute.post(
+  "/confirm-pick-and-drop",
+  // isAuthenticated,
+  confirmPickAndDropController
+);
+
+customerRoute.post(
+  "/verify-pick-and-drop",
+  // isAuthenticated,
+  verifyPickAndDropPaymentController
+);
+
+// -------------------------------------
+// CUSTOM ORDER
+// -------------------------------------
+
+customerRoute.post("/add-shop", isAuthenticated, addShopController);
+
+customerRoute.post(
+  "/add-item",
+  upload.single("itemImage"),
+  isAuthenticated,
+  addItemsToCartController
+);
+
+customerRoute.patch(
+  "/edit-item/:itemId",
+  upload.single("itemImage"),
+  isAuthenticated,
+  editItemInCartController
+);
+
+customerRoute.delete(
+  "/delete-item/:itemId",
+  isAuthenticated,
+  deleteItemInCartController
+);
+
+customerRoute.post(
+  "/add-delivery-address",
+  isAuthenticated,
+  addDeliveryAddressController
+);
+
+customerRoute.post(
+  "/add-custom-tip-and-promocode",
+  isAuthenticated,
+  addTipAndApplyPromocodeInCustomOrderController
+);
+
+customerRoute.post(
+  "/confirm-custom-order",
+  isAuthenticated,
+  confirmCustomOrderController
 );
 
 module.exports = customerRoute;

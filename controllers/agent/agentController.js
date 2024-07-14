@@ -14,17 +14,45 @@ const Order = require("../../models/Order");
 
 //Function for getting agent's manager from geofence
 const getManager = async (geofenceId) => {
-  const geofenceFound = await Geofence.findOne({ _id: geofenceId });
+  const geofenceFound = await Geofence.findOne({
+    _id: geofenceId,
+  });
 
   const geofenceManager = geofenceFound.orderManager;
-
-  console.log("geoFenceManager", geofenceManager);
 
   return geofenceManager;
 };
 
+// Update location on entering APP
+const updateLocationController = async (req, res, next) => {
+  try {
+    const currentAgent = req.userAuth;
+    const { latitude, longitude } = req.body;
+
+    const agentFound = await Agent.findById(currentAgent);
+
+    if (!agentFound) {
+      return next(appError("Agent not found", 404));
+    }
+
+    const location = [latitude, longitude];
+
+    const geofence = await geoLocation(latitude, longitude, next);
+
+    agentFound.location = location;
+    agentFound.geofenceId = geofence.id;
+
+    await agentFound.save();
+
+    res.status(200).json({
+      message: "Location and geofence updated successfully",
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 //Agent register Controller
-//TODO location change from register to login
 const registerAgentController = async (req, res, next) => {
   const { fullName, email, phoneNumber, latitude, longitude } = req.body;
   const location = [latitude, longitude];
@@ -56,8 +84,8 @@ const registerAgentController = async (req, res, next) => {
     }
 
     const geofence = await geoLocation(latitude, longitude, next);
-    console.log("geofenceId", geofenceId);
-    const manager = await getManager(geofenceId);
+
+    const manager = await getManager(geofence.id);
 
     let agentImageURL = "";
 
@@ -609,6 +637,7 @@ const changeVehicleStatusController = async (req, res, next) => {
   }
 };
 
+// Rate customer by order
 const rateCustomerController = async (req, res, next) => {
   try {
     const currentAgent = req.userAuth;
@@ -650,6 +679,7 @@ const rateCustomerController = async (req, res, next) => {
 };
 
 module.exports = {
+  updateLocationController,
   registerAgentController,
   agentLoginController,
   getAgentProfileDetailsController,

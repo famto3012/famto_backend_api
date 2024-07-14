@@ -5,7 +5,7 @@ const Customer = require("../models/Customer");
 const Merchant = require("../models/Merchant");
 const Order = require("../models/Order");
 const ScheduledOrder = require("../models/ScheduledOrder");
-const cron = require("node-cron");
+const scheduledPickAndDrop = require("../models/ScheduledPickAndDrop");
 
 // Helper function to sort merchants by sponsorship
 const sortMerchantsBySponsorship = (merchants) => {
@@ -21,6 +21,9 @@ const getDistanceFromPickupToDelivery = async (
   deliveryCoordinates,
   profile = "biking"
 ) => {
+  // console.log("pickupCoordinates", pickupCoordinates);
+  // console.log("deliveryCoordinates", deliveryCoordinates);
+
   const { data } = await axios.get(
     `https://apis.mapmyindia.com/advancedmaps/v1/${process.env.MapMyIndiaAPIKey}/distance_matrix_eta/${profile}/${pickupCoordinates[1]},${pickupCoordinates[0]};${deliveryCoordinates[1]},${deliveryCoordinates[0]}`
   );
@@ -126,6 +129,44 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
   }
 };
 
+const createOrdersFromScheduledPickAndDrop = async (scheduledOrder) => {
+  try {
+    const customer = await Customer.findById(scheduledOrder.customerId);
+
+    if (!customer) {
+      throw new Error("Customer not found", 404);
+    }
+
+    const newOrder = await Order.create({
+      customerId: scheduledOrder.customerId,
+      items: scheduledOrder.items,
+      orderDetail: scheduledOrder.orderDetail,
+      billDetail: scheduledOrder.billDetail,
+      totalAmount: scheduledOrder.totalAmount,
+      paymentMode: scheduledOrder.paymentMode,
+      paymentStatus: scheduledOrder.paymentStatus,
+      status: "Pending",
+    });
+
+    console.log("Order created successfully with order ID: " + newOrder._id);
+
+    if (new Date() < new Date(scheduledOrder.endDate)) {
+      const nextTime = new Date();
+      nextTime.setDate(nextTime.getDate() + 1);
+
+      await scheduledPickAndDrop.findByIdAndUpdate(scheduledOrder._id, {
+        time: nextTime,
+      });
+    } else {
+      await scheduledPickAndDrop.findByIdAndUpdate(scheduledOrder._id, {
+        status: "Completed",
+      });
+    }
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 const updateOneDayLoyaltyPointEarning = async () => {
   console.log("Running Update Loyalty point updation");
   try {
@@ -146,5 +187,6 @@ module.exports = {
   calculateDeliveryCharges,
   getTaxAmount,
   createOrdersFromScheduled,
+  createOrdersFromScheduledPickAndDrop,
   updateOneDayLoyaltyPointEarning,
 };
