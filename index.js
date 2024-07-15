@@ -61,6 +61,9 @@ const {
 } = require("./utils/resetAllAgentTaskHelper.js");
 const taskRoute = require("./routes/adminRoute/deliveryManagementRoute/taskRoute.js");
 const scheduledPickAndDrop = require("./models/ScheduledPickAndDrop.js");
+const {
+  moveAppDetailToHistoryAndResetForAllAgents,
+} = require("./utils/agentAppHelpers.js");
 
 // const app = express();
 
@@ -192,7 +195,8 @@ cron.schedule("* * * * *", async () => {
   }
 });
 
-cron.schedule("0 0 * * *", async () => {
+cron.schedule("47 13 * * *", async () => {
+  await moveAppDetailToHistoryAndResetForAllAgents();
   await updateOneDayLoyaltyPointEarning();
   await resetAllAgentTaskHelper();
 });

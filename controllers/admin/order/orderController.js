@@ -5,6 +5,9 @@ const { formatTime, formatDate } = require("../../../utils/formatters");
 const {
   orderCommissionLogHelper,
 } = require("../../../utils/orderCommissionLogHelper");
+const {
+  orderCreateTaskHelper,
+} = require("../../../utils/orderCreateTaskHelper");
 const { razorpayRefund } = require("../../../utils/razorpayPayment");
 
 // -------------------------------------------------
@@ -91,6 +94,13 @@ const confirmOrderController = async (req, res, next) => {
         famtoEarnings: payableAmountToFamto,
       };
 
+      // TODO: Uncomment after finishing "orderCreateTaskHelper" function
+      // const task = await orderCreateTaskHelper(orderId);
+
+      // if (!task) {
+      //   return next(appError("Task not created"));
+      // }
+
       orderFound.commissionDetail = updatedCommission;
 
       await orderFound.save();
@@ -132,17 +142,27 @@ const rejectOrderController = async (req, res, next) => {
       return next(appError("Customer not found", 404));
     }
 
+    let updatedTransactionDetail = {
+      transactionType: "Refund",
+      madeon: new Date(),
+      type: "Credit",
+    };
+
     if (orderFound.paymentMode === "Famto-cash") {
-      const orderAmount = orderFound.totalAmount;
+      const orderAmount = orderFound.billDetail.grandTotal;
       if (orderFound.orderDetail.deliveryOption === "On-demand") {
         customerFound.customerDetails.walletBalance += orderAmount;
+        updatedTransactionDetail.transactionAmount = orderAmount;
       } else if (orderFound.orderDetail.deliveryOption === "Scheduled") {
         const orderAmountPerDay =
-          orderFound.totalAmount / orderFound.orderDetail.numOfDays;
+          orderFound.billDetail.grandTotal / orderFound.orderDetail.numOfDays;
         customerFound.customerDetails.walletBalance += orderAmountPerDay;
+        updatedTransactionDetail.transactionAmount = orderAmount;
       }
 
       orderFound.status = "Cancelled";
+      customerFound.transactionDetail.push(updatedTransactionDetail);
+
       await customerFound.save();
       await orderFound.save();
 
@@ -153,7 +173,7 @@ const rejectOrderController = async (req, res, next) => {
     } else if (orderFound.paymentMode === "Cash-on-delivery") {
       orderFound.status === "Cancelled";
 
-      await customerFound.save();
+      await orderFound.save();
 
       res.status(200).json({ message: "Order cancelled" });
       return;
@@ -162,10 +182,12 @@ const rejectOrderController = async (req, res, next) => {
 
       let refundAmount;
       if (orderFound.orderDetail.deliveryOption === "On-demand") {
-        refundAmount = orderFound.totalAmount;
+        refundAmount = orderFound.billDetail.grandTotal;
+        updatedTransactionDetail.transactionAmount = refundAmount;
       } else if (orderFound.orderDetail.deliveryOption === "Scheduled") {
         refundAmount =
-          orderFound.totalAmount / orderFound.orderDetail.numOfDays;
+          orderFound.billDetail.grandTotal / orderFound.orderDetail.numOfDays;
+        updatedTransactionDetail.transactionAmount = refundAmount;
       }
 
       const refundResponse = await razorpayRefund(paymentId, refundAmount);
@@ -176,8 +198,10 @@ const rejectOrderController = async (req, res, next) => {
 
       orderFound.status = "Cancelled";
       orderFound.refundId = refundResponse.refundId;
+      customerFound.transactionDetail.push(updatedTransactionDetail);
 
       await orderFound.save();
+      await customerFound.save();
 
       res.status(200).json({ message: "Order cancelled and amount refunded" });
       return;

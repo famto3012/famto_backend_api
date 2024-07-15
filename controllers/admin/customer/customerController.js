@@ -135,7 +135,7 @@ const getSingleCustomerController = async (req, res, next) => {
       select: "merchantDetail",
     });
 
-    const formattedCustomerOrders = ordersOfCustomer.map((order) => {
+    const formattedCustomerOrders = ordersOfCustomer?.map((order) => {
       const merchantDetail = order.merchantId?.merchantDetail;
       const deliveryTimeMinutes = merchantDetail
         ? parseInt(merchantDetail.deliveryTime, 10)
@@ -163,7 +163,7 @@ const getSingleCustomerController = async (req, res, next) => {
     });
 
     const formattedcustomerTransactions =
-      customerFound?.walletTransactionDetail.map((transaction) => {
+      customerFound?.walletTransactionDetail?.map((transaction) => {
         return {
           closingBalance: transaction.closingBalance || 0,
           transactionAmount: transaction.transactionAmount || 0,
@@ -187,8 +187,8 @@ const getSingleCustomerController = async (req, res, next) => {
       homeAddress: customerFound.customerDetails?.homeAddress || "N/A",
       workAddress: customerFound.customerDetails?.workAddress || "N/A",
       otherAddress: customerFound.customerDetails?.otherAddress || "N/A",
-      walletDetails: formattedcustomerTransactions,
-      orderDetails: formattedCustomerOrders,
+      walletDetails: formattedcustomerTransactions || [],
+      orderDetails: formattedCustomerOrders || [],
     };
 
     res.status(200).json({
@@ -287,16 +287,17 @@ const getAllRatingsAndReviewsByAgentController = async (req, res, next) => {
       next(appError("Customer not found", 404));
     }
 
-    const ratings = customerFound.customerDetails.ratingsByAgents.map(
-      (rating) => ({
-        review: rating.review,
-        rating: rating.rating,
-        customerId: {
-          id: rating.agentId._id,
-          fullName: rating.agentId.fullName,
-        },
-      })
-    );
+    const ratingsOfCustomer =
+      customerFound.customerDetails?.ratingsByAgents?.reverse();
+
+    const ratings = ratingsOfCustomer?.map((rating) => ({
+      review: rating.review,
+      rating: rating.rating,
+      agentId: {
+        id: rating.agentId._id,
+        fullName: rating.agentId.fullName,
+      },
+    }));
 
     res.status(200).json({
       message: "Ratings of customer by agent",

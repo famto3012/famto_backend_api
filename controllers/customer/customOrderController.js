@@ -12,6 +12,9 @@ const {
 } = require("../../utils/imageOperation");
 const CustomerPricing = require("../../models/CustomerPricing");
 const PromoCode = require("../../models/PromoCode");
+const Order = require("../../models/Order");
+const LoyaltyPoint = require("../../models/LoyaltyPoint");
+const CustomerSurge = require("../../models/CustomerSurge");
 
 const addShopController = async (req, res, next) => {
   try {
@@ -279,9 +282,6 @@ const addDeliveryAddressController = async (req, res, next) => {
     const pickupLocation = cartFound.cartDetail.pickupLocation;
     const deliveryLocation = deliveryCoordinates;
 
-    console.log("pickupLocation", pickupLocation);
-    console.log("deliveryLocation", deliveryLocation);
-
     const { distanceInKM, durationInMinutes } =
       await getDistanceFromPickupToDelivery(pickupLocation, deliveryLocation);
 
@@ -307,9 +307,30 @@ const addDeliveryAddressController = async (req, res, next) => {
       return res.status(404).json({ error: "Customer pricing not found" });
     }
 
-    const baseFare = customerPricing.baseFare;
-    const baseDistance = customerPricing.baseDistance;
-    const fareAfterBaseDistance = customerPricing.fareAfterBaseDistance;
+    let baseFare = customerPricing.baseFare;
+    let baseDistance = customerPricing.baseDistance;
+    let fareAfterBaseDistance = customerPricing.fareAfterBaseDistance;
+
+    const customerSurge = await CustomerSurge.findOne({
+      ruleName: "Custom Order",
+      geofenceId: customer.customerDetails.geofenceId,
+      status: true,
+    });
+
+    let surgeCharges;
+
+    if (customerSurge) {
+      let surgeBaseFare = customerSurge.baseFare;
+      let surgeBaseDistance = customerSurge.baseDistance;
+      let surgeFareAfterBaseDistance = customerSurge.fareAfterBaseDistance;
+
+      surgeCharges = calculateDeliveryCharges(
+        distanceInKM,
+        surgeBaseFare,
+        surgeBaseDistance,
+        surgeFareAfterBaseDistance
+      );
+    }
 
     const deliveryCharges = calculateDeliveryCharges(
       distanceInKM,
@@ -323,12 +344,13 @@ const addDeliveryAddressController = async (req, res, next) => {
       deliveryChargePerDay: null,
       discountedDeliveryCharge: null,
       discountedAmount: null,
-      originalGrandTotal: null,
+      originalGrandTotal: deliveryCharges,
       discountedGrandTotal: null,
-      itemTotal: 0,
+      itemTotal: deliveryCharges,
       addedTip: null,
       subTotal: null,
       vehicleType: null,
+      surgePrice: surgeCharges || null,
     };
 
     cartFound.billDetail = updatedBillDetail;
@@ -467,8 +489,121 @@ const addTipAndApplyPromocodeInCustomOrderController = async (
 
 const confirmCustomOrderController = async (req, res, next) => {
   try {
-    const { paymentMode } = req.body;
-    // TODO: Complete the payment
+    const customerId = req.userAuth;
+
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      return next(appError("Customer not found", 404));
+    }
+
+    const cart = await PickAndCustomCart.findOne({ customerId });
+    if (!cart) {
+      return next(appError("Cart not found", 404));
+    }
+
+    const orderAmount =
+      cart.billDetail.discountedGrandTotal ||
+      cart.billDetail.originalGrandTotal;
+
+    let orderBill = {
+      deliveryChargePerDay: cart.billDetail.deliveryChargePerDay,
+      deliveryCharge:
+        cart.billDetail.discountedDeliveryCharge ||
+        cart.billDetail.originalDeliveryCharge,
+      taxAmount: cart.billDetail.taxAmount,
+      discountedAmount: cart.billDetail.discountedAmount,
+      grandTotal:
+        cart.billDetail.discountedGrandTotal ||
+        cart.billDetail.originalGrandTotal,
+      itemTotal: cart.billDetail.itemTotal,
+      addedTip: cart.billDetail.addedTip,
+      subTotal: cart.billDetail.subTotal,
+    };
+
+    let walletTransaction = {
+      closingBalance: customer?.customerDetails?.walletBalance,
+      transactionAmount: orderAmount,
+      date: new Date(),
+      type: "Debit",
+    };
+
+    let customerTransation = {
+      madeOn: new Date(),
+      transactionType: "Bill",
+      transactionAmount: orderAmount,
+      type: "Debit",
+    };
+
+    const loyaltyPointCriteria = await LoyaltyPoint.findOne({ status: true });
+
+    // let loyaltyPoint = 0;
+    const loyaltyPointEarnedToday =
+      customer.customerDetails?.loyaltyPointEarnedToday || 0;
+
+    if (loyaltyPointCriteria) {
+      if (orderAmount >= loyaltyPointCriteria.minOrderAmountForEarning) {
+        if (loyaltyPointEarnedToday < loyaltyPointCriteria.maxEarningPoint) {
+          const calculatedLoyaltyPoint = Math.min(
+            orderAmount * loyaltyPointCriteria.earningCriteraPoint,
+            loyaltyPointCriteria.maxEarningPoint - loyaltyPointEarnedToday
+          );
+          customer.customerDetails.loyaltyPointEarnedToday =
+            customer.customerDetails.loyaltyPointEarnedToday +
+            Number(calculatedLoyaltyPoint);
+          customer.customerDetails.totalLoyaltyPointEarned =
+            customer.customerDetails.totalLoyaltyPointEarned +
+            Number(calculatedLoyaltyPoint);
+        }
+      }
+    }
+
+    const newOrder = await Order.create({
+      customerId,
+      items: cart.items,
+      orderDetail: cart.cartDetail,
+      billDetail: orderBill,
+      totalAmount: orderAmount,
+      status: "Pending",
+      paymentMode: "Cash-on-delivery",
+      paymentStatus: "Pending",
+    });
+
+    customer.transactionDetail.push(customerTransation);
+    customer.walletTransactionDetail.push(walletTransaction);
+    await customer.save();
+
+    // Clear the cart
+    await PickAndCustomCart.deleteOne({ customerId });
+
+    const orderResponse = {
+      _id: newOrder._id,
+      customerId: newOrder.customerId,
+      customerName:
+        customer.fullName || newOrder.orderDetail.pickupAddress.fullName,
+      status: newOrder.status,
+      totalAmount: newOrder.totalAmount,
+      paymentMode: newOrder.paymentMode,
+      paymentStatus: newOrder.paymentStatus,
+      items: newOrder.items,
+      deliveryAddress: newOrder.orderDetail.deliveryAddress,
+      billDetail: newOrder.billDetail,
+      orderDetail: {
+        pickupLocation: newOrder.orderDetail.pickupLocation,
+        pickupAddress: newOrder.orderDetail.pickupAddress,
+        deliveryLocation: newOrder.orderDetail.deliveryLocation,
+        deliveryAddress: newOrder.orderDetail.deliveryAddress,
+        deliveryMode: newOrder.orderDetail.deliveryMode,
+        deliveryOption: newOrder.orderDetail.deliveryOption,
+        distance: newOrder.orderDetail.distance,
+      },
+      createdAt: newOrder.createdAt,
+      updatedAt: newOrder.updatedAt,
+    };
+
+    res.status(200).json({
+      message: "Custom order created successfully",
+      data: orderResponse,
+    });
   } catch (err) {
     next(appError(err.message));
   }

@@ -20,6 +20,7 @@ const {
 } = require("../../utils/formatters");
 const PickAndCustomCart = require("../../models/PickAndCustomCart");
 const scheduledPickAndDrop = require("../../models/ScheduledPickAndDrop");
+const CustomerSurge = require("../../models/CustomerSurge");
 
 const addPickUpAddressController = async (req, res, next) => {
   try {
@@ -190,6 +191,27 @@ const addPickUpAddressController = async (req, res, next) => {
       return res.status(404).json({ error: "Customer pricing not found" });
     }
 
+    const customerSurge = await CustomerSurge.findOne({
+      ruleName: "Pick And Drop Order",
+      geofenceId: customer.customerDetails.geofenceId,
+      status: true,
+    });
+
+    let surgeCharges;
+
+    if (customerSurge) {
+      let surgeBaseFare = customerSurge.baseFare;
+      let surgeBaseDistance = customerSurge.baseDistance;
+      let surgeFareAfterBaseDistance = customerSurge.fareAfterBaseDistance;
+
+      surgeCharges = calculateDeliveryCharges(
+        distanceInKM,
+        surgeBaseFare,
+        surgeBaseDistance,
+        surgeFareAfterBaseDistance
+      );
+    }
+
     const vehicleCharges = uniqueVehicleTypes
       .map((vehicleType) => {
         const pricing = customerPricingArray.find(
@@ -210,7 +232,8 @@ const addPickUpAddressController = async (req, res, next) => {
 
           return {
             vehicleType,
-            deliveryCharges: parseFloat(deliveryCharges.toFixed(2)),
+            deliveryCharges:
+              parseFloat(deliveryCharges.toFixed(2)) + (surgeCharges || 0),
           };
         } else {
           return null;

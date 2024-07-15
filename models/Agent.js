@@ -94,28 +94,41 @@ const workStructureSchema = mongoose.Schema(
   { _id: false }
 );
 
-const agentAppDetailSchema = mongoose.Schema({
-  orders: {
-    type: Number,
-    default: 0,
+const agentAppDetailSchema = mongoose.Schema(
+  {
+    totalEarning: {
+      type: Number,
+      default: 0,
+    },
+    orders: {
+      type: Number,
+      default: 0,
+    },
+    pendingOrder: {
+      type: Number,
+      default: 0,
+    },
+    totalDistance: {
+      type: Number,
+      default: 0,
+    },
+    cancelledOrders: {
+      type: Number,
+      default: 0,
+    },
+    totalDistance: {
+      type: Number,
+      default: 0,
+    },
+    loginDuration: {
+      type: Number,
+      default: 0, // Store login duration in milliseconds
+    },
   },
-  pendingOrder: {
-    type: Number,
-    default: 0,
-  },
-  totalDistance: {
-    type: Number,
-    default: 0,
-  },
-  cancelledOrders: {
-    type: Number,
-    default: 0,
-  },
-  totalDistance: {
-    type: Number,
-    default: 0,
-  },
-});
+  {
+    _id: false,
+  }
+);
 
 const agentSchema = mongoose.Schema(
   {
@@ -173,17 +186,48 @@ const agentSchema = mongoose.Schema(
       enum: ["Approved", "Pending", "Rejected"],
       default: "Pending",
     },
+    loginStartTime: {
+      type: Date,
+      default: null,
+    },
+    loginEndTime: {
+      type: Date,
+      default: null,
+    },
     vehicleDetail: [vehicleSchema],
     governmentCertificateDetail: governmentCertificateDetailSchema,
     bankDetail: bankDetailSchema,
     workStructure: workStructureSchema,
     ratingsByCustomers: [ratingsByCustomerSchema],
     appDetail: agentAppDetailSchema,
+    appDetailHistory: [
+      {
+        date: {
+          type: Date,
+          required: true,
+        },
+        details: agentAppDetailSchema,
+      },
+    ],
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
+
+// Virtual field for calculating the average rating
+agentSchema.virtual("averageRating").get(function () {
+  if (this.ratingsByCustomers?.length === 0) {
+    return 0;
+  }
+  const total = this.ratingsByCustomers?.reduce(
+    (acc, rating) => acc + rating.rating,
+    0
+  );
+  return total / this.ratingsByCustomers?.length;
+});
 
 const Agent = mongoose.model("Agent", agentSchema);
 module.exports = Agent;

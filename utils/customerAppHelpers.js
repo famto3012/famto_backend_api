@@ -50,9 +50,11 @@ const calculateDeliveryCharges = (
   fareAfterBaseDistance
 ) => {
   if (distance <= baseDistance) {
-    return baseFare;
+    return parseFloat(baseFare);
   } else {
-    return baseFare + (distance - baseDistance) * fareAfterBaseDistance;
+    return parseFloat(
+      baseFare + (distance - baseDistance) * fareAfterBaseDistance
+    );
   }
 };
 

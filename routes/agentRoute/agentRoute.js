@@ -17,6 +17,10 @@ const {
   changeVehicleStatusController,
   rateCustomerController,
   updateLocationController,
+  getCurrentDayAppDetailController,
+  getHistoryOfAppDetailsController,
+  getRatingsOfAgentController,
+  getTaskPreviewController,
 } = require("../../controllers/agent/agentController");
 const { upload } = require("../../utils/imageOperation");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
@@ -148,5 +152,22 @@ agentRoute.post(
   isAuthenticated,
   rateCustomerController
 );
+
+// Get current day statistics of agent
+agentRoute.get(
+  "/current-day-detail",
+  isAuthenticated,
+  getCurrentDayAppDetailController
+);
+
+agentRoute.get(
+  "/app-detail-history",
+  isAuthenticated,
+  getHistoryOfAppDetailsController
+);
+
+agentRoute.get("/get-ratings", isAuthenticated, getRatingsOfAgentController);
+
+agentRoute.get("/get-task-preview", isAuthenticated, getTaskPreviewController);
 
 module.exports = agentRoute;
