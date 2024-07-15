@@ -944,7 +944,7 @@ const addCartDetailsController = async (req, res, next) => {
       instructionToDeliveryAgent,
       startDate,
       endDate,
-      time: convertToUTC(startDate, time),
+      time: convertToUTC(time),
     };
 
     let updatedBill = {
@@ -1331,29 +1331,28 @@ const orderPaymentController = async (req, res, next) => {
       return next(appError("Merchant not found", 404));
     }
 
-    let startDate, endDate;
+    // let startDate, endDate;
     if (cart.cartDetail.deliveryOption === "Scheduled") {
       // // Parse the provided time and set it to the end date
       // const [hours, minutes] = cart.cartDetail.time.split(":");
       // const ampm = cart.cartDetail.time.slice(-2).toUpperCase();
       // const parsedHours =
       //   ampm === "PM" ? (parseInt(hours) % 12) + 12 : parseInt(hours) % 12;
-
       // endDate = new Date(cart.cartDetail.endDate);
       // endDate.setHours(parsedHours);
       // endDate.setMinutes(parseInt(minutes));
       // endDate.setSeconds(0);
       // endDate.setMilliseconds(0);
-
-      startDate = convertStartDateToUTC(
-        cart.cartDetail.startDate,
-        cart.cartDetail.time
-      );
-
-      endDate = convertEndDateToUTC(
-        cart.cartDetail.endDate,
-        cart.cartDetail.time
-      );
+      // console.log("Start date in cart: ", cart.cartDetail.startDate);
+      // console.log("End date in cart: ", cart.cartDetail.endDate);
+      // startDate = convertStartDateToUTC(
+      //   cart.cartDetail.startDate,
+      //   cart.cartDetail.time
+      // );
+      // endDate = convertEndDateToUTC(
+      //   cart.cartDetail.endDate,
+      //   cart.cartDetail.time
+      // );
     }
 
     let newOrder;
@@ -1437,8 +1436,8 @@ const orderPaymentController = async (req, res, next) => {
           status: "Pending",
           paymentMode: "Famto-cash",
           paymentStatus: "Completed",
-          startDate, //: cart.cartDetail.startDate,
-          endDate, //: cart.cartDetails.endDate,
+          startDate: cart.cartDetail.startDate,
+          endDate: cart.cartDetail.endDate,
           time: cart.cartDetail.time,
         });
 

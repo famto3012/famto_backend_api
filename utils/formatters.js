@@ -27,53 +27,69 @@ const formatTime = (createdAt) => {
   return formattedTime;
 };
 
-const convertToUTC = (date, time) => {
-  // Combine date and time
-  const localDateTime = momentTimezone.tz(
-    `${date} ${time}`,
-    "YYYY-MM-DD hh:mm A",
-    momentTimezone.tz.guess()
-  );
+// const convertToUTC = (date, time) => {
+//   // Combine date and time
+//   const localDateTime = momentTimezone.tz(
+//     `${date} ${time}`,
+//     "YYYY-MM-DD hh:mm A",
+//     momentTimezone.tz.guess()
+//   );
+
+//   // Convert to UTC
+//   const timeUTC = localDateTime.clone().utc();
+
+//   console.log("Time in function: ", timeUTC.format());
+//   // Return the UTC time in desired format
+//   return timeUTC.format();
+// };
+
+const convertToUTC = (time12hr) => {
+  // Parse the 12-hour time using a known format
+  const localTime = moment(time12hr, "hh:mm A");
 
   // Convert to UTC
-  const timeUTC = localDateTime.clone().utc();
+  const utcTime = localTime.utc();
 
-  console.log("Time in function: ", timeUTC.format());
   // Return the UTC time in desired format
-  return timeUTC.format();
+  return utcTime.format();
 };
 
 const convertStartDateToUTC = (date, time) => {
-  // Combine date and time
+  // Combine date and time using 12-hour format
+  console.log(`Input date: ${date}, time: ${time}`);
   const localDateTime = momentTimezone.tz(
     `${date} ${time}`,
     "YYYY-MM-DD hh:mm A",
     momentTimezone.tz.guess()
   );
+
+  // Log local date and time
+  console.log("Local date and time: ", localDateTime.format());
 
   // Convert to UTC
   const orderStartDateinUTC = localDateTime.clone().utc();
 
-  console.log(
-    "Start date in function: ",
-    orderStartDateinUTC.startOf("day").format()
-  );
+  console.log("Start date in function (UTC): ", orderStartDateinUTC.format());
   // Return the UTC time in desired format
-  return orderStartDateinUTC.startOf("day").format();
+  return orderStartDateinUTC.format();
 };
 
 const convertEndDateToUTC = (date, time) => {
-  // Combine date and time
+  // Combine date and time using 12-hour format
+  console.log(`Input date: ${date}, time: ${time}`);
   const localDateTime = momentTimezone.tz(
     `${date} ${time}`,
     "YYYY-MM-DD hh:mm A",
     momentTimezone.tz.guess()
   );
 
+  // Log local date and time
+  console.log("Local date and time: ", localDateTime.format());
+
   // Convert to UTC
   const orderEndDateInUTC = localDateTime.clone().utc();
 
-  console.log("End date in function: ", orderEndDateInUTC.format());
+  console.log("End date in function (UTC): ", orderEndDateInUTC.format());
 
   // Return the UTC time in desired format
   return orderEndDateInUTC.format();
