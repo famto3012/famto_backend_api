@@ -169,6 +169,7 @@ const turf = require("@turf/turf");
 const admin = require("firebase-admin");
 const Order = require("../models/Order");
 const { getMessaging } = require("firebase-admin/messaging");
+const FcmToken = require("../models/fcmToken");
 
 // const serviceAccount = require("./path/to/serviceAccountKey.json");
 
@@ -204,6 +205,7 @@ const io = new Server(server, {
   reconnectionAttempts: Infinity, // Unlimited attempts
 });
 
+
 const userSocketMap = {};
 
 // Function to send push notification via FCM
@@ -211,7 +213,7 @@ function sendPushNotificationToUser(fcmToken, message) {
   console.log(message);
   const mes = {
     notification: {
-      title: "Notify",
+      title: "Notification",
       body: message.body.merchantName,
     },
     token: fcmToken,
@@ -232,10 +234,9 @@ function sendNotification(userId, eventName, data) {
   const socketId = userSocketMap[userId]?.socketId;
   const fcmToken = userSocketMap[userId]?.fcmToken;
 
-  // if (socketId) {
-  //   io.to(socketId).emit(eventName, data);
-  // } else
-  if (fcmToken) {
+  if (socketId) {
+    io.to(socketId).emit(eventName, data);
+  } else if (fcmToken) {
     sendPushNotificationToUser(fcmToken, {
       title: "Notification",
       body: data,
@@ -244,6 +245,20 @@ function sendNotification(userId, eventName, data) {
     console.error(`No socketId or fcmToken found for userId: ${userId}`);
   }
 }
+
+async function populateUserSocketMap() {
+  try {
+    const tokens = await FcmToken.find({});
+    tokens.forEach((token) => {
+      userSocketMap[token.userId] = { socketId: null, fcmToken: token.token };
+    });
+    console.log("User Socket Map populated with FCM tokens:", userSocketMap);
+  } catch (error) {
+    console.error("Error populating User Socket Map:", error);
+  }
+}
+
+populateUserSocketMap();
 
 const getRecipientSocketId = (recipientId) => {
   return userSocketMap[recipientId].socketId;
@@ -254,10 +269,26 @@ const getRecipientFcmToken = (recipientId) => {
 };
 
 // Connection socket
-io.on("connection", (socket) => {
+io.on("connection", async(socket) => {
   console.log("user connected", socket.id);
   const userId = socket.handshake.query.userId;
   const fcmToken = socket.handshake.query.fcmToken;
+
+  if(userId){
+    const user = await FcmToken.find({userId})
+    console.log(user)
+    if(user.length === 0){
+      await FcmToken.create({
+        userId,
+        token:fcmToken,
+      })
+    }else{
+      if(user.fcmToken !== fcmToken)
+        await FcmToken.findByIdAndUpdate(user._id, {
+        token:fcmToken,
+      });
+    }
+  }
 
   if (userId !== "undefined") {
     if (userSocketMap[userId]) {
@@ -286,7 +317,7 @@ io.on("connection", (socket) => {
       await Task.findByIdAndUpdate(task[0]._id, {
         agentId: data.agentId,
         taskStatus: "Assigned",
-        deliveryStatus: "In-progress",
+        deliveryStatus: "Accepted",
       });
     }
 

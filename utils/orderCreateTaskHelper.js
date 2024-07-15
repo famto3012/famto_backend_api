@@ -14,6 +14,7 @@ const {
   sendNotification,
 } = require("../socket/socket");
 const BusinessCategory = require("../models/BusinessCategory");
+const FcmToken = require("../models/fcmToken");
 
 const orderCreateTaskHelper = async (orderId) => {
   try {
@@ -50,6 +51,7 @@ const orderCreateTaskHelper = async (orderId) => {
         );
       }
     }
+    return true
   } catch (err) {
     appError(err.message);
   }
@@ -74,10 +76,11 @@ const notifyAgents = async (order, priorityType, io) => {
     for (const agent of agents) {
       console.log("Inside loop");
       console.log("AgentId", agent.id);
+      const userToken = await FcmToken.find({userId:agent.id});
+      const fcmToken = userToken[0].token
+      console.log("FCM TOKEN", fcmToken);
       const socketId = await getRecipientSocketId(agent.id);
       console.log("SocketId", socketId);
-      const fcmToken = await getRecipientFcmToken(agent.id);
-      console.log("FCM TOKEN", fcmToken);
       if (socketId) {
         // Emit notification to agent
         const orderDetails = {
@@ -134,10 +137,11 @@ const notifyNearestAgents = async (order, priorityType, maxRadius, io) => {
     for (const agent of agents) {
       console.log("Inside loop");
       console.log("AgentId", agent.id);
+      const userToken = await FcmToken.find({userId:agent.id});
+      const fcmToken = userToken[0].token
+      console.log("FCM TOKEN", fcmToken);
       const socketId = await getRecipientSocketId(agent.id);
       console.log("SocketId", socketId);
-      const fcmToken = await getRecipientFcmToken(agent.id);
-      console.log("FCM TOKEN", fcmToken);
       if (socketId) {
         // Emit notification to agent
         const orderDetails = {
