@@ -160,6 +160,10 @@ const billSchema = mongoose.Schema(
       type: String,
       default: null,
     },
+    surgePrice: {
+      type: Number,
+      default: null,
+    },
   },
   {
     _id: false,

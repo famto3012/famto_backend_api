@@ -31,6 +31,11 @@ const cartDetailSchema = mongoose.Schema(
       type: [Number],
       required: true,
     },
+    pickupAddress: {
+      fullName: String,
+      area: String,
+      phoneNumber: String,
+    },
     deliveryLocation: {
       type: [Number],
       required: true,
@@ -127,6 +132,10 @@ const billSchema = mongoose.Schema(
     subTotal: {
       type: Number,
       required: true,
+    },
+    surgePrice: {
+      type: Number,
+      default: null,
     },
   },
   {

@@ -11,6 +11,9 @@ const appError = require("../../utils/appError");
 const { default: mongoose } = require("mongoose");
 const Customer = require("../../models/Customer");
 const Order = require("../../models/Order");
+const { formatLoginDuration } = require("../../utils/agentAppHelpers");
+const { formatDate, formatTime } = require("../../utils/formatters");
+const Task = require("../../models/Task");
 
 //Function for getting agent's manager from geofence
 const getManager = async (geofenceId) => {
@@ -551,10 +554,33 @@ const toggleOnlineController = async (req, res, next) => {
       return res.status(404).json({ message: "Agent not found" });
     }
 
+    // Ensure appDetail exists
+    if (!currentAgent.appDetail) {
+      currentAgent.appDetail = {
+        orders: 0,
+        pendingOrder: 0,
+        totalDistance: 0,
+        cancelledOrders: 0,
+        loginHours: 0,
+      };
+    }
+
     if (currentAgent.status === "Free") {
       currentAgent.status = "Inactive";
+
+      // Set the end time when the agent goes offline
+      currentAgent.loginEndTime = new Date();
+      if (currentAgent.loginStartTime) {
+        const loginDuration =
+          new Date() - new Date(currentAgent.loginStartTime); // in milliseconds
+        currentAgent.appDetail.loginDuration += loginDuration;
+      }
+      currentAgent.loginStartTime = null;
     } else {
       currentAgent.status = "Free";
+
+      // Set the start time when the agent goes online
+      currentAgent.loginStartTime = new Date();
     }
 
     await currentAgent.save();
@@ -678,6 +704,162 @@ const rateCustomerController = async (req, res, next) => {
   }
 };
 
+// Get agent's current day statistics
+const getCurrentDayAppDetailController = async (req, res, next) => {
+  try {
+    const agentId = req.userAuth;
+
+    const agentFound = await Agent.findById(agentId)
+      .select("appDetail ratingsByCustomers")
+      .lean({ virtuals: true })
+      .exec();
+
+    if (!agentFound) {
+      return next(appError("Agent not found", 404));
+    }
+
+    const formattedResponse = {
+      totalEarnings: agentFound?.appDetail?.totalEarnings || "0.0",
+      orders: agentFound?.appDetail?.orders || 0,
+      pendingOrders: agentFound?.appDetail?.pendingOrders || 0,
+      totalDistance: agentFound?.appDetail?.totalDistance || "0.0",
+      averageRating: agentFound.averageRating || "0.0",
+    };
+
+    res.status(200).json({
+      message: "Current day statistic of agent",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get agent's history of app details
+const getHistoryOfAppDetailsController = async (req, res, next) => {
+  try {
+    const agentId = req.userAuth;
+
+    const agentFound = await Agent.findById(agentId)
+      .lean({ virtuals: true })
+      .exec();
+
+    if (!agentFound) {
+      return next(appError("Agent not found", 404));
+    }
+
+    // Sort the appDetailHistory by date in descending order (latest date first)
+    const sortedAppDetailHistory = agentFound?.appDetailHistory?.sort(
+      (a, b) => new Date(b.date) - new Date(a.date)
+    );
+
+    console.log(sortedAppDetailHistory);
+
+    const formattedResponse = sortedAppDetailHistory?.map((history) => {
+      return {
+        date: formatDate(history.date),
+        details: {
+          totalEarnings: history.details.totalEarning?.toFixed(2) || "0.00",
+          orders: history.details.orders || 0,
+          cancelledOrders: history.details.cancelledOrders || 0,
+          totalDistance:
+            `${history.details.totalDistance?.toFixed(2)} km` || "0.00 km",
+          loginHours:
+            formatLoginDuration(history.details.loginDuration) || "0:00 hr",
+        },
+      };
+    });
+
+    res.status(200).json({
+      message: "App Detail history",
+      data: formattedResponse || [],
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get ratings of agent
+const getRatingsOfAgentController = async (req, res, next) => {
+  try {
+    const agentId = req.userAuth;
+
+    const agentFound = await Agent.findById(agentId).populate({
+      path: "ratingsByCustomers",
+      populate: {
+        path: "customerId",
+        model: "Customer",
+        select: "fullName _id", // Selecting the fields of fullName and _id from Agent
+      },
+    });
+
+    if (!agentFound) {
+      return next(appError("Agent not found", 404));
+    }
+
+    const ratingsOfAgent = agentFound?.ratingsByCustomers.reverse();
+
+    const formattedRatingAndReviews = ratingsOfAgent?.map((rating) => ({
+      review: rating.review,
+      rating: rating.rating,
+      customerId: {
+        id: rating.customerId._id,
+        fullName: rating.customerId.fullName || "N/A",
+      },
+    }));
+
+    res.status(200).json({
+      message: "Ratings of agent",
+      data: formattedRatingAndReviews,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get task previews
+const getTaskPreviewController = async (req, res, next) => {
+  try {
+    const agentId = req.userAuth;
+
+    const agentFound = await Agent.findById(agentId);
+
+    if (!agentFound) {
+      return next(appError("Agent not found", 404));
+    }
+
+    const taskFound = await Task.find({ agentId })
+      .populate("orderId")
+      .sort({ createdAt: -1 });
+
+    const formattedTask = taskFound.map((task) => {
+      return {
+        taskStatus: task.taskStatus,
+        orderId: task.orderId._id,
+        deliveryMode: task.orderId.orderDetail.deliveryMode,
+        date: formatDate(task.createdAt),
+        time: formatTime(task.createdAt),
+        merchantName: task.orderId.orderDetail.pickupAddress.fullName,
+        merchantAddress: task.orderId.orderDetail.pickupAddress.area,
+        merchantPhoneNumber: task.orderId.orderDetail.pickupAddress.phoneNumber,
+        pickupLocation: task.orderId.orderDetail.pickupLocation,
+        agentLocation: agentFound.location,
+      };
+    });
+
+    const currentTask = formattedTask.filter((task) => {
+      return task.taskStatus === "Started";
+    });
+
+    res.status(200).json({
+      message: "Task preview",
+      data: { currentTask, nextTask: formattedTask },
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   updateLocationController,
   registerAgentController,
@@ -696,4 +878,8 @@ module.exports = {
   deleteAgentVehicleController,
   changeVehicleStatusController,
   rateCustomerController,
+  getCurrentDayAppDetailController,
+  getHistoryOfAppDetailsController,
+  getRatingsOfAgentController,
+  getTaskPreviewController,
 };

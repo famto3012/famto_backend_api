@@ -2,22 +2,13 @@ const mongoose = require("mongoose");
 
 const orderItemSchema = mongoose.Schema(
   {
-    // Food item details
-    productId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
-    },
-    quantity: {
-      type: Number,
-    },
     price: {
       type: Number,
     },
-    variantTypeId: {
-      type: mongoose.Schema.Types.ObjectId,
+    variantTypeName: {
+      type: String,
     },
-    // PICK AND DROP item details
-    itemType: {
+    itemName: {
       type: String,
     },
     length: {
@@ -34,6 +25,18 @@ const orderItemSchema = mongoose.Schema(
     },
     weight: {
       type: Number,
+    },
+    numOfUnits: {
+      type: Number,
+      default: null,
+    },
+    quantity: {
+      type: Number,
+      default: null,
+    },
+    itemImageURL: {
+      type: String,
+      default: null,
     },
   },
   {
@@ -52,6 +55,7 @@ const orderDetailSchema = mongoose.Schema(
       phoneNumber: String,
       flat: String,
       area: String,
+      phoneNumber: String,
       landmark: { type: String, default: null },
     },
     deliveryLocation: {
@@ -141,6 +145,10 @@ const billSchema = mongoose.Schema(
     subTotal: {
       type: Number,
       default: 0,
+    },
+    surgePrice: {
+      type: Number,
+      default: null,
     },
   },
   {

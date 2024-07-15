@@ -241,7 +241,7 @@ const fetchNearestMonthlySalaryAgents = async (radius, merchantId) => {
     const monthlySalaryPricing = await AgentPricing.findOne({
       ruleName: "Monthly-salaried",
     });
-    
+
     //  console.log(monthlySalaryPricing._id)
     if (!monthlySalaryPricing) {
       throw new Error(`No pricing rule found for ruleName: "Monthly"`);
@@ -322,24 +322,24 @@ const fetchAgents = async (merchantId) => {
     );
   }
   let agents;
-    if (merchant) {
-      if (
-        merchantBusinessCategory.title === "Fish" ||
-        merchantBusinessCategory.title === "Meat"
-      ) {
-        agents = await Agent.find({
-          status: "Free",
-          "workStructure.tag": "Fish & Meat",
-        });
-      } else {
-        agents = await Agent.find({ status: "Free" });
-      }
-    } else {
+  if (merchant) {
+    if (
+      merchantBusinessCategory.title === "Fish" ||
+      merchantBusinessCategory.title === "Meat"
+    ) {
       agents = await Agent.find({
         status: "Free",
-        "workStructure.tag": { $ne: "Fish & Meat" },
+        "workStructure.tag": "Fish & Meat",
       });
+    } else {
+      agents = await Agent.find({ status: "Free" });
     }
+  } else {
+    agents = await Agent.find({
+      status: "Free",
+      "workStructure.tag": { $ne: "Fish & Meat" },
+    });
+  }
   return agents;
 };
 

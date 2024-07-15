@@ -29,6 +29,7 @@ const {
   convertEndDateToUTC,
 } = require("../../utils/formatters");
 const LoyaltyPoint = require("../../models/LoyaltyPoint");
+const CustomerSurge = require("../../models/CustomerSurge");
 
 // Get all available business categories according to the order
 const getAllBusinessCategoryController = async (req, res, next) => {
@@ -938,13 +939,18 @@ const addCartDetailsController = async (req, res, next) => {
 
     let updatedCartDetail = {
       pickupLocation: pickupCoordinates,
+      pickupAddress: {
+        fullName: merchant.merchantDetail.merchantName,
+        area: merchant.merchantDetail.displayAddress,
+        phoneNumber: merchant.phoneNumber,
+      },
       deliveryMode,
       deliveryOption: startDate && endDate && time ? "Scheduled" : "On-demand",
       instructionToMerchant,
       instructionToDeliveryAgent,
       startDate,
       endDate,
-      time: convertToUTC(time),
+      time: time && convertToUTC(time),
     };
 
     let updatedBill = {
@@ -1009,6 +1015,29 @@ const addCartDetailsController = async (req, res, next) => {
         baseDistance,
         fareAfterBaseDistance
       );
+
+      const customerSurge = await CustomerSurge.findOne({
+        ruleName: businessCategoryTitle.title,
+        geofenceId: customer.customerDetails.geofenceId,
+        status: true,
+      });
+
+      let surgeCharges;
+
+      if (customerSurge) {
+        let surgeBaseFare = customerSurge.baseFare;
+        let surgeBaseDistance = customerSurge.baseDistance;
+        let surgeFareAfterBaseDistance = customerSurge.fareAfterBaseDistance;
+
+        surgeCharges = calculateDeliveryCharges(
+          distanceInKM,
+          surgeBaseFare,
+          surgeBaseDistance,
+          surgeFareAfterBaseDistance
+        );
+      }
+
+      updatedBill.surgeCharges = surgeCharges;
 
       if (startDate && endDate) {
         const startDateTime = new Date(`${startDate} ${time}`);
@@ -1314,7 +1343,13 @@ const orderPaymentController = async (req, res, next) => {
       return next(appError("Customer not found", 404));
     }
 
-    const cart = await CustomerCart.findOne({ customerId });
+    const cart = await CustomerCart.findOne({ customerId })
+      .populate({
+        path: "items.productId",
+        select: "productName productImageURL description variants",
+      })
+      .exec();
+
     if (!cart) {
       return next(appError("Cart not found", 404));
     }
@@ -1355,7 +1390,46 @@ const orderPaymentController = async (req, res, next) => {
       // );
     }
 
-    let newOrder;
+    const populatedCartWithVariantNames = cart.toObject();
+    populatedCartWithVariantNames.items =
+      populatedCartWithVariantNames.items.map((item) => {
+        const product = item.productId;
+        let variantTypeName = null;
+        let variantTypeData = null;
+        if (item.variantTypeId && product.variants) {
+          const variantType = product.variants
+            .flatMap((variant) => variant.variantTypes)
+            .find((type) => type._id.equals(item.variantTypeId));
+          if (variantType) {
+            variantTypeName = variantType.typeName;
+            variantTypeData = {
+              _id: variantType._id,
+              variantTypeName: variantTypeName,
+            };
+          }
+        }
+        return {
+          ...item,
+          productId: {
+            _id: product._id,
+            productName: product.productName,
+            description: product.description,
+            productImageURL: product.productImageURL,
+          },
+          variantTypeId: variantTypeData,
+        };
+      });
+
+    let formattedItems = populatedCartWithVariantNames.items.map((items) => {
+      return {
+        itemName: items.productId.productName,
+        description: items.productId.description,
+        itemImageURL: items.productId.productImageURL,
+        quantity: items.quantity,
+        price: items.price,
+        variantTypeName: items?.variantTypeId?.variantTypeName,
+      };
+    });
 
     let orderBill = {
       deliveryChargePerDay: cart.billDetail.deliveryChargePerDay,
@@ -1409,6 +1483,7 @@ const orderPaymentController = async (req, res, next) => {
       }
     }
 
+    let newOrder;
     if (paymentMode === "Famto-cash") {
       if (customer.customerDetails.walletBalance < orderAmount) {
         return next(appError("Insufficient funds in wallet", 400));
@@ -1429,7 +1504,7 @@ const orderPaymentController = async (req, res, next) => {
         newOrder = await ScheduledOrder.create({
           customerId,
           merchantId: cart.merchantId,
-          items: cart.items,
+          items: formattedItems,
           orderDetail: cart.cartDetail,
           billDetail: orderBill,
           totalAmount: orderAmount,
@@ -1454,7 +1529,7 @@ const orderPaymentController = async (req, res, next) => {
         newOrder = await Order.create({
           customerId,
           merchantId: cart.merchantId,
-          items: cart.items,
+          items: formattedItems,
           orderDetail: cart.cartDetail,
           billDetail: orderBill,
           totalAmount: orderAmount,
@@ -1475,7 +1550,7 @@ const orderPaymentController = async (req, res, next) => {
       newOrder = await Order.create({
         customerId,
         merchantId: cart.merchantId,
-        items: cart.items,
+        items: formattedItems,
         orderDetail: cart.cartDetail,
         billDetail: orderBill,
         totalAmount: orderAmount,
@@ -1591,7 +1666,13 @@ const verifyOnlinePaymentController = async (req, res, next) => {
       return next(appError("Customer not found", 404));
     }
 
-    const cart = await CustomerCart.findOne({ customerId });
+    const cart = await CustomerCart.findOne({ customerId })
+      .populate({
+        path: "items.productId",
+        select: "productName productImageURL description variants",
+      })
+      .exec();
+
     if (!cart) {
       return next(appError("Cart not found", 404));
     }
@@ -1608,6 +1689,47 @@ const verifyOnlinePaymentController = async (req, res, next) => {
     if (!merchant) {
       return next(appError("Merchant not found", 404));
     }
+
+    const populatedCartWithVariantNames = cart.toObject();
+    populatedCartWithVariantNames.items =
+      populatedCartWithVariantNames.items.map((item) => {
+        const product = item.productId;
+        let variantTypeName = null;
+        let variantTypeData = null;
+        if (item.variantTypeId && product.variants) {
+          const variantType = product.variants
+            .flatMap((variant) => variant.variantTypes)
+            .find((type) => type._id.equals(item.variantTypeId));
+          if (variantType) {
+            variantTypeName = variantType.typeName;
+            variantTypeData = {
+              _id: variantType._id,
+              variantTypeName: variantTypeName,
+            };
+          }
+        }
+        return {
+          ...item,
+          productId: {
+            _id: product._id,
+            productName: product.productName,
+            description: product.description,
+            productImageURL: product.productImageURL,
+          },
+          variantTypeId: variantTypeData,
+        };
+      });
+
+    let formattedItems = populatedCartWithVariantNames.items.map((items) => {
+      return {
+        itemName: items.productId.productName,
+        description: items.productId.description,
+        itemImageURL: items.productId.productImageURL,
+        quantity: items.quantity,
+        price: items.price,
+        variantTypeName: items.variantTypeId.variantTypeName,
+      };
+    });
 
     const orderAmount =
       cart.billDetail.discountedGrandTotal ||
@@ -1666,7 +1788,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
       newOrder = await ScheduledOrder.create({
         customerId,
         merchantId: cart.merchantId,
-        items: cart.items,
+        items: formattedItems,
         orderDetail: cart.cartDetail,
         billDetail: orderBill,
         totalAmount: orderAmount,
@@ -1695,7 +1817,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
       newOrder = await Order.create({
         customerId,
         merchantId: cart.merchantId,
-        items: cart.items,
+        items: formattedItems,
         orderDetail: cart.cartDetail,
         billDetail: orderBill,
         totalAmount: orderAmount,
