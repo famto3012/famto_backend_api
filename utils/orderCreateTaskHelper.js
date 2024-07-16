@@ -24,18 +24,18 @@ const orderCreateTaskHelper = async (orderId) => {
     console.log("order", order);
     if (order) {
       if (task.length === 0) {
-        let pickupDetail={
+        let pickupDetail = {
           pickupLocation: order.orderDetail.pickupLocation,
-          pickupAddress: order.orderDetail.pickupAddress
-        }
-        let deliveryDetail={
+          pickupAddress: order.orderDetail.pickupAddress,
+        };
+        let deliveryDetail = {
           deliveryLocation: order.orderDetail.deliveryLocation,
-          deliveryAddress: order.orderDetail.deliveryAddress
-        }
+          deliveryAddress: order.orderDetail.deliveryAddress,
+        };
         await Task.create({
           orderId,
           pickupDetail,
-          deliveryDetail
+          deliveryDetail,
         });
       }
     }
@@ -92,16 +92,16 @@ const notifyAgents = async (order, priorityType, io) => {
       const socketId = await getRecipientSocketId(agent.id);
       console.log("SocketId", socketId);
       const data = {
-        socket:{
+        socket: {
           orderId: order.id,
           merchantName: merchant.merchantDetail.merchantName,
           pickAddress: merchant.merchantDetail.displayAddress,
           customerName: customer.fullName,
           customerAddress: deliveryAddress,
         },
-        fcm: `New order for merchant with orderId ${order.id}`
-       }
-         sendNotification(agent.id, "newOrder", data)
+        fcm: `New order for merchant with orderId ${order.id}`,
+      };
+      sendNotification(agent.id, "newOrder", data);
     }
   } catch (err) {
     appError(err.message);
@@ -136,16 +136,16 @@ const notifyNearestAgents = async (order, priorityType, maxRadius, io) => {
       const socketId = await getRecipientSocketId(agent.id);
       console.log("SocketId", socketId);
       const data = {
-        socket:{
+        socket: {
           orderId: order.id,
           merchantName: merchant.merchantDetail.merchantName,
           pickAddress: merchant.merchantDetail.displayAddress,
           customerName: customer.fullName,
           customerAddress: deliveryAddress,
         },
-        fcm: `New order for merchant with orderId ${order.id}`
-       }
-         sendNotification(agent.id, "newOrder", data)
+        fcm: `New order for merchant with orderId ${order.id}`,
+      };
+      sendNotification(agent.id, "newOrder", data);
     }
   } catch (err) {
     appError(err.message);

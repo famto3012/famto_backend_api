@@ -1,9 +1,15 @@
 const Agent = require("../../../models/Agent");
 const Customer = require("../../../models/Customer");
+const Geofence = require("../../../models/Geofence");
 const Merchant = require("../../../models/Merchant");
 const Order = require("../../../models/Order");
 const Task = require("../../../models/Task");
-const { io, userSocketMap, sendNotification } = require("../../../socket/socket");
+const {
+  io,
+  userSocketMap,
+  sendNotification,
+} = require("../../../socket/socket");
+const turf = require("@turf/turf");
 const appError = require("../../../utils/appError");
 
 const getTaskFilterController = async (req, res, next) => {
@@ -53,28 +59,106 @@ const assignAgentToTaskController = async (req, res, next) => {
     const { taskId } = req.params;
     const { agentId } = req.body;
 
-   const task = await Task.findById(taskId)
-   const order = await Order.findById(task.orderId)
-   const merchant = await Merchant.findById(order.merchantId)
-   const customer = await Customer.findById(order.customerId)
-   let deliveryAddress = order.orderDetail.deliveryAddress;
-   const data = {
-    socket:{
-      orderId: order.id,
-      merchantName: merchant.merchantDetail.merchantName,
-      pickAddress: merchant.merchantDetail.displayAddress,
-      customerName: customer.fullName,
-      customerAddress: deliveryAddress,
-    },
-    fcm: `New order for merchant with orderId ${task.orderId}`
-   }
-     sendNotification(agentId, "newOrder", data)
+    const task = await Task.findById(taskId);
+    const order = await Order.findById(task.orderId);
+    const merchant = await Merchant.findById(order.merchantId);
+    const customer = await Customer.findById(order.customerId);
+    let deliveryAddress = order.orderDetail.deliveryAddress;
+    const data = {
+      socket: {
+        orderId: order.id,
+        merchantName: merchant.merchantDetail.merchantName,
+        pickAddress: merchant.merchantDetail.displayAddress,
+        customerName: customer.fullName,
+        customerAddress: deliveryAddress,
+      },
+      fcm: `New order for merchant with orderId ${task.orderId}`,
+    };
+    sendNotification(agentId, "newOrder", data);
 
-   res.status(200).json({
-    message: "Notification send to the agent"
-   })
-
+    res.status(200).json({
+      message: "Notification send to the agent",
+    });
   } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getAgentsAccordingToGeofenceController = async (req, res, next) => {
+  try {
+    const { taskId } = req.params;
+    const { geofenceStatus } = req.body;
+    const task = await Task.findById(taskId).populate({
+      path: "orderId",
+      populate: {
+        path: "merchantId",
+        populate: {
+          path: "merchantDetail.geofenceId",
+        },
+      },
+    });
+    const geofence = task.orderId.merchantId.merchantDetail.geofenceId;
+    const coordinates = geofence.coordinates;
+
+    if (coordinates[0] !== coordinates[coordinates.length - 1]) {
+      coordinates.push(coordinates[0]);
+    }
+
+    const geofencePolygon = turf.polygon([coordinates]);
+    const agents = await Agent.find({});
+
+    if (geofenceStatus) {
+      const agentsWithinGeofence = agents.filter((agent) => {
+        const agentPoint = turf.point(agent.location);
+        return turf.booleanPointInPolygon(agentPoint, geofencePolygon);
+      });
+
+      // Return the found agents
+      res.status(200).json({
+        success: true,
+        data: agentsWithinGeofence,
+      });
+    } else {
+      res.status(200).json({
+        success: true,
+        data: agents,
+      });
+    }
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getOrderByOrderIdController = async (req, res, next) => {
+  try {
+    const { orderId } = req.body;
+    const order = await Order.findById(orderId);
+    res.status(200).json({
+      success: true,
+      data: order,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getAgentByNameController = async (req, res, next) => {
+  try {
+    const { fullName } = req.query;
+    if (!fullName) {
+      return res.status(400).json({ message: "Full name is required" });
+    }
+
+    const agents = await Agent.find({
+      fullName: new RegExp(fullName, "i"), // Case-insensitive search
+    });
+
+    if (agents.length === 0) {
+      return res.status(404).json({ message: "No agents found" });
+    }
+
+    res.status(200).json(agents);
+  } catch (error) {
     next(appError(err.message));
   }
 };
@@ -83,4 +167,7 @@ module.exports = {
   getTaskFilterController,
   getAgentByStatusController,
   assignAgentToTaskController,
+  getAgentsAccordingToGeofenceController,
+  getOrderByOrderIdController,
+  getAgentByNameController,
 };

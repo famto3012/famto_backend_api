@@ -170,6 +170,7 @@ const admin = require("firebase-admin");
 const Order = require("../models/Order");
 const { getMessaging } = require("firebase-admin/messaging");
 const FcmToken = require("../models/fcmToken");
+const appError = require("../utils/appError");
 
 // const serviceAccount = require("./path/to/serviceAccountKey.json");
 
@@ -311,13 +312,14 @@ io.on("connection", async (socket) => {
     await Agent.findByIdAndUpdate(data.agentId, {
       status: "Busy",
     });
-    if (task.taskStatus === "Assigned") {
+    if (task[0].taskStatus === "Assigned") {
       appError("Task already assigned");
     } else {
       await Task.findByIdAndUpdate(task[0]._id, {
         agentId: data.agentId,
         taskStatus: "Assigned",
-        deliveryStatus: "Accepted",
+        "deliveryDetail.deliveryStatus": "Accepted",
+        "pickupDetail.pickupStatus": "Accepted",
       });
     }
 
@@ -373,43 +375,63 @@ io.on("connection", async (socket) => {
         );
         console.log(distance);
         if (distance < maxRadius) {
+          // const data = {
+          //   message: "Agent reached your location",
+          //   orderId: task.orderId,
+          //   agentId: userId,
+          //   agentName: agent.fullName,
+          // };
+          // const socketId = userSocketMap[order.customerId]?.socketId;
+          // console.log("CustomerSocket", socketId);
+          // if (socketId) {
+          //   io.to(socketId).emit("agentReached", data);
+          // } else {
+          //   const fcmToken = userSocketMap[order.customerId]?.fcmToken;
+          //   if (fcmToken) {
+          //     sendPushNotificationToUser(fcmToken, {
+          //       title: "Agent reached your location",
+          //       body: `Agent ${agent.fullName} has reached your location for order ${task.orderId}`,
+          //     });
+          //   }
+          // }
           const data = {
-            message: "Agent reached your location",
-            orderId: task.orderId,
-            agentId: userId,
-            agentName: agent.fullName,
+            socket: {
+              message: "Agent reached your location",
+              orderId: task.orderId,
+              agentId: userId,
+              agentName: agent.fullName,
+            },
+            fcm: `Agent ${agent.fullName} has reached your location for order ${task.orderId}`,
           };
-          const socketId = userSocketMap[order.customerId]?.socketId;
-          console.log("CustomerSocket", socketId);
-          if (socketId) {
-            io.to(socketId).emit("agentReached", data);
-          } else {
-            const fcmToken = userSocketMap[order.customerId]?.fcmToken;
-            if (fcmToken) {
-              sendPushNotificationToUser(fcmToken, {
-                title: "Agent reached your location",
-                body: `Agent ${agent.fullName} has reached your location for order ${task.orderId}`,
-              });
-            }
-          }
+          sendNotification(agent.id, "agentReached", data);
         } else {
+          // const data = {
+          //   message: "Not reached delivery location",
+          // };
+          // const socketId = userSocketMap[userId]?.socketId;
+          // console.log("AgentSocket", socketId);
+          // console.log("Data", data);
+          // if (socketId) {
+          //   io.to(socketId).emit("notReachedLocation", data);
+          // } else {
+          //   const fcmToken = userSocketMap[userId]?.fcmToken;
+          //   if (fcmToken) {
+          //     sendPushNotificationToUser(fcmToken, {
+          //       title: "Not reached delivery location",
+          //       body: "Agent has not reached the delivery location.",
+          //     });
+          //   }
+          // }
           const data = {
-            message: "Not reached delivery location",
+            socket: {
+              message: "Not reached delivery location",
+              orderId: task.orderId,
+              agentId: userId,
+              agentName: agent.fullName,
+            },
+            fcm: `Agent ${agent.fullName} has not reached your location for order ${task.orderId}`,
           };
-          const socketId = userSocketMap[userId]?.socketId;
-          console.log("AgentSocket", socketId);
-          console.log("Data", data);
-          if (socketId) {
-            io.to(socketId).emit("notReachedLocation", data);
-          } else {
-            const fcmToken = userSocketMap[userId]?.fcmToken;
-            if (fcmToken) {
-              sendPushNotificationToUser(fcmToken, {
-                title: "Not reached delivery location",
-                body: "Agent has not reached the delivery location.",
-              });
-            }
-          }
+          sendNotification(agent.id, "notReachedLocation", data);
         }
       }
     }
@@ -429,7 +451,7 @@ io.on("connection", async (socket) => {
       });
       console.log(task);
       await Task.findByIdAndUpdate(task[0].id, {
-        deliveryStatus: "Completed",
+        "deliveryDetail.deliveryStatus": "Completed",
       });
 
       // Send notification to user
