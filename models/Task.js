@@ -17,10 +17,15 @@ const taskSchema = new mongoose.Schema(
       enum: ["Assigned", "Unassigned"],
       default: "Unassigned",
     },
+    pickUpStatus: {
+      type: String,
+      enum: ["Accepted", "In-progress", "Completed"],
+      default: "Accepted",
+    },
     deliveryStatus: {
       type: String,
-      enum: ["Pending", "In-progress", "Completed"],
-      default: "Pending",
+      enum: ["Accepted", "In-progress", "Completed"],
+      default: "Accepted",
     },
   },
   {
