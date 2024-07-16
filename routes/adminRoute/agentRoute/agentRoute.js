@@ -8,6 +8,7 @@ const {
   approveAgentRegistrationController,
   rejectAgentRegistrationController,
   blockAgentController,
+  getAllAgentsController,
 } = require("../../../controllers/admin/agent/agentController");
 const { upload } = require("../../../utils/imageOperation");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
@@ -61,6 +62,14 @@ adminAgentRoute.get(
   isAuthenticated,
   isAdmin,
   filterAgentsController
+);
+
+// Get all agents
+adminAgentRoute.get(
+  "/all-agents",
+  isAuthenticated,
+  isAdmin,
+  getAllAgentsController
 );
 
 //Get single agent

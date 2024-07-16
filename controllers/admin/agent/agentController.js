@@ -299,7 +299,7 @@ const getSingleAgentController = async (req, res, next) => {
   try {
     const agentFound = await Agent.findById(req.params.agentId)
       .populate("geofenceId", "name")
-      .populate("managerId", "name")
+      .populate("workStructure.managerId", "name")
       .populate("workStructure.salaryStructureId", "ruleName")
       .select("-ratingsByCustomers");
 
@@ -308,6 +308,37 @@ const getSingleAgentController = async (req, res, next) => {
     }
 
     res.status(200).json({ message: "Agent by id", data: agentFound });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getAllAgentsController = async (req, res, next) => {
+  try {
+    const allAgents = await Agent.find({})
+      .populate("geofenceId", "name")
+      .populate("workStructure.managerId", "name")
+      .select(
+        "fullName email phoneNumber isApproved geofenceId status workStructure"
+      );
+
+    const formattedResponse = allAgents.map((agent) => {
+      return {
+        _id: agent._id,
+        fullName: agent.fullName,
+        email: agent.email,
+        phoneNumber: agent.phoneNumber,
+        isApproved: agent.isApproved,
+        geofence: agent?.geofenceId?.name,
+        status: agent.status,
+        manager: agent?.workStructure?.managerId?.fullName,
+      };
+    });
+
+    res.status(200).json({
+      message: "All agents",
+      data: formattedResponse,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -467,4 +498,5 @@ module.exports = {
   getRatingsByCustomerController,
   filterAgentsController,
   blockAgentController,
+  getAllAgentsController,
 };
