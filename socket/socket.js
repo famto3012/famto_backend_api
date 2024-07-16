@@ -205,7 +205,6 @@ const io = new Server(server, {
   reconnectionAttempts: Infinity, // Unlimited attempts
 });
 
-
 const userSocketMap = {};
 
 // Function to send push notification via FCM
@@ -234,13 +233,13 @@ function sendNotification(userId, eventName, data) {
   const socketId = userSocketMap[userId]?.socketId;
   const fcmToken = userSocketMap[userId]?.fcmToken;
 
-  if(socketId && fcmToken){
+  if (socketId && fcmToken) {
     io.to(socketId).emit(eventName, data);
     sendPushNotificationToUser(fcmToken, {
       title: "Notification",
       body: data,
     });
-  }else if (socketId) {
+  } else if (socketId) {
     io.to(socketId).emit(eventName, data);
   } else if (fcmToken) {
     sendPushNotificationToUser(fcmToken, {
@@ -258,7 +257,7 @@ async function populateUserSocketMap() {
     tokens.forEach((token) => {
       userSocketMap[token.userId] = { socketId: null, fcmToken: token.token };
     });
-    console.log("User Socket Map populated with FCM tokens:", userSocketMap);
+    console.log("User Socket Map populated with FCM tokens:", userSocketMap); //TODO: Uncon=mment
   } catch (error) {
     console.error("Error populating User Socket Map:", error);
   }
@@ -275,24 +274,24 @@ const getRecipientFcmToken = (recipientId) => {
 };
 
 // Connection socket
-io.on("connection", async(socket) => {
+io.on("connection", async (socket) => {
   console.log("user connected", socket.id);
   const userId = socket.handshake.query.userId;
   const fcmToken = socket.handshake.query.fcmToken;
 
-  if(userId){
-    const user = await FcmToken.find({userId})
-    console.log(user)
-    if(user.length === 0){
+  if (userId) {
+    const user = await FcmToken.find({ userId });
+    console.log(user);
+    if (user.length === 0) {
       await FcmToken.create({
         userId,
-        token:fcmToken,
-      })
-    }else{
-      if(user.fcmToken !== fcmToken)
-        await FcmToken.findByIdAndUpdate(user._id, {
-        token:fcmToken,
+        token: fcmToken,
       });
+    } else {
+      if (user.fcmToken !== fcmToken)
+        await FcmToken.findByIdAndUpdate(user._id, {
+          token: fcmToken,
+        });
     }
   }
 
@@ -460,5 +459,5 @@ module.exports = {
   getRecipientSocketId,
   getRecipientFcmToken,
   sendNotification,
-  userSocketMap
+  userSocketMap,
 };

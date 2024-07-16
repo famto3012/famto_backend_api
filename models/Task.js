@@ -17,7 +17,7 @@ const taskSchema = new mongoose.Schema(
       enum: ["Assigned", "Unassigned"],
       default: "Unassigned",
     },
-    pickUpStatus: {
+    pickupStatus: {
       type: String,
       enum: ["Accepted", "In-progress", "Completed"],
       default: "Accepted",
