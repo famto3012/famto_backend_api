@@ -234,7 +234,13 @@ function sendNotification(userId, eventName, data) {
   const socketId = userSocketMap[userId]?.socketId;
   const fcmToken = userSocketMap[userId]?.fcmToken;
 
-  if (socketId) {
+  if(socketId && fcmToken){
+    io.to(socketId).emit(eventName, data);
+    sendPushNotificationToUser(fcmToken, {
+      title: "Notification",
+      body: data,
+    });
+  }else if (socketId) {
     io.to(socketId).emit(eventName, data);
   } else if (fcmToken) {
     sendPushNotificationToUser(fcmToken, {
@@ -454,4 +460,5 @@ module.exports = {
   getRecipientSocketId,
   getRecipientFcmToken,
   sendNotification,
+  userSocketMap
 };

@@ -1,5 +1,8 @@
 const Agent = require("../../../models/Agent");
+const Order = require("../../../models/Order");
 const Task = require("../../../models/Task");
+const { io, userSocketMap, sendNotification } = require("../../../socket/socket");
+const appError = require("../../../utils/appError");
 
 const getTaskFilterController = async (req, res, next) => {
   try {
@@ -43,4 +46,35 @@ const getAgentByStatusController = async (req, res, next) => {
   }
 };
 
-module.exports = { getTaskFilterController, getAgentByStatusController };
+const assignAgentToTaskController = async (req, res, next) => {
+  try {
+    const { taskId } = req.params;
+    const { agentId } = req.body;
+
+    const socketId =  userSocketMap[agentId]?.socketId;
+   const task = await Task.findById(taskId)
+   const data = {
+    socket:{
+      
+    }
+   }
+   if(socketId){
+     sendNotification(agentId, "newOrder", `New order for merchant with orderId ${task.orderId}`)
+   }else{
+     sendNotification(agentId, "newOrder", `New order for merchant with orderId ${task.orderId}`)
+   }
+
+   res.status(200).json({
+    message: "Notification send to the agent"
+   })
+
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+module.exports = {
+  getTaskFilterController,
+  getAgentByStatusController,
+  assignAgentToTaskController,
+};
