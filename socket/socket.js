@@ -213,7 +213,7 @@ function sendPushNotificationToUser(fcmToken, message) {
   const mes = {
     notification: {
       title: "Notification",
-      body: message.body.merchantName,
+      body: message,
     },
     token: fcmToken,
   };
@@ -233,19 +233,14 @@ function sendNotification(userId, eventName, data) {
   const socketId = userSocketMap[userId]?.socketId;
   const fcmToken = userSocketMap[userId]?.fcmToken;
 
-  if (socketId && fcmToken) {
-    io.to(socketId).emit(eventName, data);
-    sendPushNotificationToUser(fcmToken, {
-      title: "Notification",
-      body: data,
-    });
-  } else if (socketId) {
-    io.to(socketId).emit(eventName, data);
+
+  if(socketId && fcmToken){
+    io.to(socketId).emit(eventName, data.socket);
+    sendPushNotificationToUser(fcmToken, data.fcm);
+  }else if (socketId) {
+    io.to(socketId).emit(eventName, data.socket);
   } else if (fcmToken) {
-    sendPushNotificationToUser(fcmToken, {
-      title: "Notification",
-      body: data,
-    });
+    sendPushNotificationToUser(fcmToken, data.fcm);
   } else {
     console.error(`No socketId or fcmToken found for userId: ${userId}`);
   }

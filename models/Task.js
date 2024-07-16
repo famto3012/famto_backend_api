@@ -1,5 +1,45 @@
 const mongoose = require("mongoose");
 
+const pickupSchema = new mongoose.Schema({
+  pickupStatus: {
+    type: String,
+    enum: ["Pending", "Accepted", "Started", "Completed"],
+    default: "Pending",
+  },
+  pickupLocation: {
+    type: [Number],
+    required: true,
+  },
+  pickupAddress: {
+    fullName: String,
+    phoneNumber: String,
+    flat: String,
+    area: String,
+    phoneNumber: String,
+    landmark: { type: String, default: null },
+  },
+});
+
+const deliverySchema = new mongoose.Schema({
+  deliveryStatus: {
+    type: String,
+    enum: ["Pending", "Accepted", "Started", "Completed"],
+    default: "Pending",
+  },
+  deliveryLocation: {
+    type: [Number],
+    required: true,
+  },
+  deliveryAddress: {
+    fullName: String,
+    phoneNumber: String,
+    flat: String,
+    area: String,
+    phoneNumber: String,
+    landmark: { type: String, default: null },
+  },
+});
+
 const taskSchema = new mongoose.Schema(
   {
     orderId: {
@@ -14,19 +54,11 @@ const taskSchema = new mongoose.Schema(
     },
     taskStatus: {
       type: String,
-      enum: ["Assigned", "Unassigned"],
+      enum: ["Assigned", "Unassigned", "Completed"],
       default: "Unassigned",
     },
-    pickupStatus: {
-      type: String,
-      enum: ["Accepted", "In-progress", "Completed"],
-      default: "Accepted",
-    },
-    deliveryStatus: {
-      type: String,
-      enum: ["Accepted", "In-progress", "Completed"],
-      default: "Accepted",
-    },
+    pickupDetail: pickupSchema,
+    deliveryDetail: deliverySchema,
   },
   {
     timestamps: true,

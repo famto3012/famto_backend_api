@@ -1,4 +1,6 @@
 const Agent = require("../../../models/Agent");
+const Customer = require("../../../models/Customer");
+const Merchant = require("../../../models/Merchant");
 const Order = require("../../../models/Order");
 const Task = require("../../../models/Task");
 const { io, userSocketMap, sendNotification } = require("../../../socket/socket");
@@ -51,18 +53,22 @@ const assignAgentToTaskController = async (req, res, next) => {
     const { taskId } = req.params;
     const { agentId } = req.body;
 
-    const socketId =  userSocketMap[agentId]?.socketId;
    const task = await Task.findById(taskId)
+   const order = await Order.findById(task.orderId)
+   const merchant = await Merchant.findById(order.merchantId)
+   const customer = await Customer.findById(order.customerId)
+   let deliveryAddress = order.orderDetail.deliveryAddress;
    const data = {
     socket:{
-      
-    }
+      orderId: order.id,
+      merchantName: merchant.merchantDetail.merchantName,
+      pickAddress: merchant.merchantDetail.displayAddress,
+      customerName: customer.fullName,
+      customerAddress: deliveryAddress,
+    },
+    fcm: `New order for merchant with orderId ${task.orderId}`
    }
-   if(socketId){
-     sendNotification(agentId, "newOrder", `New order for merchant with orderId ${task.orderId}`)
-   }else{
-     sendNotification(agentId, "newOrder", `New order for merchant with orderId ${task.orderId}`)
-   }
+     sendNotification(agentId, "newOrder", data)
 
    res.status(200).json({
     message: "Notification send to the agent"
