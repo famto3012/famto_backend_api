@@ -24,8 +24,18 @@ const orderCreateTaskHelper = async (orderId) => {
     console.log("order", order);
     if (order) {
       if (task.length === 0) {
+        let pickupDetail={
+          pickupLocation: order.orderDetail.pickupLocation,
+          pickupAddress: order.orderDetail.pickupAddress
+        }
+        let deliveryDetail={
+          deliveryLocation: order.orderDetail.deliveryLocation,
+          deliveryAddress: order.orderDetail.deliveryAddress
+        }
         await Task.create({
           orderId,
+          pickupDetail,
+          deliveryDetail
         });
       }
     }
@@ -81,34 +91,17 @@ const notifyAgents = async (order, priorityType, io) => {
       console.log("FCM TOKEN", fcmToken);
       const socketId = await getRecipientSocketId(agent.id);
       console.log("SocketId", socketId);
-      if (socketId) {
-        // Emit notification to agent
-        const orderDetails = {
+      const data = {
+        socket:{
           orderId: order.id,
           merchantName: merchant.merchantDetail.merchantName,
           pickAddress: merchant.merchantDetail.displayAddress,
           customerName: customer.fullName,
           customerAddress: deliveryAddress,
-        };
-
-        io.to(socketId).emit("newOrder", {
-          title: "New Order",
-          orderDetails,
-        });
-      } else {
-        const orderDetails = {
-          orderId: order.id,
-          merchantName: merchant.merchantDetail.merchantName,
-          pickAddress: merchant.merchantDetail.displayAddress,
-          customerName: customer.fullName,
-          customerAddress: deliveryAddress,
-        };
-
-        const fcmToken = await getRecipientFcmToken(agent.id);
-        console.log("FCM TOKEN", fcmToken);
-        const eventName = "newOrder";
-        await sendNotification(agent.id, eventName, orderDetails);
-      }
+        },
+        fcm: `New order for merchant with orderId ${order.id}`
+       }
+         sendNotification(agent.id, "newOrder", data)
     }
   } catch (err) {
     appError(err.message);
@@ -142,34 +135,17 @@ const notifyNearestAgents = async (order, priorityType, maxRadius, io) => {
       console.log("FCM TOKEN", fcmToken);
       const socketId = await getRecipientSocketId(agent.id);
       console.log("SocketId", socketId);
-      if (socketId) {
-        // Emit notification to agent
-        const orderDetails = {
+      const data = {
+        socket:{
           orderId: order.id,
           merchantName: merchant.merchantDetail.merchantName,
           pickAddress: merchant.merchantDetail.displayAddress,
           customerName: customer.fullName,
           customerAddress: deliveryAddress,
-        };
-
-        io.to(socketId).emit("newOrder", {
-          title: "New Order",
-          orderDetails,
-        });
-      } else {
-        const orderDetails = {
-          orderId: order.id,
-          merchantName: merchant.merchantDetail.merchantName,
-          pickAddress: merchant.merchantDetail.displayAddress,
-          customerName: customer.fullName,
-          customerAddress: deliveryAddress,
-        };
-
-        const fcmToken = await getRecipientFcmToken(agent.id);
-        console.log("FCM TOKEN", fcmToken);
-        const eventName = "newOrder";
-        await sendNotification(agent.id, eventName, orderDetails);
-      }
+        },
+        fcm: `New order for merchant with orderId ${order.id}`
+       }
+         sendNotification(agent.id, "newOrder", data)
     }
   } catch (err) {
     appError(err.message);
