@@ -817,7 +817,49 @@ const getRatingsOfAgentController = async (req, res, next) => {
   }
 };
 
-// Get task previews
+// // Get task previews
+// const getTaskPreviewController = async (req, res, next) => {
+//   try {
+//     const agentId = req.userAuth;
+
+//     const agentFound = await Agent.findById(agentId);
+
+//     if (!agentFound) {
+//       return next(appError("Agent not found", 404));
+//     }
+
+//     const taskFound = await Task.find({ agentId })
+//       .populate("orderId")
+//       .sort({ createdAt: 1 });
+
+//     const formattedTask = taskFound.map((task) => {
+//       return {
+//         taskStatus: task.taskStatus,
+//         orderId: task.orderId._id,
+//         deliveryMode: task.orderId.orderDetail.deliveryMode,
+//         date: formatDate(task.createdAt),
+//         time: formatTime(task.createdAt),
+//         merchantName: task.orderId.orderDetail.pickupAddress.fullName,
+//         merchantAddress: task.orderId.orderDetail.pickupAddress.area,
+//         merchantPhoneNumber: task.orderId.orderDetail.pickupAddress.phoneNumber,
+//         pickupLocation: task.orderId.orderDetail.pickupLocation,
+//         agentLocation: agentFound.location,
+//       };
+//     });
+
+//     const currentTask = formattedTask.filter((task) => {
+//       return task.taskStatus === "Started";
+//     });
+
+//     res.status(200).json({
+//       message: "Task preview",
+//       data: { currentTask, nextTask: formattedTask },
+//     });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
+
 const getTaskPreviewController = async (req, res, next) => {
   try {
     const agentId = req.userAuth;
@@ -830,30 +872,54 @@ const getTaskPreviewController = async (req, res, next) => {
 
     const taskFound = await Task.find({ agentId })
       .populate("orderId")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: 1 });
 
     const formattedTask = taskFound.map((task) => {
-      return {
+      const taskDetails = {
         taskStatus: task.taskStatus,
         orderId: task.orderId._id,
         deliveryMode: task.orderId.orderDetail.deliveryMode,
         date: formatDate(task.createdAt),
         time: formatTime(task.createdAt),
-        merchantName: task.orderId.orderDetail.pickupAddress.fullName,
-        merchantAddress: task.orderId.orderDetail.pickupAddress.area,
-        merchantPhoneNumber: task.orderId.orderDetail.pickupAddress.phoneNumber,
-        pickupLocation: task.orderId.orderDetail.pickupLocation,
-        agentLocation: agentFound.location,
       };
+
+      // const currentTask =
+
+      // if (task.taskStatus === "Started") {
+      //   return {
+      //     ...taskDetails,
+      //     merchantName: task.orderId.orderDetail.pickupAddress.fullName,
+      //     merchantAddress: task.orderId.orderDetail.pickupAddress.area,
+      //     merchantPhoneNumber:
+      //       task.orderId.orderDetail.pickupAddress.phoneNumber,
+      //     pickupLocation: task.orderId.orderDetail.pickupLocation,
+      //     agentLocation: agentFound.location,
+      //   };
+      // } else {
+      //   return {
+      //     ...taskDetails,
+      //     merchantLocation: task.orderId.orderDetail.pickupLocation,
+      //     deliveryDetails: {
+      //       customerName: task.orderId.orderDetail.deliveryAddress.fullName,
+      //       customerAddress: task.orderId.orderDetail.deliveryAddress.area,
+      //       customerPhoneNumber:
+      //         task.orderId.orderDetail.deliveryAddress.phoneNumber,
+      //       deliveryLocation: task.orderId.orderDetail.deliveryLocation,
+      //     },
+      //   };
+      // }
     });
 
-    const currentTask = formattedTask.filter((task) => {
-      return task.taskStatus === "Started";
-    });
+    // const currentTask = formattedTask.filter(
+    //   (task) => task.taskStatus === "Started"
+    // );
+    // const nextTask = formattedTask.filter(
+    //   (task) => task.taskStatus !== "Started"
+    // );
 
     res.status(200).json({
       message: "Task preview",
-      data: { currentTask, nextTask: formattedTask },
+      data: { currentTask, nextTask },
     });
   } catch (err) {
     next(appError(err.message));

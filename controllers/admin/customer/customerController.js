@@ -209,22 +209,23 @@ const blockCustomerController = async (req, res, next) => {
       return next(appError("Customer not found", 404));
     }
 
-    customerFound.customerDetails.isBlocked = true;
-    customerFound.customerDetails.reasonForBlockingOrDeleting = reason;
-    customerFound.customerDetails.blockedDate = new Date();
-    const accountLogs = await new AccountLogs({
-      _id: customerFound._id,
+    customerFound.isBlocked = true;
+    customerFound.reasonForBlockingOrDeleting = reason;
+    customerFound.blockedDate = new Date();
+
+    const accountLogs = new AccountLogs({
+      userId: customerFound._id,
       fullName: customerFound.fullName,
       role: customerFound.role,
       description: reason,
     });
-    await accountLogs.save();
 
+    await accountLogs.save();
     await customerFound.save();
 
     res.status(200).json({ message: "Customer blocked successfully" });
   } catch (err) {
-    next(appError(err.message));
+    next(appError(err.message, 500));
   }
 };
 
