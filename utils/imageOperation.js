@@ -29,6 +29,8 @@ const uploadToFirebase = async (file, folderName) => {
     throw new Error("File not found");
   }
 
+  console.log("Here");
+
   const uniqueName = uuidv4();
 
   const storageRef = ref(

@@ -23,6 +23,9 @@ const {
   getTaskPreviewController,
   getPickUpDetailController,
   addCustomOrderItemPriceController,
+  addOrderDetailsController,
+  getDeliveryDetailController,
+  confirmCashReceivedController,
 } = require("../../controllers/agent/agentController");
 const { upload } = require("../../utils/imageOperation");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
@@ -178,10 +181,32 @@ agentRoute.get(
   getPickUpDetailController
 );
 
+agentRoute.get(
+  "/get-delivery-detail/:taskId",
+  isAuthenticated,
+  getDeliveryDetailController
+);
+
 agentRoute.patch(
   "/add-item-price/:orderId/:itemId",
   isAuthenticated,
   addCustomOrderItemPriceController
+);
+
+agentRoute.post(
+  "/add-order-detail/:orderId",
+  upload.fields([
+    { name: "signatureImage", maxCount: 1 },
+    { name: "image", maxCount: 1 },
+  ]),
+  isAuthenticated,
+  addOrderDetailsController
+);
+
+agentRoute.patch(
+  "/confirm-cash",
+  isAuthenticated,
+  confirmCashReceivedController
 );
 
 module.exports = agentRoute;

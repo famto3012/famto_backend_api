@@ -57,6 +57,11 @@ const taskSchema = new mongoose.Schema(
       enum: ["Assigned", "Unassigned", "Completed"],
       default: "Unassigned",
     },
+    deliveryMode: {
+      type: String,
+      enum: ["Home Delivery", "Take Away", "Pick and Drop", "Custom Order"],
+      required: true,
+    },
     pickupDetail: pickupSchema,
     deliveryDetail: deliverySchema,
   },

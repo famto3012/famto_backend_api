@@ -8,12 +8,13 @@ const Geofence = require("../../models/Geofence");
 const generateToken = require("../../utils/generateToken");
 const geoLocation = require("../../utils/getGeoLocation");
 const appError = require("../../utils/appError");
-const { default: mongoose } = require("mongoose");
+const mongoose = require("mongoose");
 const Customer = require("../../models/Customer");
 const Order = require("../../models/Order");
 const { formatLoginDuration } = require("../../utils/agentAppHelpers");
 const { formatDate, formatTime } = require("../../utils/formatters");
 const Task = require("../../models/Task");
+const AgentPricing = require("../../models/AgentPricing");
 
 //Function for getting agent's manager from geofence
 const getManager = async (geofenceId) => {
@@ -753,7 +754,9 @@ const getHistoryOfAppDetailsController = async (req, res, next) => {
       (a, b) => new Date(b.date) - new Date(a.date)
     );
 
-    console.log(sortedAppDetailHistory);
+    console.log("sortedAppDetailHistory", sortedAppDetailHistory);
+
+    // const orderDetails = sortedAppDetailHistory.
 
     const formattedResponse = sortedAppDetailHistory?.map((history) => {
       return {
@@ -905,6 +908,10 @@ const getPickUpDetailController = async (req, res, next) => {
       taskStatus: taskFound.pickupDetail?.pickupStatus,
       pickupName: taskFound?.pickupDetail?.pickupAddress?.fullName,
       pickupAddress: taskFound?.pickupDetail?.pickupAddress?.area,
+      pickupPhoneNumber:
+        taskFound?.pickupDetail?.pickupAddress?.phoneNumber || null,
+      instructions:
+        taskFound?.orderId?.orderDetail?.instructionInPickup || null,
       pickupLocation: taskFound?.pickupDetail?.pickupLocation,
       deliveryMode: taskFound.orderId.orderDetail.deliveryMode,
       orderItems: taskFound.orderId.items,
@@ -917,6 +924,41 @@ const getPickUpDetailController = async (req, res, next) => {
     });
   } catch (err) {
     next(appError);
+  }
+};
+
+// Get delivery details
+const getDeliveryDetailController = async (req, res, next) => {
+  try {
+    const { taskId } = req.params;
+
+    const taskFound = await Task.findById(taskId).populate("orderId");
+
+    const formattedResponse = {
+      orderId: taskFound.orderId._id,
+      type: "Delivery",
+      date: formatDate(taskFound.orderId.orderDetail?.deliveryTime),
+      time: formatTime(taskFound.orderId.orderDetail?.deliveryTime),
+      taskStatus: taskFound.deliveryDetail?.deliveryStatus,
+      customerName: taskFound?.deliveryDetail?.deliveryAddress?.fullName,
+      deliveryAddress: taskFound?.deliveryDetail?.deliveryAddress,
+      customerPhoneNumber:
+        taskFound?.deliveryDetail?.deliveryAddress?.phoneNumber,
+      instructions:
+        taskFound?.orderId?.orderDetail?.instructionToDeliveryAgent ||
+        taskFound?.orderId?.orderDetail?.instructionInDelivery,
+      deliveryLocation: taskFound?.deliveryDetail?.deliveryLocation,
+      deliveryMode: taskFound.orderId.orderDetail.deliveryMode,
+      orderItems: taskFound.orderId.items,
+      billDetail: taskFound.orderId.billDetail,
+    };
+
+    res.status(200).json({
+      message: "Delivery details",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
   }
 };
 
@@ -957,38 +999,195 @@ const addCustomOrderItemPriceController = async (req, res, next) => {
     // Update item price
     itemFound.price = newPrice;
 
-    // Update itemTotal by summing up all item prices
-    const updatedItemTotal = orderFound.items
-      .reduce((total, item) => {
-        return total + (item.price || 0);
-      }, 0)
-      .toFixed(2);
+    // Calculate the updated item total
+    const updatedItemTotal = orderFound.items.reduce((total, item) => {
+      return total + (item.price || 0);
+    }, 0);
 
-    const deliveryCharge = orderFound.billDetail.deliveryCharge;
-    const surgePrice = orderFound?.billDetail?.surgePrice || 0;
+    const deliveryCharge = orderFound.billDetail.deliveryCharge || 0;
+    const surgePrice = orderFound.billDetail.surgePrice || 0;
 
     // Update subTotal and grandTotal
-    const priceDifference = newPrice - oldPrice;
     const updatedSubTotal = (
-      orderFound.billDetail.subTotal +
-      priceDifference +
+      updatedItemTotal +
       deliveryCharge +
       surgePrice
     ).toFixed(2);
     const updatedGrandTotal = (
-      orderFound.billDetail.grandTotal +
-      priceDifference +
-      deliveryCharge +
-      surgePrice
+      parseFloat(orderFound.billDetail.grandTotal || 0) +
+      newPrice -
+      oldPrice
     ).toFixed(2);
 
-    orderFound.billDetail.itemTotal = parseFloat(updatedItemTotal);
+    orderFound.billDetail.itemTotal = parseFloat(updatedItemTotal.toFixed(2));
     orderFound.billDetail.subTotal = parseFloat(updatedSubTotal);
     orderFound.billDetail.grandTotal = parseFloat(updatedGrandTotal);
 
     await orderFound.save();
 
     res.status(200).json({ message: "Item price updated successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Add details by agent
+const addOrderDetailsController = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const { notes } = req.body;
+
+    // Log incoming request data
+    console.log("Incoming request data:", { orderId, notes, files: req.files });
+
+    const orderFound = await Order.findById(orderId);
+
+    if (!orderFound) {
+      return next(appError("Order not found", 404));
+    }
+
+    let signatureImageURL = "";
+    let imageURL = "";
+
+    if (req.files) {
+      if (req.files.signatureImage) {
+        const signatureImage = req.files.signatureImage[0];
+        signatureImageURL = await uploadToFirebase(
+          signatureImage,
+          "OrderDetailImages"
+        );
+        console.log("Uploaded signatureImageURL:", signatureImageURL);
+      }
+
+      if (req.files.image) {
+        const image = req.files.image[0];
+        imageURL = await uploadToFirebase(image, "OrderDetailImages");
+        console.log("Uploaded imageURL:", imageURL);
+      }
+    }
+
+    // Create the updated details object
+    let updatedDetails = {};
+    if (notes) {
+      updatedDetails.notes = notes;
+    }
+    if (signatureImageURL) {
+      updatedDetails.signatureImageURL = signatureImageURL;
+    }
+    if (imageURL) {
+      updatedDetails.imageURL = imageURL;
+    }
+
+    // Merge existing details with updated details
+    orderFound.detailAddedByAgent = {
+      ...orderFound.detailAddedByAgent.toObject(),
+      ...updatedDetails,
+    };
+
+    console.log("Updated details:", orderFound.detailAddedByAgent);
+
+    // Save the updated order
+    await orderFound.save();
+
+    res.status(200).json({
+      message: "Order details updated successfully",
+      order: orderFound.detailAddedByAgent,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Confirm money received in cash on delivery
+const confirmCashReceivedController = async (req, res, next) => {
+  try {
+    const { amount, orderId } = req.body;
+    const agentId = req.userAuth;
+
+    const agentFound = await Agent.findById(agentId);
+
+    if (!agentFound) {
+      return next(appError("Agent not found", 404));
+    }
+
+    if (!amount && isNaN(amount)) {
+      return next(appError("Amount must be a number"));
+    }
+
+    const orderFound = await Order.findById(orderId);
+
+    if (!orderFound) {
+      return next(appError("Order not found", 404));
+    }
+
+    if (orderFound.billDetail.grandTotal !== amount) {
+      return next(appError("Enter the correct bill amount"));
+    }
+
+    let updatedOrderDetail = {
+      orderId,
+      deliveryMode: orderFound.orderDetail.deliveryMode,
+      customerName: orderFound.orderDetail.deliveryAddress.fullName || "N/A",
+      completedOn: new Date(),
+      grandTotal: orderFound.billDetail.grandTotal,
+    };
+
+    agentFound.workStructure.cashInHand += parseInt(amount);
+    agentFound.appDetail.orderDetail.push(updatedOrderDetail);
+
+    await agentFound.save();
+
+    res.status(200).json({ message: "Order completed successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const completeOrderCOntroller = async (req, res, next) => {
+  try {
+    const { orderId } = req.body;
+    const agentId = req.userAuth;
+
+    const agentFound = await Agent.findById(agentId);
+
+    if (!agentFound) {
+      return next(appError("Agent not found", 404));
+    }
+    const orderFound = await Order.findById(orderId);
+
+    if (!orderFound) {
+      return next(appError("Order not found", 404));
+    }
+
+    const agentSalaryId = agentFound.workStructure.salaryStructureId;
+
+    const agentPricing = await AgentPricing.findById(agentSalaryId);
+
+    if (!agentPricing) {
+      return next(appError("Agent pricing not found", 404));
+    }
+
+    // TODO: Make calculations
+
+    let delayedBy = null;
+    if (new Date() > new Date(orderFound.orderDetail.deliveryTime)) {
+      delayedBy = new Date() - new Date(orderFound.orderDetail.deliveryTime);
+    }
+
+    const timeTaken =
+      new Date() - new Date(orderFound.orderDetail.agentAcceptedAt);
+
+    orderFound.status = "Completed";
+    orderFound.paymentStatus = "Completed";
+    orderFound.orderDetail.deliveryTime = new Date();
+    orderFound.orderDetail.timeTaken = timeTaken;
+    orderFound.orderDetail.delayedBy = delayedBy;
+
+    agentFound.appDetail.orders += 1;
+
+    await orderFound.save();
+
+    res.status(200).json({ message: "Order completed successfully" });
   } catch (err) {
     next(appError(err.message));
   }
@@ -1017,5 +1216,8 @@ module.exports = {
   getRatingsOfAgentController,
   getTaskPreviewController,
   getPickUpDetailController,
+  getDeliveryDetailController,
   addCustomOrderItemPriceController,
+  addOrderDetailsController,
+  confirmCashReceivedController,
 };

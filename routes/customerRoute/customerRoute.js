@@ -175,11 +175,7 @@ customerRoute.post(
   applyPromocodeController
 );
 
-customerRoute.post(
-  "/confirm-order",
-  // isAuthenticated,
-  orderPaymentController
-);
+customerRoute.post("/confirm-order", isAuthenticated, orderPaymentController);
 
 customerRoute.post(
   "/verify-payment",
