@@ -845,8 +845,6 @@ const addCartDetailsController = async (req, res, next) => {
 
     const customerId = req.userAuth;
 
-    console.log("time: ", time);
-
     if (!customerId) {
       return next(appError("Customer is not authenticated", 401));
     }
@@ -861,7 +859,7 @@ const addCartDetailsController = async (req, res, next) => {
     let deliveryCoordinates;
     let deliveryAddress = {};
 
-    if (deliveryMode === "Delivery") {
+    if (deliveryMode === "Home Delivery") {
       if (fullName && phoneNumber && flat && area && coordinates) {
         deliveryAddress = {
           fullName,
@@ -960,7 +958,7 @@ const addCartDetailsController = async (req, res, next) => {
 
     let subTotal;
 
-    if (deliveryMode === "Take-away") {
+    if (deliveryMode === "Take Away") {
       updatedCartDetail = {
         ...updatedCartDetail,
         deliveryLocation: pickupCoordinates,
@@ -1579,7 +1577,7 @@ const orderPaymentController = async (req, res, next) => {
       return next(appError("Invalid payment mode", 400));
     }
 
-    if (deliveryMode === "Delivery") {
+    if (deliveryMode === "Home Delivery") {
       const orderResponse = {
         _id: newOrder._id,
         customerId: newOrder.customerId,
@@ -1832,7 +1830,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
       customer.transactionDetail.push(customerTransation);
       await customer.save();
 
-      if (deliveryMode === "Delivery") {
+      if (deliveryMode === "Home Delivery") {
         const orderResponse = {
           _id: newOrder._id,
           customerId: newOrder.customerId,

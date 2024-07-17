@@ -12,6 +12,7 @@ const {
   rejectOrderByAdminController,
   searchOrderByIdByAdminController,
   filterOrdersByAdminController,
+  getOrderDetailByAdminController,
 } = require("../../../controllers/admin/order/orderController");
 const isAdmin = require("../../../middlewares/isAdmin");
 const orderRoute = express.Router();
@@ -53,6 +54,13 @@ orderRoute.get(
   isAuthenticated,
   isAdmin,
   getAllOrdersForAdminController
+);
+
+orderRoute.get(
+  "/admin/:orderId",
+  isAuthenticated,
+  isAdmin,
+  getOrderDetailByAdminController
 );
 
 orderRoute.patch(

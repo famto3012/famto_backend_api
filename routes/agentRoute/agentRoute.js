@@ -21,6 +21,8 @@ const {
   getHistoryOfAppDetailsController,
   getRatingsOfAgentController,
   getTaskPreviewController,
+  getPickUpDetailController,
+  addCustomOrderItemPriceController,
 } = require("../../controllers/agent/agentController");
 const { upload } = require("../../utils/imageOperation");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
@@ -169,5 +171,17 @@ agentRoute.get(
 agentRoute.get("/get-ratings", isAuthenticated, getRatingsOfAgentController);
 
 agentRoute.get("/get-task-preview", isAuthenticated, getTaskPreviewController);
+
+agentRoute.get(
+  "/get-pickup-detail/:taskId",
+  isAuthenticated,
+  getPickUpDetailController
+);
+
+agentRoute.patch(
+  "/add-item-price/:orderId/:itemId",
+  isAuthenticated,
+  addCustomOrderItemPriceController
+);
 
 module.exports = agentRoute;

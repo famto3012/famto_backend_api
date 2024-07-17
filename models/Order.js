@@ -38,6 +38,9 @@ const orderItemSchema = mongoose.Schema(
       type: String,
       default: null,
     },
+    itemId: {
+      type: mongoose.Schema.Types.ObjectId,
+    },
   },
   {
     _id: false,
@@ -71,7 +74,7 @@ const orderDetailSchema = mongoose.Schema(
     },
     deliveryMode: {
       type: String,
-      enum: ["Delivery", "Take-away", "Pick and Drop", "Custom Order"],
+      enum: ["Home Delivery", "Take Away", "Pick and Drop", "Custom Order"],
       required: true,
     },
     deliveryOption: {
