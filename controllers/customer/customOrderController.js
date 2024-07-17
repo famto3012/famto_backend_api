@@ -18,21 +18,37 @@ const CustomerSurge = require("../../models/CustomerSurge");
 
 const addShopController = async (req, res, next) => {
   try {
-    const { latitude, longitude, shopName, place } = req.body;
+    const { latitude, longitude, shopName, place, buyFromAnyWhere } = req.body;
 
     const customerId = req.userAuth;
 
     const customer = await Customer.findById(customerId);
 
-    const pickupLocation = [latitude, longitude];
-    const deliveryLocation = customer.customerDetails.location[0];
+    let cartFound;
+    let updatedCartDetail;
+    let pickupLocation;
+    let deliveryLocation;
+
+    // if (buyFromAnyWhere) {
+    //   pickupLocation = null;
+    //   deliveryLocation = customer.customerDetails.location[0];
+
+    //   updatedCartDetail = {
+    //     pickupLocation,
+    //     deliveryLocation,
+    //     deliveryMode: "Custom Order",
+    //     deliveryOption: "On-demand",
+    //   };
+    // } else {
+    pickupLocation = [latitude, longitude];
+    deliveryLocation = customer.customerDetails.location[0];
 
     const { distanceInKM, durationInMinutes } =
       await getDistanceFromPickupToDelivery(pickupLocation, deliveryLocation);
 
-    const cartFound = await PickAndCustomCart.findOne({ customerId });
+    cartFound = await PickAndCustomCart.findOne({ customerId });
 
-    let updatedCartDetail = {
+    updatedCartDetail = {
       pickupLocation,
       pickupAddress: {
         fullName: shopName,
@@ -44,6 +60,7 @@ const addShopController = async (req, res, next) => {
       distance: distanceInKM,
       duration: durationInMinutes,
     };
+    // }
 
     if (cartFound) {
       await PickAndCustomCart.findByIdAndUpdate(
@@ -63,10 +80,10 @@ const addShopController = async (req, res, next) => {
     res.status(200).json({
       message: "Shop detail added successfully in Custom order",
       data: {
-        shopName,
-        place,
-        distance: parseFloat(distanceInKM),
-        duaration: durationInMinutes,
+        shopName: shopName || null,
+        place: place || null,
+        distance: parseFloat(distanceInKM || null),
+        duaration: durationInMinutes || null,
       },
     });
   } catch (err) {
@@ -290,6 +307,7 @@ const addDeliveryAddressController = async (req, res, next) => {
       pickupAddress: cartFound.cartDetail.pickupAddress,
       deliveryAddress: deliveryAddress._doc,
       deliveryLocation: deliveryCoordinates,
+      deliveryMode: cartFound.cartDetail.deliveryMode,
       distance: distanceInKM,
       duration: durationInMinutes,
       deliveryOption: "On-demand",
@@ -346,7 +364,7 @@ const addDeliveryAddressController = async (req, res, next) => {
       discountedAmount: null,
       originalGrandTotal: deliveryCharges,
       discountedGrandTotal: null,
-      itemTotal: deliveryCharges,
+      itemTotal: null,
       addedTip: null,
       subTotal: null,
       vehicleType: null,

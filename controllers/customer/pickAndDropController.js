@@ -143,6 +143,7 @@ const addPickUpAddressController = async (req, res, next) => {
       pickupLocation: pickupCoordinates,
       deliveryAddress: deliveryAddress._doc,
       deliveryLocation: deliveryCoordinates,
+      deliveryMode: "Pick and Drop",
       deliveryOption: startDate && endDate && time ? "Scheduled" : "On-demand",
       instructionInPickup,
       instructionInDelivery,

@@ -828,32 +828,167 @@ const getTaskPreviewController = async (req, res, next) => {
       return next(appError("Agent not found", 404));
     }
 
-    const taskFound = await Task.find({ agentId })
-      // .populate("orderId")
-      .sort({ createdAt: 1 });
+    const taskFound = await Task.find({
+      agentId,
+      taskStatus: "Assigned",
+    }).sort({ createdAt: 1 });
 
-    // const formattedTask = taskFound.map((task) => {
-    //   return {
-    //     taskStatus: task.taskStatus,
-    //     orderId: task.orderId._id,
-    //     date: formatDate(task.createdAt),
-    //     time: formatTime(task.createdAt),
-    //     merchantName: task.orderId.orderDetail.pickupAddress.fullName,
-    //     merchantAddress: task.orderId.orderDetail.pickupAddress.area,
-    //     merchantPhoneNumber: task.orderId.orderDetail.pickupAddress.phoneNumber,
-    //     pickupLocation: task.orderId.orderDetail.pickupLocation,
-    //     agentLocation: agentFound.location,
-    //   };
-    // });
+    let currentTasks = [];
+    let nextTasks = [];
 
-    // const currentTask = formattedTask.filter((task) => {
-    //   return task.taskStatus === "Started";
-    // });
+    taskFound.forEach((task) => {
+      const pickupTask = {
+        type: "Pickup",
+        taskId: task._id,
+        taskStatus: task.pickupDetail.pickupStatus,
+        orderId: task.orderId,
+        date: formatDate(task.createdAt),
+        time: formatTime(task.createdAt),
+        pickupName: task.pickupDetail.pickupAddress.fullName,
+        pickupArea: task.pickupDetail.pickupAddress.area,
+        pickupPhoneNumber: task.pickupDetail.pickupAddress.phoneNumber,
+        pickupLocation: task.pickupDetail.pickupLocation,
+        agentLocation: agentFound.location,
+      };
+
+      const deliveryTask = {
+        type: "Delivery",
+        taskId: task._id,
+        taskStatus: task.deliveryDetail.deliveryStatus,
+        orderId: task.orderId,
+        date: formatDate(task.createdAt),
+        time: formatTime(task.createdAt),
+        deliveryName: task.deliveryDetail.deliveryAddress.fullName,
+        deliveryAddress: task.deliveryDetail.deliveryAddress,
+        deliveryPhoneNumber: task.deliveryDetail.deliveryAddress.phoneNumber,
+        deliveryLocation: task.deliveryDetail.deliveryLocation,
+        agentLocation: agentFound.location,
+      };
+
+      if (task.pickupDetail.pickupStatus === "Started") {
+        currentTasks.push(pickupTask);
+      } else if (task.pickupDetail.pickupStatus !== "Completed") {
+        nextTasks.push(pickupTask);
+      }
+
+      if (task.deliveryDetail.deliveryStatus === "Started") {
+        currentTasks.push(deliveryTask);
+      } else if (task.deliveryDetail.deliveryStatus !== "Completed") {
+        nextTasks.push(deliveryTask);
+      }
+    });
 
     res.status(200).json({
       message: "Task preview",
-      data: taskFound,
+      data: {
+        currentTasks,
+        nextTasks,
+      },
     });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get pickup details
+const getPickUpDetailController = async (req, res, next) => {
+  try {
+    const { taskId } = req.params;
+
+    const taskFound = await Task.findById(taskId).populate("orderId");
+
+    const formattedResponse = {
+      orderId: taskFound.orderId._id,
+      type: "Pickup",
+      date: formatDate(taskFound.orderId.createdAt),
+      time: formatTime(taskFound.orderId.createdAt),
+      taskStatus: taskFound.pickupDetail?.pickupStatus,
+      pickupName: taskFound?.pickupDetail?.pickupAddress?.fullName,
+      pickupAddress: taskFound?.pickupDetail?.pickupAddress?.area,
+      pickupLocation: taskFound?.pickupDetail?.pickupLocation,
+      deliveryMode: taskFound.orderId.orderDetail.deliveryMode,
+      orderItems: taskFound.orderId.items,
+      billDetail: taskFound.orderId.billDetail,
+    };
+
+    res.status(200).json({
+      message: "Pick up details",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError);
+  }
+};
+
+// Add item price in Custom order
+const addCustomOrderItemPriceController = async (req, res, next) => {
+  try {
+    const { orderId, itemId } = req.params;
+    const { price } = req.body;
+
+    const agentId = req.userAuth;
+
+    if (!price || isNaN(price)) {
+      return next(appError("Invalid price", 400));
+    }
+
+    const orderFound = await Order.findById(orderId);
+
+    if (!orderFound) {
+      return next(appError("Order not found", 404));
+    }
+
+    if (orderFound.agentId.toString() !== agentId.toString()) {
+      return next(appError("Agent access denied", 403));
+    }
+
+    const itemFound = orderFound.items.find(
+      (item) => item.itemId.toString() === itemId.toString()
+    );
+
+    if (!itemFound) {
+      return next(appError("Item not found", 404));
+    }
+
+    // Calculate the difference in price
+    const oldPrice = itemFound.price || 0;
+    const newPrice = parseFloat(price);
+
+    // Update item price
+    itemFound.price = newPrice;
+
+    // Update itemTotal by summing up all item prices
+    const updatedItemTotal = orderFound.items
+      .reduce((total, item) => {
+        return total + (item.price || 0);
+      }, 0)
+      .toFixed(2);
+
+    const deliveryCharge = orderFound.billDetail.deliveryCharge;
+    const surgePrice = orderFound?.billDetail?.surgePrice || 0;
+
+    // Update subTotal and grandTotal
+    const priceDifference = newPrice - oldPrice;
+    const updatedSubTotal = (
+      orderFound.billDetail.subTotal +
+      priceDifference +
+      deliveryCharge +
+      surgePrice
+    ).toFixed(2);
+    const updatedGrandTotal = (
+      orderFound.billDetail.grandTotal +
+      priceDifference +
+      deliveryCharge +
+      surgePrice
+    ).toFixed(2);
+
+    orderFound.billDetail.itemTotal = parseFloat(updatedItemTotal);
+    orderFound.billDetail.subTotal = parseFloat(updatedSubTotal);
+    orderFound.billDetail.grandTotal = parseFloat(updatedGrandTotal);
+
+    await orderFound.save();
+
+    res.status(200).json({ message: "Item price updated successfully" });
   } catch (err) {
     next(appError(err.message));
   }
@@ -881,4 +1016,6 @@ module.exports = {
   getHistoryOfAppDetailsController,
   getRatingsOfAgentController,
   getTaskPreviewController,
+  getPickUpDetailController,
+  addCustomOrderItemPriceController,
 };

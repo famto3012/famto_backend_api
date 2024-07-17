@@ -86,22 +86,22 @@ const confirmOrderController = async (req, res, next) => {
 
     if (orderFound.merchantId.toString() === currentMerchant.toString()) {
       orderFound.status = "On-going";
-      const { payableAmountToFamto, payableAmountToMerchant } =
-        await orderCommissionLogHelper(orderId);
+      if (orderFound.merchantId) {
+        const { payableAmountToFamto, payableAmountToMerchant } =
+          await orderCommissionLogHelper(orderId);
 
-      let updatedCommission = {
-        merchantEarnings: payableAmountToMerchant,
-        famtoEarnings: payableAmountToFamto,
-      };
+        let updatedCommission = {
+          merchantEarnings: payableAmountToMerchant,
+          famtoEarnings: payableAmountToFamto,
+        };
+        orderFound.commissionDetail = updatedCommission;
+      }
 
-      // TODO: Uncomment after finishing "orderCreateTaskHelper" function
-      // const task = await orderCreateTaskHelper(orderId);
+      const task = await orderCreateTaskHelper(orderId);
 
-      // if (!task) {
-      //   return next(appError("Task not created"));
-      // }
-
-      orderFound.commissionDetail = updatedCommission;
+      if (!task) {
+        return next(appError("Task not created"));
+      }
 
       await orderFound.save();
     } else {
@@ -364,7 +364,10 @@ const getOrderDetailController = async (req, res, next) => {
 
     const { orderId } = req.params;
 
-    const orderFound = await Order.findById(orderId)
+    const orderFound = await Order.findOne({
+      _id: orderId,
+      merchantId: currentMerchant,
+    })
       .populate({
         path: "customerId",
         select: "fullName phoneNumber email",
@@ -381,41 +384,7 @@ const getOrderDetailController = async (req, res, next) => {
           select: "name",
         },
       })
-      .populate({
-        path: "items.productId",
-        select: "productName productImageURL description variants",
-      })
       .exec();
-
-    const populatedOrderWithVariantNames = orderFound.toObject();
-    populatedOrderWithVariantNames.items =
-      populatedOrderWithVariantNames.items.map((item) => {
-        const product = item.productId;
-        let variantTypeName = null;
-        let variantTypeData = null;
-        if (item.variantTypeId && product.variants) {
-          const variantType = product.variants
-            .flatMap((variant) => variant.variantTypes)
-            .find((type) => type._id.equals(item.variantTypeId));
-          if (variantType) {
-            variantTypeName = variantType.typeName;
-            variantTypeData = {
-              _id: variantType._id,
-              variantTypeName: variantTypeName,
-            };
-          }
-        }
-        return {
-          ...item,
-          productId: {
-            _id: product._id,
-            productName: product.productName,
-            description: product.description,
-            productImageURL: product.productImageURL,
-          },
-          variantTypeId: variantTypeData,
-        };
-      });
 
     if (!orderFound) {
       return next(appError("Order not found", 404));
@@ -467,8 +436,9 @@ const getOrderDetailController = async (req, res, next) => {
         name: orderFound.merchantId.merchantDetail.merchantName,
         instructionsByCustomer:
           orderFound.orderDetail.instructionToMerchant || "N/A",
-        merchantEarnings: orderFound.commissionDetail.merchantEarnings,
-        famtoEarnings: orderFound.commissionDetail.famtoEarnings,
+        merchantEarnings:
+          orderFound?.commissionDetail?.merchantEarnings || "N/A",
+        famtoEarnings: orderFound?.commissionDetail?.famtoEarnings || "N/A",
       },
       deliveryAgentDetail: {
         _id: orderFound?.agentId?._id || "N/A",
@@ -480,7 +450,7 @@ const getOrderDetailController = async (req, res, next) => {
         tmeTaken: "N/A", // TODO: Calculate these values
         delayedBy: "N/A", // TODO: Calculate these values
       },
-      items: populatedOrderWithVariantNames.items,
+      items: orderFound.items,
       billDetail: orderFound.billDetail,
     };
 
@@ -552,7 +522,25 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
     if (!orderFound) {
       return next(appError("Order not found", 404));
     }
+
     orderFound.status = "On-going";
+
+    if (orderFound.merchantId) {
+      const { payableAmountToFamto, payableAmountToMerchant } =
+        await orderCommissionLogHelper(orderId);
+
+      let updatedCommission = {
+        merchantEarnings: payableAmountToMerchant,
+        famtoEarnings: payableAmountToFamto,
+      };
+      orderFound.commissionDetail = updatedCommission;
+    }
+
+    const task = await orderCreateTaskHelper(orderId);
+
+    if (!task) {
+      return next(appError("Task not created"));
+    }
 
     await orderFound.save();
     res
@@ -764,6 +752,112 @@ const filterOrdersByAdminController = async (req, res, next) => {
   }
 };
 
+const getOrderDetailByAdminController = async (req, res, next) => {
+  try {
+    const currentMerchant = req.userAuth;
+
+    if (!currentMerchant) {
+      return next(appError("Merchant is not authenticated", 401));
+    }
+
+    const { orderId } = req.params;
+
+    const orderFound = await Order.findById(orderId)
+      .populate({
+        path: "customerId",
+        select: "fullName phoneNumber email",
+      })
+      .populate({
+        path: "merchantId",
+        select: "merchantDetail",
+      })
+      .populate({
+        path: "agentId",
+        select: "fullName workStructure",
+        populate: {
+          path: "workStructure.managerId",
+          select: "name",
+        },
+      })
+      .exec();
+
+    if (!orderFound) {
+      return next(appError("Order not found", 404));
+    }
+
+    const deliveryTimeMinutes = parseInt(
+      orderFound?.merchantId?.merchantDetail?.deliveryTime,
+      10
+    );
+
+    const orderDeliveryTime = new Date(orderFound.createdAt);
+    orderDeliveryTime.setMinutes(
+      orderDeliveryTime.getMinutes() + deliveryTimeMinutes
+    );
+
+    const formattedResponse = {
+      _id: orderFound._id,
+      orderStatus: orderFound.status,
+      paymentStatus: orderFound.paymentStatus,
+      paymentMode: orderFound.paymentMode,
+      deliveryMode: orderFound.orderDetail.deliveryMode,
+      deliveryOption: orderFound.orderDetail.deliveryOption,
+      orderTime: `${formatDate(orderFound.createdAt)} | ${formatTime(
+        orderFound.createdAt
+      )}`,
+      deliveryTime: `${formatDate(orderFound.createdAt)} | ${formatTime(
+        orderDeliveryTime
+      )}`,
+      customerDetail: {
+        _id: orderFound.customerId._id,
+        name:
+          orderFound.customerId.fullName ||
+          orderFound.orderDetail.deliveryAddress.fullName,
+        email: orderFound.customerId.email || "N/A",
+        phone: orderFound.customerId.phoneNumber,
+        address: orderFound.orderDetail.deliveryAddress,
+        ratingsToDeliveryAgent: {
+          rating: orderFound?.orderRating?.ratingToDeliveryAgent?.rating || 0,
+          review: orderFound.orderRating?.ratingToDeliveryAgent.review || "N/A",
+        },
+        ratingsByDeliveryAgent: {
+          rating: orderFound?.orderRating?.ratingByDeliveryAgent?.rating || 0,
+          review:
+            orderFound?.orderRating?.ratingByDeliveryAgent?.review || "N/A",
+        },
+      },
+      merchantDetail: {
+        _id: orderFound?.merchantId?._id || "N/A",
+        name: orderFound?.merchantId?.merchantDetail?.merchantName || "N/A",
+        instructionsByCustomer:
+          orderFound?.orderDetail?.instructionToMerchant || "N/A",
+        merchantEarnings:
+          orderFound?.commissionDetail?.merchantEarnings || "N/A",
+        famtoEarnings: orderFound?.commissionDetail?.famtoEarnings || "N/A",
+      },
+      deliveryAgentDetail: {
+        _id: orderFound?.agentId?._id || "N/A",
+        name: orderFound?.agentId?.fullName,
+        team: orderFound?.agentId?.workStructure?.managerId?.name,
+        instructionsByCustomer:
+          orderFound?.orderDetail?.instructionToDeliveryAgent || "N/A",
+        distanceTravelled: orderFound?.orderDetail?.distance,
+        tmeTaken: "N/A", // TODO: Calculate these values
+        delayedBy: "N/A", // TODO: Calculate these values
+      },
+      items: orderFound.items,
+      billDetail: orderFound.billDetail,
+    };
+
+    res.status(200).json({
+      message: "Single order detail",
+      data: formattedResponse, //populatedOrderWithVariantNames,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   // For Merchant
   getAllOrdersOfMerchantController,
@@ -779,4 +873,5 @@ module.exports = {
   rejectOrderByAdminController,
   searchOrderByIdByAdminController,
   filterOrdersByAdminController,
+  getOrderDetailByAdminController,
 };

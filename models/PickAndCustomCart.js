@@ -23,7 +23,7 @@ const cartItemSchema = mongoose.Schema(
     },
     unit: {
       type: String,
-      required: true,
+      default: null,
     },
     weight: {
       type: Number,
@@ -51,7 +51,7 @@ const cartDetailSchema = mongoose.Schema(
   {
     pickupLocation: {
       type: [Number],
-      required: true,
+      default: null,
     },
     pickupAddress: {
       fullName: String,
@@ -81,7 +81,8 @@ const cartDetailSchema = mongoose.Schema(
     },
     deliveryMode: {
       type: String,
-      default: "Pick and Drop",
+      enum: ["Pick and Drop", "Custom Order"],
+      required: true,
     },
     deliveryOption: {
       type: String,

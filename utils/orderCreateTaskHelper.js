@@ -20,8 +20,8 @@ const orderCreateTaskHelper = async (orderId) => {
   try {
     const order = await Order.findById(orderId);
     let task = await Task.find({ orderId });
-    console.log("task", task);
-    console.log("order", order);
+    // console.log("task", task);
+    // console.log("order", order);
     if (order) {
       if (task.length === 0) {
         let pickupDetail = {
@@ -40,10 +40,10 @@ const orderCreateTaskHelper = async (orderId) => {
       }
     }
     task = await Task.find({ orderId });
-    console.log("task", task);
+    // console.log("task", task);
 
     const autoAllocation = await AutoAllocation.findOne();
-    console.log("Auto", autoAllocation);
+    // console.log("Auto", autoAllocation);
 
     if (autoAllocation.isActive) {
       if (autoAllocation.autoAllocationType === "All") {
