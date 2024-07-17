@@ -284,7 +284,7 @@ io.on("connection", async (socket) => {
         token: fcmToken,
       });
     } else {
-      if (user.fcmToken !== fcmToken)
+      if (user.token === null || user.token !== fcmToken)
         await FcmToken.findByIdAndUpdate(user._id, {
           token: fcmToken,
         });
