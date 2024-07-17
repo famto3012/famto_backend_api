@@ -979,6 +979,9 @@ const addCartDetailsController = async (req, res, next) => {
         distance: 0,
       };
 
+      console.log("pickupCoordinates", pickupCoordinates);
+      console.log("deliveryCoordinates", deliveryCoordinates);
+
       // Calculate distance using MapMyIndia API
       const { distanceInKM } = await getDistanceFromPickupToDelivery(
         pickupCoordinates,
@@ -1329,8 +1332,8 @@ const applyPromocodeController = async (req, res, next) => {
 // Order Product
 const orderPaymentController = async (req, res, next) => {
   try {
-    const { paymentMode, customerId } = req.body;
-    // const customerId = req.userAuth;
+    const { paymentMode } = req.body;
+    const customerId = req.userAuth;
 
     if (!customerId) {
       return next(appError("Customer is not authenticated", 401));
@@ -1363,6 +1366,14 @@ const orderPaymentController = async (req, res, next) => {
     if (!merchant) {
       return next(appError("Merchant not found", 404));
     }
+
+    const deliveryTimeMinutes = parseInt(
+      merchant.merchantDetail.deliveryTime,
+      10
+    );
+
+    const deliveryTime = new Date();
+    deliveryTime.setMinutes(deliveryTime.getMinutes() + deliveryTimeMinutes);
 
     // let startDate, endDate;
     if (cart.cartDetail.deliveryOption === "Scheduled") {
@@ -1528,7 +1539,10 @@ const orderPaymentController = async (req, res, next) => {
           customerId,
           merchantId: cart.merchantId,
           items: formattedItems,
-          orderDetail: cart.cartDetail,
+          orderDetail: {
+            ...cart.cartDetail,
+            deliveryTime,
+          },
           billDetail: orderBill,
           totalAmount: orderAmount,
           status: "Pending",
@@ -1549,7 +1563,10 @@ const orderPaymentController = async (req, res, next) => {
         customerId,
         merchantId: cart.merchantId,
         items: formattedItems,
-        orderDetail: cart.cartDetail,
+        orderDetail: {
+          ...cart.cartDetail,
+          deliveryTime,
+        },
         billDetail: orderBill,
         totalAmount: orderAmount,
         status: "Pending",
@@ -1779,6 +1796,14 @@ const verifyOnlinePaymentController = async (req, res, next) => {
       type: "Debit",
     };
 
+    const deliveryTimeMinutes = parseInt(
+      merchant.merchantDetail.deliveryTime,
+      10
+    );
+
+    const deliveryTime = new Date();
+    deliveryTime.setMinutes(deliveryTime.getMinutes() + deliveryTimeMinutes);
+
     let newOrder;
     // Check if the order is scheduled
     if (cart.cartDetail.deliveryOption === "Scheduled") {
@@ -1816,7 +1841,10 @@ const verifyOnlinePaymentController = async (req, res, next) => {
         customerId,
         merchantId: cart.merchantId,
         items: formattedItems,
-        orderDetail: cart.cartDetail,
+        orderDetail: {
+          ...cart.cartDetail,
+          deliveryTime,
+        },
         billDetail: orderBill,
         totalAmount: orderAmount,
         status: "Pending",

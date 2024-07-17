@@ -390,16 +390,6 @@ const getOrderDetailController = async (req, res, next) => {
       return next(appError("Order not found", 404));
     }
 
-    const deliveryTimeMinutes = parseInt(
-      orderFound.merchantId.merchantDetail.deliveryTime,
-      10
-    );
-
-    const orderDeliveryTime = new Date(orderFound.createdAt);
-    orderDeliveryTime.setMinutes(
-      orderDeliveryTime.getMinutes() + deliveryTimeMinutes
-    );
-
     const formattedResponse = {
       _id: orderFound._id,
       orderStatus: orderFound.status,
@@ -410,9 +400,9 @@ const getOrderDetailController = async (req, res, next) => {
       orderTime: `${formatDate(orderFound.createdAt)} | ${formatTime(
         orderFound.createdAt
       )}`,
-      deliveryTime: `${formatDate(orderFound.createdAt)} | ${formatTime(
-        orderDeliveryTime
-      )}`,
+      deliveryTime: `${formatDate(
+        orderFound.orderDetail.deliveryTime
+      )} | ${formatTime(orderDeliveryTime)}`,
       customerDetail: {
         _id: orderFound.customerId._id,
         name:
@@ -481,22 +471,14 @@ const getAllOrdersForAdminController = async (req, res, next) => {
       .sort({ createdAt: -1 });
 
     const formattedOrders = allOrders.map((order) => {
-      const deliveryTimeMinutes = parseInt(
-        order.merchantId.merchantDetail.deliveryTime,
-        10
-      );
-
-      const deliveryTime = new Date(order.createdAt);
-      deliveryTime.setMinutes(deliveryTime.getMinutes() + deliveryTimeMinutes);
-
       return {
         _id: order._id,
         orderStatus: order.status,
         merchantName: order.merchantId.merchantDetail.merchantName,
         customerName: order.customerId.fullName,
         deliveryMode: order.orderDetail.deliveryMode,
-        orderDate: formatDate(order.createdAt),
-        orderTime: formatTime(order.createdAt),
+        orderDate: formatDate(order?.orderDetail?.deliveryTime),
+        orderTime: formatTime(order?.orderDetail?.deliveryTime),
         deliveryTime: formatTime(deliveryTime),
         paymentMethod: order.orderDetail.paymentMethod,
         deliveryOption: order.orderDetail.deliveryOption,
@@ -785,16 +767,6 @@ const getOrderDetailByAdminController = async (req, res, next) => {
       return next(appError("Order not found", 404));
     }
 
-    const deliveryTimeMinutes = parseInt(
-      orderFound?.merchantId?.merchantDetail?.deliveryTime,
-      10
-    );
-
-    const orderDeliveryTime = new Date(orderFound.createdAt);
-    orderDeliveryTime.setMinutes(
-      orderDeliveryTime.getMinutes() + deliveryTimeMinutes
-    );
-
     const formattedResponse = {
       _id: orderFound._id,
       orderStatus: orderFound.status,
@@ -805,9 +777,9 @@ const getOrderDetailByAdminController = async (req, res, next) => {
       orderTime: `${formatDate(orderFound.createdAt)} | ${formatTime(
         orderFound.createdAt
       )}`,
-      deliveryTime: `${formatDate(orderFound.createdAt)} | ${formatTime(
-        orderDeliveryTime
-      )}`,
+      deliveryTime: `${formatDate(
+        orderFound.orderDetail.deliveryTime
+      )} | ${formatTime(orderDeliveryTime)}`,
       customerDetail: {
         _id: orderFound.customerId._id,
         name:

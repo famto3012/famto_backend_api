@@ -234,11 +234,10 @@ function sendNotification(userId, eventName, data) {
   const socketId = userSocketMap[userId]?.socketId;
   const fcmToken = userSocketMap[userId]?.fcmToken;
 
-
-  if(socketId && fcmToken){
+  if (socketId && fcmToken) {
     io.to(socketId).emit(eventName, data.socket);
     sendPushNotificationToUser(fcmToken, data.fcm);
-  }else if (socketId) {
+  } else if (socketId) {
     io.to(socketId).emit(eventName, data.socket);
   } else if (fcmToken) {
     sendPushNotificationToUser(fcmToken, data.fcm);
@@ -253,7 +252,7 @@ async function populateUserSocketMap() {
     tokens.forEach((token) => {
       userSocketMap[token.userId] = { socketId: null, fcmToken: token.token };
     });
-    console.log("User Socket Map populated with FCM tokens:", userSocketMap); //TODO: Uncon=mment
+    // console.log("User Socket Map populated with FCM tokens:", userSocketMap); //TODO: Uncon=mment
   } catch (error) {
     console.error("Error populating User Socket Map:", error);
   }
@@ -308,6 +307,7 @@ io.on("connection", async (socket) => {
     const task = await Task.find({ orderId: data.orderId });
     await Order.findByIdAndUpdate(data.orderId, {
       agentId: data.agentId,
+      "orderDetail.agentAcceptedAt": new Date(),
     });
     await Agent.findByIdAndUpdate(data.agentId, {
       status: "Busy",
@@ -317,6 +317,7 @@ io.on("connection", async (socket) => {
     } else {
       await Task.findByIdAndUpdate(task[0]._id, {
         agentId: data.agentId,
+
         taskStatus: "Assigned",
         "deliveryDetail.deliveryStatus": "Accepted",
         "pickupDetail.pickupStatus": "Accepted",

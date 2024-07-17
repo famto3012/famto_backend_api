@@ -86,6 +86,18 @@ const orderDetailSchema = mongoose.Schema(
       type: Date,
       default: null,
     },
+    agentAcceptedAt: {
+      type: Date,
+      default: null,
+    },
+    timeTaken: {
+      type: Number, // Storing in milliseconds
+      default: null,
+    },
+    delayedBy: {
+      type: Number, // Storing in milliseconds
+      default: null,
+    },
     instructionToMerchant: {
       type: String,
       default: null,
@@ -207,6 +219,21 @@ const commissionDetailSchema = mongoose.Schema(
   }
 );
 
+const detailAddedByAgentSchema = mongoose.Schema({
+  notes: {
+    type: String,
+    default: null,
+  },
+  signatureImageURL: {
+    type: String,
+    default: null,
+  },
+  imageURL: {
+    type: String,
+    default: null,
+  },
+});
+
 const orderSchema = mongoose.Schema(
   {
     customerId: {
@@ -252,6 +279,7 @@ const orderSchema = mongoose.Schema(
     },
     orderRating: orderRatingSchema,
     commissionDetail: commissionDetailSchema,
+    detailAddedByAgent: detailAddedByAgentSchema,
   },
   {
     timestamps: true,

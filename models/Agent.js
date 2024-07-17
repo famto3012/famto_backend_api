@@ -90,9 +90,36 @@ const workStructureSchema = mongoose.Schema(
       enum: ["Fish & Meat", "Normal"],
       required: true,
     },
+    cashInHand: {
+      type: Number,
+      default: 0,
+    },
   },
   { _id: false }
 );
+
+const orderDetailSchema = mongoose.Schema({
+  orderId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Order",
+  },
+  deliveryMode: {
+    type: String,
+    required: true,
+  },
+  customerName: {
+    type: String,
+    required: true,
+  },
+  completedOn: {
+    type: Date,
+    required: true,
+  },
+  grandTotal: {
+    type: Number,
+    required: true,
+  },
+});
 
 const agentAppDetailSchema = mongoose.Schema(
   {
@@ -116,14 +143,11 @@ const agentAppDetailSchema = mongoose.Schema(
       type: Number,
       default: 0,
     },
-    totalDistance: {
-      type: Number,
-      default: 0,
-    },
     loginDuration: {
       type: Number,
       default: 0, // Store login duration in milliseconds
     },
+    orderDetail: [orderDetailSchema],
   },
   {
     _id: false,
