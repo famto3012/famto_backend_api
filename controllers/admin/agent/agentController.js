@@ -319,7 +319,7 @@ const getAllAgentsController = async (req, res, next) => {
       .populate("geofenceId", "name")
       .populate("workStructure.managerId", "name")
       .select(
-        "fullName email phoneNumber isApproved geofenceId status workStructure"
+        "fullName email phoneNumber location isApproved geofenceId status workStructure"
       );
 
     const formattedResponse = allAgents.map((agent) => {
@@ -328,6 +328,7 @@ const getAllAgentsController = async (req, res, next) => {
         fullName: agent.fullName,
         email: agent.email,
         phoneNumber: agent.phoneNumber,
+        location: agent.location,
         isApproved: agent.isApproved,
         geofence: agent?.geofenceId?.name,
         status: agent.status,
@@ -356,7 +357,7 @@ const approveAgentRegistrationController = async (req, res, next) => {
     await agentFound.save();
 
     res.status(200).json({
-      message: "Agent registration apporved",
+      message: "Agent registration approved",
     });
   } catch (err) {
     next(appError(err.message));
