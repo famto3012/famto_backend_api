@@ -1469,29 +1469,6 @@ const orderPaymentController = async (req, res, next) => {
       type: "Debit",
     };
 
-    const loyaltyPointCriteria = await LoyaltyPoint.findOne({ status: true });
-
-    // let loyaltyPoint = 0;
-    const loyaltyPointEarnedToday =
-      customer.customerDetails?.loyaltyPointEarnedToday || 0;
-
-    if (loyaltyPointCriteria) {
-      if (orderAmount >= loyaltyPointCriteria.minOrderAmountForEarning) {
-        if (loyaltyPointEarnedToday < loyaltyPointCriteria.maxEarningPoint) {
-          const calculatedLoyaltyPoint = Math.min(
-            orderAmount * loyaltyPointCriteria.earningCriteraPoint,
-            loyaltyPointCriteria.maxEarningPoint - loyaltyPointEarnedToday
-          );
-          customer.customerDetails.loyaltyPointEarnedToday =
-            customer.customerDetails.loyaltyPointEarnedToday +
-            Number(calculatedLoyaltyPoint);
-          customer.customerDetails.totalLoyaltyPointEarned =
-            customer.customerDetails.totalLoyaltyPointEarned +
-            Number(calculatedLoyaltyPoint);
-        }
-      }
-    }
-
     let newOrder;
     if (paymentMode === "Famto-cash") {
       if (customer.customerDetails.walletBalance < orderAmount) {

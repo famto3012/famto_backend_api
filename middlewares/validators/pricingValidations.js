@@ -150,21 +150,18 @@ const agentPricingValidations = [
     .isNumeric()
     .withMessage("Base fare must be a number"),
   body("baseDistanceFare")
+    .optional()
     .trim()
-    .notEmpty()
-    .withMessage("Base distance fare is required")
     .isNumeric()
     .withMessage("Base distance fare must be a number"),
   body("extraFarePerDay")
+    .optional()
     .trim()
-    .notEmpty()
-    .withMessage("Extra fare per day is required")
     .isNumeric()
     .withMessage("Extra fare per day must be a number"),
   body("baseDistanceFarePerKM")
+    .optional()
     .trim()
-    .notEmpty()
-    .withMessage("Base distance fare per KM is required")
     .isNumeric()
     .withMessage("Base distance fare per KM must be a number"),
   body("purchaseFarePerHour")
@@ -185,12 +182,6 @@ const agentPricingValidations = [
     .withMessage("Waiting time is required")
     .isNumeric()
     .withMessage("Waiting time must be a number"),
-  body("addedTip")
-    .trim()
-    .notEmpty()
-    .withMessage("Added tip is required")
-    .isNumeric()
-    .withMessage("Added tip must be a number"),
   body("geofenceId").trim().notEmpty().withMessage("Geofence is required"),
 ];
 

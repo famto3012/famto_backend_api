@@ -830,6 +830,24 @@ const getOrderDetailByAdminController = async (req, res, next) => {
   }
 };
 
+const createOrderController = async (req, res, next) => {
+  try {
+    const {
+      customerId,
+      newCustomer,
+      deliveryOption,
+      deliveryMethod,
+      merchantId,
+      items,
+      instructionToMerchant,
+    } = req.body;
+
+    // TODO: Create order
+  } catch (err) {
+    next(appError);
+  }
+};
+
 module.exports = {
   // For Merchant
   getAllOrdersOfMerchantController,

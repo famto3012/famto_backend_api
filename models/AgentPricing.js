@@ -12,15 +12,15 @@ const agentPricingSchema = new mongoose.Schema(
     },
     baseDistanceFare: {
       type: Number,
-      required: true,
+      default: null,
     },
     extraFarePerDay: {
       type: Number,
-      required: true,
+      default: null,
     },
     baseDistanceFarePerKM: {
       type: Number,
-      required: true,
+      default: null,
     },
     waitingFare: {
       type: Number,
@@ -34,10 +34,6 @@ const agentPricingSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
-    addedTip: {
-      type: Number,
-      required: true,
-    },
     geofenceId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Geofence",
@@ -46,7 +42,6 @@ const agentPricingSchema = new mongoose.Schema(
     status: {
       type: Boolean,
       default: true,
-      required: true,
     },
   },
   {
