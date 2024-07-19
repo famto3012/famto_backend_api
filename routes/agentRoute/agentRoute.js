@@ -26,6 +26,7 @@ const {
   addOrderDetailsController,
   getDeliveryDetailController,
   confirmCashReceivedController,
+  addRatingsToCustomer,
 } = require("../../controllers/agent/agentController");
 const { upload } = require("../../utils/imageOperation");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
@@ -207,6 +208,12 @@ agentRoute.patch(
   "/confirm-cash",
   isAuthenticated,
   confirmCashReceivedController
+);
+
+agentRoute.post(
+  "/add-rating-to-customer/:orderId",
+  isAuthenticated,
+  addRatingsToCustomer
 );
 
 module.exports = agentRoute;

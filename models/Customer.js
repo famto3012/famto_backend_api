@@ -47,7 +47,7 @@ const ratingByAgentSchema = new mongoose.Schema(
     },
     review: {
       type: String,
-      required: true,
+      default: null,
     },
     rating: {
       type: Number,

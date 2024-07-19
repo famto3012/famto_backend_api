@@ -1,5 +1,7 @@
 const Customer = require("../../../models/Customer");
+const Merchant = require("../../../models/Merchant");
 const Order = require("../../../models/Order");
+const ScheduledOrder = require("../../../models/ScheduledOrder");
 const appError = require("../../../utils/appError");
 const { formatTime, formatDate } = require("../../../utils/formatters");
 const {
@@ -453,6 +455,20 @@ const getOrderDetailController = async (req, res, next) => {
   }
 };
 
+const createOrderController = async (req, res, next) => {
+  try {
+    const {
+      customerId,
+      items,
+      deliveryOption,
+      deliveryMethod,
+      instructionToDeliveryAgent,
+    } = req.body;
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 // -------------------------------------------------
 // For Admin
 // -------------------------------------------------
@@ -830,7 +846,7 @@ const getOrderDetailByAdminController = async (req, res, next) => {
   }
 };
 
-const createOrderController = async (req, res, next) => {
+const createOrderByAdminController = async (req, res, next) => {
   try {
     const {
       customerId,
@@ -840,9 +856,49 @@ const createOrderController = async (req, res, next) => {
       merchantId,
       items,
       instructionToMerchant,
+      billDetail,
     } = req.body;
 
-    // TODO: Create order
+    const merchantFound = await Merchant.findById(merchantId);
+
+    if (!merchantFound) {
+      return next(appError("Merchant not found", 404));
+    }
+
+    let customer;
+    if (newCustomer) {
+      customer = await Customer.create({
+        fullName: newCustomer,
+        email: newCustomer,
+        phoneNumber: newCustomer,
+        "customerDetails.location": newCustomer.location,
+      });
+
+      if (!customer) {
+        return next(appError("Error in creating new customer"));
+      }
+    } else {
+      customer = await Customer.findById(customerId);
+
+      if (!customer) {
+        return next(appError("Customer not found", 404));
+      }
+    }
+
+    let updatedOrderDetail = {
+      pickupLocation: merchantFound.merchantDetail.location,
+      deliveryLocation:
+        newCustomer.location || customer.customerDetails.location,
+    };
+
+    let newOrder;
+    if (deliveryOption === "Scheduled") {
+      newOrder = await ScheduledOrder.create({
+        customerId: customer._id,
+        items,
+        orderDetail,
+      });
+    }
   } catch (err) {
     next(appError);
   }
