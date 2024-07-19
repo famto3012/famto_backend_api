@@ -176,11 +176,11 @@ const orderRatingSchema = mongoose.Schema(
     ratingToDeliveryAgent: {
       review: {
         type: String,
-        required: true,
+        default: null,
       },
       rating: {
         type: Number,
-        required: true,
+        // required: true,
         min: 1,
         max: 5,
       },
@@ -188,11 +188,11 @@ const orderRatingSchema = mongoose.Schema(
     ratingByDeliveryAgent: {
       review: {
         type: String,
-        required: true,
+        default: null,
       },
       rating: {
         type: Number,
-        required: true,
+        // required: true,
         min: 1,
         max: 5,
       },

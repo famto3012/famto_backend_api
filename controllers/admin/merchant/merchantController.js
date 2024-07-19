@@ -384,7 +384,7 @@ const filterMerchantsController = async (req, res, next) => {
     const filteredMerchants = serviceable
       ? merchants.filter((merchant) => {
           return (
-            merchant.merchantDetail.isServiceableToday ===
+            merchant?.merchantDetail?.isServiceableToday ===
             serviceable.toLowerCase()
           );
         })

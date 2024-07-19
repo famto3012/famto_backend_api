@@ -15,6 +15,7 @@ const { formatLoginDuration } = require("../../utils/agentAppHelpers");
 const { formatDate, formatTime } = require("../../utils/formatters");
 const Task = require("../../models/Task");
 const LoyaltyPoint = require("../../models/LoyaltyPoint");
+const AgentPricing = require("../../models/AgentPricing");
 
 //Function for getting agent's manager from geofence
 const getManager = async (geofenceId) => {
@@ -1168,6 +1169,7 @@ const completeOrderController = async (req, res, next) => {
 
     const orderAmount = orderFound.billDetail.grandTotal;
 
+    // Calculate loyalty point
     const loyaltyPointCriteria = await LoyaltyPoint.findOne({ status: true });
 
     const loyaltyPointEarnedToday =
@@ -1190,6 +1192,26 @@ const completeOrderController = async (req, res, next) => {
       }
     }
 
+    // Calculate Earnings of agent
+    const agentPricing = await AgentPricing.findOne({
+      status: true,
+      geofenceId: agentFound.geofenceId,
+    });
+
+    if (!agentPricing) {
+      return res.status(404).json({ error: "Agent pricing not found" });
+    }
+
+    const baseDistanceFarePerKM = agentPricing.baseDistanceFarePerKM;
+
+    let totalPurchaseFare = 0;
+    if (orderFound.orderDetail === "Custom Order") {
+      let purchaseFareOfAgentPerHour = agentPricing.purchaseFarePerHour;
+
+      const taskFound = await Task.findOne({ orderId });
+      //
+    }
+
     let delayedBy = null;
     if (new Date() > new Date(orderFound.orderDetail.deliveryTime)) {
       delayedBy = new Date() - new Date(orderFound.orderDetail.deliveryTime);
@@ -1210,6 +1232,56 @@ const completeOrderController = async (req, res, next) => {
     await customerFound.save();
 
     res.status(200).json({ message: "Order completed successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const addRatingsToCustomer = async (req, res, next) => {
+  try {
+    const { review, rating } = req.body;
+    const { orderId } = req.params;
+    const agentId = req.userAuth;
+
+    console.log("review", review);
+    console.log("rating", rating);
+
+    const orderFound = await Order.findById(orderId);
+
+    if (!orderFound) {
+      return next(appError("Order not found", 404));
+    }
+
+    const customerFound = await Customer.findById(orderFound.customerId);
+
+    if (!customerFound) {
+      return next(appError("Customer not found", 404));
+    }
+
+    let orderRating = {
+      review,
+      rating,
+    };
+
+    // Initialize orderRating if it doesn't exist
+    if (!orderFound.orderRating) {
+      orderFound.orderRating = {};
+    }
+
+    orderFound.orderRating.ratingByDeliveryAgent = orderRating;
+
+    let ratingsByAgent = {
+      agentId,
+      review,
+      rating,
+    };
+
+    customerFound.customerDetails.ratingsByAgents.push(ratingsByAgent);
+
+    await orderFound.save();
+    await customerFound.save();
+
+    res.status(200).json({ message: "Customer rated successfully" });
   } catch (err) {
     next(appError(err.message));
   }
@@ -1242,4 +1314,5 @@ module.exports = {
   addCustomOrderItemPriceController,
   addOrderDetailsController,
   confirmCashReceivedController,
+  addRatingsToCustomer,
 };

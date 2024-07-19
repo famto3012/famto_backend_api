@@ -37,7 +37,7 @@ const scheduledOrderDetailSchema = mongoose.Schema(
     },
     deliveryMode: {
       type: String,
-      enum: ["Delivery", "Take-away"],
+      enum: ["Home Delivery", "Take Away"],
       required: true,
     },
     deliveryOption: {
