@@ -14,6 +14,7 @@ const Order = require("../../models/Order");
 const { formatLoginDuration } = require("../../utils/agentAppHelpers");
 const { formatDate, formatTime } = require("../../utils/formatters");
 const Task = require("../../models/Task");
+const LoyaltyPoint = require("../../models/LoyaltyPoint");
 const AgentPricing = require("../../models/AgentPricing");
 
 //Function for getting agent's manager from geofence
@@ -1143,7 +1144,7 @@ const confirmCashReceivedController = async (req, res, next) => {
   }
 };
 
-const completeOrderCOntroller = async (req, res, next) => {
+const completeOrderController = async (req, res, next) => {
   try {
     const { orderId } = req.body;
     const agentId = req.userAuth;
@@ -1153,21 +1154,63 @@ const completeOrderCOntroller = async (req, res, next) => {
     if (!agentFound) {
       return next(appError("Agent not found", 404));
     }
+
     const orderFound = await Order.findById(orderId);
 
     if (!orderFound) {
       return next(appError("Order not found", 404));
     }
 
-    const agentSalaryId = agentFound.workStructure.salaryStructureId;
+    const customerFound = await Customer.findById(orderFound.customerId);
 
-    const agentPricing = await AgentPricing.findById(agentSalaryId);
-
-    if (!agentPricing) {
-      return next(appError("Agent pricing not found", 404));
+    if (!customerFound) {
+      return next(appError("Customer not found", 404));
     }
 
-    // TODO: Make calculations
+    const orderAmount = orderFound.billDetail.grandTotal;
+
+    // Calculate loyalty point
+    const loyaltyPointCriteria = await LoyaltyPoint.findOne({ status: true });
+
+    const loyaltyPointEarnedToday =
+      customerFound.customerDetails?.loyaltyPointEarnedToday || 0;
+
+    if (loyaltyPointCriteria) {
+      if (orderAmount >= loyaltyPointCriteria.minOrderAmountForEarning) {
+        if (loyaltyPointEarnedToday < loyaltyPointCriteria.maxEarningPoint) {
+          const calculatedLoyaltyPoint = Math.min(
+            orderAmount * loyaltyPointCriteria.earningCriteraPoint,
+            loyaltyPointCriteria.maxEarningPoint - loyaltyPointEarnedToday
+          );
+          customerFound.customerDetails.loyaltyPointEarnedToday =
+            customerFound.customerDetails.loyaltyPointEarnedToday +
+            Number(calculatedLoyaltyPoint);
+          customerFound.customerDetails.totalLoyaltyPointEarned =
+            customerFound.customerDetails.totalLoyaltyPointEarned +
+            Number(calculatedLoyaltyPoint);
+        }
+      }
+    }
+
+    // Calculate Earnings of agent
+    const agentPricing = await AgentPricing.findOne({
+      status: true,
+      geofenceId: agentFound.geofenceId,
+    });
+
+    if (!agentPricing) {
+      return res.status(404).json({ error: "Agent pricing not found" });
+    }
+
+    const baseDistanceFarePerKM = agentPricing.baseDistanceFarePerKM;
+
+    let totalPurchaseFare = 0;
+    if (orderFound.orderDetail === "Custom Order") {
+      let purchaseFareOfAgentPerHour = agentPricing.purchaseFarePerHour;
+
+      const taskFound = await Task.findOne({ orderId });
+      //
+    }
 
     let delayedBy = null;
     if (new Date() > new Date(orderFound.orderDetail.deliveryTime)) {
@@ -1186,8 +1229,59 @@ const completeOrderCOntroller = async (req, res, next) => {
     agentFound.appDetail.orders += 1;
 
     await orderFound.save();
+    await customerFound.save();
 
     res.status(200).json({ message: "Order completed successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const addRatingsToCustomer = async (req, res, next) => {
+  try {
+    const { review, rating } = req.body;
+    const { orderId } = req.params;
+    const agentId = req.userAuth;
+
+    console.log("review", review);
+    console.log("rating", rating);
+
+    const orderFound = await Order.findById(orderId);
+
+    if (!orderFound) {
+      return next(appError("Order not found", 404));
+    }
+
+    const customerFound = await Customer.findById(orderFound.customerId);
+
+    if (!customerFound) {
+      return next(appError("Customer not found", 404));
+    }
+
+    let orderRating = {
+      review,
+      rating,
+    };
+
+    // Initialize orderRating if it doesn't exist
+    if (!orderFound.orderRating) {
+      orderFound.orderRating = {};
+    }
+
+    orderFound.orderRating.ratingByDeliveryAgent = orderRating;
+
+    let ratingsByAgent = {
+      agentId,
+      review,
+      rating,
+    };
+
+    customerFound.customerDetails.ratingsByAgents.push(ratingsByAgent);
+
+    await orderFound.save();
+    await customerFound.save();
+
+    res.status(200).json({ message: "Customer rated successfully" });
   } catch (err) {
     next(appError(err.message));
   }
@@ -1220,4 +1314,5 @@ module.exports = {
   addCustomOrderItemPriceController,
   addOrderDetailsController,
   confirmCashReceivedController,
+  addRatingsToCustomer,
 };

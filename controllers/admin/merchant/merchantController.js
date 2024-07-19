@@ -384,7 +384,7 @@ const filterMerchantsController = async (req, res, next) => {
     const filteredMerchants = serviceable
       ? merchants.filter((merchant) => {
           return (
-            merchant.merchantDetail.isServiceableToday ===
+            merchant?.merchantDetail?.isServiceableToday ===
             serviceable.toLowerCase()
           );
         })
@@ -394,7 +394,7 @@ const filterMerchantsController = async (req, res, next) => {
       const merchantDetail = merchant.merchantDetail;
       return {
         _id: merchant._id,
-        merchantName: merchantDetail?.merchantName || null,
+        merchantName: merchantDetail?.merchantName || "N/A",
         phoneNumber: merchant.phoneNumber,
         status: merchant.status,
         isApproved: merchant.isApproved,
@@ -514,7 +514,7 @@ const getAllMerchantsController = async (req, res, next) => {
 
       return {
         _id: merchant._id,
-        fullName: merchant.fullName,
+        merchantName: merchant?.merchantDetail?.merchantName || "N/A",
         phoneNumber: merchant.phoneNumber,
         isApproved: merchant.isApproved,
         status: merchant.status,

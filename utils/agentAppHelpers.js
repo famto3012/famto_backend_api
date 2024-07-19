@@ -41,7 +41,25 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
   }
 };
 
+const calculateSalaryChargeForAgent = (
+  distance,
+  baseFare,
+  baseDistanceFare,
+  extraFarePerDay,
+  baseDistanceFarePerKM,
+  purchaseFarePerHour
+) => {
+  if (distance <= baseDistance) {
+    return parseFloat(baseFare);
+  } else {
+    return parseFloat(
+      baseFare + (distance - baseDistance) * fareAfterBaseDistance
+    );
+  }
+};
+
 module.exports = {
   formatLoginDuration,
   moveAppDetailToHistoryAndResetForAllAgents,
+  calculateSalaryChargeForAgent,
 };
