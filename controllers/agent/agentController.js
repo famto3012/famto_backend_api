@@ -1243,9 +1243,6 @@ const addRatingsToCustomer = async (req, res, next) => {
     const { orderId } = req.params;
     const agentId = req.userAuth;
 
-    console.log("review", review);
-    console.log("rating", rating);
-
     const orderFound = await Order.findById(orderId);
 
     if (!orderFound) {
@@ -1258,7 +1255,7 @@ const addRatingsToCustomer = async (req, res, next) => {
       return next(appError("Customer not found", 404));
     }
 
-    let orderRating = {
+    let updatedOrderRating = {
       review,
       rating,
     };
@@ -1268,7 +1265,7 @@ const addRatingsToCustomer = async (req, res, next) => {
       orderFound.orderRating = {};
     }
 
-    orderFound.orderRating.ratingByDeliveryAgent = orderRating;
+    orderFound.orderRating.ratingByDeliveryAgent = updatedOrderRating;
 
     let ratingsByAgent = {
       agentId,

@@ -36,10 +36,6 @@ const loginController = async (req, res, next) => {
       return res.status(500).json({ errors: formattedErrors });
     }
 
-    if (user.isBlocked || user.isApproved !== "Approved") {
-      formattedErrors.general = "Login is restricted";
-      return res.status(403).json({ errors: formattedErrors });
-    }
     if (!user) {
       formattedErrors.general = "Invalid credentials";
       return res.status(500).json({ errors: formattedErrors });
@@ -55,9 +51,23 @@ const loginController = async (req, res, next) => {
       return res.status(500).json({ errors: formattedErrors });
     }
 
+    if (user.isBlocked || user.isApproved !== "Approved") {
+      formattedErrors.general = "Login is restricted";
+      return res.status(403).json({ errors: formattedErrors });
+    }
+
+    let fullName;
+    if (user.role === "Admin") {
+      fullName = user.fullName;
+    } else if (user.role === "Merchant") {
+      fullName = user?.merchantDetails?.merchantName || user?.fullName || "N/A";
+    } else if (user.role === "Manager") {
+      fullName = user.name;
+    }
+
     res.status(200).json({
       _id: user.id,
-      fullName: user.fullName,
+      fullName,
       email: user.email,
       token: generateToken(user._id, user.role),
       role: user.role,
