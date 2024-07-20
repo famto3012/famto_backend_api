@@ -15,14 +15,21 @@ const appError = require("../../../utils/appError");
 const getTaskFilterController = async (req, res, next) => {
   try {
     const { filter } = req.query;
-    let task;
+    let taskQuery;
+
     if (filter === "Assigned") {
-      task = await Task.find({ taskStatus: "Assigned" });
+      taskQuery = Task.find({ taskStatus: "Assigned" });
     } else if (filter === "Completed") {
-      task = await Task.find({ deliveryStatus: "Completed" });
+      taskQuery = Task.find({ deliveryStatus: "Completed" });
     } else {
-      task = await Task.find({ taskStatus: "Unassigned" });
+      taskQuery = Task.find({ taskStatus: "Unassigned" });
     }
+
+    // Populate the agentId and orderId fields
+    taskQuery = taskQuery.populate('agentId').populate('orderId');
+
+    const task = await taskQuery;
+
     res.status(201).json({
       message: "Task fetched successfully",
       data: task,
@@ -31,6 +38,7 @@ const getTaskFilterController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
+
 
 const getAgentByStatusController = async (req, res, next) => {
   try {
