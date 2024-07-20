@@ -131,8 +131,9 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
 
 const getOrderByOrderIdController = async (req, res, next) => {
   try {
-    const { orderId } = req.body;
-    const order = await Order.findById(orderId);
+    const { orderId } = req.query;
+    const order = await Task.find({orderId});
+    console.log(order)
     res.status(200).json({
       success: true,
       data: order,
