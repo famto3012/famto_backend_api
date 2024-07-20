@@ -27,6 +27,12 @@ const {
   getDeliveryDetailController,
   confirmCashReceivedController,
   addRatingsToCustomer,
+  completeOrderController,
+  getCashInHandController,
+  depositeCashToFamtoController,
+  verifyDepositController,
+  getAgentTransactionsController,
+  getAgentEarningsLast7DaysController,
 } = require("../../controllers/agent/agentController");
 const { upload } = require("../../utils/imageOperation");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
@@ -210,10 +216,38 @@ agentRoute.patch(
   confirmCashReceivedController
 );
 
+agentRoute.post("/complete-order", isAuthenticated, completeOrderController);
+
 agentRoute.post(
   "/add-rating-to-customer/:orderId",
   isAuthenticated,
   addRatingsToCustomer
+);
+
+agentRoute.get("/get-cash-in-hand", isAuthenticated, getCashInHandController);
+
+agentRoute.post(
+  "/initiate-deposite",
+  isAuthenticated,
+  depositeCashToFamtoController
+);
+
+agentRoute.get(
+  "/verify-cash-deposite",
+  isAuthenticated,
+  verifyDepositController
+);
+
+agentRoute.get(
+  "/agent-transaction-history",
+  isAuthenticated,
+  getAgentTransactionsController
+);
+
+agentRoute.get(
+  "/agent-earning-history-for-week",
+  isAuthenticated,
+  getAgentEarningsLast7DaysController
 );
 
 module.exports = agentRoute;

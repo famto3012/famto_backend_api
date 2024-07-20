@@ -14,7 +14,7 @@ const {
   getPlanAmount,
   calculateEndDate,
 } = require("../../../utils/sponsorshipHelpers");
-const { default: mongoose } = require("mongoose");
+const mongoose = require("mongoose");
 const AccountLogs = require("../../../models/AccountLogs");
 
 //----------------------------
@@ -295,33 +295,36 @@ const searchMerchantController = async (req, res, next) => {
     const searchTerm = query.toLowerCase();
 
     const searchResults = await Merchant.find({
-      fullName: { $regex: searchTerm, $options: "i" },
-    }).select("fullName phoneNumber isApproved");
+      "merchantDetail.merchantName": { $regex: searchTerm, $options: "i" },
+    }).select("merchantDetail.merchantName phoneNumber isApproved");
 
     const merchantsWithDetails = await Promise.all(
       searchResults.map(async (merchant) => {
         // Fetch additional details if available, or set them to null if not
         let merchantDetail = await Merchant.findById(merchant._id)
           .select(
-            "status merchantDetail.geofenceId merchantDetail.averageRating merchantDetail.isServiceableToday"
+            "status merchantDetail.merchantName merchantDetail.geofenceId merchantDetail.averageRating merchantDetail.isServiceableToday"
           )
           .populate("merchantDetail.geofenceId", "name");
 
         return {
-          ...merchant.toObject(),
-          status: merchantDetail ? merchantDetail.status : null,
-          geofence:
-            merchantDetail && merchantDetail?.merchantDetail?.geofenceId
-              ? merchantDetail.merchantDetail?.geofenceId.name
-              : null,
-          averageRating:
-            merchantDetail && merchantDetail.merchantDetail
-              ? merchantDetail.merchantDetail.averageRating
-              : null,
-          isServiceableToday:
-            merchantDetail && merchantDetail.merchantDetail
-              ? merchantDetail.merchantDetail.isServiceableToday
-              : null,
+          _id: merchant._id,
+          merchantName:
+            merchant?.merchantDetail?.merchantName ||
+            merchant.fullName ||
+            "N/A",
+          phoneNumber: merchant.phoneNumber,
+          isApproved: merchant.isApproved,
+          status: merchantDetail ? merchantDetail.status : "N/A",
+          geofence: merchantDetail //&& merchantDetail?.merchantDetail?.geofenceId
+            ? merchantDetail.merchantDetail?.geofenceId.name
+            : "N/A",
+          averageRating: merchantDetail // && merchantDetail?.merchantDetail
+            ? merchantDetail?.merchantDetail?.averageRating
+            : "0",
+          isServiceableToday: merchantDetail // && merchantDetail.merchantDetail
+            ? merchantDetail.merchantDetail.isServiceableToday
+            : "N/A",
         };
       })
     );
@@ -335,6 +338,7 @@ const searchMerchantController = async (req, res, next) => {
   }
 };
 
+// Filter merchant
 const filterMerchantsController = async (req, res, next) => {
   try {
     const { serviceable, businessCategory, geofence } = req.query;

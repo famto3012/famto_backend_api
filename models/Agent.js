@@ -154,6 +154,22 @@ const agentAppDetailSchema = mongoose.Schema(
   }
 );
 
+const agentTransactionSchema = mongoose.Schema({
+  type: {
+    type: String,
+    enum: ["Credit", "Debit"],
+    required: true,
+  },
+  amount: {
+    type: Number,
+    required: true,
+  },
+  madeOn: {
+    type: Date,
+    required: true,
+  },
+});
+
 const agentSchema = mongoose.Schema(
   {
     fullName: {
@@ -233,6 +249,7 @@ const agentSchema = mongoose.Schema(
         details: agentAppDetailSchema,
       },
     ],
+    agentTransaction: [agentTransactionSchema],
   },
   {
     timestamps: true,

@@ -435,8 +435,6 @@ const confirmPickAndDropController = async (req, res, next) => {
   try {
     const customerId = req.userAuth;
 
-    console.log("customerId", customerId);
-
     const cartFound = await PickAndCustomCart.findOne({ customerId });
 
     if (!cartFound) {

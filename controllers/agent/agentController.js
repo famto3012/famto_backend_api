@@ -755,8 +755,6 @@ const getHistoryOfAppDetailsController = async (req, res, next) => {
       (a, b) => new Date(b.date) - new Date(a.date)
     );
 
-    console.log("sortedAppDetailHistory", sortedAppDetailHistory);
-
     // const orderDetails = sortedAppDetailHistory.
 
     const formattedResponse = sortedAppDetailHistory?.map((history) => {
@@ -814,6 +812,7 @@ const getRatingsOfAgentController = async (req, res, next) => {
 
     res.status(200).json({
       message: "Ratings of agent",
+      averageRating: agentFound?.averageRating || 0,
       data: formattedRatingAndReviews,
     });
   } catch (err) {
@@ -1144,6 +1143,7 @@ const confirmCashReceivedController = async (req, res, next) => {
   }
 };
 
+// Complete order after confirming the cash
 const completeOrderController = async (req, res, next) => {
   try {
     const { orderId } = req.body;
@@ -1204,12 +1204,20 @@ const completeOrderController = async (req, res, next) => {
 
     const baseDistanceFarePerKM = agentPricing.baseDistanceFarePerKM;
 
+    const orderSalary = orderFound.orderDetail.distance * baseDistanceFarePerKM;
+
     let totalPurchaseFare = 0;
     if (orderFound.orderDetail === "Custom Order") {
       let purchaseFareOfAgentPerHour = agentPricing.purchaseFarePerHour;
 
       const taskFound = await Task.findOne({ orderId });
-      //
+      const startTime = new Date(taskFound.startTime);
+      const endTime = new Date(taskFound.endTime);
+
+      if (endTime > startTime) {
+        const durationInHours = (endTime - startTime) / (1000 * 60 * 60);
+        totalPurchaseFare = durationInHours * purchaseFareOfAgentPerHour;
+      }
     }
 
     let delayedBy = null;
@@ -1226,10 +1234,17 @@ const completeOrderController = async (req, res, next) => {
     orderFound.orderDetail.timeTaken = timeTaken;
     orderFound.orderDetail.delayedBy = delayedBy;
 
+    const calculatedSalary = parseFloat(
+      orderSalary + totalPurchaseFare
+    ).toFixed(2);
+
     agentFound.appDetail.orders += 1;
+    agentFound.appDetail.totalEarning += calculatedSalary;
+    agentFound.appDetail.totalDistance += orderFound.orderDetail.distance;
 
     await orderFound.save();
     await customerFound.save();
+    await agentFound.save();
 
     res.status(200).json({ message: "Order completed successfully" });
   } catch (err) {
@@ -1237,6 +1252,7 @@ const completeOrderController = async (req, res, next) => {
   }
 };
 
+// Add ratings to customer by the order
 const addRatingsToCustomer = async (req, res, next) => {
   try {
     const { review, rating } = req.body;
@@ -1284,6 +1300,146 @@ const addRatingsToCustomer = async (req, res, next) => {
   }
 };
 
+// Get cash in hand value
+const getCashInHandController = async (req, res, next) => {
+  try {
+    const agentId = req.userAuth;
+
+    const agentFound = await Agent.findById(agentId);
+
+    if (!agentFound) {
+      return next(appError("agnet not found", 404));
+    }
+
+    const cashInHand = agentFound.workStructure.cashInHand;
+
+    res.status(200).json({ message: "Cash in hand", data: cashInHand });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Initiate deposite by razorpay
+const depositeCashToFamtoController = async (req, res, next) => {
+  try {
+    const { amount } = req.body;
+
+    const { success, orderId, error } = await createRazorpayOrderId(amount);
+
+    if (!success) {
+      return next(appError(`Error in creating Razorpay order: ${error}`, 500));
+    }
+
+    res.status(200).json({ success: true, orderId, amount });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// verify deposit by razorpay
+const verifyDepositController = async (req, res, next) => {
+  try {
+    const { paymentDetails, amount } = req.body;
+    const agentId = req.userAuth;
+
+    const agentFound = await Agent.findById(agentId);
+
+    if (!agentFound) {
+      return next(appError("agnet not found", 404));
+    }
+
+    const isPaymentValid = await verifyPayment(paymentDetails);
+    if (!isPaymentValid) {
+      return next(appError("Invalid payment", 400));
+    }
+
+    let updatedAgentTransaction = {
+      type: "Debit",
+      amount,
+      madeOn: new Date(),
+    };
+
+    agentFound.workStructure.cashInHand -= amount;
+    agentFound.agentTransaction.push(updatedAgentTransaction);
+
+    await agentFound.save();
+
+    res.status(200).josn({ message: "Deposite verified successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get transaction history of agents
+const getAgentTransactionsController = async (req, res, next) => {
+  try {
+    const agentId = req.userAuth;
+
+    const agentFound = await Agent.findById(agentId);
+
+    if (!agentFound) {
+      return next(appError("agnet not found", 404));
+    }
+
+    // Sort the transactions by date in descending order (latest date first)
+    const sortedTransactionHistory = agentFound?.agentTransaction?.sort(
+      (a, b) => new Date(b.date) - new Date(a.date)
+    );
+
+    const formattedResponse = sortedTransactionHistory?.map((transaction) => {
+      return {
+        imageURL: agentFound.agentImageURL,
+        fullName: agentFound.fullName,
+        date: formatDate(transaction.madeOn),
+        time: formatTime(transaction.madeOn),
+        amount,
+        type,
+      };
+    });
+
+    res.status(200).json({
+      message: "Agent transaction history",
+      data: formattedResponse || [],
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get earing og agents for the last 7 days
+const getAgentEarningsLast7DaysController = async (req, res, next) => {
+  try {
+    const agentId = req.userAuth;
+
+    const agent = await Agent.findById(agentId);
+
+    if (!agent) {
+      return next(appError("Agent not found", 404));
+    }
+
+    // Get the current date and the date 7 days ago
+    const today = new Date();
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(today.getDate() - 7);
+
+    // Filter the appDetailHistory for the last 7 days
+    const earningsLast7Days = agent.appDetailHistory
+      .filter((entry) => entry.date >= sevenDaysAgo && entry.date <= today)
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .map((entry) => ({
+        date: formatDate(entry.date),
+        totalEarning: entry.details.totalEarning,
+      }));
+
+    res.status(200).json({
+      message: "Earnings for the last 7 days",
+      data: earningsLast7Days || [],
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   updateLocationController,
   registerAgentController,
@@ -1311,5 +1467,11 @@ module.exports = {
   addCustomOrderItemPriceController,
   addOrderDetailsController,
   confirmCashReceivedController,
+  completeOrderController,
   addRatingsToCustomer,
+  getCashInHandController,
+  depositeCashToFamtoController,
+  verifyDepositController,
+  getAgentTransactionsController,
+  getAgentEarningsLast7DaysController,
 };

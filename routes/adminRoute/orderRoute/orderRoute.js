@@ -13,6 +13,7 @@ const {
   searchOrderByIdByAdminController,
   filterOrdersByAdminController,
   getOrderDetailByAdminController,
+  createInvoiceController,
 } = require("../../../controllers/admin/order/orderController");
 const isAdmin = require("../../../middlewares/isAdmin");
 const orderRoute = express.Router();
@@ -44,6 +45,12 @@ orderRoute.get("/search-order", isAuthenticated, searchOrderByIdController);
 orderRoute.get("/filter", isAuthenticated, filterOrdersController);
 
 orderRoute.get("/:orderId", isAuthenticated, getOrderDetailController);
+
+orderRoute.post(
+  "/create-order-invoice",
+  isAuthenticated,
+  createInvoiceController
+);
 
 // -------------------------------------------------
 // For Admin

@@ -279,7 +279,14 @@ const merchantSchema = new mongoose.Schema(
 // merchantDetailSchema.pre(/^find/, function (next) {
 // Virtual field for calculating the average rating
 merchantDetailSchema.virtual("averageRating").get(function () {
-  if (this?.ratingByCustomers?.length === 0) return 0;
+  // if (this?.ratingByCustomers?.length === 0) {
+  //   return 0;
+  // }
+
+  if (!this.ratingByCustomers || this.ratingByCustomers.length === 0) {
+    return 0;
+  }
+
   const total = this?.ratingByCustomers?.reduce(
     (acc, rating) => acc + rating.rating,
     0
