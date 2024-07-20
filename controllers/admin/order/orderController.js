@@ -1,3 +1,4 @@
+const { validationResult } = require("express-validator");
 const Customer = require("../../../models/Customer");
 const Merchant = require("../../../models/Merchant");
 const Order = require("../../../models/Order");
@@ -455,15 +456,109 @@ const getOrderDetailController = async (req, res, next) => {
   }
 };
 
-const createOrderController = async (req, res, next) => {
+const createInvoiceController = async (req, res, next) => {
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(500).json({ errors: formattedErrors });
+  }
+
   try {
     const {
       customerId,
-      items,
+      newCustomer,
       deliveryOption,
+      ifScheduled,
       deliveryMethod,
+      items,
+      instructionToMerchant,
       instructionToDeliveryAgent,
+      customerAddressType,
+      customerAddressOtherAddressId,
+      newCustomerAddress,
+      addedTip,
     } = req.body;
+
+    const merchantId = req.userAuth;
+
+    let customer;
+    if (customerId) {
+      customer = await Customer.findById(customerId);
+
+      if (!customer) {
+        return next(appError("Customer not found", 404));
+      }
+    } else if (newCustomer && newCustomerAddress) {
+      const phoneNumberFound = await Customer.findOne({
+        phoneNumber: newCustomer.phoneNumber,
+      });
+
+      if (phoneNumberFound) {
+        formattedErrors.phoneNumber = "Phone number already exists";
+        return res.status(409).json({ errors: formattedErrors });
+      }
+
+      const emailFound = await Customer.findOne({
+        email: newCustomer.email,
+      });
+
+      if (emailFound) {
+        formattedErrors.phoneNumber = "Email already exists";
+        return res.status(409).json({ errors: formattedErrors });
+      }
+
+      const location = [
+        newCustomerAddress.latitude,
+        newCustomerAddress.longitude,
+      ];
+
+      let updatedAddress = {
+        fullName: newCustomerAddress.fullName,
+        phoneNumber: newCustomerAddress.phoneNumber,
+        flat: newCustomerAddress.flat,
+        area: newCustomerAddress.area,
+        landmark: newCustomerAddress.landmark,
+        coordinates: location,
+      };
+
+      let updatedCustomerDetails = {
+        location: [location],
+        homeAddress:
+          newCustomerAddress.addressType === "home" ? updatedAddress : null,
+        workAddress:
+          newCustomerAddress.addressType === "work" ? updatedAddress : null,
+        otherAddress:
+          newCustomerAddress.addressType === "other" ? [updatedAddress] : [],
+      };
+
+      let updatedNewCustomer = {
+        fullName: newCustomer.fullName,
+        email: newCustomer.email,
+        phoneNumber: newCustomer.phoneNumber,
+        customerDetails: updatedCustomerDetails,
+      };
+
+      customer = await Customer.create(updatedNewCustomer);
+    }
+
+    let deliveryLocation;
+    if (newCustomer) {
+      deliveryLocation = [newCustomer.latitude, newCustomer.longitude];
+    } else {
+      // TODO
+    }
+
+    let updatedCart = {
+      customerId: customer._id,
+      merchantId,
+      items,
+    };
+
+    res.status(200).json({ message: "Order invoice created successfully" });
   } catch (err) {
     next(appError(err.message));
   }
@@ -912,6 +1007,7 @@ module.exports = {
   searchOrderByIdController,
   filterOrdersController,
   getOrderDetailController,
+  createInvoiceController,
 
   // For Admin
   getAllOrdersForAdminController,
