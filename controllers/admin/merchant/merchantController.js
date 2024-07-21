@@ -511,7 +511,7 @@ const getAllMerchantsController = async (req, res, next) => {
     const merchantsWithDetails = merchantsFound.map((merchant) => {
       const geofenceName = merchant?.merchantDetail?.geofenceId
         ? merchant.merchantDetail.geofenceId.name
-        : null;
+        : "N/A";
 
       // Access isServiceableToday directly as it's a virtual field
       const isServiceableToday = merchant.merchantDetail?.isServiceableToday;

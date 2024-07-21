@@ -210,7 +210,7 @@ const userSocketMap = {};
 
 // Function to send push notification via FCM
 function sendPushNotificationToUser(fcmToken, message) {
-  console.log(message);
+  // console.log(message);
   const mes = {
     notification: {
       title: "Notification",
@@ -270,13 +270,13 @@ const getRecipientFcmToken = (recipientId) => {
 
 // Connection socket
 io.on("connection", async (socket) => {
-  console.log("user connected", socket.id);
+  // console.log("user connected", socket.id);
   const userId = socket.handshake.query.userId;
   const fcmToken = socket.handshake.query.fcmToken;
 
   if (userId) {
     const user = await FcmToken.find({ userId });
-    console.log("Server",user[0].token);
+    // console.log("Server",user[0].token);
     if (user.length === 0) {
       await FcmToken.create({
         userId,
@@ -300,7 +300,7 @@ io.on("connection", async (socket) => {
 
   // Get online user socket
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
-  console.log(userSocketMap);
+  // console.log(userSocketMap);
 
   // Order accepted by agent socket
   socket.on("Accepted", async (data) => {
@@ -362,9 +362,9 @@ io.on("connection", async (socket) => {
     const agent = await Agent.findById(userId);
     if (agent) {
       const task = await Task.find({ agentId: userId });
-      console.log("Task", task);
+      // console.log("Task", task);
       const order = await Order.findById(task[0].orderId);
-      console.log("Order", order);
+      // console.log("Order", order);
       const maxRadius = 0.1;
       if (maxRadius > 0) {
         const customerLocation = order.orderDetail.deliveryLocation;
@@ -374,7 +374,7 @@ io.on("connection", async (socket) => {
           turf.point(agentLocation),
           { units: "kilometers" }
         );
-        console.log(distance);
+        // console.log(distance);
         if (distance < maxRadius) {
           // const data = {
           //   message: "Agent reached your location",
@@ -450,7 +450,7 @@ io.on("connection", async (socket) => {
         status: "Completed",
         "orderDetail.deliveryTime": new Date(),
       });
-      console.log(task);
+      // console.log(task);
       await Task.findByIdAndUpdate(task[0].id, {
         "deliveryDetail.deliveryStatus": "Completed",
       });
@@ -462,10 +462,10 @@ io.on("connection", async (socket) => {
 
   // User disconnected socket
   socket.on("disconnect", () => {
-    console.log("user disconnected", socket.id);
+    // console.log("user disconnected", socket.id);
     delete userSocketMap[userId].socketId;
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
-    console.log(userSocketMap);
+    // console.log(userSocketMap);
     // No need to send notification here because it's handled in sendNotification function
   });
 });

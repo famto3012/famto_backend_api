@@ -69,6 +69,7 @@ const ratingByCustomerSchema = new mongoose.Schema(
     },
     review: {
       type: String,
+      default: null,
     },
     rating: {
       type: Number,
@@ -276,13 +277,8 @@ const merchantSchema = new mongoose.Schema(
   }
 );
 
-// merchantDetailSchema.pre(/^find/, function (next) {
 // Virtual field for calculating the average rating
 merchantDetailSchema.virtual("averageRating").get(function () {
-  // if (this?.ratingByCustomers?.length === 0) {
-  //   return 0;
-  // }
-
   if (!this.ratingByCustomers || this.ratingByCustomers.length === 0) {
     return 0;
   }
