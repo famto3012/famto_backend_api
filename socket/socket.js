@@ -196,7 +196,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173", // Replace with the correct URL of your React app
+    origin: ["http://localhost:5173", "https://famto-backend-api.vercel.app"], // Add the additional URL here
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -205,6 +205,7 @@ const io = new Server(server, {
   reconnection: true,
   reconnectionAttempts: Infinity, // Unlimited attempts
 });
+
 
 const userSocketMap = {};
 
@@ -276,7 +277,7 @@ io.on("connection", async (socket) => {
 
   if (userId) {
     const user = await FcmToken.find({ userId });
-    console.log("Server",user[0].token);
+    console.log("Server",user);
     if (user.length === 0) {
       await FcmToken.create({
         userId,
