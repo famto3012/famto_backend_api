@@ -196,7 +196,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173", "https://famto-backend-api.vercel.app"], // Add the additional URL here
+    origin: "http://localhost:5173", // Replace with the correct URL of your React app
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -205,7 +205,6 @@ const io = new Server(server, {
   reconnection: true,
   reconnectionAttempts: Infinity, // Unlimited attempts
 });
-
 
 const userSocketMap = {};
 
