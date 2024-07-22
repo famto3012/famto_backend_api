@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const accountLogsSchema = new mongoose.Schema(
   {
-    _id: {
+    userId: {
       type: mongoose.Schema.ObjectId,
       required: true,
     },

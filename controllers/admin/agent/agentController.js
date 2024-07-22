@@ -328,16 +328,54 @@ const getAllAgentsController = async (req, res, next) => {
         fullName: agent.fullName,
         email: agent.email,
         phoneNumber: agent.phoneNumber,
-        location: agent.location,
         isApproved: agent.isApproved,
-        geofence: agent?.geofenceId?.name,
-        status: agent.status,
-        manager: agent?.workStructure?.managerId?.fullName,
+        geofence: agent?.geofenceId?.name || "N/A",
+        status: agent.status === "Inactive" ? false : true,
+        manager: agent?.workStructure?.managerId?.name || "N/A",
       };
     });
 
     res.status(200).json({
       message: "All agents",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const searchAgentByNameController = async (req, res, next) => {
+  try {
+    const { query } = req.query;
+
+    if (!query || query.trim() === "") {
+      return next(appError("query is required"));
+    }
+
+    const agentFound = await Agent.find({
+      fullName: { $regex: query.trim(), $options: "i" },
+    })
+      .populate("geofenceId", "name")
+      .populate("workStructure.managerId", "name")
+      .select(
+        "fullName email phoneNumber location isApproved geofenceId status workStructure"
+      );
+
+    const formattedResponse = allAgents.map((agent) => {
+      return {
+        _id: agent._id,
+        fullName: agent.fullName,
+        email: agent.email,
+        phoneNumber: agent.phoneNumber,
+        isApproved: agent.isApproved,
+        geofence: agent?.geofenceId?.name || "N/A",
+        status: agent.status === "Inactive" ? false : true,
+        manager: agent?.workStructure?.managerId?.name || "N/A",
+      };
+    });
+
+    res.status(200).json({
+      message: "Search results",
       data: formattedResponse,
     });
   } catch (err) {
@@ -495,6 +533,7 @@ module.exports = {
   editAgentByAdminController,
   getSingleAgentController,
   approveAgentRegistrationController,
+  searchAgentByNameController,
   rejectAgentRegistrationController,
   getRatingsByCustomerController,
   filterAgentsController,
