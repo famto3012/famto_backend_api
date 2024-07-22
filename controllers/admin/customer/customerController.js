@@ -44,7 +44,7 @@ const searchCustomerByNameController = async (req, res, next) => {
     }
 
     const searchResults = await Customer.find({
-      fullName: { $regex: query, $options: "i" },
+      fullName: { $regex: query.trim(), $options: "i" },
     })
       .select(
         "fullName email phoneNumber lastPlatformUsed createdAt customerDetails"
