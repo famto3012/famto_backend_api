@@ -276,7 +276,7 @@ io.on("connection", async (socket) => {
 
   if (userId) {
     const user = await FcmToken.find({ userId });
-    // console.log("Server",user[0].token);
+    console.log("Server",user);
     if (user.length === 0) {
       await FcmToken.create({
         userId,
