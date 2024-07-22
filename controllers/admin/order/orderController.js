@@ -32,6 +32,8 @@ const {
   getTotalDaysBetweenDates,
   formattedCartItems,
 } = require("../../../utils/createOrderHelpers");
+const Product = require("../../../models/Product");
+const MerchantDiscount = require("../../../models/MerchantDiscount");
 
 // -------------------------------------------------
 // For Merchant
@@ -612,16 +614,49 @@ const createInvoiceController = async (req, res, next) => {
       deliveryChargeForScheduledOrder || oneTimeDeliveryCharge
     );
 
-    // const discountAmount = await calculateDiscountAmount({
-    //   discountId,
-    //   itemTotal,
-    //   customer,
-    //   formattedErrors,
-    // });
-    // if (discountAmount === false)
-    //   return res.status(409).json({ errors: formattedErrors });
-
     const discountAmount = parseFloat(flatDiscount || 0);
+
+    let merchantDiscountAmount = 0;
+
+    for (const item of items) {
+      const product = await Product.findById(item.productId)
+        .populate("discountId")
+        .exec();
+
+      if (!product) continue;
+
+      if (product.discountId && product.discountId.status) {
+        const currentDate = new Date();
+        const validFrom = new Date(product.discountId.validFrom);
+        const validTo = new Date(product.discountId.validTo);
+
+        // Adjusting the validTo date to the end of the day
+        validTo.setHours(23, 59, 59, 999);
+
+        if (validFrom <= currentDate && validTo >= currentDate) {
+          // Product has a valid discount, skip applying merchant discount
+          continue;
+        }
+      }
+    }
+
+    const merchantDiscount = await MerchantDiscount.findOne({
+      merchantId,
+      status: true,
+    });
+
+    if (merchantDiscount) {
+      if (itemTotal < merchantDiscount.maxCheckoutValue) {
+        return;
+      }
+
+      const currentDate = new Date();
+      const validFrom = new Date(merchantDiscount.validFrom);
+      const validTo = new Date(merchantDiscount.validTo);
+
+      // Adjusting the validTo date to the end of the day
+      validTo.setHours(23, 59, 59, 999);
+    }
 
     // Calculate grandTotal without tax and deliveryCharge for Take Away
     let subTotal;

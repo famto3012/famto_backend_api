@@ -328,11 +328,10 @@ const getAllAgentsController = async (req, res, next) => {
         fullName: agent.fullName,
         email: agent.email,
         phoneNumber: agent.phoneNumber,
-        location: agent.location,
         isApproved: agent.isApproved,
-        geofence: agent?.geofenceId?.name,
-        status: agent.status,
-        manager: agent?.workStructure?.managerId?.fullName,
+        geofence: agent?.geofenceId?.name || "N/A",
+        status: agent.status === "Inactive" ? false : true,
+        manager: agent?.workStructure?.managerId?.name || "N/A",
       };
     });
 
