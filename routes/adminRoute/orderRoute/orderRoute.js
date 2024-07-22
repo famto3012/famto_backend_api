@@ -14,6 +14,7 @@ const {
   filterOrdersByAdminController,
   getOrderDetailByAdminController,
   createInvoiceController,
+  createOrderController,
 } = require("../../../controllers/admin/order/orderController");
 const isAdmin = require("../../../middlewares/isAdmin");
 const orderRoute = express.Router();
@@ -51,6 +52,8 @@ orderRoute.post(
   isAuthenticated,
   createInvoiceController
 );
+
+orderRoute.post("/create-order", isAuthenticated, createOrderController);
 
 // -------------------------------------------------
 // For Admin
