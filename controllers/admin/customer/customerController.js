@@ -207,23 +207,33 @@ const blockCustomerController = async (req, res, next) => {
       return next(appError("Customer not found", 404));
     }
 
+    console.log("Customer", customerFound);
+
     customerFound.isBlocked = true;
     customerFound.reasonForBlockingOrDeleting = reason;
     customerFound.blockedDate = new Date();
 
-    const accountLogs = new AccountLogs({
+    let accountLogs = await AccountLogs.findOne({
       userId: customerFound._id,
-      fullName: customerFound.fullName,
-      role: customerFound.role,
-      description: reason,
     });
+
+    if (!accountLogs) {
+      accountLogs = await AccountLogs.create({
+        userId: customerFound._id,
+        fullName: customerFound.fullName,
+        role: customerFound.role,
+        description: reason,
+      });
+    } else {
+      return res.status(500).json({ message: "User is already blocked" });
+    }
 
     await accountLogs.save();
     await customerFound.save();
 
     res.status(200).json({ message: "Customer blocked successfully" });
   } catch (err) {
-    next(appError(err.message, 500));
+    next(appError(err.message));
   }
 };
 
