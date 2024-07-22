@@ -26,7 +26,7 @@ taskRoute.post(
   assignAgentToTaskController
 );
 
-taskRoute.get(
+taskRoute.post(
   "/agents-in-geofence/:taskId",
   isAdmin,
   isAuthenticated,

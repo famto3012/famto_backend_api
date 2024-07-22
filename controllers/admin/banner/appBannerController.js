@@ -86,7 +86,7 @@ const editAppBannerController = async (req, res, next) => {
 
 const getAllAppBannersController = async (req, res, next) => {
   try {
-    const appBanners = await AppBanner.find();
+    const appBanners = await AppBanner.find().populate('geofenceId', 'name');
 
     if (!appBanners) {
       return next(appError("No app banners found", 404));
