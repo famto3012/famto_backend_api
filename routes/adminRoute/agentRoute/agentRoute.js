@@ -9,6 +9,7 @@ const {
   rejectAgentRegistrationController,
   blockAgentController,
   getAllAgentsController,
+  searchAgentByNameController,
 } = require("../../../controllers/admin/agent/agentController");
 const { upload } = require("../../../utils/imageOperation");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
@@ -78,6 +79,14 @@ adminAgentRoute.get(
   isAuthenticated,
   isAdmin,
   getSingleAgentController
+);
+
+// Search agent
+adminAgentRoute.get(
+  "/search",
+  isAuthenticated,
+  isAdmin,
+  searchAgentByNameController
 );
 
 //Approve registration

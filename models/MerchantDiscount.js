@@ -10,6 +10,10 @@ const merchantDiscountSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    maxDiscountValue: {
+      type: Number,
+      required: true,
+    },
     discountType: {
       type: String,
       enum: ["Flat-discount", "Percentage-discount"],

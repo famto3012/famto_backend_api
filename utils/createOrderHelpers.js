@@ -1,55 +1,9 @@
 const Customer = require("../models/Customer");
-const MerchantDiscount = require("../models/MerchantDiscount");
 const Product = require("../models/Product");
 const { convertToUTC } = require("./formatters");
 const geoLocation = require("./getGeoLocation");
 
-const calculateDiscountAmount = async ({
-  discountId,
-  itemTotal,
-  customer,
-  formattedErrors,
-}) => {
-  if (!discountId) return 0;
-
-  const discount = await MerchantDiscount.findOne({
-    _id: discountId,
-    geofenceId: customer.customerDetails.geofenceId,
-    status: true,
-  });
-  if (!discount) {
-    formattedErrors.discountId = "Discount not found";
-    return false;
-  }
-
-  if (itemTotal < discount.maxCheckoutValue) {
-    formattedErrors.discountId = `Maximum checkout value is ${maxCheckoutValue}`;
-    return false;
-  }
-
-  const now = new Date();
-  if (
-    now <= new Date(discount.validFrom) ||
-    now >= new Date(discount.validTo)
-  ) {
-    formattedErrors.discountId = `Discount is invalid`;
-    return false;
-  }
-
-  let discountAmount = 0;
-  if (discount.discountType === "Percentage-discount") {
-    discountAmount = (itemTotal * discount.discountValue) / 100;
-  } else if (discount.discountType === "Fixed-discount") {
-    discountAmount = discount.discountValue;
-  }
-
-  //   if (discountAmount > discount.maxValue) {
-  //     discountAmount = discount.maxValue;
-  //   }
-
-  return discountAmount;
-};
-
+// Create or return the existing customer
 const findOrCreateCustomer = async ({
   customerId,
   newCustomer,
@@ -117,7 +71,8 @@ const findOrCreateCustomer = async ({
   }
 };
 
-const getDeliveryDetails = ({
+// Get the delivery address and coordinates (For merchant order creation)
+const getDeliveryDetails = async ({
   customer,
   customerAddressType,
   customerAddressOtherAddressId,
@@ -125,6 +80,7 @@ const getDeliveryDetails = ({
   newCustomerAddress,
 }) => {
   let deliveryLocation, deliveryAddress;
+
   if (newCustomer) {
     deliveryLocation = [
       newCustomerAddress.latitude,
@@ -133,27 +89,78 @@ const getDeliveryDetails = ({
     deliveryAddress = newCustomerAddress;
   } else {
     const addressType = customerAddressType;
-    if (addressType === "home") {
-      deliveryLocation = customer.customerDetails.homeAddress.coordinates;
-      deliveryAddress = { ...customer.customerDetails.homeAddress };
-    } else if (addressType === "work") {
-      deliveryLocation = customer.customerDetails.workAddress.coordinates;
-      deliveryAddress = { ...customer.customerDetails.workAddress };
+
+    if (newCustomerAddress) {
+      const addressType = newCustomerAddress.addressType;
+
+      deliveryLocation = [
+        newCustomerAddress.latitude,
+        newCustomerAddress.longitude,
+      ];
+      deliveryAddress = newCustomerAddress;
+
+      if (newCustomerAddress.saveAddress) {
+        // Update the existing address of the customer
+        if (addressType === "home") {
+          customer.customerDetails.homeAddress = {
+            ...newCustomerAddress,
+            coordinates: deliveryLocation,
+          };
+        } else if (addressType === "work") {
+          customer.customerDetails.workAddress = {
+            ...newCustomerAddress,
+            coordinates: deliveryLocation,
+          };
+        } else if (addressType === "other") {
+          const otherIndex = customer.customerDetails.otherAddress.findIndex(
+            (addr) => addr._id.toString() === customerAddressOtherAddressId
+          );
+
+          if (otherIndex !== -1) {
+            customer.customerDetails.otherAddress[otherIndex] = {
+              ...newCustomerAddress,
+              coordinates: deliveryLocation,
+            };
+          } else {
+            // If not found, add the new address
+            customer.customerDetails.otherAddress.push({
+              ...newCustomerAddress,
+              coordinates: deliveryLocation,
+            });
+          }
+        }
+
+        // Save the updated customer details
+        await customer.save();
+      }
     } else {
-      const otherAddress = customer.customerDetails.otherAddress.find(
-        (addr) => addr.id.toString() === customerAddressOtherAddressId
-      );
-      if (otherAddress) {
-        deliveryLocation = otherAddress.coordinates;
-        deliveryAddress = { ...otherAddress };
+      if (addressType === "home") {
+        deliveryLocation = customer.customerDetails.homeAddress.coordinates;
+        deliveryAddress = { ...customer.customerDetails.homeAddress };
+      } else if (addressType === "work") {
+        deliveryLocation = customer.customerDetails.workAddress.coordinates;
+        deliveryAddress = { ...customer.customerDetails.workAddress };
+      } else if (addressType === "other") {
+        const otherAddress = customer.customerDetails.otherAddress.find(
+          (addr) => addr._id.toString() === customerAddressOtherAddressId
+        );
+
+        if (otherAddress) {
+          deliveryLocation = otherAddress.coordinates;
+          deliveryAddress = { ...otherAddress };
+        } else {
+          throw new Error("Address not found");
+        }
       } else {
-        throw new Error("Address not found");
+        throw new Error("Invalid address type");
       }
     }
   }
+
   return { deliveryLocation, deliveryAddress };
 };
 
+// Get the scheduled details
 const processSchedule = (ifScheduled) => {
   let startDate = ifScheduled.startDate;
   let endDate = ifScheduled.endDate;
@@ -174,28 +181,31 @@ const processSchedule = (ifScheduled) => {
   return { startDate, endDate, time, numOfDays };
 };
 
+// Calculat the item total in cart
 const calculateItemTotal = (items) =>
   items
     .reduce((total, item) => total + item.price * item.quantity, 0)
     .toFixed(2);
 
+// Calcula the subTotal in cart
 const calculateSubTotal = ({
   itemTotal,
   deliveryCharge,
-  addedTip,
-  discountAmount,
+  addedTip = 0,
+  totalDiscountAmount = 0,
 }) =>
   (
     parseFloat(itemTotal) +
     parseFloat(deliveryCharge) +
     parseFloat(addedTip) -
-    parseFloat(discountAmount || 0)
+    parseFloat(totalDiscountAmount)
   ).toFixed(2);
 
+// Calculate the grandTotal of cart
 const calculateGrandTotal = ({
   itemTotal,
   deliveryCharge,
-  addedTip,
+  addedTip = 0,
   taxAmount,
 }) =>
   (
@@ -205,9 +215,11 @@ const calculateGrandTotal = ({
     parseFloat(taxAmount)
   ).toFixed(2);
 
+// Get the number of days betweeb scheduled dates
 const getTotalDaysBetweenDates = (startDate, endDate) =>
   Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
 
+// Function for formatting items in the response
 const formattedCartItems = async (cart) => {
   const populatedCart = cart.toObject();
 
@@ -249,8 +261,22 @@ const formattedCartItems = async (cart) => {
   return populatedCart;
 };
 
+const getPickAndDeliveryDetailForAdminOrderCreation = async ({
+  customer,
+  customerAddressType,
+  customerAddressOtherAddressId,
+  newCustomer,
+  newCustomerAddress,
+  merchantFound,
+  deliveryMode,
+}) => {
+  let pickupLocation, pickupAddress, deliveryLocation, deliveryAddress;
+  // TODO: Work out the logics of order creation by admin
+  if (newCustomer) {
+  }
+};
+
 module.exports = {
-  calculateDiscountAmount,
   findOrCreateCustomer,
   getDeliveryDetails,
   processSchedule,
@@ -259,4 +285,5 @@ module.exports = {
   calculateGrandTotal,
   getTotalDaysBetweenDates,
   formattedCartItems,
+  getPickAndDeliveryDetailForAdminOrderCreation,
 };

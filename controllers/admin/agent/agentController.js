@@ -344,6 +344,45 @@ const getAllAgentsController = async (req, res, next) => {
   }
 };
 
+const searchAgentByNameController = async (req, res, next) => {
+  try {
+    const { query } = req.query;
+
+    if (!query || query.trim() === "") {
+      return next(appError("query is required"));
+    }
+
+    const agentFound = await Agent.find({
+      fullName: { $regex: query.trim(), $options: "i" },
+    })
+      .populate("geofenceId", "name")
+      .populate("workStructure.managerId", "name")
+      .select(
+        "fullName email phoneNumber location isApproved geofenceId status workStructure"
+      );
+
+    const formattedResponse = allAgents.map((agent) => {
+      return {
+        _id: agent._id,
+        fullName: agent.fullName,
+        email: agent.email,
+        phoneNumber: agent.phoneNumber,
+        isApproved: agent.isApproved,
+        geofence: agent?.geofenceId?.name || "N/A",
+        status: agent.status === "Inactive" ? false : true,
+        manager: agent?.workStructure?.managerId?.name || "N/A",
+      };
+    });
+
+    res.status(200).json({
+      message: "Search results",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 const approveAgentRegistrationController = async (req, res, next) => {
   try {
     const agentFound = await Agent.findById(req.params.agentId);
@@ -494,6 +533,7 @@ module.exports = {
   editAgentByAdminController,
   getSingleAgentController,
   approveAgentRegistrationController,
+  searchAgentByNameController,
   rejectAgentRegistrationController,
   getRatingsByCustomerController,
   filterAgentsController,
