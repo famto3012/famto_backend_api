@@ -55,7 +55,7 @@ const cartDetailSchema = mongoose.Schema(
       phoneNumber: String,
       flat: String,
       area: String,
-      landmark: { type: String, default: null },
+      landmark: String,
     },
     instructionToMerchant: {
       type: String,

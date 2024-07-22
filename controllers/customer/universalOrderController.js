@@ -28,7 +28,6 @@ const {
   convertStartDateToUTC,
   convertEndDateToUTC,
 } = require("../../utils/formatters");
-const LoyaltyPoint = require("../../models/LoyaltyPoint");
 const CustomerSurge = require("../../models/CustomerSurge");
 
 // Get all available business categories according to the order
@@ -967,6 +966,8 @@ const addCartDetailsController = async (req, res, next) => {
 
       // Set originalGrandTotal without tax and delivery charges
       updatedBill.originalGrandTotal = parseFloat(itemTotal).toFixed(2);
+      updatedBill.taxAmount = 0;
+      updatedBill.originalDeliveryCharge = 0;
 
       cart.cartDetail = updatedCartDetail;
 

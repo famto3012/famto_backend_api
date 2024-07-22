@@ -21,8 +21,8 @@ const getDistanceFromPickupToDelivery = async (
   deliveryCoordinates,
   profile = "biking"
 ) => {
-  // console.log("pickupCoordinates", pickupCoordinates);
-  // console.log("deliveryCoordinates", deliveryCoordinates);
+  console.log("pickupCoordinates", pickupCoordinates);
+  console.log("deliveryCoordinates", deliveryCoordinates);
 
   const { data } = await axios.get(
     `https://apis.mapmyindia.com/advancedmaps/v1/${process.env.MapMyIndiaAPIKey}/distance_matrix_eta/${profile}/${pickupCoordinates[1]},${pickupCoordinates[0]};${deliveryCoordinates[1]},${deliveryCoordinates[0]}`

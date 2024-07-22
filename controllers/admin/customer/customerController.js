@@ -7,28 +7,26 @@ const { formatDate, formatTime } = require("../../../utils/formatters");
 
 const getAllCustomersController = async (req, res, next) => {
   try {
-    const allCustomers = await Customer.find({})
-      .select(
-        "fullName email phoneNumber lastPlatformUsed createdAt customerDetails"
-      )
-      .lean({ virtuals: true });
+    const allCustomers = await Customer.find().select(
+      "fullName email phoneNumber lastPlatformUsed createdAt customerDetails averageRating"
+    );
 
     // Calculate averageRating and format registrationDate for each customer
-    const formattedCustomers = allCustomers.map((customer) => {
+    const formattedCustomers = allCustomers?.map((customer) => {
       return {
         _id: customer._id,
         fullName: customer.fullName || "N/A",
         email: customer.email || "N/A",
         phoneNumber: customer.phoneNumber || "N/A",
-        lastPlatformUsed: customer.lastPlatformUsed,
+        lastPlatformUsed: customer.lastPlatformUsed || "N/A",
         registrationDate: formatDate(customer.createdAt),
-        averageRating: customer.customerDetails?.averageRating || 0,
+        rating: customer.customerDetails.averageRating || 0,
       };
     });
 
     res.status(200).json({
       message: "All customers",
-      data: formattedCustomers,
+      data: formattedCustomers || [],
     });
   } catch (err) {
     next(appError(err.message));
@@ -136,9 +134,9 @@ const getSingleCustomerController = async (req, res, next) => {
     });
 
     const formattedCustomerOrders = ordersOfCustomer?.map((order) => {
-      const merchantDetail = order.merchantId?.merchantDetail;
+      const merchantDetail = order?.merchantId?.merchantDetail;
       const deliveryTimeMinutes = merchantDetail
-        ? parseInt(merchantDetail.deliveryTime, 10)
+        ? parseInt(merchantDetail?.deliveryTime, 10)
         : 0;
       const orderDeliveryTime = new Date(order.createdAt);
       orderDeliveryTime.setMinutes(
@@ -147,8 +145,8 @@ const getSingleCustomerController = async (req, res, next) => {
       return {
         orderId: order._id,
         orderStatus: order.status,
-        merchantName: order.merchantId.merchantDetail.merchantName,
-        deliveryMode: order.orderDetail.deliveryMode,
+        merchantName: order?.merchantId?.merchantDetail?.merchantName,
+        deliveryMode: order?.orderDetail?.deliveryMode,
         orderTime: `${formatDate(order.createdAt)} | ${formatTime(
           order.createdAt
         )}`,

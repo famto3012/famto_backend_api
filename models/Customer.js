@@ -67,7 +67,7 @@ const customerDetailSchema = new mongoose.Schema(
       type: String,
     },
     location: {
-      type: [[Number]],
+      type: [Number],
     },
     geofenceId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -208,16 +208,22 @@ const customerSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
 
-// Virtual field for calculating the average rating
+// Adding virtual for averageRating in customerDetailSchema
 customerDetailSchema.virtual("averageRating").get(function () {
-  if (this.ratingsByAgents.length === 0) return 0;
+  if (!this.ratingsByAgents || this.ratingsByAgents.length === 0) {
+    return 0;
+  }
+
   const total = this.ratingsByAgents.reduce(
     (acc, rating) => acc + rating.rating,
     0
   );
+
   return total / this.ratingsByAgents.length;
 });
 

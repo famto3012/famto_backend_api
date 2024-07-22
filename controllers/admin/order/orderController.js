@@ -12,6 +12,26 @@ const {
   orderCreateTaskHelper,
 } = require("../../../utils/orderCreateTaskHelper");
 const { razorpayRefund } = require("../../../utils/razorpayPayment");
+const {
+  getDistanceFromPickupToDelivery,
+  getTaxAmount,
+  calculateDeliveryCharges,
+} = require("../../../utils/customerAppHelpers");
+const CustomerPricing = require("../../../models/CustomerPricing");
+const BusinessCategory = require("../../../models/BusinessCategory");
+const CustomerSurge = require("../../../models/CustomerSurge");
+const CustomerCart = require("../../../models/CustomerCart");
+const {
+  calculateDiscountAmount,
+  findOrCreateCustomer,
+  getDeliveryDetails,
+  processSchedule,
+  calculateItemTotal,
+  calculateSubTotal,
+  calculateGrandTotal,
+  getTotalDaysBetweenDates,
+  formattedCartItems,
+} = require("../../../utils/createOrderHelpers");
 
 // -------------------------------------------------
 // For Merchant
@@ -473,92 +493,221 @@ const createInvoiceController = async (req, res, next) => {
       newCustomer,
       deliveryOption,
       ifScheduled,
-      deliveryMethod,
+      deliveryMode,
       items,
-      instructionToMerchant,
       instructionToDeliveryAgent,
       customerAddressType,
       customerAddressOtherAddressId,
       newCustomerAddress,
+      discountId,
       addedTip,
     } = req.body;
 
     const merchantId = req.userAuth;
+    const merchantFound = await Merchant.findById(merchantId);
+    if (!merchantFound) return next(appError("Merchant not found", 404));
 
-    let customer;
-    if (customerId) {
-      customer = await Customer.findById(customerId);
+    let customer = await findOrCreateCustomer({
+      customerId,
+      newCustomer,
+      newCustomerAddress,
+      formattedErrors,
+    });
 
-      if (!customer) {
-        return next(appError("Customer not found", 404));
-      }
-    } else if (newCustomer && newCustomerAddress) {
-      const phoneNumberFound = await Customer.findOne({
-        phoneNumber: newCustomer.phoneNumber,
-      });
+    if (!customer) return res.status(409).json({ errors: formattedErrors });
 
-      if (phoneNumberFound) {
-        formattedErrors.phoneNumber = "Phone number already exists";
-        return res.status(409).json({ errors: formattedErrors });
-      }
+    let { deliveryLocation, deliveryAddress } = getDeliveryDetails({
+      customer,
+      customerAddressType,
+      customerAddressOtherAddressId,
+      newCustomer,
+      newCustomerAddress,
+    });
 
-      const emailFound = await Customer.findOne({
-        email: newCustomer.email,
-      });
+    const { distanceInKM } = await getDistanceFromPickupToDelivery(
+      merchantFound.merchantDetail.location,
+      deliveryLocation
+    );
 
-      if (emailFound) {
-        formattedErrors.phoneNumber = "Email already exists";
-        return res.status(409).json({ errors: formattedErrors });
-      }
+    let { startDate, endDate, time, numOfDays } = processSchedule(ifScheduled);
 
-      const location = [
-        newCustomerAddress.latitude,
-        newCustomerAddress.longitude,
-      ];
-
-      let updatedAddress = {
-        fullName: newCustomerAddress.fullName,
-        phoneNumber: newCustomerAddress.phoneNumber,
-        flat: newCustomerAddress.flat,
-        area: newCustomerAddress.area,
-        landmark: newCustomerAddress.landmark,
-        coordinates: location,
-      };
-
-      let updatedCustomerDetails = {
-        location: [location],
-        homeAddress:
-          newCustomerAddress.addressType === "home" ? updatedAddress : null,
-        workAddress:
-          newCustomerAddress.addressType === "work" ? updatedAddress : null,
-        otherAddress:
-          newCustomerAddress.addressType === "other" ? [updatedAddress] : [],
-      };
-
-      let updatedNewCustomer = {
-        fullName: newCustomer.fullName,
-        email: newCustomer.email,
-        phoneNumber: newCustomer.phoneNumber,
-        customerDetails: updatedCustomerDetails,
-      };
-
-      customer = await Customer.create(updatedNewCustomer);
-    }
-
-    let deliveryLocation;
-    if (newCustomer) {
-      deliveryLocation = [newCustomer.latitude, newCustomer.longitude];
-    } else {
-      // TODO
-    }
-
-    let updatedCart = {
-      customerId: customer._id,
-      merchantId,
-      items,
+    let updatedCartDetail = {
+      pickupLocation: merchantFound.merchantDetail.location,
+      pickupAddress: {
+        fullName: merchantFound.merchantDetail.merchantName,
+        area: merchantFound.merchantDetail.displayAddress,
+        phoneNumber: merchantFound.phoneNumber,
+      },
+      deliveryLocation,
+      deliveryMode,
+      deliveryOption,
+      startDate,
+      endDate,
+      time,
+      numOfDays,
     };
 
-    res.status(200).json({ message: "Order invoice created successfully" });
+    if (deliveryMode === "On-demand") {
+      updatedCartDetail.distance = 0;
+    } else if (deliveryMode === "On-demand") {
+      updatedCartDetail.deliveryAddress = deliveryAddress;
+      updatedCartDetail.instructionToDeliveryAgent = instructionToDeliveryAgent;
+      updatedCartDetail.distance = distanceInKM;
+    }
+
+    const itemTotal = calculateItemTotal(items);
+
+    const businessCategory = await BusinessCategory.findById(
+      merchantFound.merchantDetail.businessCategoryId
+    );
+    if (!businessCategory)
+      return next(appError("Business category not found", 404));
+
+    const customerPricing = await CustomerPricing.findOne({
+      ruleName: businessCategory.title,
+      geofenceId: customer.customerDetails.geofenceId,
+      status: true,
+    });
+    if (!customerPricing)
+      return res.status(404).json({ error: "Customer pricing not found" });
+
+    const oneTimeDeliveryCharge = calculateDeliveryCharges(
+      distanceInKM,
+      customerPricing.baseFare,
+      customerPricing.baseDistance,
+      customerPricing.fareAfterBaseDistance
+    );
+
+    const customerSurge = await CustomerSurge.findOne({
+      ruleName: businessCategory.title,
+      geofenceId: customer.customerDetails.geofenceId,
+      status: true,
+    });
+
+    let surgeCharges;
+    if (customerSurge) {
+      surgeCharges = calculateDeliveryCharges(
+        distanceInKM,
+        customerSurge.baseFare,
+        customerSurge.baseDistance,
+        customerSurge.fareAfterBaseDistance
+      );
+    }
+
+    let deliveryChargeForScheduledOrder;
+    if (startDate && endDate && time) {
+      deliveryChargeForScheduledOrder = (
+        oneTimeDeliveryCharge * numOfDays
+      ).toFixed(2);
+    }
+
+    const taxAmount = await getTaxAmount(
+      businessCategory._id,
+      merchantFound.merchantDetail.geofenceId,
+      itemTotal,
+      deliveryChargeForScheduledOrder || oneTimeDeliveryCharge
+    );
+
+    const discountAmount = await calculateDiscountAmount({
+      discountId,
+      itemTotal,
+      customer,
+      formattedErrors,
+    });
+    if (discountAmount === false)
+      return res.status(409).json({ errors: formattedErrors });
+
+    const subTotal = calculateSubTotal({
+      itemTotal,
+      deliveryCharge: deliveryChargeForScheduledOrder || oneTimeDeliveryCharge,
+      addedTip,
+      discountAmount,
+    });
+
+    const grandTotal = calculateGrandTotal({
+      itemTotal,
+      deliveryCharge: deliveryChargeForScheduledOrder || oneTimeDeliveryCharge,
+      addedTip,
+      taxAmount,
+    });
+
+    const discountedGrandTotal = discountAmount
+      ? (grandTotal - discountAmount).toFixed(2)
+      : null;
+
+    let updatedBill = {
+      discountedDeliveryCharge: null,
+      discountedAmount: parseFloat(discountAmount) || null,
+      originalGrandTotal: Math.round(grandTotal),
+      discountedGrandTotal:
+        Math.round(discountedGrandTotal) || parseFloat(grandTotal),
+      itemTotal,
+      addedTip,
+      subTotal,
+      surgePrice: surgeCharges || null,
+    };
+
+    // TODO: calculate the correct amount for Take Away without adding tax and othe rcharges to originalGrandTotal
+
+    if (deliveryMode === "Take Away") {
+      updatedBill.taxAmount = 0;
+      updatedBill.originalDeliveryCharge = 0;
+    } else if (deliveryMode === "On-demand") {
+      updatedBill.taxAmount = taxAmount;
+      updatedBill.deliveryChargePerDay = parseFloat(oneTimeDeliveryCharge);
+      updatedBill.originalDeliveryCharge = parseFloat(
+        deliveryChargeForScheduledOrder || oneTimeDeliveryCharge
+      );
+    }
+
+    const customerCart = await CustomerCart.findOneAndUpdate(
+      { customerId: customer._id },
+      {
+        customerId: customer._id,
+        merchantId,
+        items,
+        cartDetail: updatedCartDetail,
+        billDetail: updatedBill,
+      },
+      { new: true, upsert: true }
+    );
+
+    const populatedCartWithVariantNames = await formattedCartItems(
+      customerCart
+    );
+
+    console.log("Item details", populatedCartWithVariantNames.items);
+
+    let formattedItems = populatedCartWithVariantNames.items.map((item) => {
+      return {
+        itemName: item.productId.productName,
+        itemImageURL: item.productId.productImageURL,
+        quantity: item.quantity,
+        price: item.price,
+        variantTypeName: item?.variantTypeId?.variantTypeName,
+      };
+    });
+
+    const responseData = {
+      cartId: customerCart._id,
+      billDetail: customerCart.billDetail,
+      items: formattedItems,
+    };
+
+    res.status(200).json({
+      message: "Order invoice created successfully",
+      data: responseData,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const createOrderController = async (req, res, next) => {
+  try {
+    const { paymentMode, cartId } = req.body;
+
+    const cartFound = await CustomerCart.findById(cartId);
   } catch (err) {
     next(appError(err.message));
   }
@@ -941,7 +1090,7 @@ const getOrderDetailByAdminController = async (req, res, next) => {
   }
 };
 
-const createOrderByAdminController = async (req, res, next) => {
+const createInvoiceByAdminController = async (req, res, next) => {
   try {
     const {
       customerId,

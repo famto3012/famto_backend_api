@@ -2,9 +2,8 @@ const mongoose = require("mongoose");
 
 const scheduledOrderItemSchema = mongoose.Schema(
   {
-    productId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
+    itemName: {
+      type: String,
       required: true,
     },
     quantity: {
@@ -15,9 +14,13 @@ const scheduledOrderItemSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
-    variantTypeId: {
-      type: mongoose.Schema.Types.ObjectId,
+    variantTypeName: {
+      type: String,
       default: null,
+    },
+    itemImageURL: {
+      type: String,
+      required: true,
     },
   },
   {
