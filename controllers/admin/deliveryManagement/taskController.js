@@ -113,6 +113,7 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
     if(task.orderId.orderDetail.deliveryMode === "Custom Order"){
       const deliveryLocation = task.orderId.orderDetail.pickupLocation
       const responseData = await Promise.all(agents.map(async (agent) => {
+        console.log("agent", agent.location)
         const { distanceInKM } = await getDistanceFromPickupToDelivery(agent.location, deliveryLocation);
         return {
           _id: agent._id,
@@ -237,6 +238,10 @@ const getAgentByNameController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
+
+const getSingleTaskController = async(req,res,next)=>{
+  
+}
 
 module.exports = {
   getTaskFilterController,

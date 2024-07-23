@@ -25,6 +25,9 @@ const {
   getAlertNotificationsByUserTypeController,
   searchAlertNotificationsByTitleController,
 } = require("../../../controllers/admin/notification/alertNotification/alertNotificationController");
+const {
+  sendNotificationController,
+} = require("../../../controllers/admin/notification/notificationController");
 
 const adminNotificationRoute = express.Router();
 
@@ -154,6 +157,13 @@ adminNotificationRoute.get(
   isAuthenticated,
   isAdmin,
   searchAlertNotificationsByTitleController
+);
+
+adminNotificationRoute.post(
+  "/send-notification",
+  isAuthenticated,
+  isAdmin,
+  sendNotificationController
 );
 
 module.exports = adminNotificationRoute;

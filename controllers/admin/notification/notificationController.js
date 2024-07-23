@@ -6,6 +6,7 @@ const {
   uploadToFirebase,
   deleteFromFirebase,
 } = require("../../../utils/imageOperation");
+const { sendNotification } = require("../../../socket/socket");
 
 const addNotificationSettingController = async (req, res, next) => {
   const errors = validationResult(req);
@@ -330,6 +331,16 @@ const addAlertNotificationController = async (req, res, next) => {
   }
 };
 
+const sendNotificationController = async (req, res, next) => {
+  const { userId, eventName, data } = req.body;
+  try {
+    await sendNotification(userId, eventName, data)  
+    res.status(200).send({ message: "Notification sent successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   addNotificationSettingController,
   editNotificationSettingController,
@@ -343,4 +354,5 @@ module.exports = {
   getAllPushNotificationController,
   fetchPushNotificationController,
   addAlertNotificationController,
+  sendNotificationController,
 };

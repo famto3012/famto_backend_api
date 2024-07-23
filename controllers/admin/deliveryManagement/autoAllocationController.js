@@ -38,6 +38,24 @@ const addAndUpdateAutoAllocationController = async (req, res, next) => {
   }
 };
 
+const getAutoAllocationController = async (req, res, next) => {
+  try {
+    const autoAllocation = await AutoAllocation.findOne();
+    if (!autoAllocation) {
+      return res.status(404).json({
+        message: "No auto allocation found",
+      });
+    } else {
+      res.status(200).json({
+        message: "Auto allocation found",
+        data: autoAllocation,
+      });
+    }
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 const updateAutoAllocationStatus = async (req, res, next) => {
   try {
     const autoAllocation = await AutoAllocation.findOne();
@@ -73,4 +91,5 @@ const updateAutoAllocationStatus = async (req, res, next) => {
 module.exports = {
   addAndUpdateAutoAllocationController,
   updateAutoAllocationStatus,
+  getAutoAllocationController,
 };

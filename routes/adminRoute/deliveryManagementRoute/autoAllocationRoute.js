@@ -5,6 +5,7 @@ const isAdmin = require("../../../middlewares/isAdmin");
 const {
   addAndUpdateAutoAllocationController,
   updateAutoAllocationStatus,
+  getAutoAllocationController,
 } = require("../../../controllers/admin/deliveryManagement/autoAllocationController");
 
 autoAllocationRoute.post(
@@ -12,6 +13,13 @@ autoAllocationRoute.post(
   isAdmin,
   isAuthenticated,
   addAndUpdateAutoAllocationController
+);
+
+autoAllocationRoute.get(
+  "/get",
+  isAdmin,
+  isAuthenticated,
+  getAutoAllocationController
 );
 
 autoAllocationRoute.put(

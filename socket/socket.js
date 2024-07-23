@@ -196,7 +196,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173", // Replace with the correct URL of your React app
+    origin: ["http://localhost:5175", "http://localhost:5176"], // Replace with the correct URL of your React app
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -233,7 +233,7 @@ function sendPushNotificationToUser(fcmToken, message) {
 function sendNotification(userId, eventName, data) {
   const socketId = userSocketMap[userId]?.socketId;
   const fcmToken = userSocketMap[userId]?.fcmToken;
-
+ console.log(socketId)
   if (socketId && fcmToken) {
     io.to(socketId).emit(eventName, data.socket);
     sendPushNotificationToUser(fcmToken, data.fcm);
@@ -252,7 +252,7 @@ async function populateUserSocketMap() {
     tokens.forEach((token) => {
       userSocketMap[token.userId] = { socketId: null, fcmToken: token.token };
     });
-    // console.log("User Socket Map populated with FCM tokens:", userSocketMap); //TODO: Uncon=mment
+     console.log("User Socket Map populated with FCM tokens:", userSocketMap); //TODO: Uncomment
   } catch (error) {
     console.error("Error populating User Socket Map:", error);
   }
@@ -273,7 +273,6 @@ io.on("connection", async (socket) => {
   // console.log("user connected", socket.id);
   const userId = socket.handshake.query.userId;
   const fcmToken = socket.handshake.query.fcmToken;
-
   if (userId) {
     const user = await FcmToken.find({ userId });
     console.log("Server",user);
@@ -317,7 +316,6 @@ io.on("connection", async (socket) => {
     } else {
       await Task.findByIdAndUpdate(task[0]._id, {
         agentId: data.agentId,
-
         taskStatus: "Assigned",
         "deliveryDetail.deliveryStatus": "Accepted",
         "pickupDetail.pickupStatus": "Accepted",
