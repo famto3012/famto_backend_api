@@ -1,6 +1,11 @@
 const mongoose = require("mongoose");
 
 const customerPricingSchema = new mongoose.Schema({
+  orderType: {
+    type: String,
+    enum: ["Universal Order", "Pick and Drop", "Custom Order"],
+    required: true,
+  },
   ruleName: {
     type: String,
     required: true,
@@ -34,10 +39,6 @@ const customerPricingSchema = new mongoose.Schema({
     required: true,
   },
   waitingTime: {
-    type: Number,
-    required: true,
-  },
-  addedTip: {
     type: Number,
     required: true,
   },
