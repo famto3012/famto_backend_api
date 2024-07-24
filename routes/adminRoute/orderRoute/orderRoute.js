@@ -16,6 +16,7 @@ const {
   createInvoiceController,
   createOrderController,
   createInvoiceByAdminController,
+  createOrderByAdminController,
 } = require("../../../controllers/admin/order/orderController");
 const isAdmin = require("../../../middlewares/isAdmin");
 const orderRoute = express.Router();
@@ -105,7 +106,15 @@ orderRoute.get(
 orderRoute.post(
   "/admin/create-order-invoice",
   isAuthenticated,
+  isAdmin,
   createInvoiceByAdminController
+);
+
+orderRoute.post(
+  "/admin/create-order",
+  isAuthenticated,
+  isAdmin,
+  createOrderByAdminController
 );
 
 module.exports = orderRoute;

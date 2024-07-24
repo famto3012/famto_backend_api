@@ -399,8 +399,17 @@ const rateDeliveryAgentController = async (req, res, next) => {
       return next(appError("Agent not found", 404));
     }
 
-    orderFound.orderRating.ratingToDeliveryAgent.review = review;
-    orderFound.orderRating.ratingToDeliveryAgent.rating = rating;
+    let updatedRating = {
+      review,
+      rating,
+    };
+
+    // Initialize orderRating if it doesn't exist
+    if (!orderFound.orderRating) {
+      orderFound.orderRating = {};
+    }
+
+    orderFound.orderRating.ratingToDeliveryAgent = updatedRating;
 
     let updatedAgentRating = {
       customerId: currentCustomer,
@@ -413,7 +422,7 @@ const rateDeliveryAgentController = async (req, res, next) => {
     await orderFound.save();
     await agentFound.save();
 
-    res.status(200).josn({ message: "Agent rated successfully" });
+    res.status(200).json({ message: "Agent rated successfully" });
   } catch (err) {
     next(appError(err.message));
   }
@@ -1018,50 +1027,3 @@ module.exports = {
   getWalletAndLoyaltyController,
   getCustomerCartController,
 };
-
-// const baseFare = customerPricing.baseFare;
-// const baseDistance = customerPricing.baseDistance;
-// const fareAfterBaseDistance = customerPricing.fareAfterBaseDistance;
-
-// const deliveryCharges = calculateDeliveryCharges(
-//   distanceFromPickupToDrop,
-//   baseFare,
-//   baseDistance,
-//   fareAfterBaseDistance
-// );
-
-// if (startDate && endDate) {
-//   const startDateTime = new Date(`${startDate} ${time}`);
-//   const endDateTime = new Date(`${endDate} ${time}`);
-
-//   const diffTime = Math.abs(endDateTime - startDateTime);
-//   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-
-//   const scheduledDeliveryCharge = (deliveryCharges * diffDays).toFixed(2);
-
-//   updatedBill.originalDeliveryCharge = scheduledDeliveryCharge;
-//   updatedBill.deliveryChargePerDay = deliveryCharges;
-//   updatedCartDetail.numOfDays = diffDays;
-
-//   const grandTotal = parseFloat(scheduledDeliveryCharge);
-
-//   updatedBill.originalGrandTotal = parseFloat(grandTotal).toFixed(2);
-// } else {
-//   updatedBill.originalDeliveryCharge = deliveryCharges.toFixed(2);
-
-//   const grandTotal = parseFloat(scheduledDeliveryCharge);
-
-//   updatedBill.originalGrandTotal = parseFloat(grandTotal).toFixed(2);
-// }
-
-// // Ensure billDetail is initialized
-// cart.billDetail = cart.billDetail || {};
-// cart.cartDetail = updatedCartDetail;
-// cart.billDetail = updatedBill;
-
-// await cart.save();
-
-// res.status(200).json({
-//   message: "Pick and Drop locations added successfully",
-//   data: cart,
-// });

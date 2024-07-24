@@ -60,7 +60,7 @@ const {
   resetAllAgentTaskHelper,
 } = require("./utils/resetAllAgentTaskHelper.js");
 const taskRoute = require("./routes/adminRoute/deliveryManagementRoute/taskRoute.js");
-const scheduledPickAndDrop = require("./models/ScheduledPickAndDrop.js");
+const ScheduledPickAndCustom = require("./models/ScheduledPickAndCustom.js");
 const {
   moveAppDetailToHistoryAndResetForAllAgents,
 } = require("./utils/agentAppHelpers.js");

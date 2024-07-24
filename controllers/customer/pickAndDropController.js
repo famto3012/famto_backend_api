@@ -19,7 +19,7 @@ const {
   convertEndDateToUTC,
 } = require("../../utils/formatters");
 const PickAndCustomCart = require("../../models/PickAndCustomCart");
-const scheduledPickAndDrop = require("../../models/ScheduledPickAndDrop");
+const ScheduledPickAndCustom = require("../../models/ScheduledPickAndCustom");
 const CustomerSurge = require("../../models/CustomerSurge");
 
 const addPickUpAddressController = async (req, res, next) => {
@@ -489,8 +489,6 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
       cart.billDetail.discountedGrandTotal ||
       cart.billDetail.originalGrandTotal;
 
-    console.log("cart detail", cart.cartDetail);
-
     let orderBill = {
       deliveryChargePerDay: cart.billDetail.deliveryChargePerDay,
       deliveryCharge:
@@ -523,7 +521,7 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
       );
 
       // Create scheduled Pick and Drop
-      newOrder = await scheduledPickAndDrop.create({
+      newOrder = await ScheduledPickAndCustom.create({
         customerId,
         items: cart.items,
         orderDetail: cart.cartDetail,
@@ -539,6 +537,8 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
 
       // Clear the cart
       await PickAndCustomCart.deleteOne({ customerId });
+      customer.transactionDetail.push(customerTransation);
+      await customer.save();
 
       res.status(200).json({
         message: "Scheduled order created successfully",

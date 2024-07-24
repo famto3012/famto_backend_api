@@ -5,7 +5,7 @@ const Customer = require("../models/Customer");
 const Merchant = require("../models/Merchant");
 const Order = require("../models/Order");
 const ScheduledOrder = require("../models/ScheduledOrder");
-const scheduledPickAndDrop = require("../models/ScheduledPickAndDrop");
+const ScheduledPickAndCustom = require("../models/ScheduledPickAndCustom");
 
 // Helper function to sort merchants by sponsorship
 const sortMerchantsBySponsorship = (merchants) => {
@@ -160,11 +160,11 @@ const createOrdersFromScheduledPickAndDrop = async (scheduledOrder) => {
       const nextTime = new Date();
       nextTime.setDate(nextTime.getDate() + 1);
 
-      await scheduledPickAndDrop.findByIdAndUpdate(scheduledOrder._id, {
+      await ScheduledPickAndCustom.findByIdAndUpdate(scheduledOrder._id, {
         time: nextTime,
       });
     } else {
-      await scheduledPickAndDrop.findByIdAndUpdate(scheduledOrder._id, {
+      await ScheduledPickAndCustom.findByIdAndUpdate(scheduledOrder._id, {
         status: "Completed",
       });
     }

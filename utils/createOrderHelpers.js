@@ -325,6 +325,7 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
 
   // Function to retrieve address details based on type
   const getAddressDetails = (addressType, addressId) => {
+    console.log("addressType", addressType);
     if (addressType === "home") {
       return customer.customerDetails.homeAddress;
     } else if (addressType === "work") {
@@ -388,10 +389,13 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
       ];
       deliveryAddress = newDeliveryAddress;
     } else {
+      console.log("Here");
       const address = getAddressDetails(
         deliveryAddressType,
         customerAddressOtherAddressId
       );
+
+      console.log("address", address);
       if (!address) throw new Error("Delivery address not found");
       deliveryLocation = address.coordinates;
       deliveryAddress = address;

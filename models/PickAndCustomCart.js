@@ -58,7 +58,7 @@ const cartDetailSchema = mongoose.Schema(
       phoneNumber: String,
       flat: String,
       area: String,
-      landmark: { type: String, default: null },
+      landmark: String,
     },
     instructionInPickup: {
       type: String,
@@ -73,7 +73,7 @@ const cartDetailSchema = mongoose.Schema(
       phoneNumber: String,
       flat: String,
       area: String,
-      landmark: { type: String, default: null },
+      landmark: String,
     },
     instructionInDelivery: {
       type: String,

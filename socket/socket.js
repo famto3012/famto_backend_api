@@ -233,7 +233,7 @@ function sendPushNotificationToUser(fcmToken, message) {
 function sendNotification(userId, eventName, data) {
   const socketId = userSocketMap[userId]?.socketId;
   const fcmToken = userSocketMap[userId]?.fcmToken;
- console.log(socketId)
+  console.log(socketId);
   if (socketId && fcmToken) {
     io.to(socketId).emit(eventName, data.socket);
     sendPushNotificationToUser(fcmToken, data.fcm);
@@ -252,7 +252,7 @@ async function populateUserSocketMap() {
     tokens.forEach((token) => {
       userSocketMap[token.userId] = { socketId: null, fcmToken: token.token };
     });
-     console.log("User Socket Map populated with FCM tokens:", userSocketMap); //TODO: Uncomment
+    //  console.log("User Socket Map populated with FCM tokens:", userSocketMap); //TODO: Uncomment
   } catch (error) {
     console.error("Error populating User Socket Map:", error);
   }
@@ -275,7 +275,7 @@ io.on("connection", async (socket) => {
   const fcmToken = socket.handshake.query.fcmToken;
   if (userId) {
     const user = await FcmToken.find({ userId });
-    console.log("Server",user);
+    console.log("Server", user);
     if (user.length === 0) {
       await FcmToken.create({
         userId,
