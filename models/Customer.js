@@ -72,6 +72,7 @@ const customerDetailSchema = new mongoose.Schema(
     geofenceId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Geofence",
+      default: null,
     },
     pricing: [
       {

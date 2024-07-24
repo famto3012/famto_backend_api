@@ -83,6 +83,7 @@ const surgeValidations = [
 ];
 
 const customerPricingValidations = [
+  body("orderType").trim().notEmpty().withMessage("Order type is required"),
   body("ruleName").trim().notEmpty().withMessage("Rule name is required"),
   body("baseFare")
     .trim()
@@ -132,12 +133,6 @@ const customerPricingValidations = [
     .withMessage("Waiting time is required")
     .isNumeric()
     .withMessage("Waiting time must be a number"),
-  body("addedTip")
-    .trim()
-    .notEmpty()
-    .withMessage("Added tip is required")
-    .isNumeric()
-    .withMessage("Added tip must be a number"),
   body("geofenceId").trim().notEmpty().withMessage("Geofence is required"),
 ];
 

@@ -4,6 +4,7 @@ const CustomerPricing = require("../../../models/CustomerPricing");
 
 const addCustomerPricingController = async (req, res, next) => {
   const {
+    orderType,
     ruleName,
     baseFare,
     baseDistance,
@@ -13,7 +14,6 @@ const addCustomerPricingController = async (req, res, next) => {
     purchaseFarePerHour,
     waitingFare,
     waitingTime,
-    addedTip,
     geofenceId,
     vehicleType,
   } = req.body;
@@ -32,19 +32,11 @@ const addCustomerPricingController = async (req, res, next) => {
     const normalizedRuleName = ruleName
       .trim()
       .replace(/\s+/g, " ")
-      .toLowerCase();
-
-    const ruleNameFound = await CustomerPricing.findOne({
-      ruleName: new RegExp(`^${normalizedRuleName}$`, "i"),
-    });
-
-    if (ruleNameFound) {
-      formattedErrors.ruleName = "Rule name already exists";
-      return res.status(409).json({ errors: formattedErrors });
-    }
+      .replace(/\b\w/g, (char) => char.toUpperCase());
 
     const newRule = await CustomerPricing.create({
-      ruleName,
+      orderType,
+      ruleName: normalizedRuleName,
       baseFare,
       baseDistance,
       fareAfterBaseDistance,
@@ -53,7 +45,6 @@ const addCustomerPricingController = async (req, res, next) => {
       purchaseFarePerHour,
       waitingFare,
       waitingTime,
-      addedTip,
       geofenceId,
       vehicleType,
     });
@@ -62,7 +53,9 @@ const addCustomerPricingController = async (req, res, next) => {
       return next(appError("Error in creating new rule"));
     }
 
-    res.status(201).json({ message: `${ruleName} created successfully` });
+    res.status(201).json({
+      message: `${normalizedRuleName} created successfully`,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -105,6 +98,7 @@ const getSingleCustomerPricingController = async (req, res, next) => {
 
 const editCustomerPricingController = async (req, res, next) => {
   const {
+    orderType,
     ruleName,
     baseFare,
     baseDistance,
@@ -114,7 +108,6 @@ const editCustomerPricingController = async (req, res, next) => {
     purchaseFarePerHour,
     waitingFare,
     waitingTime,
-    addedTip,
     geofenceId,
     vehicleType,
   } = req.body;
@@ -141,27 +134,22 @@ const editCustomerPricingController = async (req, res, next) => {
     const normalizedRuleName = ruleName
       .trim()
       .replace(/\s+/g, " ")
-      .toLowerCase();
-    const normalizedDBRuleName = customerPricingFound.ruleName
-      .trim()
-      .replace(/\s+/g, " ")
-      .toLowerCase();
+      .replace(/\b\w/g, (char) => char.toUpperCase());
 
-    if (normalizedRuleName !== normalizedDBRuleName) {
-      const ruleNameFound = await CustomerPricing.findOne({
-        ruleName: new RegExp(`^${normalizedRuleName}$`, "i"),
-      });
+    const ruleNameFound = await CustomerPricing.findOne({
+      ruleName: new RegExp(`^${normalizedRuleName}$`, "i"),
+    });
 
-      if (ruleNameFound) {
-        formattedErrors.ruleName = "Rule name already exists";
-        return res.status(409).json({ errors: formattedErrors });
-      }
+    if (ruleNameFound) {
+      formattedErrors.ruleName = "Rule name already exists for the order type";
+      return res.status(409).json({ errors: formattedErrors });
     }
 
     const updatedCustomerPricing = await CustomerPricing.findByIdAndUpdate(
       req.params.customerPricingId,
       {
-        ruleName,
+        orderType,
+        ruleName: normalizedRuleName,
         baseFare,
         baseDistance,
         fareAfterBaseDistance,
@@ -170,7 +158,6 @@ const editCustomerPricingController = async (req, res, next) => {
         purchaseFarePerHour,
         waitingFare,
         waitingTime,
-        addedTip,
         geofenceId,
         vehicleType,
       },
@@ -181,7 +168,9 @@ const editCustomerPricingController = async (req, res, next) => {
       return next(appError("Error in updating customer pricing"));
     }
 
-    res.status(200).json({ message: `${ruleName} updated successfully` });
+    res.status(200).json({
+      message: `${normalizedRuleName} updated successfully`,
+    });
   } catch (err) {
     next(appError(err.message));
   }
