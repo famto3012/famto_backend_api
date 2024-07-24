@@ -171,6 +171,7 @@ const Order = require("../models/Order");
 const { getMessaging } = require("firebase-admin/messaging");
 const FcmToken = require("../models/fcmToken");
 const appError = require("../utils/appError");
+const AgentNotificationLogs = require("../models/AgentNotificationLog");
 
 // const serviceAccount = require("./path/to/serviceAccountKey.json");
 
@@ -304,13 +305,24 @@ io.on("connection", async (socket) => {
   // Order accepted by agent socket
   socket.on("Accepted", async (data) => {
     const task = await Task.find({ orderId: data.orderId });
+
+    const agentNotification = await AgentNotificationLogs.findOne({ orderId: data.orderId, agentId: data.agentId });
+    if (agentNotification) {
+        agentNotification.status = "Accepted";
+        await agentNotification.save();
+    } else {
+        console.error('Agent notification not found');
+    }
+
     await Order.findByIdAndUpdate(data.orderId, {
       agentId: data.agentId,
       "orderDetail.agentAcceptedAt": new Date(),
     });
+
     await Agent.findByIdAndUpdate(data.agentId, {
       status: "Busy",
     });
+
     if (task[0].taskStatus === "Assigned") {
       appError("Task already assigned");
     } else {
