@@ -1387,6 +1387,8 @@ const createInvoiceByAdminController = async (req, res, next) => {
       ({ startDate, endDate, time, numOfDays } = processSchedule(ifScheduled));
     }
 
+    console.log("Here2");
+
     let merchantFound;
     if (
       merchantId &&
@@ -1415,6 +1417,8 @@ const createInvoiceByAdminController = async (req, res, next) => {
         return res.status(400).json({ errors: formattedErrors });
       }
     }
+
+    console.log("Here3");
 
     let customer = await findOrCreateCustomer({
       customerId,
@@ -1452,6 +1456,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
           merchantFound,
           deliveryMode,
           pickUpAddressType,
+          pickUpAddressOtherAddressId,
           deliveryAddressType,
           newPickupAddress,
           newDeliveryAddress,
@@ -1727,6 +1732,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
 
       const responseData = {
         cartId: customerCart._id,
+        deliveryMode: customerCart.cartDetail.deliveryMode,
         billDetail: customerCart.billDetail,
         items: formattedItems,
       };
@@ -1848,9 +1854,62 @@ const createInvoiceByAdminController = async (req, res, next) => {
         data: responseData,
       });
     } else if (deliveryMode === "Custom Order") {
-      // TODO: Generate logic for adding images
-      // if (req.files) {
-      // }
+      console.log("here");
+      // Find or create the cart with upsert option
+      let cart = await PickAndCustomCart.findOne({ customerId });
+
+      if (!cart) {
+        cart = new PickAndCustomCart({ customerId, items: [] });
+      }
+
+      const existingItems = cart.items.reduce((acc, item) => {
+        acc[item.tempId] = item;
+        return acc;
+      }, {});
+
+      const updatedItems = [];
+      const newItems = [];
+      const tempIdsToRemove = Object.keys(existingItems);
+
+      for (let item of items) {
+        let itemImageURL = item.file
+          ? await uploadToFirebase(item.file, "Custom-order-item-Image")
+          : item.itemImageURL;
+
+        if (item.tempId && existingItems[item.tempId]) {
+          // If item exists, update it
+          updatedItems.push({
+            ...existingItems[item.tempId],
+            itemName: item.itemName,
+            quantity: item.quantity,
+            unit: item.unit,
+            numOfUnits: item.numOfUnits,
+            itemImageURL,
+          });
+
+          // Remove from tempIdsToRemove list as it shouldn't be deleted
+          const index = tempIdsToRemove.indexOf(item.tempId);
+          if (index > -1) tempIdsToRemove.splice(index, 1);
+        } else {
+          // If it's a new item, add it
+          newItems.push({
+            tempId: item.tempId,
+            itemName: item.itemName,
+            quantity: item.quantity,
+            unit: item.unit,
+            numOfUnits: item.numOfUnits,
+            itemImageURL,
+          });
+        }
+      }
+
+      // Remove items that are not present in the updated list
+      const remainingItems = cart.items.filter(
+        (item) => !tempIdsToRemove.includes(item.tempId)
+      );
+
+      // Update the cart items
+      cart.items = [...remainingItems, ...updatedItems, ...newItems];
 
       const customerPricing = await CustomerPricing.findOne({
         orderType: "Custom Order",
@@ -1921,7 +1980,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
           customerId: customer._id,
           cartDetail: updatedCartDetail,
           billDetail: updatedBill,
-          items,
+          items: cart.items,
         },
         { new: true, upsert: true }
       );
@@ -1944,6 +2003,16 @@ const createInvoiceByAdminController = async (req, res, next) => {
 };
 
 const createOrderByAdminController = async (req, res, next) => {
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(500).json({ errors: formattedErrors });
+  }
+
   try {
     const { paymentMode, deliveryMode, cartId } = req.body;
 
@@ -1980,11 +2049,14 @@ const createOrderByAdminController = async (req, res, next) => {
       deliveryCharge:
         cartFound.billDetail.discountedDeliveryCharge ||
         cartFound.billDetail.originalDeliveryCharge,
+      taxAmount: cartFound.billDetail.taxAmount,
       discountedAmount: cartFound.billDetail.discountedAmount,
       grandTotal:
         cartFound.billDetail.discountedGrandTotal ||
         cartFound.billDetail.originalGrandTotal,
+      itemTotal: cartFound.billDetail.itemTotal,
       addedTip: cartFound.billDetail.addedTip,
+      subTotal: cartFound.billDetail.subTotal,
     };
 
     let customerTransation = {
@@ -1994,53 +2066,177 @@ const createOrderByAdminController = async (req, res, next) => {
       type: "Debit",
     };
 
+    let formattedItems;
+    if (
+      cartDeliveryMode === "Take Away" ||
+      cartDeliveryMode === "Home Delivery"
+    ) {
+      populatedCartWithVariantNames = await formattedCartItems(cartFound);
+    }
+
+    formattedItems = populatedCartWithVariantNames.items.map((item) => {
+      return {
+        itemName: item.productId.productName,
+        itemImageURL: item.productId.productImageURL,
+        quantity: item.quantity,
+        price: item.price,
+        variantTypeName: item?.variantTypeId?.variantTypeName,
+      };
+    });
+
+    console.log("formattedItems", formattedItems);
+
     let newOrder;
-    if (paymentMode === "Online-payment") {
+
+    if (
+      paymentMode === "Cash-on-delivery" &&
+      cartDeliveryOption === "Scheduled"
+    ) {
+      formattedErrors.paymentMode =
+        "Scheduled orders can only be paid in online payment";
+      return res.status(409).json({ errors: formattedErrors });
+    }
+
+    if (
+      paymentMode === "Cash-on-delivery" &&
+      cartDeliveryOption === "On-demand" &&
+      (cartDeliveryMode === "Take Away" ||
+        cartDeliveryMode === "Home Delivery" ||
+        cartDeliveryMode === "Pick and Drop" ||
+        cartDeliveryMode === "Custom Order")
+    ) {
+      newOrder = await Order.create({
+        customerId: cartFound.customerId,
+        merchantId: cartFound?.merchantId && cartFound.merchantId,
+        items:
+          cartDeliveryMode === "Take Away" ||
+          cartDeliveryMode === "Home Delivery"
+            ? formattedItems
+            : cartFound.items,
+        orderDetail: cartFound.cartDetail,
+        billDetail: orderBill,
+        totalAmount: orderAmount,
+        status: "Pending",
+        paymentMode: "Cash-on-delivery",
+        paymentStatus: "Pending",
+      });
+
+      // Clear the cart
       if (
-        (cartDeliveryMode === "Pick and Drop" ||
-          cartDeliveryMode === "Custom Order") &&
-        cartDeliveryOption === "Scheduled"
+        cartDeliveryMode === "Take Away" ||
+        cartDeliveryMode === "Home Delivery"
       ) {
-        newOrder = await scheduledPickAndCustom.create({
-          customerId: cartFound.customerId,
-          items: cartFound.items,
-          orderDetail: cartFound.cartDetail,
-          billDetail: orderBill,
-          totalAmount: orderAmount,
-          status: "Pending",
-          paymentMode,
-          paymentStatus: "Completed",
-          startDate: cartFound.cartDetail.startDate,
-          endDate: cartFound.cartDetail.endDate,
-          time: cartFound.cartDetail.time,
-        });
-
-        // Clear the cart
-        await PickAndCustomCart.deleteOne({ customerId: customer._id });
-        customer.transactionDetail.push(customerTransation);
-        await customer.save();
-
-        res.status(200).json({
-          message: "Scheduled order created successfully",
-          data: newOrder,
-        });
-        return;
+        await CustomerCart.deleteOne({ customerId: customer._id });
       } else if (
-        (cartDeliveryMode === "Pick and Drop" ||
-          cartDeliveryMode === "Custom Order") &&
-        cartDeliveryOption === "On-demand"
+        cartDeliveryMode === "Pick and Drop" ||
+        cartDeliveryMode === "Custom Order"
       ) {
-        newOrder = await Order.create({
-          customerId: cartFound.customerId,
-          items: cartFound.items,
-          orderDetail: cartFound.cartDetail,
-          billDetail: orderBill,
-          totalAmount: orderAmount,
-          status: "Pending",
-          paymentMode: "Online-payment",
-          paymentStatus: "Completed",
-        });
+        await PickAndCustomCart.deleteOne({ customerId: customer._id });
       }
+
+      customer.transactionDetail.push(customerTransation);
+      await customer.save();
+
+      res.status(200).json({
+        message: "Order created successfully",
+        data: newOrder,
+      });
+      return;
+    }
+
+    if (
+      paymentMode === "Online-payment" &&
+      cartDeliveryOption === "On-demand" &&
+      (cartDeliveryMode === "Take Away" ||
+        cartDeliveryMode === "Home Delivery" ||
+        cartDeliveryMode === "Pick and Drop" ||
+        cartDeliveryMode === "Custom Order")
+    ) {
+      console.log("Here");
+      newOrder = await Order.create({
+        customerId: cartFound.customerId,
+        merchantId: cartFound?.merchantId && cartFound.merchantId,
+        items:
+          cartDeliveryMode === "Take Away" ||
+          cartDeliveryMode === "Home Delivery"
+            ? formattedItems
+            : cartFound.items,
+        orderDetail: cartFound.cartDetail,
+        billDetail: orderBill,
+        totalAmount: orderAmount,
+        status: "Pending",
+        paymentMode: "Online-payment",
+        paymentStatus: "Completed",
+      });
+
+      // Clear the cart
+      if (
+        cartDeliveryMode === "Take Away" ||
+        cartDeliveryMode === "Home Delivery"
+      ) {
+        await PickAndCustomCart.deleteOne({ customerId: customer._id });
+      } else {
+        await CustomerCart.deleteOne({ customerId: customer._id });
+      }
+      customer.transactionDetail.push(customerTransation);
+      await customer.save();
+
+      return res.status(200).json({
+        message: "Order created successfully",
+        data: newOrder,
+      });
+    }
+
+    if (
+      paymentMode === "Online-payment" &&
+      cartDeliveryOption === "Scheduled" &&
+      (cartDeliveryMode === "Take Away" || cartDeliveryMode === "Home Delivery")
+    ) {
+      newOrder = await ScheduledOrder.create({
+        customerId: cartFound.customerId,
+        merchantId: cartFound.merchantId,
+        items: formattedItems,
+        orderDetail: cartFound.cartDetail,
+        billDetail: orderBill,
+        totalAmount: orderAmount,
+        status: "Pending",
+        paymentMode: "Online-payment",
+        paymentStatus: "Completed",
+        startDate: cartFound.cartDetail.startDate,
+        endDate: cartFound.cartDetail.endDate,
+        time: cartFound.cartDetail.time,
+      });
+
+      // Clear the cart
+      await CustomerCart.deleteOne({ customerId: customer._id });
+      customer.transactionDetail.push(customerTransation);
+      await customer.save();
+
+      return res.status(200).json({
+        message: "Scheduled order created successfully",
+        data: newOrder,
+      });
+    }
+
+    if (
+      paymentMode === "Online-payment" &&
+      cartDeliveryOption === "Scheduled" &&
+      (cartDeliveryMode === "Pick and Drop" ||
+        cartDeliveryMode === "Custom Order")
+    ) {
+      newOrder = await scheduledPickAndCustom.create({
+        customerId: cartFound.customerId,
+        items: cartFound.items,
+        orderDetail: cartFound.cartDetail,
+        billDetail: orderBill,
+        totalAmount: orderAmount,
+        status: "Pending",
+        paymentMode: "Online-payment",
+        paymentStatus: "Completed",
+        startDate: cartFound.cartDetail.startDate,
+        endDate: cartFound.cartDetail.endDate,
+        time: cartFound.cartDetail.time,
+      });
 
       // Clear the cart
       await PickAndCustomCart.deleteOne({ customerId: customer._id });

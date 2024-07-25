@@ -291,6 +291,7 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
   merchantFound,
   deliveryMode,
   pickUpAddressType,
+  pickUpAddressOtherAddressId,
   deliveryAddressType,
   newPickupAddress,
   newDeliveryAddress,
@@ -375,7 +376,7 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
     } else {
       const address = getAddressDetails(
         pickUpAddressType,
-        customerAddressOtherAddressId
+        pickUpAddressOtherAddressId
       );
       if (!address) throw new Error("Pickup address not found");
       pickupLocation = address.coordinates;

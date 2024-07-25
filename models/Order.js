@@ -134,7 +134,7 @@ const billSchema = mongoose.Schema(
     },
     deliveryCharge: {
       type: Number,
-      required: true,
+      default: 0,
     },
     taxAmount: {
       type: Number,
