@@ -11,7 +11,10 @@ const {
 } = require("../../../socket/socket");
 const turf = require("@turf/turf");
 const appError = require("../../../utils/appError");
-const { getDistanceFromPickupToDelivery } = require("../../../utils/customerAppHelpers");
+const {
+  getDistanceFromPickupToDelivery,
+} = require("../../../utils/customerAppHelpers");
+const AgentNotificationLogs = require("../../../models/AgentNotificationLog");
 
 const getTaskFilterController = async (req, res, next) => {
   try {
@@ -27,7 +30,7 @@ const getTaskFilterController = async (req, res, next) => {
     }
 
     // Populate the agentId and orderId fields
-    taskQuery = taskQuery.populate('agentId').populate('orderId');
+    taskQuery = taskQuery.populate("agentId").populate("orderId");
 
     const task = await taskQuery;
 
@@ -40,18 +43,17 @@ const getTaskFilterController = async (req, res, next) => {
   }
 };
 
-
 const getAgentByStatusController = async (req, res, next) => {
   try {
     const { filter } = req.query;
 
     let agent;
     if (filter === "Free") {
-      agent = await Agent.find({ status: "Free" });
+      agent = await Agent.find({ status: "Free", isApproved: "Approved" });
     } else if (filter === "Busy") {
-      agent = await Agent.find({ status: "Busy" });
+      agent = await Agent.find({ status: "Busy", isApproved: "Approved" });
     } else {
-      agent = await Agent.find({ status: "Inactive" });
+      agent = await Agent.find({ status: "Inactive", isApproved: "Approved" });
     }
 
     res.status(201).json({
@@ -76,15 +78,37 @@ const assignAgentToTaskController = async (req, res, next) => {
     const data = {
       socket: {
         orderId: order.id,
-        merchantName: merchant.merchantDetail.merchantName,
-        pickAddress: merchant.merchantDetail.displayAddress,
-        customerName: customer.fullName,
+        merchantName: order.orderDetail.pickupAddress.fullName,
+        pickAddress: order.orderDetail.pickupAddress,
+        customerName: deliveryAddress.fullName,
         customerAddress: deliveryAddress,
       },
       fcm: `New order for merchant with orderId ${task.orderId}`,
     };
     sendNotification(agentId, "newOrder", data);
-
+    const pickupDetail = {
+      name: order.orderDetail.pickupAddress.fullName,
+      address: order.orderDetail.pickupAddress,
+    }
+    const deliveryDetail = {
+      name: deliveryAddress.fullName,
+      address: deliveryAddress,
+    }
+    const agentNotification = await AgentNotificationLogs.findOne({ orderId: order.id, agentId: agentId });
+    if (agentNotification) {
+      res.status(200).json({
+        message: "Notification already send to the agent",
+      });
+    } else {
+      await AgentNotificationLogs.create({
+        orderId: order.id,
+        agentId: agentId,
+        pickupDetail,
+        deliveryDetail,
+        orderType: order.orderDetail.deliveryMode,
+      });
+    }
+   
     res.status(200).json({
       message: "Notification send to the agent",
     });
@@ -106,49 +130,58 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
         },
       },
     });
-    console.log(task)
-    let geofence
-    const agents = await Agent.find({});
-    
-    if(task.orderId.orderDetail.deliveryMode === "Custom Order"){
-      const deliveryLocation = task.orderId.orderDetail.pickupLocation
-      const responseData = await Promise.all(agents.map(async (agent) => {
-        console.log("agent", agent.location)
-        const { distanceInKM } = await getDistanceFromPickupToDelivery(agent.location, deliveryLocation);
-        return {
-          _id: agent._id,
-          name: agent.fullName,
-          workStructure: agent.workStructure.tag,
-          status: agent.status,
-          distance: distanceInKM, // distance in kilometers, rounded to 2 decimal places
-        };
-      }));
+    console.log(task);
+    let geofence;
+    const agents = await Agent.find({ isApproved: "Approved" });
+
+    if (task.orderId.orderDetail.deliveryMode === "Custom Order") {
+      const deliveryLocation = task.orderId.orderDetail.pickupLocation;
+      const responseData = await Promise.all(
+        agents.map(async (agent) => {
+          console.log("agent", agent.location);
+          const { distanceInKM } = await getDistanceFromPickupToDelivery(
+            agent.location,
+            deliveryLocation
+          );
+          return {
+            _id: agent._id,
+            name: agent.fullName,
+            workStructure: agent.workStructure.tag,
+            status: agent.status,
+            distance: distanceInKM, // distance in kilometers, rounded to 2 decimal places
+          };
+        })
+      );
 
       res.status(200).json({
         success: true,
         data: responseData,
       });
-
     }
-    
-    if(task.orderId.orderDetail.deliveryMode === "Pick and Drop"){
-      const deliveryLocation = task.orderId.orderDetail.pickupLocation
-      const responseData = await Promise.all(agents.map(async (agent) => {
-        const { distanceInKM } = await getDistanceFromPickupToDelivery(agent.location, deliveryLocation);
-        return {
-          _id: agent._id,
-          name: agent.fullName,
-          workStructure: agent.workStructure.tag,
-          status: agent.status,
-          distance: distanceInKM, // distance in kilometers, rounded to 2 decimal places
-        };
-      }));
+
+    if (task.orderId.orderDetail.deliveryMode === "Pick and Drop") {
+      const deliveryLocation = task.orderId.orderDetail.pickupLocation;
+      const responseData = await Promise.all(
+        agents.map(async (agent) => {
+          const { distanceInKM } = await getDistanceFromPickupToDelivery(
+            agent.location,
+            deliveryLocation
+          );
+          return {
+            _id: agent._id,
+            name: agent.fullName,
+            workStructure: agent.workStructure.tag,
+            status: agent.status,
+            distance: distanceInKM, // distance in kilometers, rounded to 2 decimal places
+          };
+        })
+      );
 
       res.status(200).json({
         success: true,
         data: responseData,
       });
-    } 
+    }
     const merchantLocation = task.orderId.merchantId.merchantDetail.location;
     geofence = task.orderId.merchantId.merchantDetail.geofenceId;
     const coordinates = geofence.coordinates;
@@ -158,41 +191,50 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
     }
 
     const geofencePolygon = turf.polygon([coordinates]);
-    
 
     if (geofenceStatus) {
       const agentsWithinGeofence = agents.filter((agent) => {
         const agentPoint = turf.point(agent.location);
         return turf.booleanPointInPolygon(agentPoint, geofencePolygon);
       });
-    
-      const responseData = await Promise.all(agentsWithinGeofence.map(async (agent) => {
-        const { distanceInKM } = await getDistanceFromPickupToDelivery(agent.location, merchantLocation);
-        return {
-          _id: agent._id,
-          name: agent.fullName,
-          workStructure: agent.workStructure.tag,
-          status: agent.status,
-          distance: distanceInKM, // distance in kilometers, rounded to 2 decimal places
-        };
-      }));
-      console.log(responseData)
+
+      const responseData = await Promise.all(
+        agentsWithinGeofence.map(async (agent) => {
+          const { distanceInKM } = await getDistanceFromPickupToDelivery(
+            agent.location,
+            merchantLocation
+          );
+          return {
+            _id: agent._id,
+            name: agent.fullName,
+            workStructure: agent.workStructure.tag,
+            status: agent.status,
+            distance: distanceInKM, // distance in kilometers, rounded to 2 decimal places
+          };
+        })
+      );
+      console.log(responseData);
       // Return the found agents
       res.status(200).json({
         success: true,
         data: responseData,
       });
     } else {
-      const responseData = await Promise.all(agents.map(async (agent) => {
-        const { distanceInKM } = await getDistanceFromPickupToDelivery(agent.location, merchantLocation);
-        return {
-          _id: agent._id,
-          name: agent.fullName,
-          workStructure: agent.workStructure.tag,
-          status: agent.status,
-          distance: distanceInKM, // distance in kilometers, rounded to 2 decimal places
-        };
-      }));
+      const responseData = await Promise.all(
+        agents.map(async (agent) => {
+          const { distanceInKM } = await getDistanceFromPickupToDelivery(
+            agent.location,
+            merchantLocation
+          );
+          return {
+            _id: agent._id,
+            name: agent.fullName,
+            workStructure: agent.workStructure.tag,
+            status: agent.status,
+            distance: distanceInKM, // distance in kilometers, rounded to 2 decimal places
+          };
+        })
+      );
 
       res.status(200).json({
         success: true,
@@ -207,8 +249,8 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
 const getOrderByOrderIdController = async (req, res, next) => {
   try {
     const { orderId } = req.query;
-    const order = await Task.find({orderId});
-    console.log(order)
+    const order = await Task.find({ orderId });
+    console.log(order);
     res.status(200).json({
       success: true,
       data: order,
@@ -226,7 +268,8 @@ const getAgentByNameController = async (req, res, next) => {
     }
 
     const agents = await Agent.find({
-      fullName: new RegExp(fullName, "i"), // Case-insensitive search
+      fullName: new RegExp(fullName, "i"),
+      isApproved: "Approved", // Case-insensitive search
     });
 
     if (agents.length === 0) {
@@ -239,9 +282,7 @@ const getAgentByNameController = async (req, res, next) => {
   }
 };
 
-const getSingleTaskController = async(req,res,next)=>{
-  
-}
+const getSingleTaskController = async (req, res, next) => {};
 
 module.exports = {
   getTaskFilterController,

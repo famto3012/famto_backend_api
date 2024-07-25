@@ -332,6 +332,7 @@ const getAllAgentsController = async (req, res, next) => {
         geofence: agent?.geofenceId?.name || "N/A",
         status: agent.status === "Inactive" ? false : true,
         manager: agent?.workStructure?.managerId?.name || "N/A",
+        location: agent.location
       };
     });
 

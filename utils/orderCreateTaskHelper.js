@@ -15,6 +15,7 @@ const {
 } = require("../socket/socket");
 const BusinessCategory = require("../models/BusinessCategory");
 const FcmToken = require("../models/fcmToken");
+const AgentNotificationLogs = require("../models/AgentNotificationLog");
 
 const orderCreateTaskHelper = async (orderId) => {
   try {
@@ -93,14 +94,36 @@ const notifyAgents = async (order, priorityType, io) => {
       const data = {
         socket: {
           orderId: order.id,
-          merchantName: merchant.merchantDetail.merchantName,
-          pickAddress: merchant.merchantDetail.displayAddress,
-          customerName: customer.fullName,
+          merchantName: order.orderDetail.pickupAddress.fullName,
+          pickAddress: order.orderDetail.pickupAddress,
+          customerName: deliveryAddress.fullName,
           customerAddress: deliveryAddress,
         },
         fcm: `New order for merchant with orderId ${order.id}`,
       };
       sendNotification(agent.id, "newOrder", data);
+      const agentNotification = await AgentNotificationLogs.findOne({ orderId: order.id, agentId: agent.id });
+      const pickupDetail = {
+        name: order.orderDetail.pickupAddress.fullName,
+        address: order.orderDetail.pickupAddress,
+      }
+      const deliveryDetail = {
+        name: deliveryAddress.fullName,
+        address: deliveryAddress,
+      }
+    if (agentNotification) {
+      res.status(200).json({
+        message: "Notification already send to the agent",
+      });
+    } else {
+      await AgentNotificationLogs.create({
+        orderId: order.id,
+        agentId: agent.id,
+        pickupDetail,
+        deliveryDetail,
+        orderType: order.orderDetail.deliveryMode,
+      });
+    }
     }
   } catch (err) {
     appError(err.message);
@@ -137,14 +160,36 @@ const notifyNearestAgents = async (order, priorityType, maxRadius, io) => {
       const data = {
         socket: {
           orderId: order.id,
-          merchantName: merchant.merchantDetail.merchantName,
-          pickAddress: merchant.merchantDetail.displayAddress,
-          customerName: customer.fullName,
+          merchantName: order.orderDetail.pickupAddress.fullName,
+          pickAddress: order.orderDetail.pickupAddress,
+          customerName: deliveryAddress.fullName,
           customerAddress: deliveryAddress,
         },
         fcm: `New order for merchant with orderId ${order.id}`,
       };
       sendNotification(agent.id, "newOrder", data);
+      const agentNotification = await AgentNotificationLogs.findOne({ orderId: order.id, agentId: agent.id });
+      const pickupDetail = {
+        name: order.orderDetail.pickupAddress.fullName,
+        address: order.orderDetail.pickupAddress,
+      }
+      const deliveryDetail = {
+        name: deliveryAddress.fullName,
+        address: deliveryAddress,
+      }
+    if (agentNotification) {
+      res.status(200).json({
+        message: "Notification already send to the agent",
+      });
+    } else {
+      await AgentNotificationLogs.create({
+        orderId: order.id,
+        agentId: agent.id,
+        pickupDetail,
+        deliveryDetail,
+        orderType: order.orderDetail.deliveryMode,
+      });
+    }
     }
   } catch (err) {
     appError(err.message);
@@ -179,14 +224,16 @@ const fetchMonthlySalaryAgents = async (merchantId) => {
         agents = await Agent.find({
           status: "Free",
           "workStructure.tag": "Fish & Meat",
+          isApproved: "Approved"
         });
       } else {
-        agents = await Agent.find({ status: "Free" });
+        agents = await Agent.find({ status: "Free", isApproved: "Approved" });
       }
     } else {
       agents = await Agent.find({
         status: "Free",
         "workStructure.tag": { $ne: "Fish & Meat" },
+        isApproved: "Approved"
       });
     }
 
@@ -240,14 +287,16 @@ const fetchNearestMonthlySalaryAgents = async (radius, merchantId) => {
         agents = await Agent.find({
           status: "Free",
           "workStructure.tag": "Fish & Meat",
+          isApproved: "Approved"
         });
       } else {
-        agents = await Agent.find({ status: "Free" });
+        agents = await Agent.find({ status: "Free", isApproved: "Approved" });
       }
     } else {
       agents = await Agent.find({
         status: "Free",
         "workStructure.tag": { $ne: "Fish & Meat" },
+        isApproved: "Approved"
       });
     }
     console.log("Agents before distance filter", agents);
@@ -305,14 +354,16 @@ const fetchAgents = async (merchantId) => {
       agents = await Agent.find({
         status: "Free",
         "workStructure.tag": "Fish & Meat",
+        isApproved: "Approved",
       });
     } else {
-      agents = await Agent.find({ status: "Free" });
+      agents = await Agent.find({ status: "Free", isApproved: "Approved" });
     }
   } else {
     agents = await Agent.find({
       status: "Free",
       "workStructure.tag": { $ne: "Fish & Meat" },
+      isApproved: "Approved",
     });
   }
   return agents;
@@ -336,14 +387,16 @@ const fetchNearestAgents = async (merchantId) => {
       agents = await Agent.find({
         status: "Free",
         "workStructure.tag": "Fish & Meat",
+        isApproved: "Approved",
       });
     } else {
-      agents = await Agent.find({ status: "Free" });
+      agents = await Agent.find({ status: "Free", isApproved: "Approved" });
     }
   } else {
     agents = await Agent.find({
       status: "Free",
       "workStructure.tag": { $ne: "Fish & Meat" },
+      isApproved: "Approved"
     });
   }
 

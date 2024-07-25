@@ -58,7 +58,6 @@ const orderDetailSchema = mongoose.Schema(
       phoneNumber: String,
       flat: String,
       area: String,
-      phoneNumber: String,
       landmark: { type: String, default: null },
     },
     deliveryLocation: {

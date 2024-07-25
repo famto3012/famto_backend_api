@@ -129,11 +129,11 @@ app.use("/api/v1/customers/subscription-payment", subscriptionLogRoute);
 
 // Schedule the task to run daily at midnight for deleting expired plans of Merchants and customer
 
-cron.schedule("31 15 * * *", async () => {
+cron.schedule("44 13 * * *", async () => {
   console.log("Running scheduled task to delete expired plans");
   await deleteExpiredSponsorshipPlans();
   await deleteExpiredSubscriptionPlans();
-  const orderId = "6695108671cd7afba4cbfa56";
+  const orderId = "669deb4d400c50b3bf43bcd8";
   await orderCreateTaskHelper(orderId);
 });
 
