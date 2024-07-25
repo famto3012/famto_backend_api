@@ -1,0 +1,38 @@
+const mongoose = require("mongoose");
+
+const MerchantNotificationLogSchema = new mongoose.Schema(
+  {
+    orderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Order",
+      default: null,
+    },
+    merchantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Merchant",
+      required: true,
+    },
+    imageUrl: {
+      type: String,
+      default: null,
+    },
+    title: {
+      type: String,
+      required: true,
+    },
+    description: {
+      type: String,
+      required: true,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const MerchantNotificationLogs = mongoose.model(
+  "MerchantNotificationLogs",
+  MerchantNotificationLogSchema
+);
+
+module.exports = MerchantNotificationLogs;
