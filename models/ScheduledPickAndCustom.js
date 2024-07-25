@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const scheduledPickAndDropItemSchema = mongoose.Schema(
+const scheduledPickAndCustomItemSchema = mongoose.Schema(
   {
     itemType: {
       type: String,
@@ -20,22 +20,34 @@ const scheduledPickAndDropItemSchema = mongoose.Schema(
     weight: {
       type: Number,
     },
+    numOfUnits: {
+      type: Number,
+      default: null,
+    },
+    quantity: {
+      type: Number,
+      default: null,
+    },
+    itemImageURL: {
+      type: String,
+      default: null,
+    },
   },
   { _id: false }
 );
 
-const scheduledPickAndDropDetailSchema = mongoose.Schema(
+const scheduledPickAndCustomDetailSchema = mongoose.Schema(
   {
     pickupLocation: {
       type: [Number],
-      required: true,
+      default: null,
     },
     pickupAddress: {
       fullName: String,
       phoneNumber: String,
       flat: String,
       area: String,
-      landmark: { type: String, default: null },
+      landmark: String,
     },
     deliveryLocation: {
       type: [Number],
@@ -46,11 +58,11 @@ const scheduledPickAndDropDetailSchema = mongoose.Schema(
       phoneNumber: String,
       flat: String,
       area: String,
-      landmark: { type: String, default: null },
+      landmark: String,
     },
     deliveryMode: {
       type: String,
-      enum: ["Delivery", "Take-away", "Pick and Drop", "Custom Order"],
+      enum: ["Pick and Drop", "Custom Order"],
       required: true,
     },
     deliveryOption: {
@@ -115,15 +127,15 @@ const billSchema = mongoose.Schema(
   { _id: false }
 );
 
-const scheduledPickAndDropSchema = mongoose.Schema(
+const scheduledPickAndCustomSchema = mongoose.Schema(
   {
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Customer",
       required: true,
     },
-    items: [scheduledPickAndDropItemSchema],
-    orderDetail: scheduledPickAndDropDetailSchema,
+    items: [scheduledPickAndCustomItemSchema],
+    orderDetail: scheduledPickAndCustomDetailSchema,
     billDetail: billSchema,
     totalAmount: {
       type: Number,
@@ -167,8 +179,8 @@ const scheduledPickAndDropSchema = mongoose.Schema(
   }
 );
 
-const scheduledPickAndDrop = mongoose.model(
-  "scheduledPickAndDrop",
-  scheduledPickAndDropSchema
+const scheduledPickAndCustom = mongoose.model(
+  "scheduledPickAndCustom",
+  scheduledPickAndCustomSchema
 );
-module.exports = scheduledPickAndDrop;
+module.exports = scheduledPickAndCustom;

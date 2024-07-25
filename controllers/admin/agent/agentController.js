@@ -489,12 +489,27 @@ const filterAgentsController = async (req, res, next) => {
 
     const searchResults = await Agent.find(
       filterCriteria,
-      "_id fullName email phoneNumber manager geofence status isApproved"
-    );
+      "_id fullName email phoneNumber workStructure geofenceId status isApproved"
+    )
+      .populate("workStructure.managerId", "name")
+      .populate("geofenceId", "name");
+
+    const formattedResponse = searchResults.map((agent) => {
+      return {
+        _id: agent._id,
+        fullName: agent.fullName,
+        email: agent.email,
+        phoneNumber: agent.phoneNumber,
+        manager: agent?.workStructure?.managerId?.name || "N/A",
+        geofence: agent?.geofenceId?.name || "N/A",
+        status: agent.status === "Inactive" ? false : true,
+        isApproved: agent.isApproved,
+      };
+    });
 
     res.status(200).json({
       message: "Getting agents",
-      data: searchResults,
+      data: formattedResponse,
     });
   } catch (err) {
     next(appError(err.message));

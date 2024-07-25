@@ -39,6 +39,7 @@ const Product = require("../../../models/Product");
 const MerchantDiscount = require("../../../models/MerchantDiscount");
 const Agent = require("../../../models/Agent");
 const PickAndCustomCart = require("../../../models/PickAndCustomCart");
+const scheduledPickAndCustom = require("../../../models/ScheduledPickAndCustom");
 
 // -------------------------------------------------
 // For Merchant
@@ -599,7 +600,6 @@ const createInvoiceController = async (req, res, next) => {
     );
 
     const customerSurge = await CustomerSurge.findOne({
-      ruleName: businessCategory.title,
       geofenceId: customer.customerDetails.geofenceId,
       status: true,
     });
@@ -1339,7 +1339,6 @@ const getOrderDetailByAdminController = async (req, res, next) => {
   }
 };
 
-// TODO: Work out the logics of order creation by admin
 const createInvoiceByAdminController = async (req, res, next) => {
   const errors = validationResult(req);
 
@@ -1397,16 +1396,14 @@ const createInvoiceByAdminController = async (req, res, next) => {
       if (!merchantFound) return next(appError("Merchant not found", 404));
     }
 
-    const customerAddress = newCustomerAddress || newPickupAddress;
+    const customerAddress =
+      newCustomerAddress || newPickupAddress || newDeliveryAddress;
 
-    if (newCustomer) {
+    if (newCustomer && deliveryMode !== "Custom Order") {
       if (!customerAddress) {
         if (deliveryMode === "Home Delivery") {
           formattedErrors.customerAddress = "Customer address is required";
-        } else if (
-          deliveryMode === "Pick and Drop" ||
-          deliveryMode === "Custom Order"
-        ) {
+        } else if (deliveryMode === "Pick and Drop") {
           if (!newPickupAddress) {
             formattedErrors.pickupAddress = "Pickup address is required";
           }
@@ -1541,7 +1538,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
       );
 
       const customerSurge = await CustomerSurge.findOne({
-        ruleName: businessCategory.title,
         geofenceId: customer.customerDetails.geofenceId,
         status: true,
       });
@@ -1636,23 +1632,25 @@ const createInvoiceByAdminController = async (req, res, next) => {
       let discountedGrandTotal;
 
       if (deliveryMode === "Take Away") {
-        subTotal = calculateSubTotal({
-          itemTotal,
-          deliveryCharge: 0,
-          addedTip,
-          totalDiscountAmount,
-        });
+        if (deliveryOption === "On-demand") {
+          subTotal = calculateSubTotal({
+            itemTotal,
+            deliveryCharge: 0,
+            addedTip,
+          });
 
-        grandTotal = calculateGrandTotal({
-          itemTotal,
-          deliveryCharge: 0,
-          addedTip,
-          taxAmount: 0,
-        });
+          grandTotal = subTotal;
+        } else if (deliveryOption === "Scheduled") {
+          subTotal = calculateSubTotal({
+            itemTotal,
+            deliveryCharge: 0,
+            addedTip,
+          });
 
-        discountedGrandTotal = totalDiscountAmount
-          ? (grandTotal - totalDiscountAmount).toFixed(2)
-          : null;
+          subTotal *= numOfDays;
+
+          grandTotal = subTotal;
+        }
       } else if (deliveryMode === "Home Delivery") {
         subTotal = calculateSubTotal({
           itemTotal,
@@ -1677,7 +1675,10 @@ const createInvoiceByAdminController = async (req, res, next) => {
 
       let updatedBill = {
         discountedDeliveryCharge: null,
-        discountedAmount: parseFloat(totalDiscountAmount) || null,
+        discountedAmount:
+          deliveryMode !== "Take Away"
+            ? parseFloat(totalDiscountAmount) || null
+            : null,
         originalGrandTotal: Math.round(grandTotal),
         discountedGrandTotal:
           Math.round(discountedGrandTotal) || parseFloat(grandTotal),
@@ -1688,8 +1689,8 @@ const createInvoiceByAdminController = async (req, res, next) => {
       };
 
       if (deliveryMode === "Take Away") {
-        updatedBill.taxAmount = 0;
-        updatedBill.originalDeliveryCharge = 0;
+        updatedBill.taxAmount = null;
+        updatedBill.originalDeliveryCharge = null;
       } else if (deliveryMode === "Home Delivery") {
         updatedBill.taxAmount = taxAmount;
         updatedBill.deliveryChargePerDay = parseFloat(oneTimeDeliveryCharge);
@@ -1757,7 +1758,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
       }
 
       const customerSurge = await CustomerSurge.find({
-        orderType: "Pick and Drop",
         geofenceId: customer.customerDetails.geofenceId,
         status: true,
       });
@@ -1800,16 +1800,23 @@ const createInvoiceByAdminController = async (req, res, next) => {
         vehiclePrice.fareAfterBaseWeight
       );
 
-      const deliveryChargePerDay =
-        parseFloat(deliveryCharges) + parseFloat(additionalWeightCharge);
+      const deliveryChargePerDay = (
+        parseFloat(deliveryCharges) + parseFloat(additionalWeightCharge)
+      ).toFixed(2);
+
+      let originalDeliveryCharge = deliveryChargePerDay;
+      if (deliveryOption === "Scheduled") {
+        originalDeliveryCharge = deliveryChargePerDay * numOfDays;
+      }
 
       const grandTotal =
-        parseFloat(deliveryChargePerDay) +
+        parseFloat(originalDeliveryCharge) +
         parseFloat(addedTip || 0) +
         parseFloat(surgeCharges || 0);
 
       let updatedBill = {
         deliveryChargePerDay,
+        originalDeliveryCharge,
         originalGrandTotal: Math.round(grandTotal),
         addedTip: addedTip || null,
         subTotal: Math.round(grandTotal), // Same as grand total
@@ -1841,6 +1848,10 @@ const createInvoiceByAdminController = async (req, res, next) => {
         data: responseData,
       });
     } else if (deliveryMode === "Custom Order") {
+      // TODO: Generate logic for adding images
+      // if (req.files) {
+      // }
+
       const customerPricing = await CustomerPricing.findOne({
         orderType: "Custom Order",
         geofenceId: customer.customerDetails.geofenceId,
@@ -1848,7 +1859,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
       });
 
       const customerSurge = await CustomerSurge.find({
-        orderType: "Custom Order",
         geofenceId: customer.customerDetails.geofenceId,
         status: true,
       });
@@ -1857,7 +1867,8 @@ const createInvoiceByAdminController = async (req, res, next) => {
         return next(appError("Custom order pricing not found", 404));
       }
 
-      let deliveryChargePerDay;
+      let deliveryChargePerDay = null;
+      let originalDeliveryCharge = null;
       let surgeCharges;
 
       if (distanceInKM > 0) {
@@ -1867,6 +1878,12 @@ const createInvoiceByAdminController = async (req, res, next) => {
           customerPricing.baseDistance,
           customerPricing.fareAfterBaseDistance
         );
+
+        if (deliveryOption === "Scheduled") {
+          originalDeliveryCharge = (deliveryChargePerDay * numOfDays).toFixed(
+            2
+          );
+        }
 
         if (customerSurge) {
           let surgeBaseFare = customerSurge.baseFare;
@@ -1883,12 +1900,13 @@ const createInvoiceByAdminController = async (req, res, next) => {
       }
 
       const grandTotal =
-        parseFloat(deliveryChargePerDay) +
+        parseFloat(originalDeliveryCharge || deliveryChargePerDay || 0) +
         parseFloat(addedTip || 0) +
         parseFloat(surgeCharges || 0);
 
       let updatedBill = {
         deliveryChargePerDay,
+        originalDeliveryCharge: originalDeliveryCharge || deliveryChargePerDay,
         originalGrandTotal: Math.round(grandTotal),
         addedTip: addedTip || null,
         subTotal: Math.round(grandTotal), // Same as grand total
@@ -1910,6 +1928,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
 
       const responseData = {
         cartId: customerCart._id,
+        deliveryMode: customerCart.cartDetail.deliveryMode,
         billDetail: customerCart.billDetail,
         items: customerCart.items,
       };
@@ -1919,6 +1938,123 @@ const createInvoiceByAdminController = async (req, res, next) => {
         data: responseData,
       });
     }
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const createOrderByAdminController = async (req, res, next) => {
+  try {
+    const { paymentMode, deliveryMode, cartId } = req.body;
+
+    let cartFound;
+
+    if (deliveryMode === "Pick and Drop" || deliveryMode === "Custom Order") {
+      cartFound = await PickAndCustomCart.findById(cartId);
+    } else if (
+      deliveryMode === "Take Away" ||
+      deliveryMode === "Home Delivery"
+    ) {
+      cartFound = await CustomerCart.findById(cartId);
+    }
+
+    if (!cartFound) {
+      return next(appError("Cart not found", 404));
+    }
+
+    const customer = await Customer.findById(cartFound.customerId);
+
+    if (!customer) {
+      return next(appError("Customer not found", 404));
+    }
+
+    const cartDeliveryMode = cartFound.cartDetail.deliveryMode;
+    const cartDeliveryOption = cartFound.cartDetail.deliveryOption;
+
+    const orderAmount =
+      cartFound.billDetail.discountedGrandTotal ||
+      cartFound.billDetail.originalGrandTotal;
+
+    let orderBill = {
+      deliveryChargePerDay: cartFound.billDetail.deliveryChargePerDay,
+      deliveryCharge:
+        cartFound.billDetail.discountedDeliveryCharge ||
+        cartFound.billDetail.originalDeliveryCharge,
+      discountedAmount: cartFound.billDetail.discountedAmount,
+      grandTotal:
+        cartFound.billDetail.discountedGrandTotal ||
+        cartFound.billDetail.originalGrandTotal,
+      addedTip: cartFound.billDetail.addedTip,
+    };
+
+    let customerTransation = {
+      madeOn: new Date(),
+      transactionType: "Bill",
+      transactionAmount: orderAmount,
+      type: "Debit",
+    };
+
+    let newOrder;
+    if (paymentMode === "Online-payment") {
+      if (
+        (cartDeliveryMode === "Pick and Drop" ||
+          cartDeliveryMode === "Custom Order") &&
+        cartDeliveryOption === "Scheduled"
+      ) {
+        newOrder = await scheduledPickAndCustom.create({
+          customerId: cartFound.customerId,
+          items: cartFound.items,
+          orderDetail: cartFound.cartDetail,
+          billDetail: orderBill,
+          totalAmount: orderAmount,
+          status: "Pending",
+          paymentMode,
+          paymentStatus: "Completed",
+          startDate: cartFound.cartDetail.startDate,
+          endDate: cartFound.cartDetail.endDate,
+          time: cartFound.cartDetail.time,
+        });
+
+        // Clear the cart
+        await PickAndCustomCart.deleteOne({ customerId: customer._id });
+        customer.transactionDetail.push(customerTransation);
+        await customer.save();
+
+        res.status(200).json({
+          message: "Scheduled order created successfully",
+          data: newOrder,
+        });
+        return;
+      } else if (
+        (cartDeliveryMode === "Pick and Drop" ||
+          cartDeliveryMode === "Custom Order") &&
+        cartDeliveryOption === "On-demand"
+      ) {
+        newOrder = await Order.create({
+          customerId: cartFound.customerId,
+          items: cartFound.items,
+          orderDetail: cartFound.cartDetail,
+          billDetail: orderBill,
+          totalAmount: orderAmount,
+          status: "Pending",
+          paymentMode: "Online-payment",
+          paymentStatus: "Completed",
+        });
+      }
+
+      // Clear the cart
+      await PickAndCustomCart.deleteOne({ customerId: customer._id });
+      customer.transactionDetail.push(customerTransation);
+      await customer.save();
+
+      res.status(200).json({
+        message: "Order created successfully",
+        data: newOrder,
+      });
+      return;
+    }
+
+    res.status(200).json({ cartFound });
   } catch (err) {
     next(appError(err.message));
   }
@@ -1943,4 +2079,5 @@ module.exports = {
   filterOrdersByAdminController,
   getOrderDetailByAdminController,
   createInvoiceByAdminController,
+  createOrderByAdminController,
 };
