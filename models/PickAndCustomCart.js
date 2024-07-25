@@ -92,11 +92,11 @@ const cartDetailSchema = mongoose.Schema(
     },
     distance: {
       type: Number,
-      required: true,
+      default: 0,
     },
     duration: {
       type: Number,
-      required: true,
+      default: 0,
     },
     startDate: {
       type: Date,

@@ -4,17 +4,15 @@ const PickAndCustomCart = require("../../models/PickAndCustomCart");
 const appError = require("../../utils/appError");
 const {
   getDistanceFromPickupToDelivery,
-  calculateDeliveryCharges,
+  getDeliveryAndSurgeCharge,
 } = require("../../utils/customerAppHelpers");
 const {
   uploadToFirebase,
   deleteFromFirebase,
 } = require("../../utils/imageOperation");
-const CustomerPricing = require("../../models/CustomerPricing");
 const PromoCode = require("../../models/PromoCode");
 const Order = require("../../models/Order");
 const LoyaltyPoint = require("../../models/LoyaltyPoint");
-const CustomerSurge = require("../../models/CustomerSurge");
 
 const addShopController = async (req, res, next) => {
   try {
@@ -28,39 +26,51 @@ const addShopController = async (req, res, next) => {
     let updatedCartDetail;
     let pickupLocation;
     let deliveryLocation;
+    let distance;
+    let duration;
 
-    // if (buyFromAnyWhere) {
-    //   pickupLocation = null;
-    //   deliveryLocation = customer.customerDetails.location[0];
+    if (buyFromAnyWhere) {
+      pickupLocation = null;
+      deliveryLocation = customer.customerDetails.location;
 
-    //   updatedCartDetail = {
-    //     pickupLocation,
-    //     deliveryLocation,
-    //     deliveryMode: "Custom Order",
-    //     deliveryOption: "On-demand",
-    //   };
-    // } else {
-    pickupLocation = [latitude, longitude];
-    deliveryLocation = customer.customerDetails.location[0];
+      distance = 0;
+      duration = 0;
 
-    const { distanceInKM, durationInMinutes } =
-      await getDistanceFromPickupToDelivery(pickupLocation, deliveryLocation);
+      updatedCartDetail = {
+        pickupLocation,
+        deliveryLocation,
+        deliveryMode: "Custom Order",
+        deliveryOption: "On-demand",
+        distance,
+        duration,
+      };
 
-    cartFound = await PickAndCustomCart.findOne({ customerId });
+      console.log("here");
+    } else {
+      pickupLocation = [latitude, longitude];
+      deliveryLocation = customer.customerDetails.location;
 
-    updatedCartDetail = {
-      pickupLocation,
-      pickupAddress: {
-        fullName: shopName,
-        area: place,
-      },
-      deliveryLocation,
-      deliveryMode: "Custom Order",
-      deliveryOption: "On-demand",
-      distance: distanceInKM,
-      duration: durationInMinutes,
-    };
-    // }
+      const { distanceInKM, durationInMinutes } =
+        await getDistanceFromPickupToDelivery(pickupLocation, deliveryLocation);
+
+      cartFound = await PickAndCustomCart.findOne({ customerId });
+
+      distance = distanceInKM;
+      duration = durationInMinutes;
+
+      updatedCartDetail = {
+        pickupLocation,
+        pickupAddress: {
+          fullName: shopName,
+          area: place,
+        },
+        deliveryLocation,
+        deliveryMode: "Custom Order",
+        deliveryOption: "On-demand",
+        distance,
+        duration,
+      };
+    }
 
     if (cartFound) {
       await PickAndCustomCart.findByIdAndUpdate(
@@ -82,8 +92,8 @@ const addShopController = async (req, res, next) => {
       data: {
         shopName: shopName || null,
         place: place || null,
-        distance: parseFloat(distanceInKM || null),
-        duaration: durationInMinutes || null,
+        distance: parseFloat(distance) || null,
+        duaration: duration || null,
       },
     });
   } catch (err) {
@@ -296,11 +306,18 @@ const addDeliveryAddressController = async (req, res, next) => {
       }
     }
 
-    const pickupLocation = cartFound.cartDetail.pickupLocation;
-    const deliveryLocation = deliveryCoordinates;
+    let distance,
+      duration = 0;
+    if (cartFound.cartDetail.pickupLocation) {
+      const pickupLocation = cartFound.cartDetail.pickupLocation;
+      const deliveryLocation = deliveryCoordinates;
 
-    const { distanceInKM, durationInMinutes } =
-      await getDistanceFromPickupToDelivery(pickupLocation, deliveryLocation);
+      const { distanceInKM, durationInMinutes } =
+        await getDistanceFromPickupToDelivery(pickupLocation, deliveryLocation);
+
+      distance = parseFloat(distanceInKM);
+      duration = parseInt(durationInMinutes);
+    }
 
     let updatedCartDetail = {
       pickupLocation: cartFound.cartDetail.pickupLocation,
@@ -308,61 +325,25 @@ const addDeliveryAddressController = async (req, res, next) => {
       deliveryAddress: deliveryAddress._doc,
       deliveryLocation: deliveryCoordinates,
       deliveryMode: cartFound.cartDetail.deliveryMode,
-      distance: distanceInKM,
-      duration: durationInMinutes,
+      distance,
+      duration,
       deliveryOption: "On-demand",
     };
 
     cartFound.cartDetail = updatedCartDetail;
 
-    const customerPricing = await CustomerPricing.findOne({
-      ruleName: "Custom Order", // INFO: Chnage rule name according to defined one
-      geofenceId: customer.customerDetails.geofenceId,
-      status: true,
-    });
-
-    if (!customerPricing) {
-      return res.status(404).json({ error: "Customer pricing not found" });
-    }
-
-    let baseFare = customerPricing.baseFare;
-    let baseDistance = customerPricing.baseDistance;
-    let fareAfterBaseDistance = customerPricing.fareAfterBaseDistance;
-
-    const customerSurge = await CustomerSurge.findOne({
-      ruleName: "Custom Order",
-      geofenceId: customer.customerDetails.geofenceId,
-      status: true,
-    });
-
-    let surgeCharges;
-
-    if (customerSurge) {
-      let surgeBaseFare = customerSurge.baseFare;
-      let surgeBaseDistance = customerSurge.baseDistance;
-      let surgeFareAfterBaseDistance = customerSurge.fareAfterBaseDistance;
-
-      surgeCharges = calculateDeliveryCharges(
-        distanceInKM,
-        surgeBaseFare,
-        surgeBaseDistance,
-        surgeFareAfterBaseDistance
-      );
-    }
-
-    const deliveryCharges = calculateDeliveryCharges(
-      distanceInKM,
-      baseFare,
-      baseDistance,
-      fareAfterBaseDistance
+    const { deliveryCharges, surgeCharges } = await getDeliveryAndSurgeCharge(
+      cartFound.customerId,
+      cartFound.cartDetail.deliveryMode,
+      distance
     );
 
     updatedBillDetail = {
-      originalDeliveryCharge: deliveryCharges,
+      originalDeliveryCharge: deliveryCharges || 0,
       deliveryChargePerDay: null,
       discountedDeliveryCharge: null,
       discountedAmount: null,
-      originalGrandTotal: deliveryCharges,
+      originalGrandTotal: deliveryCharges || 0,
       discountedGrandTotal: null,
       itemTotal: null,
       addedTip: null,

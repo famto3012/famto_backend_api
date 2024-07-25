@@ -51,14 +51,14 @@ const orderDetailSchema = mongoose.Schema(
   {
     pickupLocation: {
       type: [Number],
-      required: true,
+      default: null,
     },
     pickupAddress: {
       fullName: String,
       phoneNumber: String,
       flat: String,
       area: String,
-      landmark: { type: String, default: null },
+      landmark: String,
     },
     deliveryLocation: {
       type: [Number],
@@ -69,7 +69,7 @@ const orderDetailSchema = mongoose.Schema(
       phoneNumber: String,
       flat: String,
       area: String,
-      landmark: { type: String, default: null },
+      landmark: String,
     },
     deliveryMode: {
       type: String,
@@ -134,7 +134,7 @@ const billSchema = mongoose.Schema(
     },
     deliveryCharge: {
       type: Number,
-      default: 0,
+      default: 0 || null,
     },
     taxAmount: {
       type: Number,
@@ -218,6 +218,21 @@ const commissionDetailSchema = mongoose.Schema(
   }
 );
 
+const shopUpdatesSchema = mongoose.Schema({
+  location: {
+    type: [Number],
+    required: true,
+  },
+  reason: {
+    type: String,
+    required: true,
+  },
+  description: {
+    type: String,
+    default: null,
+  },
+});
+
 const detailAddedByAgentSchema = mongoose.Schema({
   notes: {
     type: String,
@@ -231,6 +246,7 @@ const detailAddedByAgentSchema = mongoose.Schema({
     type: String,
     default: null,
   },
+  shopUpdates: [shopUpdatesSchema],
 });
 
 const orderSchema = mongoose.Schema(

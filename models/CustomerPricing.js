@@ -1,10 +1,14 @@
 const mongoose = require("mongoose");
 
 const customerPricingSchema = new mongoose.Schema({
-  orderType: {
+  deliveryMode: {
     type: String,
     enum: ["Home Delivery", "Pick and Drop", "Custom Order"],
     required: true,
+  },
+  businessCategoryId: {
+    type: mongoose.Schema.Types.ObjectId,
+    default: null,
   },
   ruleName: {
     type: String,

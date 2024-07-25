@@ -6,6 +6,8 @@ const Merchant = require("../models/Merchant");
 const Order = require("../models/Order");
 const ScheduledOrder = require("../models/ScheduledOrder");
 const ScheduledPickAndCustom = require("../models/ScheduledPickAndCustom");
+const CustomerPricing = require("../models/CustomerPricing");
+const CustomerSurge = require("../models/CustomerSurge");
 
 // Helper function to sort merchants by sponsorship
 const sortMerchantsBySponsorship = (merchants) => {
@@ -187,6 +189,73 @@ const updateOneDayLoyaltyPointEarning = async () => {
   }
 };
 
+const getDeliveryAndSurgeCharge = async (
+  customerId,
+  deliveryMode,
+  distance,
+  businessCategoryId
+) => {
+  const customer = await Customer.findById(customerId);
+
+  if (!customer) {
+    throw new Error("Customer not found", 404);
+  }
+
+  let customerPricing;
+
+  if (deliveryMode === "Home Delivery") {
+    customerPricing = await CustomerPricing.findOne({
+      deliveryMode,
+      businessCategoryId,
+      geofenceId: customer.customerDetails.geofenceId,
+      status: true,
+    });
+  } else {
+    customerPricing = await CustomerPricing.findOne({
+      deliveryMode,
+      geofenceId: customer.customerDetails.geofenceId,
+      status: true,
+    });
+  }
+
+  if (!customerPricing) {
+    throw new Error("Customer pricing not found", 404);
+  }
+
+  let baseFare = customerPricing.baseFare;
+  let baseDistance = customerPricing.baseDistance;
+  let fareAfterBaseDistance = customerPricing.fareAfterBaseDistance;
+
+  const customerSurge = await CustomerSurge.findOne({
+    geofenceId: customer.customerDetails.geofenceId,
+    status: true,
+  });
+
+  let surgeCharges = 0;
+
+  if (customerSurge) {
+    let surgeBaseFare = customerSurge.baseFare;
+    let surgeBaseDistance = customerSurge.baseDistance;
+    let surgeFareAfterBaseDistance = customerSurge.fareAfterBaseDistance;
+
+    surgeCharges = calculateDeliveryCharges(
+      distance,
+      surgeBaseFare,
+      surgeBaseDistance,
+      surgeFareAfterBaseDistance
+    );
+  }
+
+  const deliveryCharges = calculateDeliveryCharges(
+    distance,
+    baseFare,
+    baseDistance,
+    fareAfterBaseDistance
+  );
+
+  return { deliveryCharges, surgeCharges };
+};
+
 module.exports = {
   sortMerchantsBySponsorship,
   getDistanceFromPickupToDelivery,
@@ -195,4 +264,5 @@ module.exports = {
   createOrdersFromScheduled,
   createOrdersFromScheduledPickAndDrop,
   updateOneDayLoyaltyPointEarning,
+  getDeliveryAndSurgeCharge,
 };

@@ -7,18 +7,21 @@ const {
   searchOrderByIdController,
   filterOrdersController,
   getOrderDetailController,
+  createInvoiceController,
+  createOrderController,
+} = require("../../../controllers/admin/order/merchantOrderController");
+const {
   getAllOrdersForAdminController,
   confirmOrderByAdminContrroller,
   rejectOrderByAdminController,
   searchOrderByIdByAdminController,
   filterOrdersByAdminController,
   getOrderDetailByAdminController,
-  createInvoiceController,
-  createOrderController,
   createInvoiceByAdminController,
   createOrderByAdminController,
-} = require("../../../controllers/admin/order/orderController");
+} = require("../../../controllers/admin/order/adminOrderController");
 const isAdmin = require("../../../middlewares/isAdmin");
+const { upload } = require("../../../utils/imageOperation");
 const orderRoute = express.Router();
 
 // -------------------------------------------------
@@ -105,6 +108,7 @@ orderRoute.get(
 
 orderRoute.post(
   "/admin/create-order-invoice",
+  upload.any(),
   isAuthenticated,
   isAdmin,
   createInvoiceByAdminController
