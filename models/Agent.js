@@ -186,7 +186,7 @@ const agentSchema = mongoose.Schema(
     },
     location: {
       type: [Number],
-      required: true,
+      // required: true,
     },
     geofenceId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -198,7 +198,7 @@ const agentSchema = mongoose.Schema(
     },
     agentImageURL: {
       type: String,
-      required: true,
+      // required: true,
     },
     status: {
       type: String,

@@ -34,6 +34,11 @@ const scheduledOrderDetailSchema = mongoose.Schema(
       type: [Number],
       required: true,
     },
+    pickupAddress: {
+      fullName: String,
+      area: String,
+      phoneNumber: String,
+    },
     deliveryLocation: {
       type: [Number],
       required: true,
@@ -53,7 +58,7 @@ const scheduledOrderDetailSchema = mongoose.Schema(
       phoneNumber: String,
       flat: String,
       area: String,
-      landmark: { type: String, default: null },
+      landmark: String,
     },
     instructionToMerchant: {
       type: String,
@@ -84,11 +89,11 @@ const billSchema = mongoose.Schema(
     },
     deliveryCharge: {
       type: Number,
-      required: true,
+      default: 0,
     },
     taxAmount: {
       type: Number,
-      required: true,
+      default: 0,
     },
     discountedAmount: {
       type: Number,

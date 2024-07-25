@@ -60,7 +60,7 @@ const updateLocationController = async (req, res, next) => {
 //Agent register Controller
 const registerAgentController = async (req, res, next) => {
   const { fullName, email, phoneNumber, latitude, longitude } = req.body;
-  const location = [latitude, longitude];
+  // const location = [latitude, longitude];
 
   const errors = validationResult(req);
 
@@ -88,24 +88,24 @@ const registerAgentController = async (req, res, next) => {
       return res.status(409).json({ errors: formattedErrors });
     }
 
-    const geofence = await geoLocation(latitude, longitude, next);
+    // const geofence = await geoLocation(latitude, longitude, next);
 
-    const manager = await getManager(geofence.id);
+    // const manager = await getManager(geofence.id);
 
-    let agentImageURL = "";
+    // let agentImageURL = "";
 
-    if (req.file) {
-      agentImageURL = await uploadToFirebase(req.file, "AgentImages");
-    }
+    // if (req.file) {
+    //   agentImageURL = await uploadToFirebase(req.file, "AgentImages");
+    // }
 
     const newAgent = await Agent.create({
       fullName,
       email,
       phoneNumber,
-      location,
-      geofenceId: geofence._id,
-      agentImageURL,
-      manager,
+      // location,
+      // geofenceId: geofence._id,
+      // agentImageURL,
+      // manager,
     });
 
     if (!newAgent) {
@@ -1439,6 +1439,8 @@ const getAgentEarningsLast7DaysController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
+
+// TODO: make controller for updating shops in custom order
 
 module.exports = {
   updateLocationController,
