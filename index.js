@@ -53,7 +53,7 @@ const {
   updateOneDayLoyaltyPointEarning,
   createOrdersFromScheduledPickAndDrop,
 } = require("./utils/customerAppHelpers");
-const { app, server } = require("./socket/socket.js");
+const { app, server, populateUserSocketMap } = require("./socket/socket.js");
 const ScheduledOrder = require("./models/ScheduledOrder.js");
 const { orderCreateTaskHelper } = require("./utils/orderCreateTaskHelper.js");
 const {
@@ -159,6 +159,7 @@ cron.schedule("* * * * *", async () => {
   console.log("Running scheduled order job...");
   const now = new Date();
   console.log("Current Date and Time:", now);
+  populateUserSocketMap();
 
   // Universal order
   const universalScheduledOrders = await ScheduledOrder.find({

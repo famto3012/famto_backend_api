@@ -5,6 +5,15 @@ const {
   uploadToFirebase,
   deleteFromFirebase,
 } = require("../../../../utils/imageOperation");
+const Customer = require("../../../../models/Customer");
+const Merchant = require("../../../../models/Merchant");
+const Agent = require("../../../../models/Agent");
+const { sendNotification } = require("../../../../socket/socket");
+const AgentNotificationLogs = require("../../../../models/AgentNotificationLog");
+const AgentAnnouncementLogs = require("../../../../models/AgentAnnouncementLog");
+const CustomerNotificationLogs = require("../../../../models/CustomerNotificationLog");
+const MerchantNotificationLogs = require("../../../../models/MerchantNotificationLog");
+const AdminNotificationLogs = require("../../../../models/AdminNotificationLog");
 
 const addPushNotificationController = async (req, res, next) => {
   const errors = validationResult(req);
@@ -121,10 +130,101 @@ const fetchPushNotificationController = async (req, res, next) => {
   }
 };
 
+const sendPushNotificationController = async (req, res, next) => {
+  try {
+    const { notificationId } = req.params;
+
+    // Fetch the push notification by ID
+    const pushNotification = await PushNotification.findById(notificationId);
+    if (!pushNotification) {
+      return res.status(404).json({ error: "Push Notification not found" });
+    }
+
+    let userIds = [];
+
+    // Fetch and filter customers, merchants, and drivers based on their location
+    if (pushNotification.customer) {
+      const customers = await Customer.find({
+        "customerDetails.geofenceId": pushNotification.geofenceId,
+      });
+      for(const customer of customers){
+        await CustomerNotificationLogs.create({
+          customerId: customer._id,
+          title: pushNotification.title,
+          description: pushNotification.description,
+          imageUrl: pushNotification.imageUrl,
+        })
+      }
+      console.log("customers", customers);
+      userIds = userIds.concat(customers.map((customer) => customer._id));
+    }
+    if (pushNotification.merchant) {
+      const merchants = await Merchant.find({
+        "merchantDetail.geofenceId": pushNotification.geofenceId,
+      });
+      for(const merchant of merchants){
+        await MerchantNotificationLogs.create({
+          merchantId: merchant._id,
+          title: pushNotification.title,
+          description: pushNotification.description,
+          imageUrl: pushNotification.imageUrl,
+        })
+      }
+      userIds = userIds.concat(merchants.map((merchant) => merchant._id));
+    }
+    if (pushNotification.driver) {
+      const drivers = await Agent.find({
+        geofenceId: pushNotification.geofenceId,
+      });
+      for(const driver of drivers){
+        await AgentAnnouncementLogs.create({
+          agentId: driver._id,
+          title: pushNotification.title,
+          description: pushNotification.description,
+          imageUrl: pushNotification.imageUrl,
+        })
+      }
+      userIds = userIds.concat(drivers.map((driver) => driver._id));
+    }
+
+    const data = {
+      socket: {
+        title: pushNotification.title,
+        body: pushNotification.description,
+        image: pushNotification.imageUrl
+      },
+      fcm: {
+        title: pushNotification.title,
+        body: pushNotification.description,
+        image: pushNotification.imageUrl
+      },
+    };
+    for (const userId of userIds) {
+      await sendNotification(userId, "pushNotification", data);
+
+    }
+
+    await AdminNotificationLogs.create({
+      title: pushNotification.title,
+      description: pushNotification.description,
+      imageUrl: pushNotification.imageUrl 
+    })
+
+    // Respond with the userIds
+    res.status(200).json({
+      message: "Push notification send successfully",
+      data: userIds,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   addPushNotificationController,
   deletePushNotificationController,
   searchPushNotificationController,
   getAllPushNotificationController,
   fetchPushNotificationController,
+  sendPushNotificationController,
 };

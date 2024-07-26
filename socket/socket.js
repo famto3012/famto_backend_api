@@ -214,8 +214,9 @@ function sendPushNotificationToUser(fcmToken, message) {
   // console.log(message);
   const mes = {
     notification: {
-      title: "Notification",
-      body: message,
+      title: message.title,
+      body: message.body,
+      image: message.image,
     },
     token: fcmToken,
   };
@@ -253,13 +254,11 @@ async function populateUserSocketMap() {
     tokens.forEach((token) => {
       userSocketMap[token.userId] = { socketId: null, fcmToken: token.token };
     });
-    //  console.log("User Socket Map populated with FCM tokens:", userSocketMap); //TODO: Uncomment
+    console.log("User Socket Map populated with FCM tokens:", userSocketMap); //TODO: Uncomment
   } catch (error) {
     console.error("Error populating User Socket Map:", error);
   }
 }
-
-populateUserSocketMap();
 
 const getRecipientSocketId = (recipientId) => {
   return userSocketMap[recipientId].socketId;
@@ -306,12 +305,15 @@ io.on("connection", async (socket) => {
   socket.on("Accepted", async (data) => {
     const task = await Task.find({ orderId: data.orderId });
 
-    const agentNotification = await AgentNotificationLogs.findOne({ orderId: data.orderId, agentId: data.agentId });
+    const agentNotification = await AgentNotificationLogs.findOne({
+      orderId: data.orderId,
+      agentId: data.agentId,
+    });
     if (agentNotification) {
-        agentNotification.status = "Accepted";
-        await agentNotification.save();
+      agentNotification.status = "Accepted";
+      await agentNotification.save();
     } else {
-        console.error('Agent notification not found');
+      console.error("Agent notification not found");
     }
 
     await Order.findByIdAndUpdate(data.orderId, {
@@ -488,4 +490,5 @@ module.exports = {
   getRecipientFcmToken,
   sendNotification,
   userSocketMap,
+  populateUserSocketMap,
 };
