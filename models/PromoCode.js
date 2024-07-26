@@ -43,11 +43,18 @@ const promoCodeSchema = new mongoose.Schema(
       required: true,
       enum: ["Cart-value", "Delivery-charge"],
     },
-    merchantId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Merchant",
+    applicationMode: {
+      type: String,
       required: true,
+      enum: ["Public", "Hidden"],
     },
+    merchantId: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Merchant",
+        required: true,
+      },
+    ],
     geofenceId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Geofence",

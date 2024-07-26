@@ -29,6 +29,7 @@ const addPromoCodeController = async (req, res, next) => {
       minOrderAmount,
       maxAllowedUsers,
       appliedOn,
+      applicationMode,
       merchantId,
       geofenceId,
     } = req.body;
@@ -50,6 +51,7 @@ const addPromoCodeController = async (req, res, next) => {
       minOrderAmount,
       maxAllowedUsers,
       appliedOn,
+      applicationMode,
       merchantId,
       geofenceId,
       imageUrl,
@@ -178,6 +180,7 @@ const editPromoCodeController = async (req, res, next) => {
       "minOrderAmount",
       "maxAllowedUsers",
       "appliedOn",
+      "applicationMode",
       "merchantId",
       "geofenceId",
     ];

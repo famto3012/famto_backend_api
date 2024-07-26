@@ -17,6 +17,7 @@ const {
   searchPushNotificationController,
   getAllPushNotificationController,
   fetchPushNotificationController,
+  sendPushNotificationController,
 } = require("../../../controllers/admin/notification/pushNotification/pushNotificationController");
 const {
   addAlertNotificationController,
@@ -160,10 +161,10 @@ adminNotificationRoute.get(
 );
 
 adminNotificationRoute.post(
-  "/send-notification",
+  "/send-push-notification/:notificationId",
   isAuthenticated,
   isAdmin,
-  sendNotificationController
+  sendPushNotificationController
 );
 
 module.exports = adminNotificationRoute;
