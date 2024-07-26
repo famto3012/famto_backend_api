@@ -16,6 +16,10 @@ const { formatDate, formatTime } = require("../../utils/formatters");
 const Task = require("../../models/Task");
 const LoyaltyPoint = require("../../models/LoyaltyPoint");
 const AgentPricing = require("../../models/AgentPricing");
+const {
+  getDistanceFromPickupToDelivery,
+  getDeliveryAndSurgeCharge,
+} = require("../../utils/customerAppHelpers");
 
 //Function for getting agent's manager from geofence
 const getManager = async (geofenceId) => {
@@ -88,24 +92,24 @@ const registerAgentController = async (req, res, next) => {
       return res.status(409).json({ errors: formattedErrors });
     }
 
-    // const geofence = await geoLocation(latitude, longitude, next);
+    const geofence = await geoLocation(latitude, longitude, next);
 
-    // const manager = await getManager(geofence.id);
+    const manager = await getManager(geofence.id);
 
-    // let agentImageURL = "";
+    let agentImageURL = "";
 
-    // if (req.file) {
-    //   agentImageURL = await uploadToFirebase(req.file, "AgentImages");
-    // }
+    if (req.file) {
+      agentImageURL = await uploadToFirebase(req.file, "AgentImages");
+    }
 
     const newAgent = await Agent.create({
       fullName,
       email,
       phoneNumber,
-      // location,
-      // geofenceId: geofence._id,
-      // agentImageURL,
-      // manager,
+      location,
+      geofenceId: geofence._id,
+      agentImageURL,
+      manager,
     });
 
     if (!newAgent) {
@@ -1440,7 +1444,84 @@ const getAgentEarningsLast7DaysController = async (req, res, next) => {
   }
 };
 
-// TODO: make controller for updating shops in custom order
+// Update shops by agent in custom Order
+const updateCustomOrderStatusController = async (req, res, next) => {
+  try {
+    const { latitude, longitude, status, description } = req.body;
+    const { orderId } = req.params;
+    const agentId = req.userAuth;
+
+    const orderFound = await Order.findById(orderId);
+
+    if (!orderFound) {
+      return next(appError("Order not found", 404));
+    }
+
+    if (orderFound.agentId.toString() !== agentId.toString()) {
+      return next(appError("Agent access denied (Different agent)"));
+    }
+
+    const location = [latitude, longitude];
+
+    let updatedData = {
+      location,
+      status,
+      description,
+    };
+
+    // Initialize detailsAddedByAgents if it does not exist
+    if (!orderFound.detailsAddedByAgents) {
+      orderFound.detailsAddedByAgents = { shopUpdates: [] };
+    }
+
+    // Initialize shopUpdates if it does not exist
+    const shopUpdates = orderFound.detailsAddedByAgents.shopUpdates || [];
+
+    let oldDistance = orderFound.orderDetail?.distance || 0;
+
+    // Ensure getDistanceFromPickupToDelivery returns a number
+    const { distanceInKM } = await getDistanceFromPickupToDelivery(
+      location,
+      orderFound.orderDetail.deliveryLocation
+    );
+
+    orderFound.orderDetail.distance = oldDistance + parseFloat(distanceInKM);
+
+    // Calculate delivery charges
+    const { deliveryCharges } = await getDeliveryAndSurgeCharge(
+      orderFound.customerId,
+      orderFound.orderDetail.deliveryMode,
+      distanceInKM
+    );
+
+    let oldDeliveryCharge = orderFound.billDetail?.deliveryCharge || 0;
+    let oldGrandTotal = orderFound.billDetail?.grandTotal || 0;
+
+    orderFound.billDetail.deliveryCharge =
+      oldDeliveryCharge + parseFloat(deliveryCharges);
+
+    orderFound.billDetail.grandTotal =
+      oldGrandTotal + parseFloat(deliveryCharges);
+
+    // Initialize pickupLocation if needed
+    if (
+      !orderFound.orderDetail.pickupLocation &&
+      (shopUpdates.length === 0 || shopUpdates === null)
+    ) {
+      orderFound.orderDetail.pickupLocation = location;
+    }
+
+    orderFound.detailsAddedByAgents.shopUpdates.push(updatedData);
+
+    await orderFound.save();
+
+    res.status(200).json({
+      message: "Shop updated successfully in custom order",
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
 
 module.exports = {
   updateLocationController,
@@ -1476,4 +1557,5 @@ module.exports = {
   verifyDepositController,
   getAgentTransactionsController,
   getAgentEarningsLast7DaysController,
+  updateCustomOrderStatusController,
 };

@@ -12,6 +12,7 @@ const {
   getDistanceFromPickupToDelivery,
   calculateDeliveryCharges,
   getTaxAmount,
+  getDeliveryAndSurgeCharge,
 } = require("../../utils/customerAppHelpers");
 const CustomerCart = require("../../models/CustomerCart");
 const mongoose = require("mongoose");
@@ -993,51 +994,12 @@ const addCartDetailsController = async (req, res, next) => {
 
       const businessCategoryId = merchant.merchantDetail.businessCategoryId;
 
-      const businessCategoryTitle = await BusinessCategory.findById(
+      const { deliveryCharges, surgeCharges } = await getDeliveryAndSurgeCharge(
+        customerId,
+        "Home Delivery",
+        distanceInKM,
         businessCategoryId
       );
-
-      const customerPricing = await CustomerPricing.findOne({
-        ruleName: businessCategoryTitle.title,
-        geofenceId: customer.customerDetails.geofenceId,
-        status: true,
-      });
-
-      if (!customerPricing) {
-        return res.status(404).json({ error: "Customer pricing not found" });
-      }
-
-      const baseFare = customerPricing.baseFare;
-      const baseDistance = customerPricing.baseDistance;
-      const fareAfterBaseDistance = customerPricing.fareAfterBaseDistance;
-
-      const deliveryCharges = calculateDeliveryCharges(
-        distanceInKM,
-        baseFare,
-        baseDistance,
-        fareAfterBaseDistance
-      );
-
-      const customerSurge = await CustomerSurge.findOne({
-        ruleName: businessCategoryTitle.title,
-        geofenceId: customer.customerDetails.geofenceId,
-        status: true,
-      });
-
-      let surgeCharges;
-
-      if (customerSurge) {
-        let surgeBaseFare = customerSurge.baseFare;
-        let surgeBaseDistance = customerSurge.baseDistance;
-        let surgeFareAfterBaseDistance = customerSurge.fareAfterBaseDistance;
-
-        surgeCharges = calculateDeliveryCharges(
-          distanceInKM,
-          surgeBaseFare,
-          surgeBaseDistance,
-          surgeFareAfterBaseDistance
-        );
-      }
 
       updatedBill.surgeCharges = surgeCharges;
 

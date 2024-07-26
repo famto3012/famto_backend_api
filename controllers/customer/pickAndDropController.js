@@ -183,7 +183,7 @@ const addPickUpAddressController = async (req, res, next) => {
 
     // Fetch the customer pricing details for all vehicle types
     const customerPricingArray = await CustomerPricing.find({
-      orderType: "Pick and Drop",
+      deliveryMode: "Pick and Drop",
       geofenceId: customer.customerDetails.geofenceId,
       status: true,
       vehicleType: { $in: uniqueVehicleTypes },
@@ -194,7 +194,6 @@ const addPickUpAddressController = async (req, res, next) => {
     }
 
     const customerSurge = await CustomerSurge.findOne({
-      ruleName: "Pick And Drop Order",
       geofenceId: customer.customerDetails.geofenceId,
       status: true,
     });

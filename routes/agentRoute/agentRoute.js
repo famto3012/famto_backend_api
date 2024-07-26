@@ -33,6 +33,7 @@ const {
   verifyDepositController,
   getAgentTransactionsController,
   getAgentEarningsLast7DaysController,
+  updateCustomOrderStatusController,
 } = require("../../controllers/agent/agentController");
 const { upload } = require("../../utils/imageOperation");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
@@ -248,6 +249,12 @@ agentRoute.get(
   "/agent-earning-history-for-week",
   isAuthenticated,
   getAgentEarningsLast7DaysController
+);
+
+agentRoute.post(
+  "/update-shop/:orderId",
+  isAuthenticated,
+  updateCustomOrderStatusController
 );
 
 module.exports = agentRoute;

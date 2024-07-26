@@ -127,8 +127,7 @@ app.use("/api/v1/agents", agentRoute);
 app.use("/api/v1/customers", customerRoute);
 app.use("/api/v1/customers/subscription-payment", subscriptionLogRoute);
 
-// Schedule the task to run daily at midnight for deleting expired plans of Merchants and customer
-
+// Schedule the task to run fout times daily for deleting expired plans of Merchants and customer
 cron.schedule("44 13 * * *", async () => {
   console.log("Running scheduled task to delete expired plans");
   await deleteExpiredSponsorshipPlans();
@@ -198,7 +197,7 @@ cron.schedule("* * * * *", async () => {
   }
 });
 
-cron.schedule("04 16 * * *", async () => {
+cron.schedule("0 0 * * *", async () => {
   await moveAppDetailToHistoryAndResetForAllAgents();
   await updateOneDayLoyaltyPointEarning();
   await resetAllAgentTaskHelper();
