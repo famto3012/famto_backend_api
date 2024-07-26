@@ -332,7 +332,7 @@ const getAllAgentsController = async (req, res, next) => {
         geofence: agent?.geofenceId?.name || "N/A",
         status: agent.status === "Inactive" ? false : true,
         manager: agent?.workStructure?.managerId?.name || "N/A",
-        location: agent.location
+        location: agent.location,
       };
     });
 
@@ -421,7 +421,6 @@ const rejectAgentRegistrationController = async (req, res, next) => {
   }
 };
 
-//TODO: test api after customer added review for agent
 const getRatingsByCustomerController = async (req, res, next) => {
   try {
     const agentFound = await Agent.findById(req.params.agentId).populate({
@@ -544,6 +543,61 @@ const blockAgentController = async (req, res, next) => {
   }
 };
 
+const getDeliveryAgentPayoutController = async (req, res, next) => {
+  try {
+    const payoutOfAllAgents = await Agent.find({
+      isApproved: "Approved",
+    })
+      .select(
+        "fullName phoneNumber workStructure.cashInHand appDetail loggedInHours"
+      )
+      .lean({ virtuals: true });
+
+    console.log(payoutOfAllAgents);
+
+    const formattedData = payoutOfAllAgents.map((agent) => {
+      return {
+        _id: agent._id,
+        fullName: agent.fullName,
+        phoneNumber: agent.phoneNumber,
+        cashInHand: agent.workStructure.cashInHand,
+        appDetailHistory: agent.appDetail,
+      };
+    });
+
+    res.status(200).json({
+      message: "Agent payout detail",
+      data: payoutOfAllAgents[0],
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const formatAgentPayoutDetail = (agentPayoutDetail) => {
+  return agentPayoutDetail.map((agent) => {
+    const sortedHistory = agent.appDetailHistory.sort(
+      (a, b) => new Date(b.date) - new Date(a.date)
+    );
+    const formattedHistory = sortedHistory.map((entry) => ({
+      date: entry.date,
+      totalEarning: entry.details.totalEarning,
+      orders: entry.details.orders,
+      pendingOrder: entry.details.pendingOrder,
+      totalDistance: entry.details.totalDistance,
+      cancelledOrders: entry.details.cancelledOrders,
+      loginDuration: entry.details.loginDuration,
+      paymentSettled: entry.details.paymentSettled,
+    }));
+    return {
+      _id: agent._id,
+      appDetailHistory: formattedHistory,
+      averageRating: agent.averageRating,
+      id: agent.id,
+    };
+  });
+};
+
 module.exports = {
   addAgentByAdminController,
   editAgentByAdminController,
@@ -555,4 +609,5 @@ module.exports = {
   filterAgentsController,
   blockAgentController,
   getAllAgentsController,
+  getDeliveryAgentPayoutController,
 };

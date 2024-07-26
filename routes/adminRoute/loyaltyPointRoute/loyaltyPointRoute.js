@@ -14,14 +14,14 @@ const isAuthenticated = require("../../../middlewares/isAuthenticated");
 loyaltyPointRoute.post(
   "/add-loyalty-point",
   [
-    body("earningCriteraRupee")
+    body("earningCriteriaRupee")
       .trim()
       .notEmpty()
-      .withMessage("Earning critera rupee is required"),
-    body("earningCriteraPoint")
+      .withMessage("Earning criteria rupee is required"),
+    body("earningCriteriaPoint")
       .trim()
       .notEmpty()
-      .withMessage("Earning critera point is required"),
+      .withMessage("Earning criteria point is required"),
     body("minOrderAmountForEarning")
       .trim()
       .notEmpty()
@@ -34,11 +34,11 @@ loyaltyPointRoute.post(
       .trim()
       .notEmpty()
       .withMessage("Expiry duration is required"),
-    body("redemptionCriteraPoint")
+    body("redemptionCriteriaPoint")
       .trim()
       .notEmpty()
       .withMessage("Redemption criteria point is required"),
-    body("redemptionCriteraRupee")
+    body("redemptionCriteriaRupee")
       .trim()
       .notEmpty()
       .withMessage("Redemption criteria rupee is required"),
@@ -50,7 +50,7 @@ loyaltyPointRoute.post(
       .trim()
       .notEmpty()
       .withMessage("Minimum loyalty point for redemption is required"),
-    body("minRedemptionAmountPercentage")
+    body("maxRedemptionAmountPercentage")
       .trim()
       .notEmpty()
       .withMessage("Minimum redemption amount percentage is required"),

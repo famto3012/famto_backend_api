@@ -78,6 +78,25 @@ app.use(
   })
 );
 
+// const allowedOrigins = [
+//   "http://localhost:5173",
+//   "https://24ab-106-222-238-204.ngrok-free.app",
+// ];
+
+// app.use((req, res, next) => {
+//   const origin = req.headers.origin;
+//   if (allowedOrigins.includes(origin)) {
+//     res.setHeader("Access-Control-Allow-Origin", origin);
+//   }
+//   res.setHeader("Access-Control-Allow-Credentials", "true");
+//   res.setHeader(
+//     "Access-Control-Allow-Methods",
+//     "GET, POST, PUT, DELETE, PATCH"
+//   );
+//   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+//   next();
+// });
+
 //routers
 //admin
 app.use("/api/v1/auth", authRoute); //Login is same for both Admin & Merchant
@@ -197,7 +216,7 @@ cron.schedule("* * * * *", async () => {
   }
 });
 
-cron.schedule("0 0 * * *", async () => {
+cron.schedule("27 14 * * *", async () => {
   await moveAppDetailToHistoryAndResetForAllAgents();
   await updateOneDayLoyaltyPointEarning();
   await resetAllAgentTaskHelper();

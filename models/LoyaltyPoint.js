@@ -6,11 +6,11 @@ const loyaltyPointSchema = mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    earningCriteraRupee: {
+    earningCriteriaRupee: {
       type: Number,
       required: true,
     },
-    earningCriteraPoint: {
+    earningCriteriaPoint: {
       type: Number,
       required: true,
     },
@@ -26,11 +26,11 @@ const loyaltyPointSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
-    redemptionCriteraPoint: {
+    redemptionCriteriaPoint: {
       type: Number,
       required: true,
     },
-    redemptionCriteraRupee: {
+    redemptionCriteriaRupee: {
       type: Number,
       required: true,
     },
@@ -42,7 +42,7 @@ const loyaltyPointSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
-    minRedemptionAmountPercentage: {
+    maxRedemptionAmountPercentage: {
       type: Number,
       required: true,
     },
