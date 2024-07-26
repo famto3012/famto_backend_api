@@ -5,7 +5,6 @@ const {
   getAgentProfileDetailsController,
   editAgentProfileController,
   getBankDetailController,
-  checkIsApprovedController,
   addVehicleDetailsController,
   addGovernmentCertificatesController,
   toggleOnlineController,
@@ -88,9 +87,6 @@ agentRoute.post(
 
 //Get Agent's Bank details
 agentRoute.get("/get-bank-details", isAuthenticated, getBankDetailController);
-
-//Checking approval status
-agentRoute.get("/check-approval", isAuthenticated, checkIsApprovedController);
 
 //Add agents's vehicle details
 agentRoute.post(

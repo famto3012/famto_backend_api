@@ -10,6 +10,7 @@ const {
   blockAgentController,
   getAllAgentsController,
   searchAgentByNameController,
+  getDeliveryAgentPayoutController,
 } = require("../../../controllers/admin/agent/agentController");
 const { upload } = require("../../../utils/imageOperation");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
@@ -20,6 +21,14 @@ const {
 } = require("../../../middlewares/validators/agentValidation");
 
 const adminAgentRoute = express.Router();
+
+// Get payout of agents
+adminAgentRoute.get(
+  "/get-agent-payout",
+  isAuthenticated,
+  isAdmin,
+  getDeliveryAgentPayoutController
+);
 
 //Add Agent by admin route
 adminAgentRoute.post(

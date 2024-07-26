@@ -10,6 +10,7 @@ const {
   deletePromoCodeController,
   editPromoCodeStatusController,
   updateAllPromoCodesStatusController,
+  getSinglePromocodeController,
 } = require("../../../controllers/admin/promocode/promoCodeController");
 
 const promoCodeRoute = express.Router();
@@ -55,6 +56,13 @@ promoCodeRoute.get(
   isAuthenticated,
   isAdmin,
   getAllPromoCodesController
+);
+
+promoCodeRoute.get(
+  "/:promocodeId",
+  isAuthenticated,
+  isAdmin,
+  getSinglePromocodeController
 );
 
 promoCodeRoute.delete(

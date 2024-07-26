@@ -543,7 +543,7 @@ const confirmCustomOrderController = async (req, res, next) => {
       if (orderAmount >= loyaltyPointCriteria.minOrderAmountForEarning) {
         if (loyaltyPointEarnedToday < loyaltyPointCriteria.maxEarningPoint) {
           const calculatedLoyaltyPoint = Math.min(
-            orderAmount * loyaltyPointCriteria.earningCriteraPoint,
+            orderAmount * loyaltyPointCriteria.earningCriteriaPoint,
             loyaltyPointCriteria.maxEarningPoint - loyaltyPointEarnedToday
           );
           customer.customerDetails.loyaltyPointEarnedToday =

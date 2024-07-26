@@ -5,13 +5,13 @@ const appError = require("../../../utils/appError");
 //Create / Update loyalty point criteria
 const addLoyaltyPointController = async (req, res, next) => {
   const {
-    earningCriteraRupee,
-    earningCriteraPoint,
+    earningCriteriaRupee,
+    earningCriteriaPoint,
     minOrderAmountForEarning,
     maxEarningPoint,
     expiryDuration,
-    redemptionCriteraPoint,
-    redemptionCriteraRupee,
+    redemptionCriteriaPoint,
+    redemptionCriteriaRupee,
     minOrderAmountForRedemption,
     minLoyaltyPointForRedemption,
     minRedemptionAmountPercentage,
@@ -30,13 +30,13 @@ const addLoyaltyPointController = async (req, res, next) => {
   try {
     let newCriteria = await LoyaltyPoint.findOne({});
     if (newCriteria) {
-      newCriteria.earningCriteraRupee = earningCriteraRupee;
-      newCriteria.earningCriteraPoint = earningCriteraPoint;
+      newCriteria.earningCriteriaRupee = earningCriteriaRupee;
+      newCriteria.earningCriteriaPoint = earningCriteriaPoint;
       newCriteria.minOrderAmountForEarning = minOrderAmountForEarning;
       newCriteria.maxEarningPoint = maxEarningPoint;
       newCriteria.expiryDuration = expiryDuration;
-      newCriteria.redemptionCriteraPoint = redemptionCriteraPoint;
-      newCriteria.redemptionCriteraRupee = redemptionCriteraRupee;
+      newCriteria.redemptionCriteriaPoint = redemptionCriteriaPoint;
+      newCriteria.redemptionCriteriaRupee = redemptionCriteriaRupee;
       newCriteria.minOrderAmountForRedemption = minOrderAmountForRedemption;
       newCriteria.minLoyaltyPointForRedemption = minLoyaltyPointForRedemption;
       newCriteria.minRedemptionAmountPercentage = minRedemptionAmountPercentage;
@@ -45,13 +45,13 @@ const addLoyaltyPointController = async (req, res, next) => {
       res.status(201).json({ message: "Loyalty point criteria updated" });
     } else {
       const newLoyaltyPointCriteria = await LoyaltyPoint.create({
-        earningCriteraRupee,
-        earningCriteraPoint,
+        earningCriteriaRupee,
+        earningCriteriaPoint,
         minOrderAmountForEarning,
         maxEarningPoint,
         expiryDuration,
-        redemptionCriteraPoint,
-        redemptionCriteraRupee,
+        redemptionCriteriaPoint,
+        redemptionCriteriaRupee,
         minOrderAmountForRedemption,
         minLoyaltyPointForRedemption,
         minRedemptionAmountPercentage,
@@ -90,13 +90,11 @@ const getLoyaltyPointController = async (req, res, next) => {
 
 //Enable / Disable status
 const updateStatusController = async (req, res, next) => {
-  const { status } = req.body;
-
   try {
     let existingCriteria = await LoyaltyPoint.findOne({});
 
     if (existingCriteria) {
-      existingCriteria.status = status;
+      existingCriteria.status = !existingCriteria.status;
 
       await existingCriteria.save();
 

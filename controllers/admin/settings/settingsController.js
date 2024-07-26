@@ -52,7 +52,7 @@ const updateUserProfileController = async (req, res, next) => {
 
   try {
     const currentUserId = req.userAuth;
-    const { fullName, email, phoneNumber, password } = req.body;
+    const { fullName, email, phoneNumber } = req.body;
 
     // Normalize email to lowercase
     const normalizedEmail = email ? email.toLowerCase() : undefined;
@@ -76,11 +76,6 @@ const updateUserProfileController = async (req, res, next) => {
 
     // Prepare the update data
     let updateData = { fullName, email: normalizedEmail, phoneNumber };
-    if (password) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
-      updateData.password = hashedPassword;
-    }
 
     // Attempt to update Admin profile
     userFound = await Admin.findByIdAndUpdate(currentUserId, updateData, {

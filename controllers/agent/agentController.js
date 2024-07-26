@@ -64,7 +64,7 @@ const updateLocationController = async (req, res, next) => {
 //Agent register Controller
 const registerAgentController = async (req, res, next) => {
   const { fullName, email, phoneNumber, latitude, longitude } = req.body;
-  // const location = [latitude, longitude];
+  const location = [latitude, longitude];
 
   const errors = validationResult(req);
 
@@ -118,6 +118,8 @@ const registerAgentController = async (req, res, next) => {
 
     res.status(200).json({
       message: "Agent registering successfully",
+      _id: newAgent._id,
+      fullName: newAgent.fullName,
       token: generateToken(newAgent._id, newAgent.role),
     });
   } catch (err) {
@@ -154,6 +156,8 @@ const agentLoginController = async (req, res, next) => {
 
     res.status(200).json({
       message: "Agent Login successful",
+      _id: agentFound._id,
+      fullName: agentFound.fullName,
       token: generateToken(agentFound._id, agentFound.role),
     });
   } catch (err) {
@@ -286,29 +290,6 @@ const getBankDetailController = async (req, res, next) => {
     });
   } catch (err) {
     next(appError(err.message));
-  }
-};
-
-//Check is Approved
-const checkIsApprovedController = async (req, res, next) => {
-  try {
-    const currentAgent = await Agent.findById(req.userAuth);
-
-    const status = currentAgent.isApproved;
-
-    let message = "";
-    if (status === "Approved") {
-      message = "Registration is approved";
-    } else {
-      message = "Registration is pending";
-    }
-
-    res.status(200).json({
-      message: message,
-      data: status,
-    });
-  } catch (err) {
-    next(appError);
   }
 };
 
@@ -554,6 +535,8 @@ const addGovernmentCertificatesController = async (req, res, next) => {
 //Change agent's status to Free
 const toggleOnlineController = async (req, res, next) => {
   try {
+    const { latitude, longitude } = req.body;
+
     const currentAgent = await Agent.findById(req.userAuth);
 
     if (!currentAgent) {
@@ -591,9 +574,9 @@ const toggleOnlineController = async (req, res, next) => {
 
     await currentAgent.save();
 
-    res
-      .status(200)
-      .json({ message: `Agent status changed to ${currentAgent.status}` });
+    res.status(200).json({
+      message: `Agent status changed to ${currentAgent.status}`,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -724,6 +707,9 @@ const getCurrentDayAppDetailController = async (req, res, next) => {
       return next(appError("Agent not found", 404));
     }
 
+    console.log("Login hours", agentFound.loggedInHours);
+    console.log("");
+
     const formattedResponse = {
       totalEarnings: agentFound?.appDetail?.totalEarnings || "0.0",
       orders: agentFound?.appDetail?.orders || 0,
@@ -754,6 +740,11 @@ const getHistoryOfAppDetailsController = async (req, res, next) => {
       return next(appError("Agent not found", 404));
     }
 
+    agentFound.appDetailHistory.push({
+      date: new Date(),
+      ...agentFound.appDetail,
+    });
+
     // Sort the appDetailHistory by date in descending order (latest date first)
     const sortedAppDetailHistory = agentFound?.appDetailHistory?.sort(
       (a, b) => new Date(b.date) - new Date(a.date)
@@ -763,15 +754,15 @@ const getHistoryOfAppDetailsController = async (req, res, next) => {
 
     const formattedResponse = sortedAppDetailHistory?.map((history) => {
       return {
-        date: formatDate(history.date),
+        date: formatDate(history?.date) || formatDate(new Date()),
         details: {
-          totalEarnings: history.details.totalEarning?.toFixed(2) || "0.00",
-          orders: history.details.orders || 0,
-          cancelledOrders: history.details.cancelledOrders || 0,
+          totalEarnings: history?.details?.totalEarning?.toFixed(2) || "0.00",
+          orders: history?.details?.orders || 0,
+          cancelledOrders: history?.details?.cancelledOrders || 0,
           totalDistance:
-            `${history.details.totalDistance?.toFixed(2)} km` || "0.00 km",
+            `${history?.details?.totalDistance?.toFixed(2)} km` || "0.00 km",
           loginHours:
-            formatLoginDuration(history.details.loginDuration) || "0:00 hr",
+            formatLoginDuration(history?.details?.loginDuration) || "0:00 hr",
         },
       };
     });
@@ -1183,7 +1174,7 @@ const completeOrderController = async (req, res, next) => {
       if (orderAmount >= loyaltyPointCriteria.minOrderAmountForEarning) {
         if (loyaltyPointEarnedToday < loyaltyPointCriteria.maxEarningPoint) {
           const calculatedLoyaltyPoint = Math.min(
-            orderAmount * loyaltyPointCriteria.earningCriteraPoint,
+            orderAmount * loyaltyPointCriteria.earningCriteriaPoint,
             loyaltyPointCriteria.maxEarningPoint - loyaltyPointEarnedToday
           );
           customerFound.customerDetails.loyaltyPointEarnedToday =
@@ -1531,7 +1522,6 @@ module.exports = {
   editAgentProfileController,
   updateAgentBankDetailController,
   getBankDetailController,
-  checkIsApprovedController,
   addVehicleDetailsController,
   addGovernmentCertificatesController,
   toggleOnlineController,

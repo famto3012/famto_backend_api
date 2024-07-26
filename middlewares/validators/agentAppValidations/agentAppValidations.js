@@ -4,14 +4,14 @@ const agentRegisterValidations = [
   body("fullName").trim().notEmpty().withMessage("Full name is required"),
   body("email").trim().isEmail().withMessage("Valid email is required"),
   body("phoneNumber").trim().notEmpty().withMessage("Phone number is required"),
-  // body("latitude").trim().notEmpty().withMessage("Latitude is required"),
-  // body("longitude").trim().notEmpty().withMessage("Longitude is required"),
-  // check("agentImage").custom((value, { req }) => {
-  //   if (!req.file) {
-  //     throw new Error("Agent image is required");
-  //   }
-  //   return true;
-  // }),
+  body("latitude").trim().notEmpty().withMessage("Latitude is required"),
+  body("longitude").trim().notEmpty().withMessage("Longitude is required"),
+  check("agentImage").custom((value, { req }) => {
+    if (!req.file) {
+      throw new Error("Agent image is required");
+    }
+    return true;
+  }),
 ];
 
 const agentLoginValidation = [

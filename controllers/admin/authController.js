@@ -77,6 +77,53 @@ const loginController = async (req, res, next) => {
   }
 };
 
+const registerMerchantController = async (req, res, next) => {
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(500).json({ errors: formattedErrors });
+  }
+
+  try {
+    const { fullName, email, phoneNumber, password } = req.body;
+
+    const normalizedEmail = email.toLowerCase();
+
+    const merchantExists = await Merchant.findOne({ email: normalizedEmail });
+
+    if (merchantExists) {
+      formattedErrors.email = "Email already exists";
+      return res.status(409).json({ errors: formattedErrors });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const newMerchant = new Merchant({
+      fullName,
+      email: normalizedEmail,
+      phoneNumber,
+      password: hashedPassword,
+    });
+    await newMerchant.save();
+
+    if (newMerchant) {
+      res.status(201).json({
+        success: "Merchant registered successfully",
+        _id: newMerchant._id,
+      });
+    } else {
+      return next(appError("Error in registering new merchant"));
+    }
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   loginController,
 };

@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { formatLoginDuration } = require("../utils/agentAppHelpers");
 
 const ratingsByCustomerSchema = mongoose.Schema({
   customerId: {
@@ -148,6 +149,10 @@ const agentAppDetailSchema = mongoose.Schema(
       default: 0, // Store login duration in milliseconds
     },
     orderDetail: [orderDetailSchema],
+    paymentSettled: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     _id: false,
@@ -186,7 +191,7 @@ const agentSchema = mongoose.Schema(
     },
     location: {
       type: [Number],
-      // required: true,
+      required: true,
     },
     geofenceId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -198,7 +203,7 @@ const agentSchema = mongoose.Schema(
     },
     agentImageURL: {
       type: String,
-      // required: true,
+      required: true,
     },
     status: {
       type: String,
@@ -268,6 +273,14 @@ agentSchema.virtual("averageRating").get(function () {
     0
   );
   return total / this.ratingsByCustomers?.length;
+});
+
+agentSchema.virtual("loggedInHours").get(function () {
+  const startTime = this?.loginStartTime;
+
+  const difference = new Date() - new Date(startTime);
+
+  return formatLoginDuration(difference);
 });
 
 const Agent = mongoose.model("Agent", agentSchema);

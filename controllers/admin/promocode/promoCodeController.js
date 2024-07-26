@@ -67,77 +67,6 @@ const addPromoCodeController = async (req, res, next) => {
   }
 };
 
-// const editPromoCodeController = async (req, res, next) => {
-//   // Validate request body
-//   const errors = validationResult(req);
-//   if (!errors.isEmpty()) {
-//     let formattedErrors = {};
-//     errors.array().forEach((error) => {
-//       formattedErrors[error.param] = error.msg;
-//     });
-//     return res.status(400).json({ errors: formattedErrors });
-//   }
-
-//   try {
-//     const {
-//       promoCode,
-//       promoType,
-//       discount,
-//       description,
-//       fromDate,
-//       toDate,
-//       maxDiscountValue,
-//       minOrderAmount,
-//       maxAllowedUsers,
-//       appliedOn,
-//       merchantId,
-//       geofenceId,
-//     } = req.body;
-
-//     // Get the promo code ID from the request parameters
-//     const { id } = req.params;
-
-//     // Find the existing promo code by ID
-//     let existingPromoCode = await PromoCode.findById(id);
-//     if (!existingPromoCode) {
-//       return res.status(404).json({ error: "Promocode not found" });
-//     }
-
-//     // Update image if a new file is provided
-//     let imageUrl = existingPromoCode.imageUrl;
-//     if (req.file) {
-//       await deleteFromFirebase(imageUrl)
-//       imageUrl = await uploadToFirebase(req.file, "PromoCodeImages");
-//     }
-
-//     // Update the promo code with new values
-//     existingPromoCode.promoCode = promoCode;
-//     existingPromoCode.promoType = promoType;
-//     existingPromoCode.discount = discount;
-//     existingPromoCode.description = description;
-//     existingPromoCode.fromDate = fromDate;
-//     existingPromoCode.toDate = toDate;
-//     existingPromoCode.maxDiscountValue = maxDiscountValue;
-//     existingPromoCode.minOrderAmount = minOrderAmount;
-//     existingPromoCode.maxAllowedUsers = maxAllowedUsers;
-//     existingPromoCode.appliedOn = appliedOn;
-//     existingPromoCode.merchantId = merchantId;
-//     existingPromoCode.geofenceId = geofenceId;
-//     existingPromoCode.imageUrl = imageUrl;
-
-//     // Save the updated promo code
-//     const updatedPromoCode = await existingPromoCode.save();
-
-//     // Send a success response
-//     res.status(200).json({
-//       success: "Promocode updated successfully",
-//       data: updatedPromoCode,
-//     });
-//   } catch (err) {
-//     next(appError(err.message));
-//   }
-// };
-
 const editPromoCodeController = async (req, res, next) => {
   // Validate request body
   const errors = validationResult(req);
@@ -218,6 +147,25 @@ const getAllPromoCodesController = async (req, res, next) => {
     });
   } catch (err) {
     // Pass the error to the error-handling middleware
+    next(appError(err.message));
+  }
+};
+
+const getSinglePromocodeController = async (req, res, next) => {
+  try {
+    const { promocodeId } = req.params;
+
+    const promocodeFound = await PromoCode.findById(promocodeId);
+
+    if (!promocodeFound) {
+      return next(appError("Promocode not found", 404));
+    }
+
+    res.status(200).json({
+      message: "Single promocode",
+      data: promocodeFound,
+    });
+  } catch (err) {
     next(appError(err.message));
   }
 };
@@ -303,6 +251,7 @@ module.exports = {
   editPromoCodeController,
   deletePromoCodeController,
   getAllPromoCodesController,
+  getSinglePromocodeController,
   editPromoCodeStatusController,
   updateAllPromoCodesStatusController,
 };
