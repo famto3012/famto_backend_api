@@ -18,12 +18,12 @@ const DetailSchema = new mongoose.Schema({
 const AgentNotificationLogSchema = new mongoose.Schema(
   {
     agentId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "Agent",
       required: true,
     },
     orderId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "Order",
       required: true,
     },
@@ -42,7 +42,7 @@ const AgentNotificationLogSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ["Accepted", "Rejected"],
-      default: null
+      default: null,
     },
   },
   {

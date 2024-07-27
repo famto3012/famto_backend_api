@@ -50,7 +50,7 @@ const promoCodeSchema = new mongoose.Schema(
     },
     merchantId: [
       {
-        type: mongoose.Schema.Types.ObjectId,
+        type: String,
         ref: "Merchant",
         required: true,
       },

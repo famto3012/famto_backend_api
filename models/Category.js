@@ -7,7 +7,7 @@ const categorySchema = mongoose.Schema(
       ref: "BusinessCategory",
     },
     merchantId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "Merchant",
     },
     categoryName: {

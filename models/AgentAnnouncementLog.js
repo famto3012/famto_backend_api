@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const AgentAnnouncementLogSchema = new mongoose.Schema(
   {
     agentId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "Agent",
       required: true,
     },

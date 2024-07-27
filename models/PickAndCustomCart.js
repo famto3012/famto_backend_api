@@ -174,7 +174,7 @@ const billSchema = mongoose.Schema(
 
 const pickAndCustomCartSchema = mongoose.Schema({
   customerId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     required: true,
   },
   cartDetail: cartDetailSchema,

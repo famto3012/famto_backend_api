@@ -3,12 +3,12 @@ const mongoose = require("mongoose");
 const MerchantNotificationLogSchema = new mongoose.Schema(
   {
     orderId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "Order",
       default: null,
     },
     merchantId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "Merchant",
       required: true,
     },

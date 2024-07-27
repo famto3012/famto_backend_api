@@ -130,7 +130,7 @@ const billSchema = mongoose.Schema(
 const scheduledPickAndCustomSchema = mongoose.Schema(
   {
     customerId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "Customer",
       required: true,
     },

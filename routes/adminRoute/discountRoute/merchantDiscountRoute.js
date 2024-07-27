@@ -16,7 +16,10 @@ const {
 } = require("../../../controllers/admin/merchant/discount/merchantDiscountController");
 
 const merchantDiscountRoute = express.Router();
-//For Merchant
+
+// ---------------------------------
+// For Merchant
+// ---------------------------------
 
 merchantDiscountRoute.post(
   "/add-merchant-discount",
@@ -72,7 +75,9 @@ merchantDiscountRoute.get(
   getMerchantDiscountByIdController
 );
 
-//For Admin
+// ---------------------------------
+// For Admin
+// ---------------------------------
 
 merchantDiscountRoute.post(
   "/add-merchant-discount-admin",

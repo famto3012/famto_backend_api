@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const DatabaseCounter = require("./DatabaseCounter");
 
 const addressSchema = new mongoose.Schema(
   {
@@ -41,7 +42,7 @@ const addressSchema = new mongoose.Schema(
 const ratingByAgentSchema = new mongoose.Schema(
   {
     agentId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "Agent",
       required: true,
     },
@@ -122,7 +123,7 @@ const customerDetailSchema = new mongoose.Schema(
     ],
     favoriteMerchants: [
       {
-        type: mongoose.Schema.Types.ObjectId,
+        type: String,
         ref: "Merchant",
       },
     ],
@@ -148,7 +149,7 @@ const walletTransactionDetailSchema = mongoose.Schema(
       type: String,
     },
     orderId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
     },
     date: {
       type: Date,
@@ -187,6 +188,9 @@ const transactionDetailSchema = mongoose.Schema(
 
 const customerSchema = new mongoose.Schema(
   {
+    _id: {
+      type: String,
+    },
     fullName: {
       type: String,
     },
@@ -213,6 +217,37 @@ const customerSchema = new mongoose.Schema(
     toObject: { virtuals: true },
   }
 );
+
+// Middleware to set the custom _id before saving
+customerSchema.pre("save", async function (next) {
+  try {
+    if (this.isNew) {
+      const now = new Date();
+      const year = now.getFullYear().toString().slice(-2); // Last two digits of the year
+      const month = `0${now.getMonth() + 1}`.slice(-2); // Zero-padded month
+
+      let counter = await DatabaseCounter.findOneAndUpdate(
+        {
+          type: "Customer",
+          year: parseInt(year, 10),
+          month: parseInt(month, 10),
+        },
+        { $inc: { count: 1 } },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      );
+
+      if (!counter) {
+        throw new Error("Counter document could not be created or updated.");
+      }
+
+      const customId = `C${year}${month}${counter.count}`;
+      this._id = customId;
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 // Adding virtual for averageRating in customerDetailSchema
 customerDetailSchema.virtual("averageRating").get(function () {

@@ -45,6 +45,12 @@ const findOrCreateCustomer = async ({
       customerAddress.longitude
     );
 
+    if (!geofence) {
+      return res.status(400).json({
+        message: "User coordinates are outside defined geofences",
+      });
+    }
+
     const updatedCustomerDetails = {
       location: location,
       geofenceId: geofence ? geofence._id : null,

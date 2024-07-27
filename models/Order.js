@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const DatabaseCounter = require("./DatabaseCounter");
 
 const orderItemSchema = mongoose.Schema(
   {
@@ -251,18 +252,22 @@ const detailAddedByAgentSchema = mongoose.Schema({
 
 const orderSchema = mongoose.Schema(
   {
+    _id: {
+      type: String,
+    },
     customerId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "Customer",
       required: true,
     },
     merchantId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "Merchant",
     },
     agentId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "Agent",
+      defalt: null,
     },
     items: [orderItemSchema],
     orderDetail: orderDetailSchema,
@@ -300,6 +305,33 @@ const orderSchema = mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Middleware to set the custom _id before saving
+orderSchema.pre("save", async function (next) {
+  try {
+    if (this.isNew) {
+      const now = new Date();
+      const year = now.getFullYear().toString().slice(-2); // Last two digits of the year
+      const month = `0${now.getMonth() + 1}`.slice(-2); // Zero-padded month
+
+      let counter = await DatabaseCounter.findOneAndUpdate(
+        { type: "Order", year: parseInt(year, 10), month: parseInt(month, 10) },
+        { $inc: { count: 1 } },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      );
+
+      if (!counter) {
+        throw new Error("Counter document could not be created or updated.");
+      }
+
+      const customId = `O${year}${month}${counter.count}`;
+      this._id = customId;
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 const Order = mongoose.model("Order", orderSchema);
 module.exports = Order;

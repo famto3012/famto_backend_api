@@ -12,7 +12,7 @@ const commissionSchema = new mongoose.Schema(
       required: true,
     },
     merchantId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "Merchant",
       required: true,
     },

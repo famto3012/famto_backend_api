@@ -10,13 +10,12 @@ const Category = require("../../models/Category");
 const {
   sortMerchantsBySponsorship,
   getDistanceFromPickupToDelivery,
-  calculateDeliveryCharges,
   getTaxAmount,
   getDeliveryAndSurgeCharge,
+  calculateDiscountedPrice,
 } = require("../../utils/customerAppHelpers");
 const CustomerCart = require("../../models/CustomerCart");
 const mongoose = require("mongoose");
-const CustomerPricing = require("../../models/CustomerPricing");
 const PromoCode = require("../../models/PromoCode");
 const {
   createRazorpayOrderId,
@@ -29,7 +28,6 @@ const {
   convertStartDateToUTC,
   convertEndDateToUTC,
 } = require("../../utils/formatters");
-const CustomerSurge = require("../../models/CustomerSurge");
 
 // Get all available business categories according to the order
 const getAllBusinessCategoryController = async (req, res, next) => {
@@ -254,20 +252,20 @@ const getMerchantWithCategoriesAndProductsController = async (
 
         const productsWithDetails = products.map((product) => {
           const currentDate = new Date();
-          const validFrom = new Date(product.discountId.validFrom);
-          const validTo = new Date(product.discountId.validTo);
+          const validFrom = new Date(product?.discountId?.validFrom);
+          const validTo = new Date(product?.discountId?.validTo);
 
           // Adjusting the validTo date to the end of the day
-          validTo.setHours(23, 59, 59, 999);
+          validTo?.setHours(23, 59, 59, 999);
 
           let discountPrice = product.price;
-          let variantsWithDiscount = product.variants;
+          let variantsWithDiscount = product?.variants;
 
           if (
-            product.discountId &&
+            product?.discountId &&
             validFrom <= currentDate &&
             validTo >= currentDate &&
-            product.discountId.status
+            product?.discountId?.status
           ) {
             const discount = product.discountId;
 
@@ -687,14 +685,16 @@ const getTotalRatingOfMerchantController = async (req, res, next) => {
 // Update cart items
 const addOrUpdateCartItemController = async (req, res, next) => {
   try {
-    const { productId, quantity, price, variantTypeId } = req.body;
+    const { productId, quantity, variantTypeId } = req.body;
     const customerId = req.userAuth;
 
     if (!customerId) {
       return next(appError("Customer is not authenticated", 401));
     }
 
-    const product = await Product.findById(productId).populate("categoryId");
+    const product = await Product.findById(productId).populate(
+      "categoryId discountId"
+    );
 
     if (!product) {
       return res.status(404).json({ error: "Product not found" });
@@ -715,10 +715,21 @@ const addOrUpdateCartItemController = async (req, res, next) => {
       }
     }
 
+    const { discountPrice, variantsWithDiscount } =
+      calculateDiscountedPrice(product);
+
+    let finalPrice = discountPrice;
+    if (variantTypeId) {
+      const variant = variantsWithDiscount
+        .flatMap((variant) => variant.variantTypes)
+        .find((vt) => vt._id.equals(variantTypeId));
+      finalPrice = variant ? variant.discountPrice : discountPrice;
+    }
+
     let cart = await CustomerCart.findOne({ customerId });
 
     if (cart) {
-      if (!cart.merchantId.equals(merchantId)) {
+      if (!cart.merchantId === merchantId) {
         cart.merchantId = merchantId;
         cart.items = [];
       }
@@ -737,8 +748,8 @@ const addOrUpdateCartItemController = async (req, res, next) => {
 
     if (existingItemIndex >= 0) {
       cart.items[existingItemIndex].quantity = quantity;
-      cart.items[existingItemIndex].price = price;
-      cart.items[existingItemIndex].totalPrice = quantity * price;
+      cart.items[existingItemIndex].price = finalPrice;
+      cart.items[existingItemIndex].totalPrice = quantity * finalPrice;
 
       if (cart.items[existingItemIndex].quantity <= 0) {
         cart.items.splice(existingItemIndex, 1);
@@ -748,8 +759,8 @@ const addOrUpdateCartItemController = async (req, res, next) => {
         const newItem = {
           productId,
           quantity,
-          price,
-          totalPrice: quantity * price,
+          price: finalPrice,
+          totalPrice: quantity * finalPrice,
           variantTypeId: variantTypeId || null,
         };
         cart.items.push(newItem);
@@ -1499,6 +1510,7 @@ const orderPaymentController = async (req, res, next) => {
       customer.transactionDetail.push(customerTransation);
       await customer.save();
     } else if (paymentMode === "Cash-on-delivery") {
+      console.log("Inside Cash On delivery condition");
       newOrder = await Order.create({
         customerId,
         merchantId: cart.merchantId,
@@ -1514,11 +1526,13 @@ const orderPaymentController = async (req, res, next) => {
         paymentStatus: "Pending",
       });
 
+      console.log("Inside Cash On delivery condition 2");
+
       customer.transactionDetail.push(customerTransation);
       await customer.save();
 
       // Clear the cart
-      await CustomerCart.deleteOne({ customerId });
+      // await CustomerCart.deleteOne({ customerId });
     } else if (paymentMode === "Online-payment") {
       const { success, orderId, error } = await createRazorpayOrderId(
         orderAmount
@@ -1538,7 +1552,8 @@ const orderPaymentController = async (req, res, next) => {
       const orderResponse = {
         _id: newOrder._id,
         customerId: newOrder.customerId,
-        customerName: customer.fullName || deliveryAddress.fullName,
+        customerName:
+          customer.fullName || newOrder.orderDetail.deliveryAddress.fullName,
         merchantId: newOrder.merchantId,
         merchantName: merchant.merchantDetail.merchantName,
         status: newOrder.status,

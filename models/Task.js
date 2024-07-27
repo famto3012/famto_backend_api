@@ -16,7 +16,7 @@ const pickupSchema = new mongoose.Schema({
     flat: String,
     area: String,
     phoneNumber: String,
-    landmark: { type: String, default: null },
+    landmark: String,
   },
 });
 
@@ -36,19 +36,19 @@ const deliverySchema = new mongoose.Schema({
     flat: String,
     area: String,
     phoneNumber: String,
-    landmark: { type: String, default: null },
+    landmark: String,
   },
 });
 
 const taskSchema = new mongoose.Schema(
   {
     orderId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "Order",
       required: true,
     },
     agentId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "Agent",
       default: null,
     },
