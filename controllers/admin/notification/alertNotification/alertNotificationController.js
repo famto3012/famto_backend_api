@@ -5,6 +5,12 @@ const {
   uploadToFirebase,
 } = require("../../../../utils/imageOperation");
 const AlertNotification = require("../../../../models/AlertNotification");
+const MerchantNotificationLogs = require("../../../../models/MerchantNotificationLog");
+const { sendNotification } = require("../../../../socket/socket");
+const CustomerNotificationLogs = require("../../../../models/CustomerNotificationLog");
+const AgentNotificationLogs = require("../../../../models/AgentNotificationLog");
+const AgentAnnouncementLogs = require("../../../../models/AgentAnnouncementLog");
+const AdminNotificationLogs = require("../../../../models/AdminNotificationLog");
 
 const addAlertNotificationController = async (req, res, next) => {
   const errors = validationResult(req);
@@ -35,12 +41,53 @@ const addAlertNotificationController = async (req, res, next) => {
       customer,
     };
 
+    const data = {
+      socket: {
+        title: title,
+        body: description,
+        image: imageUrl
+      },
+      fcm: {
+        title: title,
+        body: description,
+        image: imageUrl
+      },
+    };
+
     if (merchant) {
       alertNotificationData.merchantId = id;
+
+      await MerchantNotificationLogs.create({
+        merchantId: id,
+        title,
+        description,
+        imageUrl,
+      })
+
+      sendNotification(id, "alertNotification", data)
+
     } else if (agent) {
       alertNotificationData.agentId = id;
+
+      await AgentAnnouncementLogs.create({
+        agentId: id,
+        title,
+        description,
+        imageUrl,
+      })
+
+      sendNotification(id, "alertNotification", data)
     } else if (customer) {
       alertNotificationData.customerId = id;
+
+      await CustomerNotificationLogs.create({
+        customerId: id,
+        title,
+        description,
+        imageUrl,
+      })
+
+      sendNotification(id, "alertNotification", data)
     } else {
       return next(
         appError(
@@ -54,6 +101,12 @@ const addAlertNotificationController = async (req, res, next) => {
 
     // Save the alert notification to the database
     await newAlertNotification.save();
+
+    await AdminNotificationLogs.create({
+      title,
+      description,
+      imageUrl,
+    })
 
     res.status(201).json({
       message: "Alert notification added successfully!",

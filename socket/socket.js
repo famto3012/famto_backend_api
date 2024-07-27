@@ -252,7 +252,11 @@ async function populateUserSocketMap() {
   try {
     const tokens = await FcmToken.find({});
     tokens.forEach((token) => {
-      userSocketMap[token.userId] = { socketId: null, fcmToken: token.token };
+      if (userSocketMap[token.userId]) {
+        userSocketMap[token.userId].fcmToken = token.token;
+      } else {
+        userSocketMap[token.userId] = { socketId: null, fcmToken: token.token };
+      }
     });
     console.log("User Socket Map populated with FCM tokens:", userSocketMap); //TODO: Uncomment
   } catch (error) {
