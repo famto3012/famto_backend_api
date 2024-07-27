@@ -31,7 +31,7 @@ const getDistanceFromPickupToDelivery = async (
   // distance_matrix_traffic;
 
   const { data } = await axios.get(
-    `https://apis.mapmyindia.com/advancedmaps/v1/${process.env.MapMyIndiaAPIKey}/distance_matrix_eta/${profile}/${pickupCoordinates[1]},${pickupCoordinates[0]};${deliveryCoordinates[1]},${deliveryCoordinates[0]}`
+    `https://apis.mapmyindia.com/advancedmaps/v1/${process.env.MapMyIndiaAPIKey}/distance_matrix/${profile}/${pickupCoordinates[1]},${pickupCoordinates[0]};${deliveryCoordinates[1]},${deliveryCoordinates[0]}`
   );
 
   if (
@@ -256,6 +256,73 @@ const getDeliveryAndSurgeCharge = async (
   return { deliveryCharges, surgeCharges };
 };
 
+const calculateDiscountedPrice = (product) => {
+  const currentDate = new Date();
+  const validFrom = new Date(product?.discountId?.validFrom);
+  const validTo = new Date(product?.discountId?.validTo);
+
+  // Adjusting the validTo date to the end of the day
+  validTo?.setHours(23, 59, 59, 999);
+
+  let discountPrice = product.price;
+  let variantsWithDiscount = product?.variants;
+
+  if (
+    product?.discountId &&
+    validFrom <= currentDate &&
+    validTo >= currentDate &&
+    product?.discountId?.status
+  ) {
+    const discount = product.discountId;
+
+    if (discount.discountType === "Percentage-discount") {
+      let discountAmount = (product.price * discount.discountValue) / 100;
+      if (discountAmount > discount.maxAmount) {
+        discountAmount = discount.maxAmount;
+      }
+      discountPrice -= discountAmount;
+    } else if (discount.discountType === "Flat-discount") {
+      discountPrice -= discount.discountValue;
+    }
+
+    if (discountPrice < 0) discountPrice = 0;
+
+    // Apply discount to the variants if onAddOn is true
+    if (discount.onAddOn) {
+      variantsWithDiscount = product.variants.map((variant) => {
+        const variantTypesWithDiscount = variant.variantTypes.map(
+          (variantType) => {
+            let variantDiscountPrice = variantType.price;
+            if (discount.discountType === "Percentage-discount") {
+              let discountAmount =
+                (variantType.price * discount.discountValue) / 100;
+              if (discountAmount > discount.maxAmount) {
+                discountAmount = discount.maxAmount;
+              }
+              variantDiscountPrice -= discountAmount;
+            } else if (discount.discountType === "Flat-discount") {
+              variantDiscountPrice -= discount.discountValue;
+            }
+
+            if (variantDiscountPrice < 0) variantDiscountPrice = 0;
+
+            return {
+              ...variantType._doc,
+              discountPrice: variantDiscountPrice,
+            };
+          }
+        );
+        return {
+          ...variant._doc,
+          variantTypes: variantTypesWithDiscount,
+        };
+      });
+    }
+  }
+
+  return { discountPrice, variantsWithDiscount };
+};
+
 module.exports = {
   sortMerchantsBySponsorship,
   getDistanceFromPickupToDelivery,
@@ -265,4 +332,5 @@ module.exports = {
   createOrdersFromScheduledPickAndDrop,
   updateOneDayLoyaltyPointEarning,
   getDeliveryAndSurgeCharge,
+  calculateDiscountedPrice,
 };

@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const DatabaseCounter = require("./DatabaseCounter");
 
 const daySchema = new mongoose.Schema(
   {
@@ -63,7 +64,7 @@ const availabilitySchema = new mongoose.Schema(
 const ratingByCustomerSchema = new mongoose.Schema(
   {
     customerId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "User",
       required: true,
     },
@@ -223,6 +224,9 @@ const merchantDetailSchema = new mongoose.Schema(
 
 const merchantSchema = new mongoose.Schema(
   {
+    _id: {
+      type: String,
+    },
     fullName: {
       type: String,
       required: true,
@@ -276,6 +280,37 @@ const merchantSchema = new mongoose.Schema(
     toObject: { virtuals: true },
   }
 );
+
+// Middleware to set the custom _id before saving
+merchantSchema.pre("save", async function (next) {
+  try {
+    if (this.isNew) {
+      const now = new Date();
+      const year = now.getFullYear().toString().slice(-2); // Last two digits of the year
+      const month = `0${now.getMonth() + 1}`.slice(-2); // Zero-padded month
+
+      let counter = await DatabaseCounter.findOneAndUpdate(
+        {
+          type: "Merchant",
+          year: parseInt(year, 10),
+          month: parseInt(month, 10),
+        },
+        { $inc: { count: 1 } },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      );
+
+      if (!counter) {
+        throw new Error("Counter document could not be created or updated.");
+      }
+
+      const customId = `M${year}${month}${counter.count}`;
+      this._id = customId;
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 // Virtual field for calculating the average rating
 merchantDetailSchema.virtual("averageRating").get(function () {

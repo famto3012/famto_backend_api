@@ -7,6 +7,8 @@ const {
 const Agent = require("../../../models/Agent");
 const { default: mongoose } = require("mongoose");
 const AccountLogs = require("../../../models/AccountLogs");
+const { formatDate } = require("../../../utils/formatters");
+const { formatLoginDuration } = require("../../../utils/agentAppHelpers");
 
 const addAgentByAdminController = async (req, res, next) => {
   const {
@@ -547,55 +549,176 @@ const getDeliveryAgentPayoutController = async (req, res, next) => {
   try {
     const payoutOfAllAgents = await Agent.find({
       isApproved: "Approved",
-    })
-      .select(
-        "fullName phoneNumber workStructure.cashInHand appDetail loggedInHours"
-      )
-      .lean({ virtuals: true });
+    }).select("fullName phoneNumber appDetailHistory workStructure.cashInHand");
 
-    console.log(payoutOfAllAgents);
+    const formattedResponse = payoutOfAllAgents
+      .filter((agent) => agent.appDetailHistory.length >= 1)
+      .map((agent) => {
+        const historyLength = agent.appDetailHistory.length;
+        const lastHistory = agent.appDetailHistory[historyLength - 1] || {
+          details: {},
+        };
 
-    const formattedData = payoutOfAllAgents.map((agent) => {
-      return {
-        _id: agent._id,
-        fullName: agent.fullName,
-        phoneNumber: agent.phoneNumber,
-        cashInHand: agent.workStructure.cashInHand,
-        appDetailHistory: agent.appDetail,
-      };
-    });
+        return {
+          _id: agent._id,
+          fullName: agent.fullName,
+          phoneNumber: agent.phoneNumber,
+          workedDate: lastHistory.date ? formatDate(lastHistory.date) : null,
+          orders: lastHistory.details.orders || 0,
+          cancelledOrders: lastHistory.details.cancelledOrders || 0,
+          totalDistance: lastHistory.details.totalDistance || 0,
+          loginHours: lastHistory.details.loginDuration
+            ? formatLoginDuration(lastHistory.details.loginDuration)
+            : "0:00 hr",
+          cashInHand: agent.workStructure?.cashInHand || 0,
+          totalEarnings: lastHistory.details.totalEarning || 0,
+          paymentSettled: lastHistory.details.paymentSettled,
+          detailId: lastHistory._id,
+        };
+      });
 
     res.status(200).json({
       message: "Agent payout detail",
-      data: payoutOfAllAgents[0],
+      data: formattedResponse,
     });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
-const formatAgentPayoutDetail = (agentPayoutDetail) => {
-  return agentPayoutDetail.map((agent) => {
-    const sortedHistory = agent.appDetailHistory.sort(
-      (a, b) => new Date(b.date) - new Date(a.date)
-    );
-    const formattedHistory = sortedHistory.map((entry) => ({
-      date: entry.date,
-      totalEarning: entry.details.totalEarning,
-      orders: entry.details.orders,
-      pendingOrder: entry.details.pendingOrder,
-      totalDistance: entry.details.totalDistance,
-      cancelledOrders: entry.details.cancelledOrders,
-      loginDuration: entry.details.loginDuration,
-      paymentSettled: entry.details.paymentSettled,
-    }));
-    return {
-      _id: agent._id,
-      appDetailHistory: formattedHistory,
-      averageRating: agent.averageRating,
-      id: agent.id,
+const filterAgentPayoutController = async (req, res, next) => {
+  try {
+    const { paymentStatus, agent, geofence, date } = req.query;
+
+    const filterCriteria = {};
+
+    if (paymentStatus) {
+      filterCriteria["appDetailHistory.details.paymentSettled"] =
+        paymentStatus === "true";
+    }
+
+    if (agent) {
+      try {
+        const agentObjectId = new mongoose.Types.ObjectId(agent.trim());
+        filterCriteria._id = agentObjectId;
+      } catch (err) {
+        return res.status(400).json({ message: "Invalid agent ID" });
+      }
+    }
+
+    if (geofence) {
+      try {
+        const geofenceObjectId = new mongoose.Types.ObjectId(geofence.trim());
+        filterCriteria.geofenceId = geofenceObjectId;
+      } catch (err) {
+        return res.status(400).json({ message: "Invalid geofence ID" });
+      }
+    }
+
+    let searchResults = await Agent.find({
+      isApproved: "Approved",
+      ...filterCriteria,
+    }).select("fullName phoneNumber appDetailHistory workStructure.cashInHand");
+
+    if (date) {
+      const targetDate = new Date(date);
+      searchResults = searchResults.filter((agent) => {
+        return agent.appDetailHistory.some((history) => {
+          return (
+            new Date(history.date).toDateString() === targetDate.toDateString()
+          );
+        });
+      });
+    }
+
+    const formattedResponse = searchResults
+      .filter((agent) => {
+        const historyLength = agent.appDetailHistory.length;
+        if (historyLength >= 1) {
+          const lastHistory = agent.appDetailHistory[historyLength - 1];
+          return lastHistory.details.totalEarning > 0;
+        }
+        return false;
+      })
+      .map((agent) => {
+        const historyLength = agent.appDetailHistory.length;
+        const lastHistory = agent.appDetailHistory[historyLength - 1] || {
+          details: {},
+        };
+
+        return {
+          _id: agent._id,
+          fullName: agent.fullName,
+          phoneNumber: agent.phoneNumber,
+          workedDate: lastHistory.date ? formatDate(lastHistory.date) : null,
+          orders: lastHistory.details.orders || 0,
+          cancelledOrders: lastHistory.details.cancelledOrders || 0,
+          totalDistance: lastHistory.details.totalDistance || 0,
+          loginHours: lastHistory.details.loginDuration
+            ? formatLoginDuration(lastHistory.details.loginDuration)
+            : "0:00 hr",
+          cashInHand: agent.workStructure?.cashInHand || 0,
+          totalEarnings: lastHistory.details.totalEarning || 0,
+          paymentSettled: lastHistory.details.paymentSettled,
+          detailId: lastHistory._id,
+        };
+      });
+
+    res.status(200).json({
+      message: "Agent payout detail",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const approvePaymentController = async (req, res, next) => {
+  try {
+    const { agentId, detailId } = req.params;
+
+    const agentFound = await Agent.findById(agentId);
+
+    if (!agentFound) {
+      return next(appError("Agent not found", 404));
+    }
+
+    const detailFound = agentFound?.appDetailHistory?.find((detail) => {
+      return detail._id.toString() === detailId;
+    });
+
+    if (!detailFound) {
+      return next(appError("History detail not found", 404));
+    }
+
+    if (detailFound.details.paymentSettled) {
+      return next(appError("Payment already settled", 400));
+    }
+
+    let updatedTransaction = {
+      type: "Debit",
+      madeOn: new Date(),
     };
-  });
+
+    if (agentFound?.workStructure?.cashInHand > 0) {
+      agentFound.appDetail.totalEarning -= agentFound.workStructure.cashInHand;
+
+      updatedTransaction.amount = agentFound.workStructure.cashInHand;
+      agentFound.agentTransaction.push(updatedTransaction);
+
+      agentFound.workStructure.cashInHand = 0;
+    }
+
+    detailFound.details.paymentSettled = true;
+
+    await agentFound.save();
+
+    res.status(200).json({
+      message: "Payment approved",
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
 };
 
 module.exports = {
@@ -610,4 +733,6 @@ module.exports = {
   blockAgentController,
   getAllAgentsController,
   getDeliveryAgentPayoutController,
+  filterAgentPayoutController,
+  approvePaymentController,
 };

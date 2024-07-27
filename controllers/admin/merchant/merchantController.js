@@ -102,9 +102,12 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
   }
 
   try {
+    console.log("Request", req);
     const merchantId = req.userAuth;
 
-    const merchantFound = await Merchant.findById(merchantId);
+    console.log("merchantId print", merchantId);
+
+    const merchantFound = await Merchant.findOne({ _id: merchantId });
 
     if (!merchantFound) {
       return next(appError("Merchant not found", 404));
@@ -521,10 +524,11 @@ const getAllMerchantsController = async (req, res, next) => {
         merchantName: merchant?.merchantDetail?.merchantName || "N/A",
         phoneNumber: merchant.phoneNumber,
         isApproved: merchant.isApproved,
-        status: merchant.status,
+        status: merchant.status && isServiceableToday === "open" ? true : false,
         geofence: geofenceName,
         averageRating: merchant?.merchantDetail?.averageRating,
-        isServiceableToday: isServiceableToday,
+        isServiceableToday:
+          isServiceableToday === "open" && merchant.status ? "open" : "closed",
       };
     });
 
@@ -542,7 +546,8 @@ const getSingleMerchantController = async (req, res, next) => {
   try {
     const merchantFound = await Merchant.findById(req.params.merchantId)
       .populate("merchantDetail.geofenceId", "name")
-      .populate("merchantDetail.businessCategoryId", "title");
+      .populate("merchantDetail.businessCategoryId", "title")
+      .select("-password");
 
     if (!merchantFound) {
       return next(appError("Merchant not found", 404));

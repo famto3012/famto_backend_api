@@ -1,9 +1,10 @@
 const mongoose = require("mongoose");
 const { formatLoginDuration } = require("../utils/agentAppHelpers");
+const DatabaseCounter = require("./DatabaseCounter");
 
 const ratingsByCustomerSchema = mongoose.Schema({
   customerId: {
-    type: mongoose.Types.ObjectId,
+    type: String,
     ref: "Customer",
     required: true,
   },
@@ -101,7 +102,7 @@ const workStructureSchema = mongoose.Schema(
 
 const orderDetailSchema = mongoose.Schema({
   orderId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: "Order",
   },
   deliveryMode: {
@@ -177,6 +178,9 @@ const agentTransactionSchema = mongoose.Schema({
 
 const agentSchema = mongoose.Schema(
   {
+    _id: {
+      type: String,
+    },
     fullName: {
       type: String,
       required: true,
@@ -228,7 +232,7 @@ const agentSchema = mongoose.Schema(
     },
     isApproved: {
       type: String,
-      enum: ["Approved", "Pending", "Rejected"],
+      enum: ["Approved", "Pending"],
       default: "Pending",
     },
     loginStartTime: {
@@ -263,11 +267,39 @@ const agentSchema = mongoose.Schema(
   }
 );
 
+// Middleware to set the custom _id before saving
+agentSchema.pre("save", async function (next) {
+  try {
+    if (this.isNew) {
+      const now = new Date();
+      const year = now.getFullYear().toString().slice(-2); // Last two digits of the year
+      const month = `0${now.getMonth() + 1}`.slice(-2); // Zero-padded month
+
+      let counter = await DatabaseCounter.findOneAndUpdate(
+        { type: "Agent", year: parseInt(year, 10), month: parseInt(month, 10) },
+        { $inc: { count: 1 } },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      );
+
+      if (!counter) {
+        throw new Error("Counter document could not be created or updated.");
+      }
+
+      const customId = `A${year}${month}${counter.count}`;
+      this._id = customId;
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Virtual field for calculating the average rating
 agentSchema.virtual("averageRating").get(function () {
-  if (this.ratingsByCustomers?.length === 0) {
+  if (!this.ratingsByAgents || this.ratingsByCustomers.length === 0) {
     return 0;
   }
+
   const total = this.ratingsByCustomers?.reduce(
     (acc, rating) => acc + rating.rating,
     0
@@ -276,6 +308,10 @@ agentSchema.virtual("averageRating").get(function () {
 });
 
 agentSchema.virtual("loggedInHours").get(function () {
+  if (this.isApproved === "Pending") {
+    return "0:00 hr";
+  }
+
   const startTime = this?.loginStartTime;
 
   const difference = new Date() - new Date(startTime);

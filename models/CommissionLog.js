@@ -3,12 +3,12 @@ const mongoose = require("mongoose");
 const commissionLogsSchema = new mongoose.Schema(
   {
     orderId: {
-      type: mongoose.Schema.ObjectId,
+      type: String,
       ref: "Order",
       required: true,
     },
     merchantId: {
-      type: mongoose.Schema.ObjectId,
+      type: String,
       ref: "Merchant",
       required: true,
     },

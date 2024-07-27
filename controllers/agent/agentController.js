@@ -535,8 +535,6 @@ const addGovernmentCertificatesController = async (req, res, next) => {
 //Change agent's status to Free
 const toggleOnlineController = async (req, res, next) => {
   try {
-    const { latitude, longitude } = req.body;
-
     const currentAgent = await Agent.findById(req.userAuth);
 
     if (!currentAgent) {
@@ -829,7 +827,9 @@ const getTaskPreviewController = async (req, res, next) => {
     const taskFound = await Task.find({
       agentId,
       taskStatus: "Assigned",
-    }).sort({ createdAt: 1 });
+    })
+      .populate("orderId")
+      .sort({ createdAt: 1 });
 
     let currentTasks = [];
     let nextTasks = [];
@@ -839,7 +839,7 @@ const getTaskPreviewController = async (req, res, next) => {
         type: "Pickup",
         taskId: task._id,
         taskStatus: task.pickupDetail.pickupStatus,
-        orderId: task.orderId,
+        orderId: task.orderId._id,
         date: formatDate(task.createdAt),
         time: formatTime(task.createdAt),
         pickupName: task.pickupDetail.pickupAddress.fullName,
@@ -853,9 +853,9 @@ const getTaskPreviewController = async (req, res, next) => {
         type: "Delivery",
         taskId: task._id,
         taskStatus: task.deliveryDetail.deliveryStatus,
-        orderId: task.orderId,
+        orderId: task.orderId._id,
         date: formatDate(task.createdAt),
-        time: formatTime(task.createdAt),
+        time: formatTime(task.orderId.orderDetail.deliveryTime),
         deliveryName: task.deliveryDetail.deliveryAddress.fullName,
         deliveryAddress: task.deliveryDetail.deliveryAddress,
         deliveryPhoneNumber: task.deliveryDetail.deliveryAddress.phoneNumber,

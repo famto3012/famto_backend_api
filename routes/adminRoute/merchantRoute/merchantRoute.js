@@ -14,6 +14,7 @@ const {
   blockMerchant,
   editMerchantController,
   filterMerchantsController,
+  updateMerchantDetailsByMerchantController,
 } = require("../../../controllers/admin/merchant/merchantController");
 const { upload } = require("../../../utils/imageOperation");
 const isAdmin = require("../../../middlewares/isAdmin");
@@ -51,7 +52,7 @@ merchantRoute.put(
   ]),
   merchantDetailValidations,
   isAuthenticated,
-  updateMerchantDetailsController
+  updateMerchantDetailsByMerchantController
 );
 
 //Sponsorship payment

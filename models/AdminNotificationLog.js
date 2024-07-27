@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const AdminNotificationLogSchema = new mongoose.Schema(
   {
     orderId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "Order",
       default: null,
     },

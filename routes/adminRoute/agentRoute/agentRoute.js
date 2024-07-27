@@ -11,6 +11,8 @@ const {
   getAllAgentsController,
   searchAgentByNameController,
   getDeliveryAgentPayoutController,
+  approvePaymentController,
+  filterAgentPayoutController,
 } = require("../../../controllers/admin/agent/agentController");
 const { upload } = require("../../../utils/imageOperation");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
@@ -22,6 +24,14 @@ const {
 
 const adminAgentRoute = express.Router();
 
+// Filter agent payout
+adminAgentRoute.get(
+  "/filter-payment",
+  isAuthenticated,
+  isAdmin,
+  filterAgentPayoutController
+);
+
 // Get payout of agents
 adminAgentRoute.get(
   "/get-agent-payout",
@@ -30,7 +40,15 @@ adminAgentRoute.get(
   getDeliveryAgentPayoutController
 );
 
-//Add Agent by admin route
+// Approve agent payout
+adminAgentRoute.patch(
+  "/approve-payout/:agentId/:detailId",
+  isAuthenticated,
+  isAdmin,
+  approvePaymentController
+);
+
+// Add Agent by admin route
 adminAgentRoute.post(
   "/add-agents",
   upload.fields([
@@ -48,7 +66,7 @@ adminAgentRoute.post(
   addAgentByAdminController
 );
 
-//Edit agent details by admin
+// Edit agent details by admin
 adminAgentRoute.put(
   "/edit-agent/:agentId",
   upload.fields([
@@ -66,7 +84,7 @@ adminAgentRoute.put(
   editAgentByAdminController
 );
 
-//Get Agent by vehicle type
+// Get Agent by vehicle type
 adminAgentRoute.get(
   "/filter",
   isAuthenticated,
@@ -82,14 +100,6 @@ adminAgentRoute.get(
   getAllAgentsController
 );
 
-//Get single agent
-adminAgentRoute.get(
-  "/:agentId",
-  isAuthenticated,
-  isAdmin,
-  getSingleAgentController
-);
-
 // Search agent
 adminAgentRoute.get(
   "/search",
@@ -98,7 +108,7 @@ adminAgentRoute.get(
   searchAgentByNameController
 );
 
-//Approve registration
+// Approve registration
 adminAgentRoute.patch(
   "/approve-registration/:agentId",
   isAuthenticated,
@@ -106,7 +116,7 @@ adminAgentRoute.patch(
   approveAgentRegistrationController
 );
 
-//Decline registration
+// Decline registration
 adminAgentRoute.delete(
   "/reject-registration/:agentId",
   isAuthenticated,
@@ -114,7 +124,7 @@ adminAgentRoute.delete(
   rejectAgentRegistrationController
 );
 
-//Get ratings of agent by customer
+// Get ratings of agent by customer
 adminAgentRoute.get(
   "/:agentId/get-ratings-by-customer",
   isAuthenticated,
@@ -122,6 +132,15 @@ adminAgentRoute.get(
   getRatingsByCustomerController
 );
 
+// Get single agent
+adminAgentRoute.get(
+  "/:agentId",
+  isAuthenticated,
+  isAdmin,
+  getSingleAgentController
+);
+
+// Block agent
 adminAgentRoute.patch(
   "/block-agent/:agentId",
   isAuthenticated,

@@ -433,6 +433,8 @@ const getFavoriteMerchantsController = async (req, res, next) => {
   try {
     const currentCustomer = req.userAuth;
 
+    console.log("here");
+
     const customer = await Customer.findById(currentCustomer)
       .select("customerDetails.location customerDetails.favoriteMerchants")
       .populate("customerDetails.favoriteMerchants");
@@ -443,7 +445,7 @@ const getFavoriteMerchantsController = async (req, res, next) => {
 
     const favoriteMerchants = customer.customerDetails.favoriteMerchants;
 
-    const customerLocation = customer.customerDetails.location?.[0];
+    const customerLocation = customer.customerDetails.location;
 
     const simplifiedMerchants = await Promise.all(
       favoriteMerchants.map(async (merchant) => {
@@ -467,7 +469,7 @@ const getFavoriteMerchantsController = async (req, res, next) => {
           averageRating: merchant.merchantDetail.averageRating,
           status: merchant.status,
           distanceInKM: parseFloat(distance),
-          restaurantType: merchant.merchantDetail.taurant || "N/A",
+          restaurantType: merchant.merchantDetail.merchantFoodType || "N/A",
           merchantImageURL: merchant.merchantDetail.merchantImageURL,
           isFavorite,
         };

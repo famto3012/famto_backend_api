@@ -11,6 +11,9 @@ const geoLocation = async (latitude, longitude, next) => {
     // Convert user coordinates into a Turf.js point
     const userPoint = point([longitude, latitude]);
 
+    let largestArea = 0;
+    let largestGeofence = null;
+
     // Iterate through each geofence and check if userPoint is inside
     for (let i = 0; i < geofences.length; i++) {
       const coords = geofences[i].coordinates.map((coord) => [
@@ -20,11 +23,17 @@ const geoLocation = async (latitude, longitude, next) => {
       const geoPolygon = polygon([coords]);
 
       if (booleanPointInPolygon(userPoint, geoPolygon)) {
-        return geofences[i]; // Return the first matching geofence
+        const currentArea = area(geoPolygon);
+        // Check if the current geofence has a larger area than the largest one found so far
+        if (currentArea > largestArea) {
+          largestArea = currentArea;
+          largestGeofence = geofences[i];
+        }
       }
     }
 
-    return null; // Return null if no matching geofence is found
+    // Return the geofence with the largest area or null if no matching geofence is found
+    return largestGeofence || null;
   } catch (err) {
     next(appError(err.message));
   }
