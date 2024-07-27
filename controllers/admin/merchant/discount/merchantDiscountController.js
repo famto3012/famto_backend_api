@@ -20,6 +20,7 @@ const addDiscountController = async (req, res, next) => {
     const {
       discountName,
       maxCheckoutValue,
+      maxDiscountValue,
       discountType,
       discountValue,
       description,
@@ -31,6 +32,7 @@ const addDiscountController = async (req, res, next) => {
     const addDiscount = new MerchantDiscount({
       discountName,
       maxCheckoutValue,
+      maxDiscountValue,
       discountType,
       discountValue,
       description,
@@ -63,6 +65,7 @@ const editDiscountController = async (req, res, next) => {
     const updateFields = [
       "discountName",
       "maxCheckoutValue",
+      "maxDiscountValue",
       "discountType",
       "discountValue",
       "description",
@@ -231,6 +234,7 @@ const addDiscountAdminController = async (req, res, next) => {
     const {
       discountName,
       maxCheckoutValue,
+      maxDiscountValue,
       discountType,
       discountValue,
       description,
@@ -243,6 +247,7 @@ const addDiscountAdminController = async (req, res, next) => {
     const addDiscount = new MerchantDiscount({
       discountName,
       maxCheckoutValue,
+      maxDiscountValue,
       discountType,
       discountValue,
       description,
