@@ -155,7 +155,7 @@ const sendPushNotificationController = async (req, res, next) => {
           imageUrl: pushNotification.imageUrl,
         })
       }
-      console.log("customers", customers);
+      
       userIds = userIds.concat(customers.map((customer) => customer._id));
     }
     if (pushNotification.merchant) {
@@ -199,6 +199,7 @@ const sendPushNotificationController = async (req, res, next) => {
         image: pushNotification.imageUrl
       },
     };
+    console.log("user", userIds);
     for (const userId of userIds) {
       await sendNotification(userId, "pushNotification", data);
 
