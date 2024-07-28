@@ -11,7 +11,7 @@ const appError = require("../../utils/appError");
 const mongoose = require("mongoose");
 const Customer = require("../../models/Customer");
 const Order = require("../../models/Order");
-const { formatLoginDuration } = require("../../utils/agentAppHelpers");
+const { formatToHours } = require("../../utils/agentAppHelpers");
 const { formatDate, formatTime } = require("../../utils/formatters");
 const Task = require("../../models/Task");
 const LoyaltyPoint = require("../../models/LoyaltyPoint");
@@ -760,7 +760,7 @@ const getHistoryOfAppDetailsController = async (req, res, next) => {
           totalDistance:
             `${history?.details?.totalDistance?.toFixed(2)} km` || "0.00 km",
           loginHours:
-            formatLoginDuration(history?.details?.loginDuration) || "0:00 hr",
+            formatToHours(history?.details?.loginDuration) || "0:00 hr",
         },
       };
     });

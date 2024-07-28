@@ -38,6 +38,7 @@ const MerchantDiscount = require("../../../models/MerchantDiscount");
 const Agent = require("../../../models/Agent");
 const PickAndCustomCart = require("../../../models/PickAndCustomCart");
 const scheduledPickAndCustom = require("../../../models/ScheduledPickAndCustom");
+const { formatToHours } = require("../../../utils/agentAppHelpers");
 
 const getAllOrdersForAdminController = async (req, res, next) => {
   try {
@@ -57,14 +58,16 @@ const getAllOrdersForAdminController = async (req, res, next) => {
         _id: order._id,
         orderStatus: order.status,
         merchantName: order.merchantId.merchantDetail.merchantName,
-        customerName: order.customerId.fullName,
+        customerName:
+          order.orderDetail.deliveryAddress.fullName ||
+          order.customerId.fullName,
         deliveryMode: order.orderDetail.deliveryMode,
         orderDate: formatDate(order?.orderDetail?.deliveryTime),
-        orderTime: formatTime(order?.orderDetail?.deliveryTime),
-        deliveryTime: formatTime(deliveryTime),
-        paymentMethod: order.orderDetail.paymentMethod,
+        orderTime: formatTime(order.createdAt),
+        deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
+        paymentMethod: order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
-        amount: order.totalAmount,
+        amount: order.billDetail.grandTotal,
       };
     });
 
@@ -361,7 +364,7 @@ const getOrderDetailByAdminController = async (req, res, next) => {
       )}`,
       deliveryTime: `${formatDate(
         orderFound.orderDetail.deliveryTime
-      )} | ${formatTime(orderDeliveryTime)}`,
+      )} | ${formatTime(orderFound.orderDetail.deliveryTime)}`,
       customerDetail: {
         _id: orderFound.customerId._id,
         name:
@@ -396,8 +399,8 @@ const getOrderDetailByAdminController = async (req, res, next) => {
         instructionsByCustomer:
           orderFound?.orderDetail?.instructionToDeliveryAgent || "N/A",
         distanceTravelled: orderFound?.orderDetail?.distance,
-        tmeTaken: "N/A", // TODO: Calculate these values
-        delayedBy: "N/A", // TODO: Calculate these values
+        timeTaken: formatToHours(orderFound?.orderDetail?.timeTaken) || "N/A",
+        delayedBy: formatToHours(orderFound?.orderDetail?.delayedBy) || "N/A",
       },
       items: orderFound.items,
       billDetail: orderFound.billDetail,
@@ -405,7 +408,7 @@ const getOrderDetailByAdminController = async (req, res, next) => {
 
     res.status(200).json({
       message: "Single order detail",
-      data: formattedResponse, //populatedOrderWithVariantNames,
+      data: formattedResponse,
     });
   } catch (err) {
     next(appError(err.message));

@@ -7,22 +7,31 @@ const subscriptionLogSchema = new mongoose.Schema(
       required: true,
     },
     userId: {
-      type: mongoose.Schema.Types.Mixed,
+      type: String,
       required: true,
     },
     typeOfUser: {
       type: String,
       enum: ["Customer", "Merchant"],
-      default: null,
+      required: true,
     },
     amount: {
       type: Number,
       required: true,
     },
+    // TODO: Add fields of maxOrders currentNumberOfOrders to the controller whole creating
+    maxOrders: {
+      type: Number,
+      default: null,
+    },
+    currentNumberOfOrders: {
+      type: Number,
+      default: 0,
+    },
     paymentMode: {
       type: String,
       enum: ["Online", "Cash"],
-      default: null,
+      required: true,
     },
     startDate: {
       type: Date,

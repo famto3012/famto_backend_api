@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const { formatLoginDuration } = require("../utils/agentAppHelpers");
+const { formatToHours } = require("../utils/agentAppHelpers");
 const DatabaseCounter = require("./DatabaseCounter");
 
 const ratingsByCustomerSchema = mongoose.Schema({
@@ -195,7 +195,7 @@ const agentSchema = mongoose.Schema(
     },
     location: {
       type: [Number],
-      required: true,
+      // required: true,
     },
     geofenceId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -207,7 +207,7 @@ const agentSchema = mongoose.Schema(
     },
     agentImageURL: {
       type: String,
-      required: true,
+      // required: true,
     },
     status: {
       type: String,
@@ -316,7 +316,7 @@ agentSchema.virtual("loggedInHours").get(function () {
 
   const difference = new Date() - new Date(startTime);
 
-  return formatLoginDuration(difference);
+  return formatToHours(difference);
 });
 
 const Agent = mongoose.model("Agent", agentSchema);

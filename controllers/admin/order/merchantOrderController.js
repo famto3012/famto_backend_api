@@ -32,6 +32,7 @@ const {
 } = require("../../../utils/createOrderHelpers");
 const Product = require("../../../models/Product");
 const MerchantDiscount = require("../../../models/MerchantDiscount");
+const { formatToHours } = require("../../../utils/agentAppHelpers");
 
 const getAllOrdersOfMerchantController = async (req, res, next) => {
   try {
@@ -60,21 +61,20 @@ const getAllOrdersOfMerchantController = async (req, res, next) => {
         10
       );
 
-      const deliveryTime = new Date(order.createdAt);
-      deliveryTime.setMinutes(deliveryTime.getMinutes() + deliveryTimeMinutes);
-
       return {
         _id: order._id,
         orderStatus: order.status,
         merchantName: order.merchantId.merchantDetail.merchantName,
-        customerName: order.customerId.fullName,
+        customerName:
+          order.orderDetail.deliveryAddress.fullName ||
+          order.customerId.fullName,
         deliveryMode: order.orderDetail.deliveryMode,
         orderDate: formatDate(order.createdAt),
         orderTime: formatTime(order.createdAt),
-        deliveryTime: formatTime(deliveryTime),
-        paymentMethod: order.orderDetail.paymentMethod,
+        deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
+        paymentMethod: order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
-        amount: order.totalAmount,
+        amount: order.billDetail.grandTotal,
       };
     });
 
@@ -419,9 +419,9 @@ const getOrderDetailController = async (req, res, next) => {
       orderTime: `${formatDate(orderFound.createdAt)} | ${formatTime(
         orderFound.createdAt
       )}`,
-      deliveryTime: `${formatDate(
+      deliveryTime: `${formatDate(orderFound.createdAt)} | ${formatTime(
         orderFound.orderDetail.deliveryTime
-      )} | ${formatTime(orderDeliveryTime)}`,
+      )}`,
       customerDetail: {
         _id: orderFound.customerId._id,
         name:
@@ -456,8 +456,8 @@ const getOrderDetailController = async (req, res, next) => {
         instructionsByCustomer:
           orderFound.orderDetail.instructionToDeliveryAgent || "N/A",
         distanceTravelled: orderFound.orderDetail.distance,
-        tmeTaken: "N/A", // TODO: Calculate these values
-        delayedBy: "N/A", // TODO: Calculate these values
+        timeTaken: formatToHours(orderFound?.orderDetail?.timeTaken) || "N/A",
+        delayedBy: formatToHours(orderFound?.orderDetail?.delayedBy) || "N/A",
       },
       items: orderFound.items,
       billDetail: orderFound.billDetail,
@@ -465,7 +465,7 @@ const getOrderDetailController = async (req, res, next) => {
 
     res.status(200).json({
       message: "Single order detail",
-      data: formattedResponse, //populatedOrderWithVariantNames,
+      data: formattedResponse,
     });
   } catch (err) {
     next(appError(err.message));

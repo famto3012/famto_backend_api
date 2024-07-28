@@ -8,7 +8,7 @@ const Agent = require("../../../models/Agent");
 const { default: mongoose } = require("mongoose");
 const AccountLogs = require("../../../models/AccountLogs");
 const { formatDate } = require("../../../utils/formatters");
-const { formatLoginDuration } = require("../../../utils/agentAppHelpers");
+const { formatToHours } = require("../../../utils/agentAppHelpers");
 
 const addAgentByAdminController = async (req, res, next) => {
   const {
@@ -568,7 +568,7 @@ const getDeliveryAgentPayoutController = async (req, res, next) => {
           cancelledOrders: lastHistory.details.cancelledOrders || 0,
           totalDistance: lastHistory.details.totalDistance || 0,
           loginHours: lastHistory.details.loginDuration
-            ? formatLoginDuration(lastHistory.details.loginDuration)
+            ? formatToHours(lastHistory.details.loginDuration)
             : "0:00 hr",
           cashInHand: agent.workStructure?.cashInHand || 0,
           totalEarnings: lastHistory.details.totalEarning || 0,
@@ -655,7 +655,7 @@ const filterAgentPayoutController = async (req, res, next) => {
           cancelledOrders: lastHistory.details.cancelledOrders || 0,
           totalDistance: lastHistory.details.totalDistance || 0,
           loginHours: lastHistory.details.loginDuration
-            ? formatLoginDuration(lastHistory.details.loginDuration)
+            ? formatToHours(lastHistory.details.loginDuration)
             : "0:00 hr",
           cashInHand: agent.workStructure?.cashInHand || 0,
           totalEarnings: lastHistory.details.totalEarning || 0,

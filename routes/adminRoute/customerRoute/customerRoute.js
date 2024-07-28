@@ -63,7 +63,6 @@ adminCustomerRoute.get(
   getAllRatingsAndReviewsByAgentController
 );
 
-// TODO: need to test API
 adminCustomerRoute.patch(
   "/add-money-to-wallet/:customerId",
   isAuthenticated,
@@ -71,7 +70,6 @@ adminCustomerRoute.patch(
   addMoneyToWalletController
 );
 
-// TODO: need to test API
 adminCustomerRoute.patch(
   "/deduct-money-from-wallet/:customerId",
   isAuthenticated,
