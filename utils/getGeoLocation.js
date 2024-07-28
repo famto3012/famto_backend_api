@@ -1,6 +1,6 @@
 const Geofence = require("../models/Geofence");
 const appError = require("./appError");
-const { point, polygon, booleanPointInPolygon } = require("@turf/turf");
+const { point, polygon, booleanPointInPolygon, area } = require("@turf/turf");
 
 // Function to find the appropriate geofence for given coordinates
 const geoLocation = async (latitude, longitude, next) => {

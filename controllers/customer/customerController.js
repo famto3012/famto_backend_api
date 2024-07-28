@@ -824,8 +824,9 @@ const getCustomerSubscriptionDetailController = async (req, res, next) => {
       currentSubscriptionLog.customerDetails.pricing[0].startDate;
     const endDate = currentSubscriptionLog.customerDetails.pricing[0].endDate;
 
-    const currentDate = new Date(startDate);
+    const currentDate = new Date();
     const endDateObject = new Date(endDate);
+
     const timeDiff = endDateObject - currentDate;
     const daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
 

@@ -5,6 +5,7 @@ const Admin = require("../../models/Admin");
 const { validationResult } = require("express-validator");
 const Merchant = require("../../models/Merchant");
 const Manager = require("../../models/Manager");
+const Agent = require("../../models/Agent");
 
 //For Admin and Merchant
 // -----------------------------
@@ -77,6 +78,79 @@ const loginController = async (req, res, next) => {
   }
 };
 
+// For website
+// =============================
+const registerOnWebsite = async (req, res, next) => {
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(500).json({ errors: formattedErrors });
+  }
+
+  try {
+    const { fullName, email, phoneNumber, role, password } = req.body;
+
+    const normalisedEmail = email.toLowerCase();
+
+    let userFound;
+    if (role === "Merchant") {
+      userFound = await Merchant.find({ email: normalisedEmail });
+
+      if (userFound) {
+        formattedErrors.email = "Email already exists";
+        return res.status(409).json({ errors: formattedErrors });
+      }
+    } else if (role === "Agent") {
+      userFound = await Agent.find({ email: normalisedEmail });
+
+      if (userFound) {
+        formattedErrors.email = "Email already exists";
+        return res.status(409).json({ errors: formattedErrors });
+      }
+
+      userFound = await Agent.find({ phoneNumber });
+
+      if (userFound) {
+        formattedErrors.phoneNumber = "Phone numbers already exists";
+        return res.status(409).json({ errors: formattedErrors });
+      }
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    let newUser;
+
+    if (role === "Merchant") {
+      newUser = await Merchant.create({
+        fullName,
+        email: normalisedEmail,
+        phoneNumber,
+        password: hashedPassword,
+      });
+    } else if (role === "Agent") {
+      newUser = await Agent.create({
+        fullName,
+        email: normalisedEmail,
+        phoneNumber,
+      });
+    }
+
+    if (newUser) {
+      return next(appError("Error in registering new User"));
+    }
+
+    res.status(200).json({ message: `New ${role} created successfully` });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   loginController,
+  registerOnWebsite,
 };
