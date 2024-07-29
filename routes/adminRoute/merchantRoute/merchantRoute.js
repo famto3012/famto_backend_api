@@ -15,6 +15,7 @@ const {
   editMerchantController,
   filterMerchantsController,
   updateMerchantDetailsByMerchantController,
+  addMerchantController,
 } = require("../../../controllers/admin/merchant/merchantController");
 const { upload } = require("../../../utils/imageOperation");
 const isAdmin = require("../../../middlewares/isAdmin");
@@ -115,6 +116,15 @@ merchantRoute.get(
   isAuthenticated,
   isAdmin,
   getSingleMerchantController
+);
+
+// Add merchant
+merchantRoute.post(
+  "/admin/add-merchant",
+  merchantValidations,
+  isAuthenticated,
+  isAdmin,
+  addMerchantController
 );
 
 // Edit merchant

@@ -65,6 +65,20 @@ orderRoute.post("/create-order", isAuthenticated, createOrderController);
 // -------------------------------------------------
 
 orderRoute.get(
+  "/admin/search-order",
+  isAuthenticated,
+  isAdmin,
+  searchOrderByIdByAdminController
+);
+
+orderRoute.get(
+  "/admin/filter",
+  isAuthenticated,
+  isAdmin,
+  filterOrdersByAdminController
+);
+
+orderRoute.get(
   "/admin/all-orders",
   isAuthenticated,
   isAdmin,
@@ -90,20 +104,6 @@ orderRoute.put(
   isAuthenticated,
   isAdmin,
   rejectOrderByAdminController
-);
-
-orderRoute.get(
-  "/admin/search-order",
-  isAuthenticated,
-  isAdmin,
-  searchOrderByIdByAdminController
-);
-
-orderRoute.get(
-  "/admin/filter-by-status",
-  isAuthenticated,
-  isAdmin,
-  filterOrdersByAdminController
 );
 
 orderRoute.post(

@@ -575,6 +575,49 @@ const getSingleMerchantController = async (req, res, next) => {
   }
 };
 
+const addMerchantController = async (req, res, next) => {
+  const { fullName, email, phoneNumber, password } = req.body;
+
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(500).json({ errors: formattedErrors });
+  }
+
+  try {
+    const normalizedEmail = email.toLowerCase();
+
+    const merchantFound = await Merchant.findOne({ email: normalizedEmail });
+
+    if (merchantFound) {
+      formattedErrors.email = "Email already exists";
+      return res.status(409).json({ errors: formattedErrors });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const newMerchant = await Merchant.create({
+      fullName,
+      email: normalizedEmail,
+      phoneNumber,
+      password: hashedPassword,
+    });
+
+    if (!newMerchant) {
+      return next(appError("Error in creating new merchant"));
+    }
+
+    res.status(201).json({ message: "Merchant added successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 // Edit merchant
 const editMerchantController = async (req, res, next) => {
   const { fullName, email, phoneNumber, password } = req.body;
@@ -894,6 +937,7 @@ module.exports = {
   sponsorshipPaymentController,
   verifyPaymentController,
   blockMerchant,
+  addMerchantController,
   editMerchantController,
   filterMerchantsController,
 };
