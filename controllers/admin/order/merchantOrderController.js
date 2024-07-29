@@ -263,25 +263,20 @@ const searchOrderByIdController = async (req, res, next) => {
     }
 
     const formattedOrders = ordersFound.map((order) => {
-      const deliveryTimeMinutes = parseInt(
-        order.merchantId.merchantDetail.deliveryTime,
-        10
-      );
-      const deliveryTime = new Date(order.createdAt);
-      deliveryTime.setMinutes(deliveryTime.getMinutes() + deliveryTimeMinutes);
-
       return {
         _id: order._id,
         orderStatus: order.status,
         merchantName: order.merchantId.merchantDetail.merchantName,
-        customerName: order.customerId.fullName,
+        customerName:
+          order.orderDetail.deliveryAddress.fullName ||
+          order.customerId.fullName,
         deliveryMode: order.orderDetail.deliveryMode,
-        orderDate: formatDate(order.createdAt),
+        orderDate: formatDate(order?.orderDetail?.deliveryTime),
         orderTime: formatTime(order.createdAt),
-        deliveryTime: formatTime(deliveryTime),
-        paymentMethod: order.orderDetail.paymentMethod,
+        deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
+        paymentMethod: order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
-        amount: order.totalAmount,
+        amount: order.billDetail.grandTotal,
       };
     });
 
@@ -342,25 +337,20 @@ const filterOrdersController = async (req, res, next) => {
       .sort({ createdAt: -1 });
 
     const formattedOrders = filteredOrderResults.map((order) => {
-      const deliveryTimeMinutes = parseInt(
-        order.merchantId.merchantDetail.deliveryTime,
-        10
-      );
-      const deliveryTime = new Date(order.createdAt);
-      deliveryTime.setMinutes(deliveryTime.getMinutes() + deliveryTimeMinutes);
-
       return {
         _id: order._id,
         orderStatus: order.status,
         merchantName: order.merchantId.merchantDetail.merchantName,
-        customerName: order.customerId.fullName,
+        customerName:
+          order.orderDetail.deliveryAddress.fullName ||
+          order.customerId.fullName,
         deliveryMode: order.orderDetail.deliveryMode,
-        orderDate: formatDate(order.createdAt),
+        orderDate: formatDate(order?.orderDetail?.deliveryTime),
         orderTime: formatTime(order.createdAt),
-        deliveryTime: formatTime(deliveryTime),
-        paymentMethod: order.orderDetail.paymentMethod,
+        deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
+        paymentMethod: order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
-        amount: order.totalAmount,
+        amount: order.billDetail.grandTotal,
       };
     });
 
@@ -951,7 +941,6 @@ const createOrderController = async (req, res, next) => {
 };
 
 module.exports = {
-  // For Merchant
   getAllOrdersOfMerchantController,
   confirmOrderController,
   rejectOrderController,

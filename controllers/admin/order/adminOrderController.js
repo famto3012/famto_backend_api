@@ -197,8 +197,7 @@ const searchOrderByIdByAdminController = async (req, res, next) => {
     }
 
     const ordersFound = await Order.find({
-      _id: query,
-      merchantId: currentMerchant,
+      _id: { $regex: query, $options: "i" },
     })
       .populate({
         path: "merchantId",
@@ -210,36 +209,27 @@ const searchOrderByIdByAdminController = async (req, res, next) => {
       })
       .sort({ createdAt: -1 });
 
-    if (ordersFound.length === 0) {
-      return res.status(404).json({ message: "No orders found" });
-    }
-
-    const formattedOrders = ordersFound.map((order) => {
-      const deliveryTimeMinutes = parseInt(
-        order.merchantId.merchantDetail.deliveryTime,
-        10
-      );
-      const deliveryTime = new Date(order.createdAt);
-      deliveryTime.setMinutes(deliveryTime.getMinutes() + deliveryTimeMinutes);
-
+    const formattedOrders = ordersFound?.map((order) => {
       return {
         _id: order._id,
         orderStatus: order.status,
         merchantName: order.merchantId.merchantDetail.merchantName,
-        customerName: order.customerId.fullName,
+        customerName:
+          order.orderDetail.deliveryAddress.fullName ||
+          order.customerId.fullName,
         deliveryMode: order.orderDetail.deliveryMode,
-        orderDate: formatDate(order.createdAt),
+        orderDate: formatDate(order?.orderDetail?.deliveryTime),
         orderTime: formatTime(order.createdAt),
-        deliveryTime: formatTime(deliveryTime),
-        paymentMethod: order.orderDetail.paymentMethod,
+        deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
+        paymentMethod: order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
-        amount: order.totalAmount,
+        amount: order.billDetail.grandTotal,
       };
     });
 
     res.status(200).json({
       message: "Search result of order",
-      data: formattedOrders,
+      data: formattedOrders || [],
     });
   } catch (err) {
     next(appError(err.message));
@@ -270,7 +260,7 @@ const filterOrdersByAdminController = async (req, res, next) => {
     }
 
     if (deliveryMode) {
-      filterCriteria["orderDetail.deliveryOption"] = {
+      filterCriteria["orderDetail.deliveryMode"] = {
         $regex: deliveryMode.trim(),
         $options: "i",
       };
@@ -288,25 +278,20 @@ const filterOrdersByAdminController = async (req, res, next) => {
       .sort({ createdAt: -1 });
 
     const formattedOrders = filteredOrderResults.map((order) => {
-      const deliveryTimeMinutes = parseInt(
-        order.merchantId.merchantDetail.deliveryTime,
-        10
-      );
-      const deliveryTime = new Date(order.createdAt);
-      deliveryTime.setMinutes(deliveryTime.getMinutes() + deliveryTimeMinutes);
-
       return {
         _id: order._id,
         orderStatus: order.status,
         merchantName: order.merchantId.merchantDetail.merchantName,
-        customerName: order.customerId.fullName,
+        customerName:
+          order.orderDetail.deliveryAddress.fullName ||
+          order.customerId.fullName,
         deliveryMode: order.orderDetail.deliveryMode,
-        orderDate: formatDate(order.createdAt),
+        orderDate: formatDate(order?.orderDetail?.deliveryTime),
         orderTime: formatTime(order.createdAt),
-        deliveryTime: formatTime(deliveryTime),
-        paymentMethod: order.orderDetail.paymentMethod,
+        deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
+        paymentMethod: order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
-        amount: order.totalAmount,
+        amount: order.billDetail.grandTotal,
       };
     });
 

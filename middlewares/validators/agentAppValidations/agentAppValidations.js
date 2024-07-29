@@ -21,12 +21,12 @@ const agentLoginValidation = [
 const editAgentValidations = [
   body("fullName").trim().notEmpty().withMessage("Full name is required"),
   body("email").trim().isEmail().withMessage("Valid email is required"),
-  check("agentImage").custom((value, { req }) => {
-    if (!req.body.agentImageURL && !req.file) {
-      throw new Error("Agent image is required");
-    }
-    return true;
-  }),
+  // check("agentImage").custom((value, { req }) => {
+  //   if (!req.body.agentImageURL && !req.file) {
+  //     throw new Error("Agent image is required");
+  //   }
+  //   return true;
+  // }),
 ];
 
 const vehicleDetailValidations = [
