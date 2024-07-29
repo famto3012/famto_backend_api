@@ -186,6 +186,7 @@ const verifyRazorpayPayment = async (req, res, next) => {
       startDate,
       endDate,
       typeOfUser,
+      maxOrders: subscriptionPlan?.maxOrders,
       paymentStatus: "Paid",
       razorpayOrderId: razorpay_order_id,
     });
