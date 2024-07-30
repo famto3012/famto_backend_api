@@ -103,6 +103,28 @@ const editNotificationSettingController = async (req, res, next) => {
   }
 };
 
+const editNotificationSettingStatusController = async (req, res, next) => {
+  try {
+    const updatedNotificationSetting = await NotificationSetting.findById(
+      req.params.id
+    );
+
+    if (updatedNotificationSetting) {
+      // Assuming status is a boolean, toggle it
+      updatedNotificationSetting.status = !updatedNotificationSetting.status;
+
+      // Save the updated document
+      await updatedNotificationSetting.save();
+
+      res.status(200).json(updatedNotificationSetting);
+    } else {
+      res.status(404).json({ message: "Notification setting not found" });
+    }
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 const deleteNotificationSettingController = async (req, res, next) => {
   try {
     const deletedNotificationSetting =
@@ -173,4 +195,5 @@ module.exports = {
   getAllNotificationSettingController,
   searchNotificationSettingController,
   getNotificationSettingController,
+  editNotificationSettingStatusController,
 };
