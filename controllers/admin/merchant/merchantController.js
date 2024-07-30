@@ -545,36 +545,43 @@ const getAllMerchantsController = async (req, res, next) => {
 const getSingleMerchantController = async (req, res, next) => {
   try {
     const merchantFound = await Merchant.findById(req.params.merchantId)
-      .populate("merchantDetail.geofenceId", "name")
-      .populate("merchantDetail.businessCategoryId", "title")
-      .select("-password");
+      .populate("merchantDetail.geofenceId", "name _id")
+      .populate("merchantDetail.businessCategoryId")
+      .select("-password")
+      .lean({ virtuals: true });
 
     if (!merchantFound) {
       return next(appError("Merchant not found", 404));
     }
 
-    // Convert the document to an object including virtuals
-    const merchantWithVirtuals = merchantFound.toObject({ virtuals: true });
-
-    // Extract the first sponsorship detail
-    const firstSponsorshipDetail = merchantFound.sponsorshipDetail
-      ? merchantFound.sponsorshipDetail[0]
-      : null;
+    const formattedResponse = {
+      _id: merchantFound._id,
+      fullName: merchantFound.fullName,
+      email: merchantFound.email,
+      phoneNumber: merchantFound.phoneNumber,
+      isApproved: merchantFound.isApproved,
+      status: merchantFound.status,
+      isBlocked: merchantFound.isBlocked,
+      merchantDetail:
+        {
+          ...merchantFound?.merchantDetail,
+          geofenceId: merchantFound?.merchantDetail?.geofenceId?._id || "", // Extract name
+          businessCategoryId:
+            merchantFound?.merchantDetail?.businessCategoryId?._id || "",
+        } || {},
+      sponsorshipDetail: merchantFound?.sponsorshipDetail[0] || [],
+    };
 
     res.status(200).json({
-      message: "Merchant details",
-      data: {
-        ...merchantWithVirtuals,
-        sponsorshipDetail: firstSponsorshipDetail
-          ? [firstSponsorshipDetail]
-          : [],
-      },
+      message: "Single merchant details",
+      data: formattedResponse,
     });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
+// Add merchant
 const addMerchantController = async (req, res, next) => {
   const { fullName, email, phoneNumber, password } = req.body;
 
