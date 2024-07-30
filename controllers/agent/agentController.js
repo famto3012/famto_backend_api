@@ -628,7 +628,7 @@ const changeVehicleStatusController = async (req, res, next) => {
     // Update the status of each vehicle
     agentFound.vehicleDetail.forEach((vehicle) => {
       if (vehicle._id.toString() === vehicleId) {
-        vehicle.vehicleStatus = true;
+        vehicle.vehicleStatus = !vehicle.vehicleStatus;
         vehicleFound = true;
       } else {
         vehicle.vehicleStatus = false;
