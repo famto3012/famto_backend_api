@@ -83,7 +83,7 @@ const surgeValidations = [
 ];
 
 const customerPricingValidations = [
-  body("orderType").trim().notEmpty().withMessage("Order type is required"),
+  body("deliveryMode").trim().notEmpty().withMessage("Order type is required"),
   body("ruleName").trim().notEmpty().withMessage("Rule name is required"),
   body("baseFare")
     .trim()

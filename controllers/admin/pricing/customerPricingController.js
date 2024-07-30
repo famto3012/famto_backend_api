@@ -4,7 +4,7 @@ const CustomerPricing = require("../../../models/CustomerPricing");
 
 const addCustomerPricingController = async (req, res, next) => {
   const {
-    orderType,
+    deliveryMode,
     ruleName,
     baseFare,
     baseDistance,
@@ -35,7 +35,7 @@ const addCustomerPricingController = async (req, res, next) => {
       .replace(/\b\w/g, (char) => char.toUpperCase());
 
     const newRule = await CustomerPricing.create({
-      orderType,
+      deliveryMode,
       ruleName: normalizedRuleName,
       baseFare,
       baseDistance,
@@ -98,7 +98,7 @@ const getSingleCustomerPricingController = async (req, res, next) => {
 
 const editCustomerPricingController = async (req, res, next) => {
   const {
-    orderType,
+    deliveryMode,
     ruleName,
     baseFare,
     baseDistance,
@@ -148,7 +148,7 @@ const editCustomerPricingController = async (req, res, next) => {
     const updatedCustomerPricing = await CustomerPricing.findByIdAndUpdate(
       req.params.customerPricingId,
       {
-        orderType,
+        deliveryMode,
         ruleName: normalizedRuleName,
         baseFare,
         baseDistance,
