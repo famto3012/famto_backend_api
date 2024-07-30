@@ -10,6 +10,7 @@ const {
   getAllNotificationSettingController,
   searchNotificationSettingController,
   getNotificationSettingController,
+  editNotificationSettingStatusController,
 } = require("../../../controllers/admin/notification/notificationSetting/notificationSettingController");
 const {
   addPushNotificationController,
@@ -29,6 +30,10 @@ const {
 const {
   sendNotificationController,
 } = require("../../../controllers/admin/notification/notificationController");
+const {
+  getAdminNotificationLogController,
+  getMerchantNotificationLogController,
+} = require("../../../controllers/admin/notification/notificationLog/notificationLogController");
 
 const adminNotificationRoute = express.Router();
 
@@ -48,6 +53,13 @@ adminNotificationRoute.put(
   isAuthenticated,
   isAdmin,
   editNotificationSettingController
+);
+
+adminNotificationRoute.put(
+  "/notification-setting-status/:id",
+  isAuthenticated,
+  isAdmin,
+  editNotificationSettingStatusController
 );
 
 adminNotificationRoute.delete(
@@ -165,6 +177,19 @@ adminNotificationRoute.post(
   isAuthenticated,
   isAdmin,
   sendPushNotificationController
+);
+
+adminNotificationRoute.get(
+  "/get-admin-notification-log",
+  isAuthenticated,
+  isAdmin,
+  getAdminNotificationLogController
+);
+
+adminNotificationRoute.get(
+  "/get-merchant-notification-log",
+  isAuthenticated,
+  getMerchantNotificationLogController
 );
 
 module.exports = adminNotificationRoute;
