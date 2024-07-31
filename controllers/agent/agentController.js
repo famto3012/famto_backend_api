@@ -156,9 +156,10 @@ const agentLoginController = async (req, res, next) => {
 
     res.status(200).json({
       message: "Agent Login successful",
+      token: generateToken(agentFound._id, agentFound.role),
       _id: agentFound._id,
       fullName: agentFound.fullName,
-      token: generateToken(agentFound._id, agentFound.role),
+      agentImageURL: agentFound.agentImageURL,
     });
   } catch (err) {
     next(appError(err.message));
@@ -1386,8 +1387,8 @@ const getAgentTransactionsController = async (req, res, next) => {
         fullName: agentFound.fullName,
         date: formatDate(transaction.madeOn),
         time: formatTime(transaction.madeOn),
-        amount,
-        type,
+        amount: transaction.amount,
+        type: transaction.type,
       };
     });
 

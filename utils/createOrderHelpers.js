@@ -8,6 +8,7 @@ const findOrCreateCustomer = async ({
   customerId,
   newCustomer,
   customerAddress,
+  deliveryMode,
 }) => {
   if (customerId) {
     const customer = await Customer.findById(customerId);
@@ -70,6 +71,26 @@ const findOrCreateCustomer = async ({
     };
 
     return await Customer.create(updatedNewCustomer);
+  } else if (newCustomer && deliveryMode === "Take Away") {
+    const existingCustomerByPhone = await Customer.findOne({
+      phoneNumber: newCustomer.phoneNumber,
+    });
+
+    // Check if the customer already exists by email
+    const existingCustomerByEmail = await Customer.findOne({
+      email: newCustomer.email,
+    });
+
+    if (existingCustomerByPhone || existingCustomerByEmail) {
+      // If customer exists, return the existing customer instead of creating a new one
+      return existingCustomerByPhone || existingCustomerByEmail;
+    }
+
+    return await Customer.create({
+      fullName: newCustomer.fullName,
+      email: newCustomer.email,
+      phoneNumber: newCustomer.phoneNumber,
+    });
   }
 };
 

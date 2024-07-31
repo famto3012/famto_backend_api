@@ -62,9 +62,14 @@ const getAllOrdersForAdminController = async (req, res, next) => {
           order.orderDetail.deliveryAddress.fullName ||
           order.customerId.fullName,
         deliveryMode: order.orderDetail.deliveryMode,
-        orderDate: formatDate(order?.orderDetail?.deliveryTime),
+        orderDate: formatDate(order.createdAt),
         orderTime: formatTime(order.createdAt),
-        deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
+        deliveryDate: order?.orderDetail?.deliveryTime
+          ? formatDate(order.orderDetail.deliveryTime)
+          : "",
+        deliveryTime: order?.orderDetail?.deliveryTime
+          ? formatTime(order.orderDetail.deliveryTime)
+          : "",
         paymentMethod: order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
         amount: order.billDetail.grandTotal,
@@ -441,8 +446,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
       addedTip,
     } = req.body;
 
-    console.log(req.body);
-
     // Extract ifScheduled only if deliveryOption is scheduled
     let ifScheduled, startDate, endDate, time, numOfDays;
     if (deliveryOption === "Scheduled") {
@@ -462,7 +465,14 @@ const createInvoiceByAdminController = async (req, res, next) => {
     const customerAddress =
       newCustomerAddress || newPickupAddress || newDeliveryAddress;
 
-    if (newCustomer && deliveryMode !== "Custom Order") {
+    console.log("after");
+
+    if (
+      newCustomer &&
+      deliveryMode !== "Take Away" &&
+      newCustomer &&
+      deliveryMode !== "Custom Order"
+    ) {
       if (!customerAddress) {
         if (deliveryMode === "Home Delivery") {
           formattedErrors.customerAddress = "Customer address is required";
@@ -479,14 +489,23 @@ const createInvoiceByAdminController = async (req, res, next) => {
       }
     }
 
+    console.log("before finding customer");
+
+    console.log(newCustomer);
+    console.log(customerAddress);
+    console.log(deliveryMode);
+
     let customer = await findOrCreateCustomer({
       customerId,
       newCustomer,
       customerAddress,
+      deliveryMode,
       formattedErrors,
     });
 
     if (!customer) return res.status(409).json({ errors: formattedErrors });
+
+    console.log("after finding customer");
 
     let pickupLocation,
       pickupAddress,
@@ -585,24 +604,27 @@ const createInvoiceByAdminController = async (req, res, next) => {
       if (!businessCategory)
         return next(appError("Business category not found", 404));
 
-      const customerPricing = await CustomerPricing.findOne({
-        ruleName: businessCategory.title,
-        geofenceId: customer.customerDetails.geofenceId,
-        status: true,
-      });
+      let customerPricing;
+      if (deliveryMode === "Home Delivery") {
+        customerPricing = await CustomerPricing.findOne({
+          ruleName: businessCategory.title,
+          geofenceId: customer.customerDetails.geofenceId,
+          status: true,
+        });
 
-      if (!customerPricing)
-        return res.status(404).json({ error: "Customer pricing not found" });
+        if (!customerPricing)
+          return res.status(404).json({ error: "Customer pricing not found" });
+      }
 
       const oneTimeDeliveryCharge = calculateDeliveryCharges(
         distanceInKM,
-        customerPricing.baseFare,
-        customerPricing.baseDistance,
-        customerPricing.fareAfterBaseDistance
+        customerPricing?.baseFare,
+        customerPricing?.baseDistance,
+        customerPricing?.fareAfterBaseDistance
       );
 
       const customerSurge = await CustomerSurge.findOne({
-        geofenceId: customer.customerDetails.geofenceId,
+        geofenceId: customer?.customerDetails?.geofenceId,
         status: true,
       });
 
@@ -1024,6 +1046,8 @@ const createOrderByAdminController = async (req, res, next) => {
   try {
     const { paymentMode, deliveryMode, cartId } = req.body;
 
+    console.log(req.body);
+
     let cartFound;
 
     if (deliveryMode === "Pick and Drop" || deliveryMode === "Custom Order") {
@@ -1186,7 +1210,7 @@ const createOrderByAdminController = async (req, res, next) => {
       customer.transactionDetail.push(customerTransation);
       await customer.save();
 
-      return res.status(200).json({
+      return res.status(201).json({
         message: "Order created successfully",
         data: newOrder,
       });
