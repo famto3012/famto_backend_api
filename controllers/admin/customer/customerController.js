@@ -53,10 +53,8 @@ const searchCustomerByNameController = async (req, res, next) => {
 
     // Calculate averageRating and format registrationDate for each customer
     const formattedCustomers = searchResults.map((customer) => {
-      const homeAddress =
-        { type: "home", ...customer?.customerDetails?.homeAddress } || {};
-      const workAddress =
-        { type: "work", ...customer?.customerDetails?.workAddress } || {};
+      const homeAddress = customer?.customerDetails?.homeAddress || {};
+      const workAddress = customer?.customerDetails?.workAddress || {};
       const otherAddress = customer?.customerDetails?.otherAddress || [];
 
       return {
@@ -67,7 +65,11 @@ const searchCustomerByNameController = async (req, res, next) => {
         lastPlatformUsed: customer.lastPlatformUsed,
         registrationDate: formatDate(customer.createdAt),
         averageRating: customer.customerDetails?.averageRating || 0,
-        address: [homeAddress, workAddress, otherAddress],
+        address: [
+          { type: "home", homeAddress },
+          { type: "work", workAddress },
+          { type: "other", otherAddress },
+        ],
       };
     });
 
