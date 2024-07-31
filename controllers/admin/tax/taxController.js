@@ -42,7 +42,10 @@ const addTaxController = async (req, res, next) => {
       return next(appError("Error in creating new Tax"));
     }
 
-    res.status(201).json({ message: `${taxName} Tax created` });
+    res.status(201).json({
+      message: `${taxName} Tax created`,
+      data: newTax,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -139,7 +142,7 @@ const editTaxController = async (req, res, next) => {
       return next(appError("Error in updating Tax"));
     }
 
-    res.status(201).json({ message: `${taxName} is updated` });
+    res.status(200).json({ message: `${taxName} is updated` });
   } catch (err) {
     next(appError(err.message));
   }

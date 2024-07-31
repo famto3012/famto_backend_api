@@ -317,18 +317,17 @@ const addVehicleDetailsController = async (req, res, next) => {
     const rcFrontImage = req.files.rcFrontImage[0];
     const rcBackImage = req.files.rcBackImage[0];
 
+    const rcFrontImageURL = await uploadToFirebase(rcFrontImage, "RCImages");
+    const rcBackImageURL = await uploadToFirebase(rcBackImage, "RCImages");
+
     // Uploading vehicle images and details
     const newVehicle = {
       _id: new mongoose.Types.ObjectId(),
       model,
       type,
       licensePlate,
-      rcFrontImageURL: rcFrontImage
-        ? await uploadToFirebase(rcFrontImage, "RCImages")
-        : "",
-      rcBackImageURL: rcBackImage
-        ? await uploadToFirebase(rcBackImage, "RCImages")
-        : "",
+      rcFrontImageURL,
+      rcBackImageURL,
     };
 
     // Adding the new vehicle to the agent's vehicle details array
@@ -354,7 +353,7 @@ const editAgentVehicleController = async (req, res, next) => {
     errors.array().forEach((error) => {
       formattedErrors[error.path] = error.msg;
     });
-    return res.status(500).json({ errors: formattedErrors });
+    return res.status(400).json({ errors: formattedErrors });
   }
 
   try {
@@ -377,14 +376,14 @@ const editAgentVehicleController = async (req, res, next) => {
     // If new images are provided, upload them and update URLs
     if (req.files && req.files.rcFrontImage) {
       await deleteFromFirebase(rcFrontImageURL);
-      vehicle.rcFrontImageURL = await uploadToFirebase(
+      rcFrontImageURL = await uploadToFirebase(
         req.files.rcFrontImage[0],
         "RCImages"
       );
     }
     if (req.files && req.files.rcBackImage) {
       await deleteFromFirebase(rcBackImageURL);
-      vehicle.rcBackImageURL = await uploadToFirebase(
+      rcBackImageURL = await uploadToFirebase(
         req.files.rcBackImage[0],
         "RCImages"
       );

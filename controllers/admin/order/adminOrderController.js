@@ -441,6 +441,8 @@ const createInvoiceByAdminController = async (req, res, next) => {
       addedTip,
     } = req.body;
 
+    console.log(req.body);
+
     // Extract ifScheduled only if deliveryOption is scheduled
     let ifScheduled, startDate, endDate, time, numOfDays;
     if (deliveryOption === "Scheduled") {
@@ -700,6 +702,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
             deliveryCharge: 0,
             addedTip,
           });
+          console.log("here");
 
           grandTotal = subTotal;
         } else if (deliveryOption === "Scheduled") {
@@ -917,8 +920,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
       //   console.log(items[i]);
       // }
 
-      return;
-
       const customerPricing = await CustomerPricing.findOne({
         orderType: "Custom Order",
         geofenceId: customer.customerDetails.geofenceId,
@@ -1017,7 +1018,7 @@ const createOrderByAdminController = async (req, res, next) => {
     errors.array().forEach((error) => {
       formattedErrors[error.path] = error.msg;
     });
-    return res.status(500).json({ errors: formattedErrors });
+    return res.status(400).json({ errors: formattedErrors });
   }
 
   try {
@@ -1142,7 +1143,7 @@ const createOrderByAdminController = async (req, res, next) => {
       customer.transactionDetail.push(customerTransation);
       await customer.save();
 
-      res.status(200).json({
+      res.status(201).json({
         message: "Order created successfully",
         data: newOrder,
       });

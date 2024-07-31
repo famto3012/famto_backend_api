@@ -71,13 +71,15 @@ const getTaxAmount = async (
   deliveryCharges
 ) => {
   try {
+    console.log(businessCategoryId);
+    console.log(geofenceId);
     const taxFound = await Tax.findOne({
       assignToBusinessCategoryId: businessCategoryId,
       geofenceId,
     });
 
     if (!taxFound) {
-      return next(appError("Tax not found", 404));
+      throw new Error("Tax not found");
     }
 
     const taxPercentage = taxFound.tax;
@@ -88,7 +90,7 @@ const getTaxAmount = async (
 
     return parseFloat(taxAmount.toFixed(2));
   } catch (err) {
-    next(appError(err.message));
+    throw new Error(err.message);
   }
 };
 

@@ -36,14 +36,14 @@ const vehicleDetailValidations = [
     .trim()
     .notEmpty()
     .withMessage("License plate is required"),
-  check("rcFrontImage").custom((value, { req }) => {
-    if (!req.files || !req.files.rcFrontImage) {
+  body("rcFrontImageURL").custom((value, { req }) => {
+    if (!req.files.rcFrontImage && !req.body.rcFrontImageURL) {
       throw new Error("RC Front Image is required for each vehicle");
     }
     return true;
   }),
-  check("rcBackImage").custom((value, { req }) => {
-    if (!req.files || !req.files.rcBackImage) {
+  body("rcBackImageURL").custom((value, { req }) => {
+    if (!req.files.rcBackImage && !req.body.rcBackImageURL) {
       throw new Error("RC Back Image is required for each vehicle");
     }
     return true;
@@ -60,25 +60,31 @@ const governmentCertificateValidation = [
     .notEmpty()
     .withMessage("Driving license number is required"),
   check("aadharFrontImage").custom((value, { req }) => {
-    if (!req.files || !req.files.aadharFrontImage) {
+    if (!req.files.aadharFrontImage || !req.body.aadharFrontImage) {
       throw new Error("Aadhar Front Image is required");
     }
     return true;
   }),
   check("aadharBackImage").custom((value, { req }) => {
-    if (!req.files || !req.files.aadharBackImage) {
+    if (!req.files.aadharBackImage || !req.body.aadharBackImage) {
       throw new Error("Aadhar Back Image is required");
     }
     return true;
   }),
   check("drivingLicenseFrontImage").custom((value, { req }) => {
-    if (!req.files || !req.files.drivingLicenseFrontImage) {
+    if (
+      !req.files.drivingLicenseFrontImage ||
+      !req.body.drivingLicenseFrontImage
+    ) {
       throw new Error("Driving License Front Image is required");
     }
     return true;
   }),
   check("drivingLicenseBackImage").custom((value, { req }) => {
-    if (!req.files || !req.files.drivingLicenseBackImage) {
+    if (
+      !req.files.drivingLicenseBackImage ||
+      !req.body.drivingLicenseBackImage
+    ) {
       throw new Error("Driving License Back Image is required");
     }
     return true;
