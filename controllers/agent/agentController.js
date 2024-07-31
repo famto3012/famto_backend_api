@@ -705,13 +705,12 @@ const getCurrentDayAppDetailController = async (req, res, next) => {
       return next(appError("Agent not found", 404));
     }
 
-    console.log("Login hours", agentFound.loggedInHours);
-    console.log("");
+    console.log(agentFound.appDetail);
 
     const formattedResponse = {
-      totalEarnings: agentFound?.appDetail?.totalEarnings || "0.0",
+      totalEarning: agentFound?.appDetail?.totalEarning || "0.0",
       orders: agentFound?.appDetail?.orders || 0,
-      pendingOrders: agentFound?.appDetail?.pendingOrders || 0,
+      pendingOrders: agentFound?.appDetail?.pendingOrder || 0,
       totalDistance: agentFound?.appDetail?.totalDistance || "0.0",
       averageRating: agentFound.averageRating || "0.0",
     };
