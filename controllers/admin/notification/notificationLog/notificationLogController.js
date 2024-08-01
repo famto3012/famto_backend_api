@@ -1,7 +1,6 @@
 const AdminNotificationLogs = require("../../../../models/AdminNotificationLog");
 const MerchantNotificationLogs = require("../../../../models/MerchantNotificationLog");
 const appError = require("../../../../utils/appError");
-const { formatDate } = require("../../../../utils/formatters");
 
 const getAdminNotificationLogController = async (req, res, next) => {
   try {
@@ -12,6 +11,7 @@ const getAdminNotificationLogController = async (req, res, next) => {
 
     // Find documents with pagination
     const adminNotificationLog = await AdminNotificationLogs.find()
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
@@ -43,12 +43,17 @@ const getMerchantNotificationLogController = async (req, res, next) => {
     const merchantId = req.userAuth;
 
     // Find documents with pagination
-    const merchantNotificationLog = await MerchantNotificationLogs.find({merchantId})
+    const merchantNotificationLog = await MerchantNotificationLogs.find({
+      merchantId,
+    })
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
     // Get the total count of documents
-    const totalDocuments = await MerchantNotificationLogs.countDocuments({merchantId});
+    const totalDocuments = await MerchantNotificationLogs.countDocuments({
+      merchantId,
+    });
 
     // Calculate total pages
     const totalPages = Math.ceil(totalDocuments / limit);
