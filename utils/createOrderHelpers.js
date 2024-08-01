@@ -212,10 +212,9 @@ const calculateItemTotal = (items) =>
 
 // Calculate the total weight of items
 const getTotalItemWeight = (items) => {
-  const weight = items
-    .reduce((total, item) => total + item.weight, 0)
-    .toFixed(2);
-  return parseFloat(weight);
+  const weight = items.reduce((total, item) => total + item.weight, 0);
+
+  return parseFloat(weight).toFixed(2);
 };
 // Calculate additional weight charge
 const calculateAdditionalWeightCharge = (
@@ -320,6 +319,7 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
   pickUpAddressType,
   pickUpAddressOtherAddressId,
   deliveryAddressType,
+  deliveryAddressOtherAddressId,
   newPickupAddress,
   newDeliveryAddress,
   formattedErrors,
@@ -390,6 +390,7 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
           customerAddressType,
           customerAddressOtherAddressId
         );
+        console.log("Home Delivery - Existing customer address:", address);
         if (!address) throw new Error("Address not found");
         deliveryLocation = address.coordinates;
         deliveryAddress = address;
@@ -399,11 +400,14 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
     if (newPickupAddress) {
       pickupLocation = [newPickupAddress.latitude, newPickupAddress.longitude];
       pickupAddress = newPickupAddress;
-    } else {
+    }
+
+    if (pickUpAddressType) {
       const address = getAddressDetails(
         pickUpAddressType,
         pickUpAddressOtherAddressId
       );
+
       if (!address) throw new Error("Pickup address not found");
       pickupLocation = address.coordinates;
       pickupAddress = address;
@@ -415,10 +419,12 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
         newDeliveryAddress.longitude,
       ];
       deliveryAddress = newDeliveryAddress;
-    } else {
+    }
+
+    if (deliveryAddressType) {
       const address = getAddressDetails(
         deliveryAddressType,
-        customerAddressOtherAddressId
+        customerAddressOtherAddressId || deliveryAddressOtherAddressId
       );
 
       if (!address) throw new Error("Delivery address not found");

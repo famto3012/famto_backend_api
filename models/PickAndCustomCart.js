@@ -172,15 +172,20 @@ const billSchema = mongoose.Schema(
   }
 );
 
-const pickAndCustomCartSchema = mongoose.Schema({
-  customerId: {
-    type: String,
-    required: true,
+const pickAndCustomCartSchema = mongoose.Schema(
+  {
+    customerId: {
+      type: String,
+      required: true,
+    },
+    cartDetail: cartDetailSchema,
+    billDetail: billSchema,
+    items: [cartItemSchema],
   },
-  cartDetail: cartDetailSchema,
-  billDetail: billSchema,
-  items: [cartItemSchema],
-});
+  {
+    timeStamp: true,
+  }
+);
 
 const PickAndCustomCart = mongoose.model(
   "PickAndCustomCart",

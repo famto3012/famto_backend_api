@@ -57,7 +57,7 @@ const getAllOrdersForAdminController = async (req, res, next) => {
       return {
         _id: order._id,
         orderStatus: order.status,
-        merchantName: order.merchantId.merchantDetail.merchantName,
+        merchantName: order?.merchantId?.merchantDetail?.merchantName || "N/A",
         customerName:
           order.orderDetail.deliveryAddress.fullName ||
           order.customerId.fullName,
@@ -218,7 +218,7 @@ const searchOrderByIdByAdminController = async (req, res, next) => {
       return {
         _id: order._id,
         orderStatus: order.status,
-        merchantName: order.merchantId.merchantDetail.merchantName,
+        merchantName: order?.merchantId?.merchantDetail?.merchantName || "N/A",
         customerName:
           order.orderDetail.deliveryAddress.fullName ||
           order.customerId.fullName,
@@ -286,7 +286,7 @@ const filterOrdersByAdminController = async (req, res, next) => {
       return {
         _id: order._id,
         orderStatus: order.status,
-        merchantName: order.merchantId.merchantDetail.merchantName,
+        merchantName: order?.merchantId?.merchantDetail?.merchantName || "N/A",
         customerName:
           order.orderDetail.deliveryAddress.fullName ||
           order.customerId.fullName,
@@ -487,8 +487,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
       }
     }
 
-    console.log("before finding customer");
-
     console.log("newCustomer", newCustomer);
     console.log("customerAddress", customerAddress);
     console.log("deliveryMode", deliveryMode);
@@ -534,6 +532,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
           pickUpAddressType,
           pickUpAddressOtherAddressId,
           deliveryAddressType,
+          deliveryAddressOtherAddressId,
           newPickupAddress,
           newDeliveryAddress,
         }));
@@ -838,7 +837,9 @@ const createInvoiceByAdminController = async (req, res, next) => {
         data: responseData,
       });
     } else if (deliveryMode === "Pick and Drop") {
+      console.log("reached pick");
       const selectedVehicle = vehicleType;
+      console.log("selectedVehicle", selectedVehicle);
 
       // Fetch all available vehicle types from the Agent model
       const agents = await Agent.find({});
@@ -849,7 +850,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
 
       // Fetch the customer pricing details for all vehicle types
       const customerPricingArray = await CustomerPricing.find({
-        orderType: "Pick and Drop",
+        deliveryMode: "Pick and Drop",
         geofenceId: customer.customerDetails.geofenceId,
         status: true,
         vehicleType: { $in: uniqueVehicleTypes },
@@ -858,6 +859,8 @@ const createInvoiceByAdminController = async (req, res, next) => {
       if (!customerPricingArray || customerPricingArray.length === 0) {
         return res.status(404).json({ error: "Customer pricing not found" });
       }
+
+      console.log("customerPricingArray", customerPricingArray);
 
       const customerSurge = await CustomerSurge.find({
         geofenceId: customer.customerDetails.geofenceId,
@@ -943,12 +946,14 @@ const createInvoiceByAdminController = async (req, res, next) => {
         cartId: customerCart._id,
         billDetail: customerCart.billDetail,
         items: customerCart.items,
+        deliveryMode: customerCart.cartDetail.deliveryMode,
       };
 
       res.status(200).json({
         message: "Order invoice created successfully",
         data: responseData,
       });
+      return;
     } else if (deliveryMode === "Custom Order") {
       console.log("Inside custom order cart creation");
 
@@ -1118,17 +1123,17 @@ const createOrderByAdminController = async (req, res, next) => {
       cartDeliveryMode === "Home Delivery"
     ) {
       populatedCartWithVariantNames = await formattedCartItems(cartFound);
-    }
 
-    formattedItems = populatedCartWithVariantNames.items.map((item) => {
-      return {
-        itemName: item.productId.productName,
-        itemImageURL: item.productId.productImageURL,
-        quantity: item.quantity,
-        price: item.price,
-        variantTypeName: item?.variantTypeId?.variantTypeName,
-      };
-    });
+      formattedItems = populatedCartWithVariantNames.items.map((item) => {
+        return {
+          itemName: item.productId.productName,
+          itemImageURL: item.productId.productImageURL,
+          quantity: item.quantity,
+          price: item.price,
+          variantTypeName: item?.variantTypeId?.variantTypeName,
+        };
+      });
+    }
 
     let newOrder;
 
@@ -1196,6 +1201,7 @@ const createOrderByAdminController = async (req, res, next) => {
         cartDeliveryMode === "Pick and Drop" ||
         cartDeliveryMode === "Custom Order")
     ) {
+      console.log("before creating order in P&D");
       newOrder = await Order.create({
         customerId: cartFound.customerId,
         merchantId: cartFound?.merchantId && cartFound.merchantId,
