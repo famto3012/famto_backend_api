@@ -18,7 +18,7 @@ accountLogRoute.get(
 );
 
 accountLogRoute.get(
-  "/search-name",
+  "/search",
   isAuthenticated,
   isAdmin,
   searchUserByNameController

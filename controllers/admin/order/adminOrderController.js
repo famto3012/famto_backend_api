@@ -465,8 +465,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
     const customerAddress =
       newCustomerAddress || newPickupAddress || newDeliveryAddress;
 
-    console.log("after");
-
     if (
       newCustomer &&
       deliveryMode !== "Take Away" &&
@@ -491,9 +489,9 @@ const createInvoiceByAdminController = async (req, res, next) => {
 
     console.log("before finding customer");
 
-    console.log(newCustomer);
-    console.log(customerAddress);
-    console.log(deliveryMode);
+    console.log("newCustomer", newCustomer);
+    console.log("customerAddress", customerAddress);
+    console.log("deliveryMode", deliveryMode);
 
     let customer = await findOrCreateCustomer({
       customerId,
@@ -580,6 +578,8 @@ const createInvoiceByAdminController = async (req, res, next) => {
       numOfDays,
     };
 
+    console.log("creates updated cart object", updatedCartDetail);
+
     if (deliveryMode === "Take Away") {
       updatedCartDetail.distance = 0;
     } else if (
@@ -594,7 +594,10 @@ const createInvoiceByAdminController = async (req, res, next) => {
       updatedCartDetail.distance = distanceInKM || 0;
     }
 
+    console.log("re updated details", updatedCartDetail);
+
     if (deliveryMode === "Take Away" || deliveryMode === "Home Delivery") {
+      console.log("Finding business category");
       const itemTotal = calculateItemTotal(items);
 
       const businessCategory = await BusinessCategory.findById(
@@ -606,6 +609,11 @@ const createInvoiceByAdminController = async (req, res, next) => {
 
       let customerPricing;
       if (deliveryMode === "Home Delivery") {
+        console.log("checking", customer.customerDetails);
+
+        console.log("businessId", businessCategory.title);
+        console.log("GeofenceId", customer.customerDetails.geofenceId);
+
         customerPricing = await CustomerPricing.findOne({
           ruleName: businessCategory.title,
           geofenceId: customer.customerDetails.geofenceId,
@@ -616,12 +624,16 @@ const createInvoiceByAdminController = async (req, res, next) => {
           return res.status(404).json({ error: "Customer pricing not found" });
       }
 
+      console.log("customerPricing", customerPricing);
+
       const oneTimeDeliveryCharge = calculateDeliveryCharges(
         distanceInKM,
         customerPricing?.baseFare,
         customerPricing?.baseDistance,
         customerPricing?.fareAfterBaseDistance
       );
+
+      console.log("oneTimeDeliveryCharge", oneTimeDeliveryCharge);
 
       const customerSurge = await CustomerSurge.findOne({
         geofenceId: customer?.customerDetails?.geofenceId,
@@ -739,6 +751,8 @@ const createInvoiceByAdminController = async (req, res, next) => {
           grandTotal = subTotal;
         }
       } else if (deliveryMode === "Home Delivery") {
+        console.log("calcualting charges of Home delivery");
+
         subTotal = calculateSubTotal({
           itemTotal,
           deliveryCharge:

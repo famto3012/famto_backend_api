@@ -10,6 +10,7 @@ const findOrCreateCustomer = async ({
   customerAddress,
   deliveryMode,
 }) => {
+  console.log("customerId", customerId);
   if (customerId) {
     const customer = await Customer.findById(customerId);
     if (!customer) throw new Error("Customer not found");

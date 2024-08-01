@@ -747,8 +747,6 @@ const getHistoryOfAppDetailsController = async (req, res, next) => {
       (a, b) => new Date(b.date) - new Date(a.date)
     );
 
-    // const orderDetails = sortedAppDetailHistory.
-
     const formattedResponse = sortedAppDetailHistory?.map((history) => {
       return {
         date: formatDate(history?.date) || formatDate(new Date()),
@@ -760,6 +758,7 @@ const getHistoryOfAppDetailsController = async (req, res, next) => {
             `${history?.details?.totalDistance?.toFixed(2)} km` || "0.00 km",
           loginHours:
             formatToHours(history?.details?.loginDuration) || "0:00 hr",
+          orderDetail: history?.details?.appDetailHistory || [],
         },
       };
     });
@@ -1232,9 +1231,20 @@ const completeOrderController = async (req, res, next) => {
       orderSalary + totalPurchaseFare
     ).toFixed(2);
 
+    const updatedOrderDetailForAgent = {
+      orderId: orderFound._id,
+      deliveryMode: orderFound?.orderDetail?.deliveryMode,
+      customerName: orderFound?.orderDetail?.deliveryAddress?.fullName,
+      completedOn: new Date(),
+      grandTotal: orderFound?.billDetail?.grandTotal,
+    };
+
+    console.log(calculatedSalary);
+
     agentFound.appDetail.orders += 1;
-    agentFound.appDetail.totalEarning += calculatedSalary;
+    agentFound.appDetail.totalEarning += parseFloat(calculatedSalary);
     agentFound.appDetail.totalDistance += orderFound.orderDetail.distance;
+    agentFound.appDetail.orderDetail.push(updatedOrderDetailForAgent);
 
     await orderFound.save();
     await customerFound.save();

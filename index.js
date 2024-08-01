@@ -216,7 +216,7 @@ cron.schedule("* * * * *", async () => {
   }
 });
 
-cron.schedule("58 22 * * *", async () => {
+cron.schedule("52 15 * * *", async () => {
   await moveAppDetailToHistoryAndResetForAllAgents();
   await updateOneDayLoyaltyPointEarning();
   await resetAllAgentTaskHelper();

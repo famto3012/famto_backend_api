@@ -22,7 +22,7 @@ const searchUserByRoleController = async (req, res, next) => {
 
 const searchUserByNameController = async (req, res, next) => {
   try {
-    const { name } = req.body;
+    const { name } = req.query;
 
     let user = await AccountLogs.find({
       fullName: { $regex: name, $options: "i" },
