@@ -897,27 +897,34 @@ const verifyPaymentController = async (req, res, next) => {
 // Block a merchant
 const blockMerchant = async (req, res, next) => {
   try {
-    const merchantId = req.params.merchantId;
+    const { merchantId } = req.params;
     const { reasonForBlocking } = req.body;
 
-    const merchantDetail = await Merchant.findOne({ _id: merchantId });
+    const merchantFound = await Merchant.findById(merchantId);
 
-    if (merchantDetail.isBlocked) {
+    console.log(merchantFound);
+
+    if (merchantFound.isBlocked) {
       res.status(200).json({
         message: "Merchant is already blocked",
       });
     } else {
-      merchantDetail.isBlocked = true;
-      merchantDetail.reasonForBlockingOrDeleting = reasonForBlocking;
-      merchantDetail.blockedDate = new Date();
-      await merchantDetail.save();
-      const accountLogs = await new AccountLogs({
-        _id: merchantDetail._id,
-        fullName: merchantDetail.fullName,
-        role: merchantDetail.role,
+      merchantFound.isBlocked = true;
+      merchantFound.reasonForBlockingOrDeleting = reasonForBlocking;
+      merchantFound.blockedDate = new Date();
+      await merchantFound.save();
+
+      console.log("here");
+
+      const accountLogs = await AccountLogs.create({
+        userId: merchantFound._id,
+        fullName: merchantFound.fullName,
+        role: merchantFound.role,
         description: reasonForBlocking,
       });
-      await accountLogs.save();
+
+      await accountLogs.save(accountLogs);
+
       res.status(200).json({
         message: "Merchant blocked",
       });
