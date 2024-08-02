@@ -739,7 +739,10 @@ const getHistoryOfAppDetailsController = async (req, res, next) => {
 
     agentFound.appDetailHistory.push({
       date: new Date(),
-      ...agentFound.appDetail,
+      details: {
+        ...agentFound.appDetail,
+        orderDetail: agentFound.appDetail.orderDetail,
+      },
     });
 
     // Sort the appDetailHistory by date in descending order (latest date first)
@@ -758,7 +761,15 @@ const getHistoryOfAppDetailsController = async (req, res, next) => {
             `${history?.details?.totalDistance?.toFixed(2)} km` || "0.00 km",
           loginHours:
             formatToHours(history?.details?.loginDuration) || "0:00 hr",
-          orderDetail: history?.details?.appDetailHistory || [],
+          orderDetail:
+            history?.details?.orderDetail?.map((order) => ({
+              orderId: order.orderId,
+              deliveryMode: order.deliveryMode,
+              customerName: order.customerName,
+              grandTotal: order.grandTotal,
+              date: formatDate(order.completedOn),
+              time: formatTime(order.completedOn),
+            })) || [],
         },
       };
     });
