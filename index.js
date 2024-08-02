@@ -70,32 +70,13 @@ const {
 //middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-// app.use(
-//   cors({
-//     origin: ["http://localhost:5173", "*"],
-//     credentials: true,
-//     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-//   })
-// );
-
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://24ab-106-222-238-204.ngrok-free.app",
-];
-
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, DELETE, PATCH"
-  );
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  next();
-});
+app.use(
+  cors({
+    origin: ["http://localhost:5173", "*"],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  })
+);
 
 //routers
 //admin

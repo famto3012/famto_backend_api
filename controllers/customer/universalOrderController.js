@@ -77,6 +77,7 @@ const homeSearchController = async (req, res, next) => {
     // Search in Merchant by merchantName
     const merchants = await Merchant.find({
       "merchantDetail.merchantName": { $regex: query, $options: "i" },
+      "merchantDetail.pricing.0": { $exists: true },
     })
       .select(
         "merchantDetail.merchantName merchantDetail.merchantImageURL merchantDetail.displayAddress"
@@ -143,12 +144,13 @@ const listRestaurantsController = async (req, res, next) => {
     const merchants = await Merchant.find({
       "merchantDetail.geofenceId": foundGeofence._id,
       "merchantDetail.businessCategoryId": businessCategoryId,
+      "merchantDetail.pricing.0": { $exists: true },
       isBlocked: false,
       isApproved: "Approved",
     }).exec();
 
     // Filter merchants based on serving radius
-    const filteredMerchants = merchants.filter((merchant) => {
+    const filteredMerchants = merchants?.filter((merchant) => {
       const servingRadius = merchant.merchantDetail.servingRadius || 0;
       if (servingRadius > 0) {
         const merchantLocation = merchant.merchantDetail.location;
