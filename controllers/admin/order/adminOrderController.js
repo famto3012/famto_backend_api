@@ -446,6 +446,8 @@ const createInvoiceByAdminController = async (req, res, next) => {
       addedTip,
     } = req.body;
 
+    console.log("items", items);
+
     // Extract ifScheduled only if deliveryOption is scheduled
     let ifScheduled, startDate, endDate, time, numOfDays;
     if (deliveryOption === "Scheduled") {
@@ -931,6 +933,8 @@ const createInvoiceByAdminController = async (req, res, next) => {
       updatedCartDetail.instructionInPickup = instructionInPickup;
       updatedCartDetail.instructionInDelivery = instructionInDelivery;
 
+      console.log(items);
+
       const customerCart = await PickAndCustomCart.findOneAndUpdate(
         { customerId: customer._id },
         {
@@ -1261,7 +1265,7 @@ const createOrderByAdminController = async (req, res, next) => {
       customer.transactionDetail.push(customerTransation);
       await customer.save();
 
-      return res.status(200).json({
+      return res.status(201).json({
         message: "Scheduled order created successfully",
         data: newOrder,
       });
@@ -1292,7 +1296,7 @@ const createOrderByAdminController = async (req, res, next) => {
       customer.transactionDetail.push(customerTransation);
       await customer.save();
 
-      res.status(200).json({
+      res.status(201).json({
         message: "Order created successfully",
         data: newOrder,
       });

@@ -847,28 +847,54 @@ const getTaskPreviewController = async (req, res, next) => {
       const pickupTask = {
         type: "Pickup",
         taskId: task._id,
-        taskStatus: task.pickupDetail.pickupStatus,
-        orderId: task.orderId._id,
+        taskStatus:
+          task.pickupDetail.pickupStatus === "Pending" ? "Accepted" : "Started",
+        orderId: task.orderId?._id,
         date: formatDate(task.createdAt),
         time: formatTime(task.createdAt),
-        pickupName: task.pickupDetail.pickupAddress.fullName,
-        pickupArea: task.pickupDetail.pickupAddress.area,
-        pickupPhoneNumber: task.pickupDetail.pickupAddress.phoneNumber,
-        pickupLocation: task.pickupDetail.pickupLocation,
+        // name: task.pickupDetail.pickupAddress.fullName,
+        address: {
+          fullName: task.pickupDetail.pickupAddress.fullName,
+          flat: task?.pickupDetail?.pickupAddress?.flat,
+          area: task.pickupDetail.pickupAddress.area,
+          phoneNumber: task.pickupDetail.pickupAddress.phoneNumber,
+          location: task.pickupDetail.pickupLocation,
+        },
+        // --
+        // area: task.pickupDetail.pickupAddress.area,
+        // phoneNumber: task.pickupDetail.pickupAddress.phoneNumber,
+        // location: task.pickupDetail.pickupLocation,
+        // --
+        // pickupArea: task.pickupDetail.pickupAddress.area,
+        // pickupPhoneNumber: task.pickupDetail.pickupAddress.phoneNumber,
+        // pickupLocation: task.pickupDetail.pickupLocation,
         agentLocation: agentFound.location,
       };
 
       const deliveryTask = {
         type: "Delivery",
         taskId: task._id,
-        taskStatus: task.deliveryDetail.deliveryStatus,
-        orderId: task.orderId._id,
+        taskStatus:
+          task.deliveryDetail.deliveryStatus === "Pending"
+            ? "Accepted"
+            : "Started",
+        orderId: task.orderId?._id,
         date: formatDate(task.createdAt),
         time: formatTime(task.orderId.orderDetail.deliveryTime),
-        deliveryName: task.deliveryDetail.deliveryAddress.fullName,
-        deliveryAddress: task.deliveryDetail.deliveryAddress,
-        deliveryPhoneNumber: task.deliveryDetail.deliveryAddress.phoneNumber,
-        deliveryLocation: task.deliveryDetail.deliveryLocation,
+        name: task.deliveryDetail.deliveryAddress.fullName,
+        address: {
+          fullName: task.deliveryDetail.deliveryAddress.fullName,
+          flat: task?.deliveryDetail?.deliveryAddress?.flat,
+          area: task.deliveryDetail.deliveryAddress.area,
+          phoneNumber: task.deliveryDetail.deliveryAddress.phoneNumber,
+          location: task.deliveryDetail.deliveryLocation,
+        },
+        // address: task.deliveryDetail.deliveryAddress,
+        // phoneNumber: task.deliveryDetail.deliveryAddress.phoneNumber,
+        // location: task.deliveryDetail.deliveryLocation,
+        // deliveryAddress: task.deliveryDetail.deliveryAddress,
+        // deliveryPhoneNumber: task.deliveryDetail.deliveryAddress.phoneNumber,
+        // deliveryLocation: task.deliveryDetail.deliveryLocation,
         agentLocation: agentFound.location,
       };
 
