@@ -14,9 +14,9 @@ const addGeofence = async (req, res, next) => {
   }
 
   try {
-    const { name, color, description, coordinates, orderManager } = req.body;
+    const { name, color, description, coordinates } = req.body;
 
-    // Validate coordinates format
+    
     if (
       !Array.isArray(coordinates) ||
       !coordinates.every((coord) => Array.isArray(coord) && coord.length === 2)
@@ -32,7 +32,6 @@ const addGeofence = async (req, res, next) => {
       color,
       description,
       coordinates,
-      orderManager,
     });
 
     await newGeofence.save();
@@ -64,7 +63,7 @@ const editGeofence = async (req, res, next) => {
   }
 
   try {
-    const { name, color, description, coordinates, orderManager } = req.body;
+    const { name, color, description, coordinates } = req.body;
 
     const updatedGeofence = await Geofence.findByIdAndUpdate(
       req.params.id,
@@ -73,7 +72,6 @@ const editGeofence = async (req, res, next) => {
         color,
         description,
         coordinates,
-        orderManager,
       },
       { new: true }
     );
