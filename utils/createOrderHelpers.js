@@ -123,6 +123,8 @@ const getDeliveryDetails = async ({
       ];
       deliveryAddress = newCustomerAddress;
 
+      console.log("save address book: ", newCustomerAddress.saveAddress);
+
       if (newCustomerAddress.saveAddress) {
         // Update the existing address of the customer
         if (addressType === "home") {
@@ -328,6 +330,9 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
 
   // Common function to update customer's address
   const updateCustomerAddress = async (addressType, newAddress) => {
+    console.log("Before saving new Address");
+    console.log("addressType", addressType);
+    console.log("newAddress", newAddress);
     const location = [newAddress.latitude, newAddress.longitude];
     newAddress.coordinates = location;
 
@@ -381,7 +386,7 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
     } else {
       if (newCustomerAddress) {
         deliveryLocation = await updateCustomerAddress(
-          customerAddressType,
+          newCustomerAddress.type,
           newCustomerAddress
         );
         deliveryAddress = newCustomerAddress;
