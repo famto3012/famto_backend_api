@@ -565,6 +565,8 @@ const createInvoiceByAdminController = async (req, res, next) => {
           deliveryLocation
         );
         distanceInKM = parseFloat(distanceData.distanceInKM);
+
+        // console.log("My Distance in CO", distanceInKM);
       }
     }
 
@@ -579,7 +581,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
       numOfDays,
     };
 
-    console.log("creates updated cart object", updatedCartDetail);
+    // console.log("creates updated cart object", updatedCartDetail);
 
     if (deliveryMode === "Take Away") {
       updatedCartDetail.distance = 0;
@@ -595,10 +597,10 @@ const createInvoiceByAdminController = async (req, res, next) => {
       updatedCartDetail.distance = distanceInKM || 0;
     }
 
-    console.log("re updated details", updatedCartDetail);
+    // console.log("re updated details", updatedCartDetail);
 
     if (deliveryMode === "Take Away" || deliveryMode === "Home Delivery") {
-      console.log("Finding business category");
+      // console.log("Finding business category");
       const itemTotal = calculateItemTotal(items);
 
       const businessCategory = await BusinessCategory.findById(
@@ -610,10 +612,10 @@ const createInvoiceByAdminController = async (req, res, next) => {
 
       let customerPricing;
       if (deliveryMode === "Home Delivery") {
-        console.log("checking", customer.customerDetails);
+        // console.log("checking", customer.customerDetails);
 
-        console.log("businessId", businessCategory.title);
-        console.log("GeofenceId", customer.customerDetails.geofenceId);
+        // console.log("businessId", businessCategory.title);
+        // console.log("GeofenceId", customer.customerDetails.geofenceId);
 
         customerPricing = await CustomerPricing.findOne({
           ruleName: businessCategory.title,
@@ -625,7 +627,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
           return res.status(404).json({ error: "Customer pricing not found" });
       }
 
-      console.log("customerPricing", customerPricing);
+      // console.log("customerPricing", customerPricing);
 
       const oneTimeDeliveryCharge = calculateDeliveryCharges(
         distanceInKM,
@@ -634,7 +636,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
         customerPricing?.fareAfterBaseDistance
       );
 
-      console.log("oneTimeDeliveryCharge", oneTimeDeliveryCharge);
+      // console.log("oneTimeDeliveryCharge", oneTimeDeliveryCharge);
 
       const customerSurge = await CustomerSurge.findOne({
         geofenceId: customer?.customerDetails?.geofenceId,
@@ -737,7 +739,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
             deliveryCharge: 0,
             addedTip,
           });
-          console.log("here");
+          // console.log("here");
 
           grandTotal = subTotal;
         } else if (deliveryOption === "Scheduled") {
@@ -752,7 +754,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
           grandTotal = subTotal;
         }
       } else if (deliveryMode === "Home Delivery") {
-        console.log("calcualting charges of Home delivery");
+        // console.log("calcualting charges of Home delivery");
 
         subTotal = calculateSubTotal({
           itemTotal,
@@ -839,9 +841,9 @@ const createInvoiceByAdminController = async (req, res, next) => {
         data: responseData,
       });
     } else if (deliveryMode === "Pick and Drop") {
-      console.log("reached pick");
+      // console.log("reached pick");
       const selectedVehicle = vehicleType;
-      console.log("selectedVehicle", selectedVehicle);
+      // console.log("selectedVehicle", selectedVehicle);
 
       // Fetch all available vehicle types from the Agent model
       const agents = await Agent.find({});
@@ -862,7 +864,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
         return res.status(404).json({ error: "Customer pricing not found" });
       }
 
-      console.log("customerPricingArray", customerPricingArray);
+      // console.log("customerPricingArray", customerPricingArray);
 
       const customerSurge = await CustomerSurge.find({
         geofenceId: customer.customerDetails.geofenceId,
@@ -933,7 +935,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
       updatedCartDetail.instructionInPickup = instructionInPickup;
       updatedCartDetail.instructionInDelivery = instructionInDelivery;
 
-      console.log(items);
+      // console.log(items);
 
       const customerCart = await PickAndCustomCart.findOneAndUpdate(
         { customerId: customer._id },
@@ -961,12 +963,8 @@ const createInvoiceByAdminController = async (req, res, next) => {
     } else if (deliveryMode === "Custom Order") {
       console.log("Inside custom order cart creation");
 
-      // for (let i = 0; i < items.length; i++) {
-      //   console.log(items[i]);
-      // }
-
       const customerPricing = await CustomerPricing.findOne({
-        orderType: "Custom Order",
+        deliveryMode: "Custom Order",
         geofenceId: customer.customerDetails.geofenceId,
         status: true,
       });
@@ -1033,7 +1031,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
           customerId: customer._id,
           cartDetail: updatedCartDetail,
           billDetail: updatedBill,
-          items: cart.items,
+          items,
         },
         { new: true, upsert: true }
       );

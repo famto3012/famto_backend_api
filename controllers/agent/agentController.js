@@ -852,7 +852,6 @@ const getTaskPreviewController = async (req, res, next) => {
         orderId: task.orderId?._id,
         date: formatDate(task.createdAt),
         time: formatTime(task.createdAt),
-        // name: task.pickupDetail.pickupAddress.fullName,
         address: {
           fullName: task.pickupDetail.pickupAddress.fullName,
           flat: task?.pickupDetail?.pickupAddress?.flat,
@@ -860,14 +859,6 @@ const getTaskPreviewController = async (req, res, next) => {
           phoneNumber: task.pickupDetail.pickupAddress.phoneNumber,
           location: task.pickupDetail.pickupLocation,
         },
-        // --
-        // area: task.pickupDetail.pickupAddress.area,
-        // phoneNumber: task.pickupDetail.pickupAddress.phoneNumber,
-        // location: task.pickupDetail.pickupLocation,
-        // --
-        // pickupArea: task.pickupDetail.pickupAddress.area,
-        // pickupPhoneNumber: task.pickupDetail.pickupAddress.phoneNumber,
-        // pickupLocation: task.pickupDetail.pickupLocation,
         agentLocation: agentFound.location,
       };
 
@@ -889,12 +880,6 @@ const getTaskPreviewController = async (req, res, next) => {
           phoneNumber: task.deliveryDetail.deliveryAddress.phoneNumber,
           location: task.deliveryDetail.deliveryLocation,
         },
-        // address: task.deliveryDetail.deliveryAddress,
-        // phoneNumber: task.deliveryDetail.deliveryAddress.phoneNumber,
-        // location: task.deliveryDetail.deliveryLocation,
-        // deliveryAddress: task.deliveryDetail.deliveryAddress,
-        // deliveryPhoneNumber: task.deliveryDetail.deliveryAddress.phoneNumber,
-        // deliveryLocation: task.deliveryDetail.deliveryLocation,
         agentLocation: agentFound.location,
       };
 
