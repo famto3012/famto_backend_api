@@ -17,7 +17,6 @@ geofenceRoute.post(
   [
     body("name").trim().notEmpty().withMessage("Name is required"),
     body("color").trim().notEmpty().withMessage("Color is required"),
-    body("orderManager").trim().notEmpty().withMessage("Manager is required"),
     body("description")
       .trim()
       .notEmpty()
