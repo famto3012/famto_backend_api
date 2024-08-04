@@ -42,6 +42,17 @@ const { formatToHours } = require("../../../utils/agentAppHelpers");
 
 const getAllOrdersForAdminController = async (req, res, next) => {
   try {
+    // Get page and limit from query parameters
+    let { page = 1, limit = 10 } = req.query;
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
+    // Fetch orders with pagination
     const allOrders = await Order.find({})
       .populate({
         path: "merchantId",
@@ -51,7 +62,12 @@ const getAllOrdersForAdminController = async (req, res, next) => {
         path: "customerId",
         select: "fullName",
       })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Count total documents
+    const totalDocuments = await Order.countDocuments({});
 
     const formattedOrders = allOrders.map((order) => {
       return {
@@ -76,9 +92,19 @@ const getAllOrdersForAdminController = async (req, res, next) => {
       };
     });
 
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
     res.status(200).json({
       message: "All orders of merchant",
       data: formattedOrders,
+      pagination,
     });
   } catch (err) {
     next(appError(err.message));
@@ -195,11 +221,18 @@ const rejectOrderByAdminController = async (req, res, next) => {
 
 const searchOrderByIdByAdminController = async (req, res, next) => {
   try {
-    const { query } = req.query;
+    let { query, page = 1, limit = 15 } = req.query;
 
     if (!query) {
       return next(appError("Order ID is required", 400));
     }
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
 
     const ordersFound = await Order.find({
       _id: { $regex: query, $options: "i" },
@@ -212,7 +245,12 @@ const searchOrderByIdByAdminController = async (req, res, next) => {
         path: "customerId",
         select: "fullName",
       })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Count total documents
+    const totalDocuments = await Order.countDocuments({});
 
     const formattedOrders = ordersFound?.map((order) => {
       return {
@@ -232,9 +270,19 @@ const searchOrderByIdByAdminController = async (req, res, next) => {
       };
     });
 
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
     res.status(200).json({
       message: "Search result of order",
       data: formattedOrders || [],
+      pagination,
     });
   } catch (err) {
     next(appError(err.message));
@@ -243,7 +291,7 @@ const searchOrderByIdByAdminController = async (req, res, next) => {
 
 const filterOrdersByAdminController = async (req, res, next) => {
   try {
-    const { status, paymentMode, deliveryMode } = req.query;
+    let { status, paymentMode, deliveryMode, page = 1, limit = 15 } = req.query;
 
     if (!status && !paymentMode && !deliveryMode) {
       return res
@@ -251,20 +299,27 @@ const filterOrdersByAdminController = async (req, res, next) => {
         .json({ message: "At least one filter is required" });
     }
 
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
     const filterCriteria = {};
 
-    if (status) {
+    if (status && status.trim().toLowerCase() !== "all") {
       filterCriteria.status = { $regex: status.trim(), $options: "i" };
     }
 
-    if (paymentMode) {
+    if (paymentMode && paymentMode.trim().toLowerCase() !== "all") {
       filterCriteria.paymentMode = {
         $regex: paymentMode.trim(),
         $options: "i",
       };
     }
 
-    if (deliveryMode) {
+    if (deliveryMode && deliveryMode.trim().toLowerCase() !== "all") {
       filterCriteria["orderDetail.deliveryMode"] = {
         $regex: deliveryMode.trim(),
         $options: "i",
@@ -280,7 +335,12 @@ const filterOrdersByAdminController = async (req, res, next) => {
         path: "customerId",
         select: "fullName",
       })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Count total documents
+    const totalDocuments = await Order.countDocuments({});
 
     const formattedOrders = filteredOrderResults.map((order) => {
       return {
@@ -300,9 +360,19 @@ const filterOrdersByAdminController = async (req, res, next) => {
       };
     });
 
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
     res.status(200).json({
       message: "Filtered orders",
       data: formattedOrders,
+      pagination,
     });
   } catch (err) {
     next(appError(err.message));
@@ -909,9 +979,14 @@ const createInvoiceByAdminController = async (req, res, next) => {
         vehiclePrice.fareAfterBaseWeight
       );
 
+      console.log("deliveryCharges", deliveryCharges);
+      console.log("additionalWeightCharge", additionalWeightCharge);
+
       const deliveryChargePerDay = (
         parseFloat(deliveryCharges) + parseFloat(additionalWeightCharge)
       ).toFixed(2);
+
+      console.log("deliveryChargePerDay", deliveryChargePerDay);
 
       let originalDeliveryCharge = deliveryChargePerDay;
       if (deliveryOption === "Scheduled") {
@@ -934,8 +1009,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
 
       updatedCartDetail.instructionInPickup = instructionInPickup;
       updatedCartDetail.instructionInDelivery = instructionInDelivery;
-
-      // console.log(items);
 
       const customerCart = await PickAndCustomCart.findOneAndUpdate(
         { customerId: customer._id },
@@ -1025,13 +1098,22 @@ const createInvoiceByAdminController = async (req, res, next) => {
         surgePrice: surgeCharges || null,
       };
 
+      const transformedItems = items.map((item) => ({
+        itemName: item.itemName,
+        quantity: Number(item.quantity), // Ensure quantity is a number
+        numOfUnits: Number(item.numOfUnits), // Ensure numOfUnits is a number
+        itemImageURL: item?.itemImageURL,
+      }));
+
+      console.log(transformedItems);
+
       const customerCart = await PickAndCustomCart.findOneAndUpdate(
         { customerId: customer._id },
         {
           customerId: customer._id,
           cartDetail: updatedCartDetail,
           billDetail: updatedBill,
-          items,
+          items: transformedItems,
         },
         { new: true, upsert: true }
       );

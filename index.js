@@ -64,6 +64,10 @@ const ScheduledPickAndCustom = require("./models/ScheduledPickAndCustom.js");
 const {
   moveAppDetailToHistoryAndResetForAllAgents,
 } = require("./utils/agentAppHelpers.js");
+const tokenRoute = require("./routes/tokenRoute/tokenRoute.js");
+const {
+  generateMapplsAuthToken,
+} = require("./controllers/Token/tokenOperation.js");
 
 // const app = express();
 
@@ -126,6 +130,9 @@ app.use("/api/v1/agents", agentRoute);
 //customer
 app.use("/api/v1/customers", customerRoute);
 app.use("/api/v1/customers/subscription-payment", subscriptionLogRoute);
+
+// Token
+app.use("/api/v1/token", tokenRoute);
 
 // Schedule the task to run fout times daily for deleting expired plans of Merchants and customer
 cron.schedule("37 21 * * *", async () => {
@@ -197,7 +204,8 @@ cron.schedule("* * * * *", async () => {
   }
 });
 
-cron.schedule("52 15 * * *", async () => {
+cron.schedule("49 19 * * *", async () => {
+  await generateMapplsAuthToken();
   await moveAppDetailToHistoryAndResetForAllAgents();
   await updateOneDayLoyaltyPointEarning();
   await resetAllAgentTaskHelper();
