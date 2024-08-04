@@ -25,7 +25,6 @@ const geofenceSchema = new mongoose.Schema(
     orderManager: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Manager",
-      default: null,
     },
     //TODO: other manager
     // otherManager: [{
