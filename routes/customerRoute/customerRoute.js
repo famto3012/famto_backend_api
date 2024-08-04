@@ -7,6 +7,7 @@ const {
   ratingValidations,
   updateCartProductValidations,
 } = require("../../middlewares/validators/customerAppValidations/customerAppValidations");
+
 const {
   registerAndLoginController,
   getCustomerProfileController,

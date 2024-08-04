@@ -66,10 +66,9 @@ const addManagerController = async (req, res, next) => {
 //Get manager by Id
 const getManagerByIdController = async (req, res, next) => {
   try {
-    const managerFound = await Manager.findById(req.params.managerId).populate(
-      "geofenceId",
-      "name"
-    );
+    const managerFound = await Manager.findById(req.params.managerId)
+      .populate("geofenceId", "name")
+      .select("-password");
 
     if (!managerFound) {
       return next(appError("Manager not found", 404));
@@ -223,16 +222,24 @@ const getManagerByGeofenceController = async (req, res, next) => {
 
     const geofenceId = query.trim();
 
-    // Check if the geofence ID is a valid ObjectId
-    if (!mongoose.Types.ObjectId.isValid(geofenceId)) {
-      return res.status(400).json({
-        message: "Invalid geofence ID format",
-      });
-    }
+    let managersFound;
 
-    const managersFound = await Manager.find({ geofenceId })
-      .populate("geofenceId", "name")
-      .select("-merchants -password -viewCustomers");
+    if (query !== "All") {
+      // Check if the geofence ID is a valid ObjectId
+      if (!mongoose.Types.ObjectId.isValid(geofenceId)) {
+        return res.status(400).json({
+          message: "Invalid geofence ID format",
+        });
+      }
+
+      managersFound = await Manager.find({ geofenceId })
+        .populate("geofenceId", "name")
+        .select("-merchants -password -viewCustomers");
+    } else {
+      managersFound = await Manager.find({})
+        .populate("geofenceId", "name")
+        .select("-merchants -password -viewCustomers");
+    }
 
     res.status(200).json({
       message: "Filtered managers by geofence",

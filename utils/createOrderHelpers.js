@@ -214,9 +214,16 @@ const calculateItemTotal = (items) =>
 
 // Calculate the total weight of items
 const getTotalItemWeight = (items) => {
-  const weight = items.reduce((total, item) => total + item.weight, 0);
+  items.forEach((item) => {
+    console.log(item.weight);
+  });
 
-  return parseFloat(weight).toFixed(2);
+  const weight = items.reduce(
+    (total, item) => total + parseFloat(item.weight || 0),
+    0
+  );
+
+  return weight.toFixed(2);
 };
 // Calculate additional weight charge
 const calculateAdditionalWeightCharge = (
@@ -225,6 +232,10 @@ const calculateAdditionalWeightCharge = (
   fareAfterBaseWeight
 ) => {
   if (totalWeight > vehicleBaseWeight) {
+    console.log("totalWeight", totalWeight);
+    console.log("vehicleBaseWeight", vehicleBaseWeight);
+    console.log("fareAfterBaseWeight", fareAfterBaseWeight);
+
     const fare = (
       (parseFloat(totalWeight) - parseFloat(vehicleBaseWeight)) *
       parseFloat(fareAfterBaseWeight)
