@@ -325,6 +325,12 @@ const setAsPaidController = async (req, res, next) => {
       { paymentStatus: "Paid" },
       { new: true }
     );
+    const typeOfUser = subscriptionLog.typeOfUser
+    if(typeOfUser === "Merchant"){
+      const merchantFound = await Merchant.findById(userId);
+      merchantFound.merchantDetail.pricing.push(subscriptionLog._id);
+      await merchantFound.save();
+    }
     if (!subscriptionLog) {
       return res.status(404).json({ message: "Subscription log not found" });
     }
@@ -337,28 +343,82 @@ const setAsPaidController = async (req, res, next) => {
   }
 };
 
+// const getAllMerchantSubscriptionLogController = async (req, res, next) => {
+//   try {
+//     const subscriptionLogs = await SubscriptionLog.find({
+//       typeOfUser: "Merchant",
+//     });
+//     res.status(200).json({
+//       message: "Subscription logs fetched successfully",
+//       subscriptionLogs,
+//     });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
 const getAllMerchantSubscriptionLogController = async (req, res, next) => {
   try {
+    // Step 1: Fetch all subscription logs for Merchants
     const subscriptionLogs = await SubscriptionLog.find({
       typeOfUser: "Merchant",
     });
+
+    // Step 2: Extract unique userIds from the subscription logs
+    const userIds = [...new Set(subscriptionLogs.map(log => log.userId))];
+
+    // Step 3: Fetch user details for the extracted userIds
+    const users = await Merchant.find({ _id: { $in: userIds } });
+
+    // Step 4: Create a map of userId to user details for quick lookup
+    const userMap = users.reduce((map, user) => {
+      map[user._id] = user.merchantDetail.merchantName;
+      return map;
+    }, {});
+
+    // Step 5: Combine subscription logs with the corresponding user details
+    const combinedData = subscriptionLogs.map(log => ({
+      ...log.toObject(),
+      user: userMap[log.userId],
+    }));
+
+    // Send the combined data as the response
     res.status(200).json({
       message: "Subscription logs fetched successfully",
-      subscriptionLogs,
+      subscriptionLogs: combinedData,
     });
   } catch (err) {
     next(appError(err.message));
   }
 };
-
 const getAllCustomerSubscriptionLogController = async (req, res, next) => {
   try {
+    // Step 1: Fetch all subscription logs for Merchants
     const subscriptionLogs = await SubscriptionLog.find({
       typeOfUser: "Customer",
     });
+
+    // Step 2: Extract unique userIds from the subscription logs
+    const userIds = [...new Set(subscriptionLogs.map(log => log.userId))];
+
+    // Step 3: Fetch user details for the extracted userIds
+    const users = await Customer.find({ _id: { $in: userIds } });
+
+    // Step 4: Create a map of userId to user details for quick lookup
+    const userMap = users.reduce((map, user) => {
+      map[user._id] = user.fullName;
+      return map;
+    }, {});
+
+    // Step 5: Combine subscription logs with the corresponding user details
+    const combinedData = subscriptionLogs.map(log => ({
+      ...log.toObject(),
+      user: userMap[log.userId],
+    }));
+
+    // Send the combined data as the response
     res.status(200).json({
       message: "Subscription logs fetched successfully",
-      subscriptionLogs,
+      subscriptionLogs: combinedData,
     });
   } catch (err) {
     next(appError(err.message));
