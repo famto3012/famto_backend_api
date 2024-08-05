@@ -123,8 +123,10 @@ const editCustomerPricingController = async (req, res, next) => {
   }
 
   try {
+    const { customerPricingId } = req.params;
+
     const customerPricingFound = await CustomerPricing.findById(
-      req.params.customerPricingId
+      customerPricingId
     );
 
     if (!customerPricingFound) {
@@ -137,7 +139,8 @@ const editCustomerPricingController = async (req, res, next) => {
       .replace(/\b\w/g, (char) => char.toUpperCase());
 
     const ruleNameFound = await CustomerPricing.findOne({
-      ruleName: new RegExp(`^${normalizedRuleName}$`, "i"),
+      _id: { $ne: customerPricingId },
+      ruleName: { $regex: `^${normalizedRuleName}$`, $options: "i" },
     });
 
     if (ruleNameFound) {
@@ -146,7 +149,7 @@ const editCustomerPricingController = async (req, res, next) => {
     }
 
     const updatedCustomerPricing = await CustomerPricing.findByIdAndUpdate(
-      req.params.customerPricingId,
+      customerPricingId,
       {
         deliveryMode,
         ruleName: normalizedRuleName,

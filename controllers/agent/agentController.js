@@ -470,6 +470,8 @@ const addGovernmentCertificatesController = async (req, res, next) => {
   }
 
   try {
+    console.log(req.userAuth);
+
     const agentFound = await Agent.findById(req.userAuth);
 
     if (!agentFound) {

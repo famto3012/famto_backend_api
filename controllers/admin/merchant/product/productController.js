@@ -86,7 +86,7 @@ const addProductController = async (req, res, next) => {
       return next(appError("Error in creating new Product"));
     }
 
-    res.status(200).json({ message: "Product added successfully" });
+    res.status(201).json({ message: "Product added successfully" });
   } catch (err) {
     next(appError(err.message));
   }
