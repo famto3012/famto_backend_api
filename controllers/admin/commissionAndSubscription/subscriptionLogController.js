@@ -327,7 +327,7 @@ const setAsPaidController = async (req, res, next) => {
     );
     const typeOfUser = subscriptionLog.typeOfUser
     if(typeOfUser === "Merchant"){
-      const merchantFound = await Merchant.findById(userId);
+      const merchantFound = await Merchant.findById(subscriptionLog.userId);
       merchantFound.merchantDetail.pricing.push(subscriptionLog._id);
       await merchantFound.save();
     }
@@ -432,9 +432,25 @@ const getByMerchantIdSubscriptionLogController = async (req, res, next) => {
     const subscriptionLogs = await SubscriptionLog.find({
       userId: merchantId,
     });
+    const userIds = [...new Set(subscriptionLogs.map(log => log.userId))];
+
+    // Step 3: Fetch user details for the extracted userIds
+    const users = await Merchant.find({ _id: { $in: userIds } });
+
+    // Step 4: Create a map of userId to user details for quick lookup
+    const userMap = users.reduce((map, user) => {
+      map[user._id] = user.merchantDetail.merchantName;
+      return map;
+    }, {});
+
+    // Step 5: Combine subscription logs with the corresponding user details
+    const combinedData = subscriptionLogs.map(log => ({
+      ...log.toObject(),
+      user: userMap[log.userId],
+    }));
     res.status(200).json({
       message: "Subscription logs fetched successfully",
-      subscriptionLogs,
+      combinedData,
     });
   } catch (err) {
     next(appError(err.message));
@@ -455,17 +471,26 @@ const getMerchantSubscriptionLogsByName = async (req, res, next) => {
     }
 
     // Extract subscription logs from all matching merchants
-    const subscriptionLogsPromises = merchants.map((merchant) =>
-      Promise.all(
-        merchant.merchantDetail.pricing.map(async (pricingId) => {
-          return await SubscriptionLog.findById(pricingId);
-        })
-      )
-    );
+    const subscriptionLogsPromises = merchants.map(async (merchant) => {
+      const logsWithUsersPromises = merchant.merchantDetail.pricing.map(async (pricingId) => {
+        const log = await SubscriptionLog.findById(pricingId);
+        const user = await Merchant.findById(log.userId); // Assuming log contains a reference to userId
+        return {
+          data:log,
+          user: `${user.merchantDetail.merchantName}`, // Adjust according to your User model
+        };
+      });
+      return await Promise.all(logsWithUsersPromises);
+     // return await Promise.all(subscriptionLogsPromises);
+    });
+  
+  
 
     const subscriptionLogs = await Promise.all(subscriptionLogsPromises);
-
-    res.status(200).json(subscriptionLogs.flat());
+    console.log("Merchant", merchants)
+    res.status(200).json({
+      data: subscriptionLogs.flat()
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -515,9 +540,26 @@ const getMerchantSubscriptionLogsByStartDate = async (req, res, next) => {
       });
     }
 
+    const userIds = [...new Set(subscriptionLogs.map(log => log.userId))];
+
+    // Step 3: Fetch user details for the extracted userIds
+    const users = await Merchant.find({ _id: { $in: userIds } });
+
+    // Step 4: Create a map of userId to user details for quick lookup
+    const userMap = users.reduce((map, user) => {
+      map[user._id] = user.merchantDetail.merchantName;
+      return map;
+    }, {});
+
+    // Step 5: Combine subscription logs with the corresponding user details
+    const combinedData = subscriptionLogs.map(log => ({
+      ...log.toObject(),
+      user: userMap[log.userId],
+    }));
+
     res.status(200).json({
       message: "Data fetched successfully",
-      data: subscriptionLogs,
+      data: combinedData,
     });
   } catch (err) {
     next(appError(err.message));
@@ -537,17 +579,24 @@ const getCustomerSubscriptionLogsByName = async (req, res, next) => {
       return res.status(404).json({ message: "No customers found" });
     }
 
-    const subscriptionLogsPromises = customers.map((customer) =>
-      Promise.all(
-        customer.customerDetails.pricing.map(async (pricingId) => {
-          return await SubscriptionLog.findById(pricingId);
-        })
-      )
-    );
+    const subscriptionLogsPromises = customers.map(async (customer) => {
+      const logsWithUsersPromises = customer.customerDetails.pricing.map(async (pricingId) => {
+        const log = await SubscriptionLog.findById(pricingId);
+        const user = await Customer.findById(log.userId); // Assuming log contains a reference to userId
+        return {
+          data:log,
+          user: `${user.fullName}`, // Adjust according to your User model
+        };
+      });
+      return await Promise.all(logsWithUsersPromises);
+     // return await Promise.all(subscriptionLogsPromises);
+    });
 
     const subscriptionLogs = await Promise.all(subscriptionLogsPromises);
 
-    res.status(200).json(subscriptionLogs.flat());
+    res.status(200).json({data: subscriptionLogs.flat(),
+     
+    });
   } catch (err) {
     next(appError(err.message));
   }
