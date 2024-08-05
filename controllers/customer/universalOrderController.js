@@ -29,7 +29,7 @@ const SubscriptionLog = require("../../models/SubscriptionLog");
 // Get all available business categories according to the order
 const getAllBusinessCategoryController = async (req, res, next) => {
   try {
-    const allBusinessCategories = await BusinessCategory.find({})
+    const allBusinessCategories = await BusinessCategory.find({ status: true })
       .select("title bannerImageURL")
       .sort({ order: 1 });
 
