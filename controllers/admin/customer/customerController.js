@@ -108,7 +108,7 @@ const filterCustomerByGeofenceController = async (req, res, next) => {
         fullName: customer.fullName || "N/A",
         email: customer.email || "N/A",
         phoneNumber: customer.phoneNumber,
-        lastPlatformUsed: customer.lastPlatformUsed,
+        lastPlatformUsed: customer?.lastPlatformUsed || "N/A",
         registrationDate: formatDate(customer.createdAt),
         averageRating: customer.customerDetails?.averageRating || 0,
       };
