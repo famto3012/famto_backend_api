@@ -476,7 +476,7 @@ const getMerchantSubscriptionLogsByName = async (req, res, next) => {
         const log = await SubscriptionLog.findById(pricingId);
         const user = await Merchant.findById(log.userId); // Assuming log contains a reference to userId
         return {
-          data:log,
+          ...log._doc,
           user: `${user.merchantDetail.merchantName}`, // Adjust according to your User model
         };
       });
@@ -488,9 +488,9 @@ const getMerchantSubscriptionLogsByName = async (req, res, next) => {
 
     const subscriptionLogs = await Promise.all(subscriptionLogsPromises);
     console.log("Merchant", merchants)
-    res.status(200).json({
-      data: subscriptionLogs.flat()
-    });
+    res.status(200).json(
+       subscriptionLogs.flat()
+    );
   } catch (err) {
     next(appError(err.message));
   }
@@ -584,7 +584,7 @@ const getCustomerSubscriptionLogsByName = async (req, res, next) => {
         const log = await SubscriptionLog.findById(pricingId);
         const user = await Customer.findById(log.userId); // Assuming log contains a reference to userId
         return {
-          data:log,
+          ...log._doc,
           user: `${user.fullName}`, // Adjust according to your User model
         };
       });
@@ -594,9 +594,7 @@ const getCustomerSubscriptionLogsByName = async (req, res, next) => {
 
     const subscriptionLogs = await Promise.all(subscriptionLogsPromises);
 
-    res.status(200).json({data: subscriptionLogs.flat(),
-     
-    });
+    res.status(200).json( subscriptionLogs.flat());
   } catch (err) {
     next(appError(err.message));
   }
@@ -645,10 +643,26 @@ const getCustomerSubscriptionLogsByStartDate = async (req, res, next) => {
         message: "No subscription logs found for the provided start date",
       });
     }
+    const userIds = [...new Set(subscriptionLogs.map(log => log.userId))];
+
+    // Step 3: Fetch user details for the extracted userIds
+    const users = await Merchant.find({ _id: { $in: userIds } });
+
+    // Step 4: Create a map of userId to user details for quick lookup
+    const userMap = users.reduce((map, user) => {
+      map[user._id] = user.merchantDetail.merchantName;
+      return map;
+    }, {});
+
+    // Step 5: Combine subscription logs with the corresponding user details
+    const combinedData = subscriptionLogs.map(log => ({
+      ...log.toObject(),
+      user: userMap[log.userId],
+    }));
 
     res.status(200).json({
       message: "Data fetched successfully",
-      data: subscriptionLogs,
+      data: combinedData,
     });
   } catch (err) {
     next(appError(err.message));
