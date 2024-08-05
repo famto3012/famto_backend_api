@@ -918,6 +918,7 @@ const getPickUpDetailController = async (req, res, next) => {
     const taskFound = await Task.findById(taskId).populate("orderId");
 
     const formattedResponse = {
+      taskId: taskFound._id,
       orderId: taskFound.orderId._id,
       type: "Pickup",
       date: formatDate(taskFound.orderId.createdAt),
@@ -952,6 +953,7 @@ const getDeliveryDetailController = async (req, res, next) => {
     const taskFound = await Task.findById(taskId).populate("orderId");
 
     const formattedResponse = {
+      taskId: taskFound._id,
       orderId: taskFound.orderId._id,
       type: "Delivery",
       date: formatDate(taskFound.orderId.orderDetail?.deliveryTime),
