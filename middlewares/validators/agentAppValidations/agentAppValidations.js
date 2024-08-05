@@ -60,21 +60,21 @@ const governmentCertificateValidation = [
     .notEmpty()
     .withMessage("Driving license number is required"),
   check("aadharFrontImage").custom((value, { req }) => {
-    if (!req.files.aadharFrontImage || !req.body.aadharFrontImage) {
+    if (!req.files.aadharFrontImage && !req.body.aadharFrontImageURL) {
       throw new Error("Aadhar Front Image is required");
     }
     return true;
   }),
   check("aadharBackImage").custom((value, { req }) => {
-    if (!req.files.aadharBackImage || !req.body.aadharBackImage) {
+    if (!req.files.aadharBackImage && !req.body.aadharBackImageURL) {
       throw new Error("Aadhar Back Image is required");
     }
     return true;
   }),
   check("drivingLicenseFrontImage").custom((value, { req }) => {
     if (
-      !req.files.drivingLicenseFrontImage ||
-      !req.body.drivingLicenseFrontImage
+      !req.files.drivingLicenseFrontImage &&
+      !req.body.drivingLicenseFrontImageURL
     ) {
       throw new Error("Driving License Front Image is required");
     }
@@ -82,8 +82,8 @@ const governmentCertificateValidation = [
   }),
   check("drivingLicenseBackImage").custom((value, { req }) => {
     if (
-      !req.files.drivingLicenseBackImage ||
-      !req.body.drivingLicenseBackImage
+      !req.files.drivingLicenseBackImage &&
+      !req.body.drivingLicenseBackImageURL
     ) {
       throw new Error("Driving License Back Image is required");
     }
