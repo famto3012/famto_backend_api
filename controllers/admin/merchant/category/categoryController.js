@@ -15,7 +15,7 @@ const getAllCategoriesOfMerchantByAdminController = async (req, res, next) => {
     const merchantId = req.params.merchantId;
 
     const categoriesOfMerchant = await Category.find({ merchantId }).select(
-      "categoryName merchantId"
+      "categoryName merchantId status"
     );
 
     res
@@ -80,6 +80,12 @@ const addCategoryByAdminController = async (req, res, next) => {
       categoryImageURL = await uploadToFirebase(req.file, "CategoryImages");
     }
 
+    const lastCategory = await Category.findOne().sort({
+      order: -1,
+    });
+
+    const newOrder = lastCategory ? lastCategory.order + 1 : 1;
+
     const newCategory = await Category.create({
       businessCategoryId,
       merchantId,
@@ -87,13 +93,14 @@ const addCategoryByAdminController = async (req, res, next) => {
       description,
       type,
       categoryImageURL,
+      order: newOrder,
     });
 
     if (!newCategory) {
       return next(appError("Error in creating new category"));
     }
 
-    res.status(200).json({
+    res.status(201).json({
       message: "Category created successfully",
     });
   } catch (err) {

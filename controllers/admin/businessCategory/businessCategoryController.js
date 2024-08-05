@@ -54,7 +54,7 @@ const addBusinessCategoryController = async (req, res, next) => {
 
 const getAllBusinessCategoryController = async (req, res, next) => {
   try {
-    const allBusinessCategories = await BusinessCategory.find({ status: true })
+    const allBusinessCategories = await BusinessCategory.find({})
       .select("title status order bannerImageURL")
       .sort({ order: 1 });
 
