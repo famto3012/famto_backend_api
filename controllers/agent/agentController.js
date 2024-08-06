@@ -1117,6 +1117,7 @@ const addOrderDetailsController = async (req, res, next) => {
   }
 };
 
+// Get checkout details
 const getCheckoutDetailController = async (req, res, next) => {
   try {
     const { taskId } = req.params;
@@ -1139,6 +1140,8 @@ const getCheckoutDetailController = async (req, res, next) => {
         ? formatTime(taskFound.orderId.orderDetail.delayedBy)
         : "0:00 hr",
       paymentType: taskFound.orderId.paymentMode,
+      paymentStatus: taskFound.orderId.paymentStatus,
+      grandTotal: taskFound?.orderId?.billDetail?.grandTotal,
     };
 
     res.status(200).json({
