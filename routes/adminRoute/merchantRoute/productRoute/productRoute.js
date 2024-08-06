@@ -12,6 +12,7 @@ const {
   changeProductCategoryController,
   changeInventoryStatusController,
   getAllProductsByMerchant,
+  updateProductOrderController,
 } = require("../../../../controllers/admin/merchant/product/productController");
 const { upload } = require("../../../../utils/imageOperation");
 const {
@@ -91,6 +92,14 @@ productRoute.patch(
   isAuthenticated,
   isAdminOrMerchant,
   changeInventoryStatusController
+);
+
+// Change product order
+productRoute.put(
+  "/change-order",
+  isAuthenticated,
+  isAdminOrMerchant,
+  updateProductOrderController
 );
 
 //Variants

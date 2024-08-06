@@ -14,9 +14,9 @@ const getAllCategoriesOfMerchantByAdminController = async (req, res, next) => {
   try {
     const merchantId = req.params.merchantId;
 
-    const categoriesOfMerchant = await Category.find({ merchantId }).select(
-      "categoryName merchantId status"
-    );
+    const categoriesOfMerchant = await Category.find({ merchantId })
+      .select("categoryName merchantId status")
+      .sort({ order: 1 });
 
     res
       .status(200)

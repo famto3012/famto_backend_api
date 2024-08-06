@@ -36,6 +36,16 @@ const { formatToHours } = require("../../../utils/agentAppHelpers");
 
 const getAllOrdersOfMerchantController = async (req, res, next) => {
   try {
+    // Get page and limit from query parameters
+    let { page = 1, limit = 10 } = req.query;
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
     const currentMerchant = req.userAuth;
 
     if (!currentMerchant) {
@@ -53,14 +63,14 @@ const getAllOrdersOfMerchantController = async (req, res, next) => {
         path: "customerId",
         select: "fullName",
       })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Count total documents
+    const totalDocuments = await Order.countDocuments({});
 
     const formattedOrders = allOrders.map((order) => {
-      const deliveryTimeMinutes = parseInt(
-        order.merchantId.merchantDetail.deliveryTime,
-        10
-      );
-
       return {
         _id: order._id,
         orderStatus: order.status,
@@ -78,9 +88,19 @@ const getAllOrdersOfMerchantController = async (req, res, next) => {
       };
     });
 
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
     res.status(200).json({
       message: "All orders of merchant",
       data: formattedOrders,
+      pagination,
     });
   } catch (err) {
     next(appError(err.message));
@@ -238,11 +258,18 @@ const searchOrderByIdController = async (req, res, next) => {
       return next(appError("Merchant is not authenticated", 401));
     }
 
-    const { query } = req.query;
+    let { query, page = 1, limit = 15 } = req.query;
 
     if (!query) {
       return next(appError("Order ID is required", 400));
     }
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
 
     const ordersFound = await Order.find({
       _id: query,
@@ -256,11 +283,12 @@ const searchOrderByIdController = async (req, res, next) => {
         path: "customerId",
         select: "fullName",
       })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
-    if (ordersFound.length === 0) {
-      return res.status(404).json({ message: "No orders found" });
-    }
+    // Count total documents
+    const totalDocuments = await Order.countDocuments({});
 
     const formattedOrders = ordersFound.map((order) => {
       return {
@@ -280,9 +308,19 @@ const searchOrderByIdController = async (req, res, next) => {
       };
     });
 
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
     res.status(200).json({
       message: "Search result of order",
-      data: formattedOrders,
+      data: formattedOrders || [],
+      pagination,
     });
   } catch (err) {
     next(appError(err.message));
@@ -293,11 +331,7 @@ const filterOrdersController = async (req, res, next) => {
   try {
     const currentMerchant = req.userAuth;
 
-    if (!currentMerchant) {
-      return next(appError("Merchant is not authenticated", 401));
-    }
-
-    const { status, paymentMode, deliveryMode } = req.query;
+    let { status, paymentMode, deliveryMode, page = 1, limit = 15 } = req.query;
 
     if (!status && !paymentMode && !deliveryMode) {
       return res
@@ -305,21 +339,28 @@ const filterOrdersController = async (req, res, next) => {
         .json({ message: "At least one filter is required" });
     }
 
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
     const filterCriteria = { merchantId: currentMerchant };
 
-    if (status) {
+    if (status && status.trim().toLowerCase() !== "all") {
       filterCriteria.status = { $regex: status.trim(), $options: "i" };
     }
 
-    if (paymentMode) {
+    if (paymentMode && paymentMode.trim().toLowerCase() !== "all") {
       filterCriteria.paymentMode = {
         $regex: paymentMode.trim(),
         $options: "i",
       };
     }
 
-    if (deliveryMode) {
-      filterCriteria["orderDetail.deliveryOption"] = {
+    if (deliveryMode && deliveryMode.trim().toLowerCase() !== "all") {
+      filterCriteria["orderDetail.deliveryMode"] = {
         $regex: deliveryMode.trim(),
         $options: "i",
       };
@@ -334,7 +375,12 @@ const filterOrdersController = async (req, res, next) => {
         path: "customerId",
         select: "fullName",
       })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Count total documents
+    const totalDocuments = await Order.countDocuments({});
 
     const formattedOrders = filteredOrderResults.map((order) => {
       return {
@@ -354,9 +400,19 @@ const filterOrdersController = async (req, res, next) => {
       };
     });
 
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
     res.status(200).json({
       message: "Filtered orders",
       data: formattedOrders,
+      pagination,
     });
   } catch (err) {
     next(appError(err.message));

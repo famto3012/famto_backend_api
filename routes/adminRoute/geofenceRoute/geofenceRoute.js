@@ -9,6 +9,7 @@ const {
 } = require("../../../controllers/admin/geofence/geofenceController");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const isAdmin = require("../../../middlewares/isAdmin");
+const isAdminOrMerchant = require("../../../middlewares/isAdminOrMerchant");
 
 const geofenceRoute = express.Router();
 
@@ -37,7 +38,12 @@ geofenceRoute.delete(
   deleteGeofence
 );
 
-geofenceRoute.get("/get-geofence", isAuthenticated, isAdmin, getAllGeofences);
+geofenceRoute.get(
+  "/get-geofence",
+  isAuthenticated,
+  isAdminOrMerchant,
+  getAllGeofences
+);
 
 geofenceRoute.get(
   "/get-geofence/:id",
