@@ -11,6 +11,7 @@ const {
   getProductByCategoryController,
   changeProductCategoryController,
   changeInventoryStatusController,
+  getAllProductsByMerchant,
 } = require("../../../../controllers/admin/merchant/product/productController");
 const { upload } = require("../../../../utils/imageOperation");
 const {
@@ -41,6 +42,13 @@ productRoute.post(
   isAuthenticated,
   isAdminOrMerchant,
   addProductController
+);
+
+productRoute.get(
+  "/all-products-of-merchant/:merchantId",
+  isAuthenticated,
+  isAdminOrMerchant,
+  getAllProductsByMerchant
 );
 
 //Get Product

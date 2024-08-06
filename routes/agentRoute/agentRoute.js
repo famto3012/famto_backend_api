@@ -33,6 +33,7 @@ const {
   getAgentTransactionsController,
   getAgentEarningsLast7DaysController,
   updateCustomOrderStatusController,
+  getCheckoutDetailController,
 } = require("../../controllers/agent/agentController");
 const { upload } = require("../../utils/imageOperation");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
@@ -205,6 +206,12 @@ agentRoute.post(
   ]),
   isAuthenticated,
   addOrderDetailsController
+);
+
+agentRoute.get(
+  "/checkout/:taskId",
+  isAuthenticated,
+  getCheckoutDetailController
 );
 
 agentRoute.patch(

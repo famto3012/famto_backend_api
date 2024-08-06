@@ -1117,6 +1117,39 @@ const addOrderDetailsController = async (req, res, next) => {
   }
 };
 
+const getCheckoutDetailController = async (req, res, next) => {
+  try {
+    const { taskId } = req.params;
+
+    const taskFound = await Task.findOne({
+      _id: taskId,
+      agentId: req.userAuth,
+    }).populate("orderId");
+
+    if (!taskFound) {
+      return next(appError("Task not found", 404));
+    }
+
+    const formattedData = {
+      distance: taskFound.orderId.orderDetail.distance,
+      timeTaken: taskFound?.orderId?.orderDetail?.timeTaken
+        ? formatTime(taskFound.orderId.orderDetail.timeTaken)
+        : "0:00 hr",
+      delayedBy: taskFound?.orderId?.orderDetail?.delayedBy
+        ? formatTime(taskFound.orderId.orderDetail.delayedBy)
+        : "0:00 hr",
+      paymentType: taskFound.orderId.paymentMode,
+    };
+
+    res.status(200).json({
+      message: "Checkout detail",
+      data: formattedData,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 // Confirm money received in cash on delivery
 const confirmCashReceivedController = async (req, res, next) => {
   try {
@@ -1583,4 +1616,5 @@ module.exports = {
   getAgentTransactionsController,
   getAgentEarningsLast7DaysController,
   updateCustomOrderStatusController,
+  getCheckoutDetailController,
 };
