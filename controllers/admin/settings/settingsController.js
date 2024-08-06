@@ -3,6 +3,7 @@ const { validationResult } = require("express-validator");
 
 const Admin = require("../../../models/Admin");
 const Merchant = require("../../../models/Merchant");
+const appError = require("../../../utils/appError");
 
 const getUserProfileController = async (req, res, next) => {
   try {
