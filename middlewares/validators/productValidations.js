@@ -28,25 +28,33 @@ const addProductValidations = [
     .isNumeric()
     .withMessage("Cost price must be a number"),
   body("sku").trim().notEmpty().withMessage("SKU is required"),
-  body("discountId").trim().optional(),
-  body("oftenBoughtTogetherId").trim().optional(),
-  body("preperationTime")
+  body("discountId").optional().isMongoId().withMessage("Invalid Discount ID"),
+  body("oftenBoughtTogetherId")
+    .optional()
+    .isMongoId()
+    .withMessage("Invalid Product ID"),
+  body("preparationTime")
     .trim()
     .notEmpty()
-    .withMessage("Preperation time is required")
+    .withMessage("Preparation time is required")
     .isNumeric()
-    .withMessage("Preperation time must be a number"),
-  body("searchTags")
-    .isArray({ min: 1 })
-    .withMessage("Search tags must be an array with at least one tag")
-    .custom((tags) => tags.every((tag) => typeof tag === "string"))
-    .withMessage("Each search tag must be a string"),
+    .withMessage("Preparation time must be a number"),
+  // body("searchTags")
+  //   .isArray({ min: 1 })
+  //   .withMessage("Search tags must be an array with at least one tag")
+  //   .custom((tags) => tags.every((tag) => typeof tag === "string"))
+  //   .withMessage("Each search tag must be a string"),
   body("description").trim().notEmpty().withMessage("Description is required"),
   body("longDescription")
     .trim()
     .notEmpty()
     .withMessage("Long description is required"),
-  body("type").trim().notEmpty().withMessage("Type is required"),
+  body("type")
+    .trim()
+    .notEmpty()
+    .withMessage("Type is required")
+    .isIn(["Veg", "Non-veg"])
+    .withMessage("Type must be either 'Veg' or 'Non-veg'"),
   body("availableQuantity")
     .trim()
     .notEmpty()

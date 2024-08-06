@@ -5,12 +5,23 @@ const {
   uploadToFirebase,
   deleteFromFirebase,
 } = require("../../../../utils/imageOperation");
+const Category = require("../../../../models/Category");
 
 // ------------------------------------------------------
 // For Merchant and Admin
 // -------------------------------------------------------
 
 const addProductController = async (req, res, next) => {
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.param] = error.msg;
+    });
+    return res.status(400).json({ errors: formattedErrors });
+  }
+
   const {
     categoryId,
     productName,
@@ -21,24 +32,14 @@ const addProductController = async (req, res, next) => {
     sku,
     discountId,
     oftenBoughtTogetherId,
-    preperationTime,
-    searchTags,
+    preparationTime,
+    // searchTags,
     description,
     longDescription,
     type,
     availableQuantity,
     alert,
   } = req.body;
-
-  const errors = validationResult(req);
-
-  let formattedErrors = {};
-  if (!errors.isEmpty()) {
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
-    return res.status(500).json({ errors: formattedErrors });
-  }
 
   try {
     const existingProduct = await Product.findOne({ productName, categoryId });
@@ -49,9 +50,7 @@ const addProductController = async (req, res, next) => {
     }
 
     // Find the highest order number
-    const lastCategory = await Product.findOne().sort({
-      order: -1,
-    });
+    const lastCategory = await Product.findOne().sort({ order: -1 });
 
     const newOrder = lastCategory ? lastCategory.order + 1 : 1;
 
@@ -69,10 +68,10 @@ const addProductController = async (req, res, next) => {
       maxQuantityPerOrder,
       costPrice,
       sku,
-      discountId,
-      oftenBoughtTogetherId,
-      preperationTime,
-      searchTags,
+      discountId: discountId || null,
+      oftenBoughtTogetherId: oftenBoughtTogetherId || null,
+      preparationTime,
+      // searchTags,
       description,
       longDescription,
       type,
@@ -83,11 +82,34 @@ const addProductController = async (req, res, next) => {
     });
 
     if (!newProduct) {
-      return next(appError("Error in creating new Product"));
+      return next(appError("Error in creating new Product", 500));
     }
 
-    res.status(201).json({ message: "Product added successfully" });
+    res
+      .status(201)
+      .json({ message: "Product added successfully", product: newProduct });
   } catch (err) {
+    next(appError(err.message, 500));
+  }
+};
+
+const getAllProductsByMerchant = async (req, res) => {
+  try {
+    const { merchantId } = req.params;
+
+    const categories = await Category.find({ merchantId }).select("_id");
+
+    const categoryIds = categories.map((category) => category._id);
+
+    const products = await Product.find({
+      categoryId: { $in: categoryIds },
+    }).select("productName");
+
+    res.status(200).json({
+      success: true,
+      data: products,
+    });
+  } catch (error) {
     next(appError(err.message));
   }
 };
@@ -408,6 +430,7 @@ const deleteVariantTypeController = async (req, res, next) => {
 
 module.exports = {
   getProductController,
+  getAllProductsByMerchant,
   addProductController,
   editProductController,
   deleteProductController,

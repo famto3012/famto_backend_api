@@ -5,10 +5,12 @@ const categorySchema = mongoose.Schema(
     businessCategoryId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "BusinessCategory",
+      required: true,
     },
     merchantId: {
       type: String,
       ref: "Merchant",
+      required: true,
     },
     categoryName: {
       type: String,
