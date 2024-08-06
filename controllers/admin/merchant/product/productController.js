@@ -103,7 +103,9 @@ const getAllProductsByMerchant = async (req, res) => {
 
     const products = await Product.find({
       categoryId: { $in: categoryIds },
-    }).select("productName");
+    })
+      .select("productName")
+      .sort({ order: 1 });
 
     res.status(200).json({
       success: true,

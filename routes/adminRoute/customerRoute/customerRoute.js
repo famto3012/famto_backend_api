@@ -11,8 +11,17 @@ const {
   getAllRatingsAndReviewsByAgentController,
   addMoneyToWalletController,
   deductMoneyFromWalletCOntroller,
+  getCustomersOfMerchant,
 } = require("../../../controllers/admin/customer/customerController");
+const isAdminOrMerchant = require("../../../middlewares/isAdminOrMerchant");
 const adminCustomerRoute = express.Router();
+
+adminCustomerRoute.get(
+  "/customer-of-merchant",
+  isAuthenticated,
+  isAdminOrMerchant,
+  getCustomersOfMerchant
+);
 
 adminCustomerRoute.get(
   "/get-all",

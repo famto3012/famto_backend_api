@@ -370,6 +370,52 @@ const deductMoneyFromWalletCOntroller = async (req, res, next) => {
   }
 };
 
+// ---------------------------------
+// For Merchant
+// ---------------------------------
+
+const getCustomersOfMerchant = async (req, res, next) => {
+  try {
+    const merchantId = req.userAuth;
+
+    // Fetch all orders of the merchant
+    const ordersOfMerchant = await Order.find({ merchantId }).select(
+      "customerId"
+    );
+
+    // Extract unique customer IDs
+    const uniqueCustomerIds = [
+      ...new Set(ordersOfMerchant.map((order) => order.customerId.toString())),
+    ];
+
+    // Fetch customer names for the unique customer IDs
+    const customers = await Customer.find({
+      _id: { $in: uniqueCustomerIds },
+    }).select(
+      "fullName phoneNumber email lastPlatformUsed createdAt averageRating"
+    );
+
+    const formattedResponse = customers?.map((customer) => {
+      return {
+        _id: customer._id,
+        fullName: customer?.fullName || "N/A",
+        phoneNumber: customer?.phoneNumber || "N/A",
+        email: customer?.email || "N/A",
+        lastPlatformUsed: customer.lastPlatformUsed,
+        registrationDate: formatDate(customer.createdAt),
+        rating: Math.floor(customer?.averageRating) || 0,
+      };
+    });
+
+    res.status(200).json({
+      message: "Customers of merchant",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getAllCustomersController,
   searchCustomerByNameController,
@@ -380,4 +426,5 @@ module.exports = {
   getAllRatingsAndReviewsByAgentController,
   addMoneyToWalletController,
   deductMoneyFromWalletCOntroller,
+  getCustomersOfMerchant,
 };

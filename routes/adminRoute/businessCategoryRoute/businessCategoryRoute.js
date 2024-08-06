@@ -11,6 +11,7 @@ const {
 } = require("../../../controllers/admin/businessCategory/businessCategoryController");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const isAdmin = require("../../../middlewares/isAdmin");
+const isAdminOrMerchant = require("../../../middlewares/isAdminOrMerchant");
 const businessCategoryRoute = express.Router();
 
 businessCategoryRoute.post(
@@ -24,7 +25,7 @@ businessCategoryRoute.post(
 businessCategoryRoute.get(
   "/get-all-business-category",
   isAuthenticated,
-  isAdmin,
+  isAdminOrMerchant,
   getAllBusinessCategoryController
 );
 

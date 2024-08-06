@@ -12,6 +12,7 @@ const {
   deleteCategoryByMerchantController,
   changeCategoryStatusByAdminController,
   changeCategoryStatusByMerchantController,
+  updateCategoryOrderController,
 } = require("../../../../controllers/admin/merchant/category/categoryController");
 const { upload } = require("../../../../utils/imageOperation");
 const isAuthenticated = require("../../../../middlewares/isAuthenticated");
@@ -22,6 +23,7 @@ const {
   editCategoryByMerchantValidation,
 } = require("../../../../middlewares/validators/categoryValidations");
 const isAdmin = require("../../../../middlewares/isAdmin");
+const isAdminOrMerchant = require("../../../../middlewares/isAdminOrMerchant");
 
 const categoryRoute = express.Router();
 
@@ -79,6 +81,14 @@ categoryRoute.patch(
   isAuthenticated,
   isAdmin,
   changeCategoryStatusByAdminController
+);
+
+//Change category order by Admin
+categoryRoute.put(
+  "/admin/change-order",
+  isAuthenticated,
+  isAdminOrMerchant,
+  updateCategoryOrderController
 );
 
 // ----------------------------------------------------
