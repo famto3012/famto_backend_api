@@ -1132,6 +1132,7 @@ const getCheckoutDetailController = async (req, res, next) => {
     }
 
     const formattedData = {
+      orderId: taskFound.orderId,
       distance: taskFound.orderId.orderDetail.distance,
       timeTaken: taskFound?.orderId?.orderDetail?.timeTaken
         ? formatTime(taskFound.orderId.orderDetail.timeTaken)
