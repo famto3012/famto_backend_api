@@ -28,22 +28,33 @@ const addProductValidations = [
     .isNumeric()
     .withMessage("Cost price must be a number"),
   body("sku").trim().notEmpty().withMessage("SKU is required"),
-  body("discountId").optional().isMongoId().withMessage("Invalid Discount ID"),
+  body("discountId").optional(),
   body("oftenBoughtTogetherId")
     .optional()
-    .isMongoId()
-    .withMessage("Invalid ID"),
+    .custom((value, { req }) => {
+      if (!Array.isArray(value)) {
+        throw new Error("Often Bought Together must be an array");
+      }
+      if (!value.every((item) => typeof item === "string")) {
+        throw new Error("Each item in Often Bought Together must be a string");
+      }
+      return true;
+    }),
   body("preparationTime")
     .trim()
     .notEmpty()
     .withMessage("Preparation time is required")
     .isNumeric()
     .withMessage("Preparation time must be a number"),
-  // body("searchTags")
-  //   .isArray({ min: 1 })
-  //   .withMessage("Search tags must be an array with at least one tag")
-  //   .custom((tags) => tags.every((tag) => typeof tag === "string"))
-  //   .withMessage("Each search tag must be a string"),
+  body("searchTags").custom((tags) => {
+    if (!Array.isArray(tags)) {
+      throw new Error("Search tags must be an array");
+    }
+    if (!tags.every((tag) => typeof tag === "string")) {
+      throw new Error("Each search tag must be a string");
+    }
+    return true;
+  }),
   body("description").trim().notEmpty().withMessage("Description is required"),
   body("longDescription")
     .trim()
@@ -103,25 +114,44 @@ const editProductValidations = [
     .isNumeric()
     .withMessage("Cost price must be a number"),
   body("sku").trim().notEmpty().withMessage("SKU is required"),
-  body("discountId").optional().trim(),
-  body("oftenBoughtTogetherId").optional().trim(),
+  body("discountId").optional(),
+  body("oftenBoughtTogetherId")
+    .optional()
+    .custom((value, { req }) => {
+      if (!Array.isArray(value)) {
+        throw new Error("Often Bought Together must be an array");
+      }
+      if (!value.every((item) => typeof item === "string")) {
+        throw new Error("Each item in Often Bought Together must be a string");
+      }
+      return true;
+    }),
   body("preparationTime")
     .trim()
     .notEmpty()
-    .withMessage("Preperation time is required")
+    .withMessage("Preparation time is required")
     .isNumeric()
-    .withMessage("Preperation time must be a number"),
-  // body("searchTags")
-  //   .isArray({ min: 1 })
-  //   .withMessage("Search tags must be an array with at least one tag")
-  //   .custom((tags) => tags.every((tag) => typeof tag === "string"))
-  //   .withMessage("Each search tag must be a string"),
+    .withMessage("Preparation time must be a number"),
+  body("searchTags").custom((tags) => {
+    if (!Array.isArray(tags)) {
+      throw new Error("Search tags must be an array");
+    }
+    if (!tags.every((tag) => typeof tag === "string")) {
+      throw new Error("Each search tag must be a string");
+    }
+    return true;
+  }),
   body("description").trim().notEmpty().withMessage("Description is required"),
   body("longDescription")
     .trim()
     .notEmpty()
     .withMessage("Long description is required"),
-  body("type").trim().notEmpty().withMessage("Type is required"),
+  body("type")
+    .trim()
+    .notEmpty()
+    .withMessage("Type is required")
+    .isIn(["Veg", "Non-veg"])
+    .withMessage("Type must be either 'Veg' or 'Non-veg'"),
   body("availableQuantity")
     .trim()
     .notEmpty()

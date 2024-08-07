@@ -1060,9 +1060,6 @@ const addOrderDetailsController = async (req, res, next) => {
     const { orderId } = req.params;
     const { notes } = req.body;
 
-    // Log incoming request data
-    console.log("Incoming request data:", { orderId, notes, files: req.files });
-
     const orderFound = await Order.findById(orderId);
 
     if (!orderFound) {
@@ -1103,11 +1100,9 @@ const addOrderDetailsController = async (req, res, next) => {
 
     // Merge existing details with updated details
     orderFound.detailAddedByAgent = {
-      ...orderFound.detailAddedByAgent.toObject(),
+      ...orderFound?.detailAddedByAgent?.toObject(),
       ...updatedDetails,
     };
-
-    console.log("Updated details:", orderFound.detailAddedByAgent);
 
     // Save the updated order
     await orderFound.save();
@@ -1518,13 +1513,16 @@ const updateCustomOrderStatusController = async (req, res, next) => {
     const { orderId } = req.params;
     const agentId = req.userAuth;
 
-    const orderFound = await Order.findById(orderId);
+    const orderFound = await Order.findOne({
+      _id: orderId,
+      "orderDetail.deliveryMode": "Custom Order",
+    });
 
     if (!orderFound) {
       return next(appError("Order not found", 404));
     }
 
-    if (orderFound.agentId.toString() !== agentId.toString()) {
+    if (orderFound.agentId !== agentId) {
       return next(appError("Agent access denied (Different agent)"));
     }
 
