@@ -222,7 +222,7 @@ const shopUpdatesSchema = mongoose.Schema({
     type: [Number],
     required: true,
   },
-  reason: {
+  status: {
     type: String,
     required: true,
   },

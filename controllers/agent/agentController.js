@@ -1535,12 +1535,12 @@ const updateCustomOrderStatusController = async (req, res, next) => {
     };
 
     // Initialize detailsAddedByAgents if it does not exist
-    if (!orderFound.detailsAddedByAgents) {
-      orderFound.detailsAddedByAgents = { shopUpdates: [] };
+    if (!orderFound.detailAddedByAgent) {
+      orderFound.detailAddedByAgent = { shopUpdates: [] };
     }
 
     // Initialize shopUpdates if it does not exist
-    const shopUpdates = orderFound.detailsAddedByAgents.shopUpdates || [];
+    const shopUpdates = orderFound?.detailAddedByAgent?.shopUpdates || [];
 
     let oldDistance = orderFound.orderDetail?.distance || 0;
 
@@ -1550,7 +1550,9 @@ const updateCustomOrderStatusController = async (req, res, next) => {
       orderFound.orderDetail.deliveryLocation
     );
 
-    orderFound.orderDetail.distance = oldDistance + parseFloat(distanceInKM);
+    const newDistance = parseFloat(distanceInKM);
+
+    orderFound.orderDetail.distance = oldDistance + newDistance;
 
     // Calculate delivery charges
     const { deliveryCharges } = await getDeliveryAndSurgeCharge(
@@ -1576,7 +1578,7 @@ const updateCustomOrderStatusController = async (req, res, next) => {
       orderFound.orderDetail.pickupLocation = location;
     }
 
-    orderFound.detailsAddedByAgents.shopUpdates.push(updatedData);
+    orderFound.detailAddedByAgent.shopUpdates.push(updatedData);
 
     await orderFound.save();
 
