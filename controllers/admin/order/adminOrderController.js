@@ -615,6 +615,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
         deliveryLocation
       );
       distanceInKM = parseFloat(distanceData.distanceInKM);
+      console.log("distanceInKM", distanceInKM);
     } else if (deliveryMode === "Custom Order") {
       if (customPickupLocation) {
         pickupLocation = customPickupLocation;
@@ -682,13 +683,14 @@ const createInvoiceByAdminController = async (req, res, next) => {
 
       let customerPricing;
       if (deliveryMode === "Home Delivery") {
-        // console.log("checking", customer.customerDetails);
+        console.log("checking", customer.customerDetails);
 
-        // console.log("businessId", businessCategory.title);
-        // console.log("GeofenceId", customer.customerDetails.geofenceId);
+        console.log("businessId", businessCategory._id);
+        console.log("GeofenceId", customer.customerDetails.geofenceId);
 
         customerPricing = await CustomerPricing.findOne({
-          ruleName: businessCategory.title,
+          deliveryMode: "Home Delivery",
+          businessCategoryId: businessCategory._id,
           geofenceId: customer.customerDetails.geofenceId,
           status: true,
         });
@@ -706,7 +708,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
         customerPricing?.fareAfterBaseDistance
       );
 
-      // console.log("oneTimeDeliveryCharge", oneTimeDeliveryCharge);
+      console.log("oneTimeDeliveryCharge", oneTimeDeliveryCharge);
 
       const customerSurge = await CustomerSurge.findOne({
         geofenceId: customer?.customerDetails?.geofenceId,
