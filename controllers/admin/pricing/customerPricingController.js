@@ -34,7 +34,7 @@ const addCustomerPricingController = async (req, res, next) => {
       .replace(/\s+/g, " ")
       .replace(/\b\w/g, (char) => char.toUpperCase());
 
-    const newRule = await CustomerPricing.create({
+    let newRule = await CustomerPricing.create({
       deliveryMode,
       ruleName: normalizedRuleName,
       baseFare,
@@ -53,8 +53,11 @@ const addCustomerPricingController = async (req, res, next) => {
       return next(appError("Error in creating new rule"));
     }
 
+    newRule = await newRule.populate("geofenceId", "name");
+
     res.status(201).json({
       message: `${normalizedRuleName} created successfully`,
+      data: newRule,
     });
   } catch (err) {
     next(appError(err.message));
@@ -148,7 +151,7 @@ const editCustomerPricingController = async (req, res, next) => {
       return res.status(409).json({ errors: formattedErrors });
     }
 
-    const updatedCustomerPricing = await CustomerPricing.findByIdAndUpdate(
+    let updatedCustomerPricing = await CustomerPricing.findByIdAndUpdate(
       customerPricingId,
       {
         deliveryMode,
@@ -171,8 +174,13 @@ const editCustomerPricingController = async (req, res, next) => {
       return next(appError("Error in updating customer pricing"));
     }
 
+    updatedCustomerPricing = await updatedCustomerPricing
+      .populate("geofenceId", "name")
+      .execPopulate();
+
     res.status(200).json({
       message: `${normalizedRuleName} updated successfully`,
+      data: updatedCustomerPricing,
     });
   } catch (err) {
     next(appError(err.message));
@@ -211,9 +219,10 @@ const changeStatusCustomerPricingController = async (req, res, next) => {
     customerPricingFound.status = !customerPricingFound.status;
     await customerPricingFound.save();
 
-    res
-      .status(200)
-      .json({ message: "Customer pricing status updated successfully" });
+    res.status(200).json({
+      message: "Customer pricing status updated successfully",
+      data: customerPricingFound.status,
+    });
   } catch (err) {
     next(appError(err.message));
   }

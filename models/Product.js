@@ -76,7 +76,7 @@ const productSchema = mongoose.Schema(
       ref: "Product",
       default: null,
     },
-    preperationTime: {
+    preparationTime: {
       type: String,
       required: true,
     },
