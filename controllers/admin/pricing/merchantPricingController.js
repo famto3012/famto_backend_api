@@ -58,7 +58,12 @@ const addMerchantPricingController = async (req, res, next) => {
       return next(appError("Error in creating new rule"));
     }
 
-    res.status(201).json({ message: `${ruleName} created successfully` });
+    newRule = await newRule.populate("geofenceId", "name");
+
+    res.status(201).json({
+      message: `${normalizedRuleName} created successfully`,
+      data: newRule,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -152,7 +157,7 @@ const editMerchantPricingController = async (req, res, next) => {
       }
     }
 
-    const updatedmerchantPricing = await MerchantPricing.findByIdAndUpdate(
+    let updatedmerchantPricing = await MerchantPricing.findByIdAndUpdate(
       req.params.merchantPricingId,
       {
         ruleName,
@@ -173,7 +178,15 @@ const editMerchantPricingController = async (req, res, next) => {
       return next(appError("Error in updating merchant pricing"));
     }
 
-    res.status(200).json({ message: `${ruleName} updated successfully` });
+    updatedmerchantPricing = await updatedmerchantPricing.populate(
+      "geofenceId",
+      "name"
+    );
+
+    res.status(200).json({
+      message: `${ruleName} updated successfully`,
+      data: newRule,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -211,9 +224,10 @@ const changeStatusMerchantPricingController = async (req, res, next) => {
     merchantPricingFound.status = !merchantPricingFound.status;
     await merchantPricingFound.save();
 
-    res
-      .status(200)
-      .json({ message: "Merchant pricing status updated successfully" });
+    res.status(200).json({
+      message: "Merchant pricing status updated successfully",
+      data: merchantPricingFound.status,
+    });
   } catch (err) {
     next(appError(err.message));
   }

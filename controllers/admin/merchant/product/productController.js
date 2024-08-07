@@ -19,6 +19,7 @@ const addProductController = async (req, res, next) => {
     errors.array().forEach((error) => {
       formattedErrors[error.param] = error.msg;
     });
+    console.log("Validation errors:", formattedErrors); // Debug logging
     return res.status(400).json({ errors: formattedErrors });
   }
 
@@ -85,9 +86,10 @@ const addProductController = async (req, res, next) => {
       return next(appError("Error in creating new Product", 500));
     }
 
-    res
-      .status(201)
-      .json({ message: "Product added successfully", product: newProduct });
+    res.status(201).json({
+      message: "Product added successfully",
+      data: newProduct,
+    });
   } catch (err) {
     next(appError(err.message, 500));
   }
@@ -146,8 +148,8 @@ const editProductController = async (req, res, next) => {
     sku,
     discountId,
     oftenBoughtTogetherId,
-    preperationTime,
-    searchTags,
+    preparationTime,
+    // searchTags,
     description,
     longDescription,
     type,
@@ -188,10 +190,10 @@ const editProductController = async (req, res, next) => {
         maxQuantityPerOrder,
         costPrice,
         sku,
-        discountId,
-        oftenBoughtTogetherId,
-        preperationTime,
-        searchTags,
+        discountId: discountId || null,
+        oftenBoughtTogetherId: oftenBoughtTogetherId || null,
+        preparationTime,
+        // searchTags,
         description,
         longDescription,
         type,

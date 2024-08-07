@@ -37,7 +37,7 @@ const addMerchantSurgeController = async (req, res, next) => {
       return res.status(409).json({ errors: formattedErrors });
     }
 
-    const newRule = await MerchantSurge.create({
+    let newRule = await MerchantSurge.create({
       ruleName,
       baseFare,
       baseDistance,
@@ -50,7 +50,12 @@ const addMerchantSurgeController = async (req, res, next) => {
       return next(appError("Error in creating new rule"));
     }
 
-    res.status(201).json({ message: `${ruleName} created successfully` });
+    newRule = await newRule.populate("geofenceId", "name");
+
+    res.status(201).json({
+      message: `${normalizedRuleName} created successfully`,
+      data: newRule,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -140,7 +145,7 @@ const editMerchantSurgeController = async (req, res, next) => {
       }
     }
 
-    const updatedMerchantSurge = await MerchantSurge.findByIdAndUpdate(
+    let updatedMerchantSurge = await MerchantSurge.findByIdAndUpdate(
       req.params.merchantSurgeId,
       {
         ruleName,
@@ -157,7 +162,15 @@ const editMerchantSurgeController = async (req, res, next) => {
       return next(appError("Error in updating merchant surge"));
     }
 
-    res.status(200).json({ message: `${ruleName} updated successfully` });
+    updatedMerchantSurge = await updatedMerchantSurge.populate(
+      "geofenceId",
+      "name"
+    );
+
+    res.status(200).json({
+      message: `${ruleName} updated successfully`,
+      data: updatedMerchantSurge,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -195,9 +208,10 @@ const changeStatusMerchantSurgeController = async (req, res, next) => {
     merchantSurgeFound.status = !merchantSurgeFound.status;
     await merchantSurgeFound.save();
 
-    res
-      .status(200)
-      .json({ message: "Merchant surge status updated successfully" });
+    res.status(200).json({
+      message: "Merchant surge status updated successfully",
+      data: merchantSurgeFound.status,
+    });
   } catch (err) {
     next(appError(err.message));
   }

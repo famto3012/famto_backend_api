@@ -46,7 +46,10 @@ const addBusinessCategoryController = async (req, res, next) => {
       return next(appError("Error in creating new Business category"));
     }
 
-    res.status(200).json({ message: "Business category added successfully" });
+    res.status(201).json({
+      message: "Business category added successfully",
+      data: newBusinessCategory,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -77,9 +80,16 @@ const getSingleBusinessCategoryController = async (req, res, next) => {
       return next(appError("Business category not found", 404));
     }
 
+    const formattedData = {
+      _id: businessCategory._id,
+      title: businessCategory.title,
+      geofenceId: businessCategory?.geofenceId?._id,
+      bannerImageURL: businessCategory.bannerImageURL,
+    };
+
     res.status(200).json({
       message: "Single business category",
-      data: businessCategory,
+      data: formattedData,
     });
   } catch (err) {
     next(appError(err.message));
@@ -119,14 +129,21 @@ const editBusinessCategoryController = async (req, res, next) => {
       );
     }
 
-    await BusinessCategory.findByIdAndUpdate(req.params.businessCategoryId, {
-      title,
-      geofenceId,
-      bannerImageURL,
-      order,
-    });
+    let updatedCategory = await BusinessCategory.findByIdAndUpdate(
+      req.params.businessCategoryId,
+      {
+        title,
+        geofenceId,
+        bannerImageURL,
+        order,
+      },
+      { new: true }
+    );
 
-    res.status(200).json({ message: "Business category updated successfully" });
+    res.status(200).json({
+      message: "Business category updated successfully",
+      data: updatedCategory,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -167,7 +184,10 @@ const enableOrDisableBusinessCategoryController = async (req, res, next) => {
     businessCategoryFound.status = !businessCategoryFound.status;
     await businessCategoryFound.save();
 
-    res.status(200).json({ message: "Business category status updated" });
+    res.status(200).json({
+      message: "Business category status updated",
+      data: businessCategoryFound.status,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -183,9 +203,9 @@ const updateBusinessCategoryOrderController = async (req, res, next) => {
       });
     }
 
-    res
-      .status(200)
-      .json({ message: "Business category order updated successfully" });
+    res.status(200).json({
+      message: "Business category order updated successfully",
+    });
   } catch (err) {
     next(appError(err.message));
   }

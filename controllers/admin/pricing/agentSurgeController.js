@@ -37,7 +37,7 @@ const addAgentSurgeController = async (req, res, next) => {
       return res.status(409).json({ errors: formattedErrors });
     }
 
-    const newRule = await AgentSurge.create({
+    let newRule = await AgentSurge.create({
       ruleName,
       baseFare,
       baseDistance,
@@ -50,7 +50,12 @@ const addAgentSurgeController = async (req, res, next) => {
       return next(appError("Error in creating new rule"));
     }
 
-    res.status(201).json({ message: `${ruleName} created successfully` });
+    newRule = await newRule.populate("geofenceId", "name");
+
+    res.status(201).json({
+      message: `${normalizedRuleName} created successfully`,
+      data: newRule,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -140,7 +145,7 @@ const editAgentSurgeController = async (req, res, next) => {
       }
     }
 
-    const updatedAgentSurge = await AgentSurge.findByIdAndUpdate(
+    let updatedAgentSurge = await AgentSurge.findByIdAndUpdate(
       req.params.agentSurgeId,
       {
         ruleName,
@@ -157,7 +162,12 @@ const editAgentSurgeController = async (req, res, next) => {
       return next(appError("Error in updating agent surge"));
     }
 
-    res.status(200).json({ message: `${ruleName} updated successfully` });
+    updatedAgentSurge = await updatedAgentSurge.populate("geofenceId", "name");
+
+    res.status(200).json({
+      message: `${ruleName} updated successfully`,
+      data: updatedAgentSurge,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -191,9 +201,10 @@ const changeStatusAgentSurgeController = async (req, res, next) => {
     agentSurgeFound.status = !agentSurgeFound.status;
     await agentSurgeFound.save();
 
-    res
-      .status(200)
-      .json({ message: "Agent surge status updated successfully" });
+    res.status(200).json({
+      message: "Agent surge status updated successfully",
+      data: agentSurgeFound.status,
+    });
   } catch (err) {
     next(appError(err.message));
   }
