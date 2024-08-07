@@ -71,19 +71,21 @@ const productSchema = mongoose.Schema(
       ref: "ProductDiscount",
       default: null,
     },
-    oftenBoughtTogetherId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
-      default: null,
-    },
+    oftenBoughtTogetherId: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product",
+        default: null,
+      },
+    ],
     preparationTime: {
       type: String,
       required: true,
     },
-    // searchTags: {
-    //   type: [String],
-    //   required: true,
-    // },
+    searchTags: {
+      type: [String],
+      required: true,
+    },
     description: {
       type: String,
       required: true,
@@ -104,6 +106,7 @@ const productSchema = mongoose.Schema(
     categoryId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
+      required: true,
     },
     inventory: {
       type: Boolean,

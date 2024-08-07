@@ -32,15 +32,17 @@ const addProductController = async (req, res, next) => {
     costPrice,
     sku,
     discountId,
-    oftenBoughtTogetherId,
+    oftenBoughtTogetherId = [],
     preparationTime,
-    // searchTags,
+    searchTags,
     description,
     longDescription,
     type,
     availableQuantity,
     alert,
   } = req.body;
+
+  console.log(req.body.searchTags);
 
   try {
     const existingProduct = await Product.findOne({ productName, categoryId });
@@ -70,9 +72,9 @@ const addProductController = async (req, res, next) => {
       costPrice,
       sku,
       discountId: discountId || null,
-      oftenBoughtTogetherId: oftenBoughtTogetherId || null,
+      oftenBoughtTogetherId,
       preparationTime,
-      // searchTags,
+      searchTags,
       description,
       longDescription,
       type,
@@ -122,10 +124,10 @@ const getProductController = async (req, res, next) => {
   try {
     const productId = req.params.productId;
 
-    const productFound = await Product.findById(productId)
-      .populate("oftenBoughtTogetherId", "productName")
-      .populate("discountId", "discountName")
-      .populate("categoryId", "categoryName");
+    const productFound = await Product.findById(productId);
+    // .populate("oftenBoughtTogetherId", "productName")
+    // .populate("discountId", "discountName")
+    // .populate("categoryId", "categoryName");
 
     if (!productFound) {
       return next(appError("Product not found", 404));
@@ -147,9 +149,9 @@ const editProductController = async (req, res, next) => {
     costPrice,
     sku,
     discountId,
-    oftenBoughtTogetherId,
+    oftenBoughtTogetherId = [],
     preparationTime,
-    // searchTags,
+    searchTags,
     description,
     longDescription,
     type,
@@ -167,7 +169,9 @@ const editProductController = async (req, res, next) => {
   }
 
   try {
-    const productToUpdate = await Product.findById(req.params.productId);
+    const { productId } = req.params;
+
+    const productToUpdate = await Product.findById(productId);
 
     if (!productToUpdate) {
       return next(appError("Product not found", 404));
@@ -181,7 +185,7 @@ const editProductController = async (req, res, next) => {
     }
 
     await Product.findByIdAndUpdate(
-      req.params.productId,
+      productId,
       {
         productName,
         productStatus,
@@ -191,9 +195,9 @@ const editProductController = async (req, res, next) => {
         costPrice,
         sku,
         discountId: discountId || null,
-        oftenBoughtTogetherId: oftenBoughtTogetherId || null,
+        oftenBoughtTogetherId,
         preparationTime,
-        // searchTags,
+        searchTags,
         description,
         longDescription,
         type,
