@@ -110,7 +110,7 @@ adminAgentRoute.get(
 );
 
 // Change agent status
-adminAgentRoute.get(
+adminAgentRoute.patch(
   "/change-status/:agentId",
   isAuthenticated,
   isAdmin,
