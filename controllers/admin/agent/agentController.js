@@ -355,7 +355,7 @@ const searchAgentByNameController = async (req, res, next) => {
       return next(appError("query is required"));
     }
 
-    const agentFound = await Agent.find({
+    const allAgents = await Agent.find({
       fullName: { $regex: query.trim(), $options: "i" },
     })
       .populate("geofenceId", "name")
@@ -364,7 +364,7 @@ const searchAgentByNameController = async (req, res, next) => {
         "fullName email phoneNumber location isApproved geofenceId status workStructure"
       );
 
-    const formattedResponse = allAgents.map((agent) => {
+    const formattedResponse = allAgents?.map((agent) => {
       return {
         _id: agent._id,
         fullName: agent.fullName,
@@ -380,6 +380,40 @@ const searchAgentByNameController = async (req, res, next) => {
     res.status(200).json({
       message: "Search results",
       data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const changeAgentStatusController = async (req, res, next) => {
+  try {
+    const { agentId } = req.params;
+
+    const agentFound = await Agent.findById(agentId);
+
+    if (!agentFound) {
+      return next(appError("Agent not found", 404));
+    }
+
+    if (agentFound.status === "Free" || agentFound.status === "Busy") {
+      agentFound.status = "Inactive";
+    } else {
+      agentFound.status = "Free";
+    }
+
+    await agentFound.save();
+
+    let status;
+    if (agentFound.status === "Free") {
+      status = true;
+    } else {
+      status = false;
+    }
+
+    res.status(200).json({
+      message: "Agent status changed",
+      data: status,
     });
   } catch (err) {
     next(appError(err.message));
@@ -735,4 +769,5 @@ module.exports = {
   getDeliveryAgentPayoutController,
   filterAgentPayoutController,
   approvePaymentController,
+  changeAgentStatusController,
 };

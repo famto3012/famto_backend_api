@@ -13,6 +13,7 @@ const {
   getDeliveryAgentPayoutController,
   approvePaymentController,
   filterAgentPayoutController,
+  changeAgentStatusController,
 } = require("../../../controllers/admin/agent/agentController");
 const { upload } = require("../../../utils/imageOperation");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
@@ -106,6 +107,14 @@ adminAgentRoute.get(
   isAuthenticated,
   isAdmin,
   searchAgentByNameController
+);
+
+// Change agent status
+adminAgentRoute.get(
+  "/change-status/:agentId",
+  isAuthenticated,
+  isAdmin,
+  changeAgentStatusController
 );
 
 // Approve registration
