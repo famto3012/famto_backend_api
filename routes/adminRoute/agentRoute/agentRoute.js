@@ -14,6 +14,7 @@ const {
   approvePaymentController,
   filterAgentPayoutController,
   changeAgentStatusController,
+  searchAgentInPayoutController,
 } = require("../../../controllers/admin/agent/agentController");
 const { upload } = require("../../../utils/imageOperation");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
@@ -31,6 +32,14 @@ adminAgentRoute.get(
   isAuthenticated,
   isAdmin,
   filterAgentPayoutController
+);
+
+// Search agent payout
+adminAgentRoute.get(
+  "/search-payout",
+  isAuthenticated,
+  isAdmin,
+  searchAgentInPayoutController
 );
 
 // Get payout of agents

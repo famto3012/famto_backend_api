@@ -620,24 +620,71 @@ const getDeliveryAgentPayoutController = async (req, res, next) => {
   }
 };
 
+const searchAgentInPayoutController = async (req, res, next) => {
+  try {
+    const { agentId } = req.query;
+
+    // Check if agentId is provided
+    if (!agentId) {
+      return res.status(400).json({ message: "Agent ID is required" });
+    }
+
+    // Find the agent by agentId
+    const agent = await Agent.find({ _id: { $regex: agentId, $option: "i" } })
+      .select("fullName phoneNumber appDetailHistory workStructure.cashInHand")
+      .exec();
+
+    if (!agent) {
+      return res.status(404).json({ message: "Agent not found" });
+    }
+
+    // Find the most recent appDetailHistory entry
+    const latestHistory = agent.appDetailHistory.sort(
+      (a, b) => new Date(b.date) - new Date(a.date)
+    )[0];
+
+    if (!latestHistory) {
+      return res
+        .status(404)
+        .json({ message: "No appDetailHistory found for the agent" });
+    }
+
+    // Format the response
+    const formattedResponse = {
+      _id: agent._id,
+      fullName: agent.fullName,
+      phoneNumber: agent.phoneNumber,
+      workedDate: latestHistory.date ? formatDate(latestHistory.date) : null,
+      orders: latestHistory.details.orders || 0,
+      cancelledOrders: latestHistory.details.cancelledOrders || 0,
+      totalDistance: latestHistory.details.totalDistance || 0,
+      loginHours: latestHistory.details.loginDuration
+        ? formatToHours(latestHistory.details.loginDuration)
+        : "0:00 hr",
+      cashInHand: agent.workStructure?.cashInHand || 0,
+      totalEarnings: latestHistory.details.totalEarning || 0,
+      paymentSettled: latestHistory.details.paymentSettled,
+      detailId: latestHistory._id,
+    };
+
+    res.status(200).json({
+      message: "Latest agent history detail",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 const filterAgentPayoutController = async (req, res, next) => {
   try {
-    const { paymentStatus, agent, geofence, date } = req.query;
+    const { paymentStatus, agentId, geofence, date } = req.query;
 
     const filterCriteria = {};
 
     if (paymentStatus) {
       filterCriteria["appDetailHistory.details.paymentSettled"] =
         paymentStatus === "true";
-    }
-
-    if (agent) {
-      try {
-        // const agentObjectId = new mongoose.Types.ObjectId(agent.trim());
-        filterCriteria._id = agent;
-      } catch (err) {
-        return res.status(400).json({ message: "Invalid agent ID" });
-      }
     }
 
     if (geofence) {
@@ -649,59 +696,122 @@ const filterAgentPayoutController = async (req, res, next) => {
       }
     }
 
-    let searchResults = await Agent.find({
-      isApproved: "Approved",
-      ...filterCriteria,
-    }).select("fullName phoneNumber appDetailHistory workStructure.cashInHand");
+    if (agentId) {
+      try {
+        const agent = await Agent.findById(agentId)
+          .select(
+            "fullName phoneNumber appDetailHistory workStructure.cashInHand"
+          )
+          .exec();
 
-    if (date) {
-      const targetDate = new Date(date);
-      searchResults = searchResults.filter((agent) => {
-        return agent.appDetailHistory.some((history) => {
-          return (
-            new Date(history.date).toDateString() === targetDate.toDateString()
-          );
+        if (!agent) {
+          return res.status(404).json({ message: "Agent not found" });
+        }
+
+        let filteredHistory = agent.appDetailHistory.filter((history) => {
+          if (paymentStatus !== undefined) {
+            return (
+              history.details.paymentSettled === (paymentStatus === "true")
+            );
+          }
+          return true;
         });
+
+        if (date) {
+          const targetDate = new Date(date);
+          filteredHistory = filteredHistory.filter((history) => {
+            return (
+              new Date(history.date).toDateString() ===
+              targetDate.toDateString()
+            );
+          });
+        }
+
+        const formattedResponse = filteredHistory
+          .filter((history) => history.details.totalEarning > 0)
+          .map((history) => ({
+            _id: agent._id,
+            fullName: agent.fullName,
+            phoneNumber: agent.phoneNumber,
+            workedDate: history.date ? formatDate(history.date) : null,
+            orders: history.details.orders || 0,
+            cancelledOrders: history.details.cancelledOrders || 0,
+            totalDistance: history.details.totalDistance || 0,
+            loginHours: history.details.loginDuration
+              ? formatToHours(history.details.loginDuration)
+              : "0:00 hr",
+            cashInHand: agent.workStructure?.cashInHand || 0,
+            totalEarnings: history.details.totalEarning || 0,
+            paymentSettled: history.details.paymentSettled,
+            detailId: history._id,
+          }));
+
+        return res.status(200).json({
+          message: "Agent payout detail",
+          data: formattedResponse,
+        });
+      } catch (err) {
+        return res.status(400).json({ message: "Invalid agent ID" });
+      }
+    } else {
+      const agents = await Agent.find({
+        isApproved: "Approved",
+        ...filterCriteria,
+      })
+        .select(
+          "fullName phoneNumber appDetailHistory workStructure.cashInHand"
+        )
+        .exec();
+
+      let formattedResponse = [];
+
+      agents.forEach((agent) => {
+        let filteredHistory = agent.appDetailHistory.filter((history) => {
+          if (paymentStatus !== undefined) {
+            return (
+              history.details.paymentSettled === (paymentStatus === "true")
+            );
+          }
+          return true;
+        });
+
+        if (date) {
+          const targetDate = new Date(date);
+          filteredHistory = filteredHistory.filter((history) => {
+            return (
+              new Date(history.date).toDateString() ===
+              targetDate.toDateString()
+            );
+          });
+        }
+
+        const response = filteredHistory
+          .filter((history) => history.details.totalEarning > 0)
+          .map((history) => ({
+            _id: agent._id,
+            fullName: agent.fullName,
+            phoneNumber: agent.phoneNumber,
+            workedDate: history.date ? formatDate(history.date) : null,
+            orders: history.details.orders || 0,
+            cancelledOrders: history.details.cancelledOrders || 0,
+            totalDistance: history.details.totalDistance || 0,
+            loginHours: history.details.loginDuration
+              ? formatToHours(history.details.loginDuration)
+              : "0:00 hr",
+            cashInHand: agent.workStructure?.cashInHand || 0,
+            totalEarnings: history.details.totalEarning || 0,
+            paymentSettled: history.details.paymentSettled,
+            detailId: history._id,
+          }));
+
+        formattedResponse = formattedResponse.concat(response);
+      });
+
+      res.status(200).json({
+        message: "Agent payout detail",
+        data: formattedResponse,
       });
     }
-
-    const formattedResponse = searchResults
-      .filter((agent) => {
-        const historyLength = agent.appDetailHistory.length;
-        if (historyLength >= 1) {
-          const lastHistory = agent.appDetailHistory[historyLength - 1];
-          return lastHistory.details.totalEarning > 0;
-        }
-        return false;
-      })
-      .map((agent) => {
-        const historyLength = agent.appDetailHistory.length;
-        const lastHistory = agent.appDetailHistory[historyLength - 1] || {
-          details: {},
-        };
-
-        return {
-          _id: agent._id,
-          fullName: agent.fullName,
-          phoneNumber: agent.phoneNumber,
-          workedDate: lastHistory.date ? formatDate(lastHistory.date) : null,
-          orders: lastHistory.details.orders || 0,
-          cancelledOrders: lastHistory.details.cancelledOrders || 0,
-          totalDistance: lastHistory.details.totalDistance || 0,
-          loginHours: lastHistory.details.loginDuration
-            ? formatToHours(lastHistory.details.loginDuration)
-            : "0:00 hr",
-          cashInHand: agent.workStructure?.cashInHand || 0,
-          totalEarnings: lastHistory.details.totalEarning || 0,
-          paymentSettled: lastHistory.details.paymentSettled,
-          detailId: lastHistory._id,
-        };
-      });
-
-    res.status(200).json({
-      message: "Agent payout detail",
-      data: formattedResponse,
-    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -767,6 +877,7 @@ module.exports = {
   blockAgentController,
   getAllAgentsController,
   getDeliveryAgentPayoutController,
+  searchAgentInPayoutController,
   filterAgentPayoutController,
   approvePaymentController,
   changeAgentStatusController,

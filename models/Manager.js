@@ -20,12 +20,12 @@ const managerSchema = mongoose.Schema(
     },
     role: {
       type: String,
-      default: "Manager", //INFO: Edit for adding additional roles
+      default: "Manager",
       required: true,
     },
     merchants: {
       type: String,
-      enum: ["Merchant1", "Merchant2"], //INFO: Edit for adding additional merchnats
+      ref: "Merchant",
       required: true,
     },
     geofenceId: {
