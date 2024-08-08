@@ -629,46 +629,53 @@ const searchAgentInPayoutController = async (req, res, next) => {
       return res.status(400).json({ message: "Agent ID is required" });
     }
 
-    // Find the agent by agentId
-    const agent = await Agent.find({ _id: { $regex: agentId, $option: "i" } })
+    // Find agents matching the regex for agentId
+    const agents = await Agent.find({ _id: { $regex: agentId, $options: "i" } })
       .select("fullName phoneNumber appDetailHistory workStructure.cashInHand")
       .exec();
 
-    if (!agent) {
-      return res.status(404).json({ message: "Agent not found" });
+    if (agents.length === 0) {
+      return res.status(404).json({ message: "No agents found" });
     }
 
-    // Find the most recent appDetailHistory entry
-    const latestHistory = agent.appDetailHistory.sort(
-      (a, b) => new Date(b.date) - new Date(a.date)
-    )[0];
+    // Filter agents that have at least one valid workedDate
+    const validAgents = agents.filter((agent) =>
+      agent.appDetailHistory.some((history) => history.date)
+    );
 
-    if (!latestHistory) {
+    if (validAgents.length === 0) {
       return res
         .status(404)
-        .json({ message: "No appDetailHistory found for the agent" });
+        .json({ message: "No agents with valid workedDate found" });
     }
 
-    // Format the response
-    const formattedResponse = {
-      _id: agent._id,
-      fullName: agent.fullName,
-      phoneNumber: agent.phoneNumber,
-      workedDate: latestHistory.date ? formatDate(latestHistory.date) : null,
-      orders: latestHistory.details.orders || 0,
-      cancelledOrders: latestHistory.details.cancelledOrders || 0,
-      totalDistance: latestHistory.details.totalDistance || 0,
-      loginHours: latestHistory.details.loginDuration
-        ? formatToHours(latestHistory.details.loginDuration)
-        : "0:00 hr",
-      cashInHand: agent.workStructure?.cashInHand || 0,
-      totalEarnings: latestHistory.details.totalEarning || 0,
-      paymentSettled: latestHistory.details.paymentSettled,
-      detailId: latestHistory._id,
-    };
+    // Process each agent to find the most recent appDetailHistory
+    const formattedResponse = validAgents.map((agent) => {
+      // Ensure appDetailHistory exists before sorting
+      const latestHistory = agent.appDetailHistory
+        ?.filter((history) => history.date) // Filter histories with a valid date
+        .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+
+      return {
+        _id: agent._id,
+        fullName: agent.fullName,
+        phoneNumber: agent.phoneNumber,
+        workedDate: latestHistory ? formatDate(latestHistory.date) : null,
+        orders: latestHistory?.details.orders || 0,
+        cancelledOrders: latestHistory?.details.cancelledOrders || 0,
+        totalDistance: latestHistory?.details.totalDistance || 0,
+        loginHours: latestHistory?.details.loginDuration
+          ? formatToHours(latestHistory.details.loginDuration)
+          : "0:00 hr",
+        cashInHand: agent.workStructure?.cashInHand || 0,
+        totalEarnings: latestHistory?.details.totalEarning || 0,
+        paymentSettled: latestHistory?.details.paymentSettled,
+        detailId: latestHistory?._id,
+      };
+    });
 
     res.status(200).json({
-      message: "Latest agent history detail",
+      message: "Agent history details",
       data: formattedResponse,
     });
   } catch (err) {
@@ -682,12 +689,12 @@ const filterAgentPayoutController = async (req, res, next) => {
 
     const filterCriteria = {};
 
-    if (paymentStatus) {
+    if (paymentStatus && paymentStatus.trim().toLowerCase() !== "all") {
       filterCriteria["appDetailHistory.details.paymentSettled"] =
         paymentStatus === "true";
     }
 
-    if (geofence) {
+    if (geofence && geofence.trim().toLowerCase() !== "all") {
       try {
         const geofenceObjectId = new mongoose.Types.ObjectId(geofence.trim());
         filterCriteria.geofenceId = geofenceObjectId;
@@ -696,7 +703,7 @@ const filterAgentPayoutController = async (req, res, next) => {
       }
     }
 
-    if (agentId) {
+    if (agentId && agentId.trim().toLowerCase() !== "all") {
       try {
         const agent = await Agent.findById(agentId)
           .select(
