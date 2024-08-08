@@ -633,8 +633,8 @@ const filterAgentPayoutController = async (req, res, next) => {
 
     if (agent) {
       try {
-        const agentObjectId = new mongoose.Types.ObjectId(agent.trim());
-        filterCriteria._id = agentObjectId;
+        // const agentObjectId = new mongoose.Types.ObjectId(agent.trim());
+        filterCriteria._id = agent;
       } catch (err) {
         return res.status(400).json({ message: "Invalid agent ID" });
       }
