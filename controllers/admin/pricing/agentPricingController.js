@@ -41,7 +41,7 @@ const addAgentPricingController = async (req, res, next) => {
       return res.status(409).json({ errors: formattedErrors });
     }
 
-    const newRule = await AgentPricing.create({
+    let newRule = await AgentPricing.create({
       ruleName,
       baseFare,
       baseDistanceFare,
@@ -58,7 +58,12 @@ const addAgentPricingController = async (req, res, next) => {
       return next(appError("Error in creating new rule"));
     }
 
-    res.status(201).json({ message: `${ruleName} created successfully` });
+    newRule = await newRule.populate("geofenceId", "name");
+
+    res.status(201).json({
+      message: `${ruleName} created successfully`,
+      data: newRule,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -152,7 +157,7 @@ const editAgentPricingController = async (req, res, next) => {
       }
     }
 
-    const updatedAgentPricing = await AgentPricing.findByIdAndUpdate(
+    let updatedAgentPricing = await AgentPricing.findByIdAndUpdate(
       req.params.agentPricingId,
       {
         ruleName,
@@ -173,7 +178,15 @@ const editAgentPricingController = async (req, res, next) => {
       return next(appError("Error in updating agent pricing"));
     }
 
-    res.status(200).json({ message: `${ruleName} updated successfully` });
+    updatedAgentPricing = await updatedAgentPricing.populate(
+      "geofenceId",
+      "name"
+    );
+
+    res.status(200).json({
+      message: `${ruleName} updated successfully`,
+      data: updatedAgentPricing,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -211,9 +224,10 @@ const changeStatusAgentPricingController = async (req, res, next) => {
     agentPricingFound.status = !agentPricingFound.status;
     await agentPricingFound.save();
 
-    res
-      .status(200)
-      .json({ message: "Agent pricing status updated successfully" });
+    res.status(200).json({
+      message: "Agent pricing status updated successfully",
+      data: agentPricingFound.status,
+    });
   } catch (err) {
     next(appError(err.message));
   }

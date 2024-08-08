@@ -18,7 +18,10 @@ const addTaxController = async (req, res, next) => {
   }
 
   try {
-    const normalizedTaxName = taxName.trim();
+    const normalizedTaxName = taxName
+      .trim()
+      .replace(/\s+/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
 
     const taxNameFound = await Tax.findOne({
       taxName: normalizedTaxName,
@@ -30,8 +33,8 @@ const addTaxController = async (req, res, next) => {
       return res.status(409).json({ errors: formattedErrors });
     }
 
-    const newTax = await Tax.create({
-      taxName,
+    let newTax = await Tax.create({
+      taxName: normalizedTaxName,
       tax,
       taxType,
       geofenceId,
@@ -42,8 +45,12 @@ const addTaxController = async (req, res, next) => {
       return next(appError("Error in creating new Tax"));
     }
 
+    newTax = await Tax.findById(newTax._id)
+      .populate("geofenceId", "name")
+      .populate("assignToBusinessCategoryId", "title");
+
     res.status(201).json({
-      message: `${taxName} Tax created`,
+      message: `${normalizedTaxName} Tax created`,
       data: newTax,
     });
   } catch (err) {
@@ -103,33 +110,33 @@ const editTaxController = async (req, res, next) => {
   }
 
   try {
-    const taxFound = await Tax.findById(req.params.taxId);
+    const { taxId } = req.params;
+
+    const taxFound = await Tax.findById(taxId);
 
     if (!taxFound) {
       return next(appError("Tax not found", 404));
     }
 
-    const normalizedTaxName = taxName.trim().replace(/\s+/g, "_").toLowerCase();
-    const normalizedDbTaxName = taxFound.taxName
+    const normalizedTaxName = taxName
       .trim()
-      .replace(/\s+/g, "_")
-      .toLowerCase();
+      .replace(/\s+/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
 
-    if (normalizedTaxName !== normalizedDbTaxName) {
-      const taxNameFound = await Tax.findOne({
-        taxName: new RegExp(`^${normalizedTaxName}$`, "i"),
-      });
+    const taxNameFound = await Tax.findOne({
+      _id: { $ne: taxId },
+      taxName: new RegExp(`^${normalizedTaxName}$`, "i"),
+    });
 
-      if (taxNameFound) {
-        formattedErrors.taxName = "Tax name already exists";
-        return res.status(409).json({ errors: formattedErrors });
-      }
+    if (taxNameFound) {
+      formattedErrors.taxName = "Tax name already exists";
+      return res.status(409).json({ errors: formattedErrors });
     }
 
-    const updatedTax = await Tax.findByIdAndUpdate(
-      req.params.taxId,
+    let updatedTax = await Tax.findByIdAndUpdate(
+      taxId,
       {
-        taxName,
+        taxName: normalizedTaxName,
         tax,
         taxType,
         geofenceId,
@@ -142,7 +149,14 @@ const editTaxController = async (req, res, next) => {
       return next(appError("Error in updating Tax"));
     }
 
-    res.status(200).json({ message: `${taxName} is updated` });
+    updatedTax = await Tax.findById(updatedTax._id)
+      .populate("geofenceId", "name")
+      .populate("assignToBusinessCategoryId", "title");
+
+    res.status(200).json({
+      message: `${normalizedTaxName} is updated successfully`,
+      data: updatedTax,
+    });
   } catch (err) {
     next(appError(err.message));
   }

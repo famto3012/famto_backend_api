@@ -19,6 +19,7 @@ const addProductController = async (req, res, next) => {
     errors.array().forEach((error) => {
       formattedErrors[error.param] = error.msg;
     });
+    console.log("Validation errors:", formattedErrors); // Debug logging
     return res.status(400).json({ errors: formattedErrors });
   }
 
@@ -31,15 +32,17 @@ const addProductController = async (req, res, next) => {
     costPrice,
     sku,
     discountId,
-    oftenBoughtTogetherId,
+    oftenBoughtTogetherId = [],
     preparationTime,
-    // searchTags,
+    searchTags,
     description,
     longDescription,
     type,
     availableQuantity,
     alert,
   } = req.body;
+
+  console.log(req.body.searchTags);
 
   try {
     const existingProduct = await Product.findOne({ productName, categoryId });
@@ -69,9 +72,9 @@ const addProductController = async (req, res, next) => {
       costPrice,
       sku,
       discountId: discountId || null,
-      oftenBoughtTogetherId: oftenBoughtTogetherId || null,
+      oftenBoughtTogetherId,
       preparationTime,
-      // searchTags,
+      searchTags,
       description,
       longDescription,
       type,
@@ -85,9 +88,10 @@ const addProductController = async (req, res, next) => {
       return next(appError("Error in creating new Product", 500));
     }
 
-    res
-      .status(201)
-      .json({ message: "Product added successfully", product: newProduct });
+    res.status(201).json({
+      message: "Product added successfully",
+      data: newProduct,
+    });
   } catch (err) {
     next(appError(err.message, 500));
   }
@@ -120,10 +124,10 @@ const getProductController = async (req, res, next) => {
   try {
     const productId = req.params.productId;
 
-    const productFound = await Product.findById(productId)
-      .populate("oftenBoughtTogetherId", "productName")
-      .populate("discountId", "discountName")
-      .populate("categoryId", "categoryName");
+    const productFound = await Product.findById(productId);
+    // .populate("oftenBoughtTogetherId", "productName")
+    // .populate("discountId", "discountName")
+    // .populate("categoryId", "categoryName");
 
     if (!productFound) {
       return next(appError("Product not found", 404));
@@ -145,8 +149,8 @@ const editProductController = async (req, res, next) => {
     costPrice,
     sku,
     discountId,
-    oftenBoughtTogetherId,
-    preperationTime,
+    oftenBoughtTogetherId = [],
+    preparationTime,
     searchTags,
     description,
     longDescription,
@@ -165,7 +169,9 @@ const editProductController = async (req, res, next) => {
   }
 
   try {
-    const productToUpdate = await Product.findById(req.params.productId);
+    const { productId } = req.params;
+
+    const productToUpdate = await Product.findById(productId);
 
     if (!productToUpdate) {
       return next(appError("Product not found", 404));
@@ -179,7 +185,7 @@ const editProductController = async (req, res, next) => {
     }
 
     await Product.findByIdAndUpdate(
-      req.params.productId,
+      productId,
       {
         productName,
         productStatus,
@@ -188,9 +194,9 @@ const editProductController = async (req, res, next) => {
         maxQuantityPerOrder,
         costPrice,
         sku,
-        discountId,
+        discountId: discountId || null,
         oftenBoughtTogetherId,
-        preperationTime,
+        preparationTime,
         searchTags,
         description,
         longDescription,

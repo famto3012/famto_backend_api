@@ -20,6 +20,10 @@ const {
   getDistanceFromPickupToDelivery,
   getDeliveryAndSurgeCharge,
 } = require("../../utils/customerAppHelpers");
+const {
+  createRazorpayOrderId,
+  verifyPayment,
+} = require("../../utils/razorpayPayment");
 
 //Function for getting agent's manager from geofence
 const getManager = async (geofenceId) => {
@@ -1056,9 +1060,6 @@ const addOrderDetailsController = async (req, res, next) => {
     const { orderId } = req.params;
     const { notes } = req.body;
 
-    // Log incoming request data
-    console.log("Incoming request data:", { orderId, notes, files: req.files });
-
     const orderFound = await Order.findById(orderId);
 
     if (!orderFound) {
@@ -1099,11 +1100,9 @@ const addOrderDetailsController = async (req, res, next) => {
 
     // Merge existing details with updated details
     orderFound.detailAddedByAgent = {
-      ...orderFound.detailAddedByAgent.toObject(),
+      ...orderFound?.detailAddedByAgent?.toObject(),
       ...updatedDetails,
     };
-
-    console.log("Updated details:", orderFound.detailAddedByAgent);
 
     // Save the updated order
     await orderFound.save();
@@ -1514,13 +1513,16 @@ const updateCustomOrderStatusController = async (req, res, next) => {
     const { orderId } = req.params;
     const agentId = req.userAuth;
 
-    const orderFound = await Order.findById(orderId);
+    const orderFound = await Order.findOne({
+      _id: orderId,
+      "orderDetail.deliveryMode": "Custom Order",
+    });
 
     if (!orderFound) {
       return next(appError("Order not found", 404));
     }
 
-    if (orderFound.agentId.toString() !== agentId.toString()) {
+    if (orderFound.agentId !== agentId) {
       return next(appError("Agent access denied (Different agent)"));
     }
 
@@ -1533,12 +1535,12 @@ const updateCustomOrderStatusController = async (req, res, next) => {
     };
 
     // Initialize detailsAddedByAgents if it does not exist
-    if (!orderFound.detailsAddedByAgents) {
-      orderFound.detailsAddedByAgents = { shopUpdates: [] };
+    if (!orderFound.detailAddedByAgent) {
+      orderFound.detailAddedByAgent = { shopUpdates: [] };
     }
 
     // Initialize shopUpdates if it does not exist
-    const shopUpdates = orderFound.detailsAddedByAgents.shopUpdates || [];
+    const shopUpdates = orderFound?.detailAddedByAgent?.shopUpdates || [];
 
     let oldDistance = orderFound.orderDetail?.distance || 0;
 
@@ -1548,7 +1550,9 @@ const updateCustomOrderStatusController = async (req, res, next) => {
       orderFound.orderDetail.deliveryLocation
     );
 
-    orderFound.orderDetail.distance = oldDistance + parseFloat(distanceInKM);
+    const newDistance = parseFloat(distanceInKM);
+
+    orderFound.orderDetail.distance = oldDistance + newDistance;
 
     // Calculate delivery charges
     const { deliveryCharges } = await getDeliveryAndSurgeCharge(
@@ -1574,7 +1578,7 @@ const updateCustomOrderStatusController = async (req, res, next) => {
       orderFound.orderDetail.pickupLocation = location;
     }
 
-    orderFound.detailsAddedByAgents.shopUpdates.push(updatedData);
+    orderFound.detailAddedByAgent.shopUpdates.push(updatedData);
 
     await orderFound.save();
 
