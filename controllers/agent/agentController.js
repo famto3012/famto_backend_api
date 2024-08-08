@@ -943,7 +943,7 @@ const getPickUpDetailController = async (req, res, next) => {
     };
 
     res.status(200).json({
-      message: "Pick up details",
+      message: "Pick up details.",
       data: formattedResponse,
     });
   } catch (err) {
