@@ -938,6 +938,8 @@ const getPickUpDetailController = async (req, res, next) => {
       deliveryMode: taskFound.orderId.orderDetail.deliveryMode,
       orderItems: taskFound.orderId.items,
       billDetail: taskFound.orderId.billDetail,
+      paymentMode: taskFound.orderId.paymentMode,
+      paymentStatus: taskFound.orderId.paymentStatus,
     };
 
     res.status(200).json({
@@ -974,6 +976,8 @@ const getDeliveryDetailController = async (req, res, next) => {
       deliveryMode: taskFound.orderId.orderDetail.deliveryMode,
       orderItems: taskFound.orderId.items,
       billDetail: taskFound.orderId.billDetail,
+      paymentMode: taskFound.orderId.paymentMode,
+      paymentStatus: taskFound.orderId.paymentStatus,
     };
 
     res.status(200).json({

@@ -403,6 +403,39 @@ const editVariantController = async (req, res, next) => {
   }
 };
 
+// const deleteVariantTypeController = async (req, res, next) => {
+//   try {
+//     const { productId, variantId, variantTypeId } = req.params;
+
+//     const product = await Product.findById(productId);
+//     if (!product) {
+//       return next(appError("Product not found", 404));
+//     }
+
+//     const variant = product.variants.id(variantId);
+//     if (!variant) {
+//       return next(appError("Variant not found", 404));
+//     }
+
+//     const variantTypeIndex = variant.variantTypes.findIndex(
+//       (vt) => vt._id.toString() === variantTypeId
+//     );
+//     if (variantTypeIndex === -1) {
+//       return next(appError("Variant type not found", 404));
+//     }
+
+//     variant.variantTypes.splice(variantTypeIndex, 1);
+//     await product.save();
+
+//     res.status(200).json({
+//       message: "Variant type deleted successfully",
+//       data: product,
+//     });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
+
 const deleteVariantTypeController = async (req, res, next) => {
   try {
     const { productId, variantId, variantTypeId } = req.params;
@@ -424,7 +457,14 @@ const deleteVariantTypeController = async (req, res, next) => {
       return next(appError("Variant type not found", 404));
     }
 
-    variant.variantTypes.splice(variantTypeIndex, 1);
+    // If the variant has only one variant type, delete the entire variant
+    if (variant.variantTypes.length === 1) {
+      product.variants.pull(variantId);
+    } else {
+      // Otherwise, just delete the specified variant type
+      variant.variantTypes.splice(variantTypeIndex, 1);
+    }
+
     await product.save();
 
     res.status(200).json({
