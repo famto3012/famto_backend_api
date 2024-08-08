@@ -204,7 +204,7 @@ cron.schedule("* * * * *", async () => {
   }
 });
 
-cron.schedule("49 19 * * *", async () => {
+cron.schedule("14 12 * * *", async () => {
   await generateMapplsAuthToken();
   await moveAppDetailToHistoryAndResetForAllAgents();
   await updateOneDayLoyaltyPointEarning();
