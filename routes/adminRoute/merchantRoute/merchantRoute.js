@@ -151,7 +151,7 @@ merchantRoute.put(
     { name: "FSSAIImage", maxCount: 1 },
     { name: "aadharImage", maxCount: 1 },
   ]),
-  merchantDetailValidations,
+  // merchantDetailValidations,
   isAuthenticated,
   isAdmin,
   updateMerchantDetailsController

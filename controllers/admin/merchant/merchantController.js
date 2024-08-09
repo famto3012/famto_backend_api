@@ -710,6 +710,8 @@ const changeMerchantStatusController = async (req, res, next) => {
 const updateMerchantDetailsController = async (req, res, next) => {
   const { fullName, email, phoneNumber, merchantDetail } = req.body;
 
+  console.log(req.body);
+
   const errors = validationResult(req);
 
   let formattedErrors = {};
@@ -745,7 +747,7 @@ const updateMerchantDetailsController = async (req, res, next) => {
         aadharImage,
       } = req.files;
 
-      if (merchantImage) {
+      if (merchantImage && merchantImage && merchantImage[0]) {
         if (merchantImageURL) {
           await deleteFromFirebase(merchantImageURL);
         }
@@ -754,7 +756,7 @@ const updateMerchantDetailsController = async (req, res, next) => {
           "MerchantImages"
         );
       }
-      if (pancardImage) {
+      if (pancardImage && pancardImage[0]) {
         if (pancardImageURL) {
           await deleteFromFirebase(pancardImageURL);
         }
@@ -763,19 +765,19 @@ const updateMerchantDetailsController = async (req, res, next) => {
           "PancardImages"
         );
       }
-      if (GSTINImage) {
+      if (GSTINImage && GSTINImage[0]) {
         if (GSTINImageURL) {
           await deleteFromFirebase(GSTINImageURL);
         }
         GSTINImageURL = await uploadToFirebase(GSTINImage[0], "GSTINImages");
       }
-      if (FSSAIImage) {
+      if (FSSAIImage && FSSAIImage[0]) {
         if (FSSAIImageURL) {
           await deleteFromFirebase(FSSAIImageURL);
         }
         FSSAIImageURL = await uploadToFirebase(FSSAIImage[0], "FSSAIImages");
       }
-      if (aadharImage) {
+      if (aadharImage && aadharImage[0]) {
         if (aadharImageURL) {
           await deleteFromFirebase(aadharImageURL);
         }
