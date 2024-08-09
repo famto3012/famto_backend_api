@@ -277,6 +277,7 @@ io.on("connection", async (socket) => {
   // console.log("user connected", socket.id);
   const userId = socket.handshake.query.userId;
   const fcmToken = socket.handshake.query.fcmToken;
+
   if (userId && fcmToken) {
     const user = await FcmToken.findOne({ userId });
     // console.log("Server", user);

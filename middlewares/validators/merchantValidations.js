@@ -14,7 +14,10 @@ const merchantDetailValidations = [
     .notEmpty()
     .withMessage("Merchant name is required"),
   check("merchantImage").custom((value, { req }) => {
-    if (!value && (!req.files || !req.files?.merchantImage)) {
+    if (
+      !req.body.merchantDetail.merchantImageURL &&
+      (!req.files || !req.files?.merchantImage)
+    ) {
       throw new Error("Merchant image is required");
     }
     return true;
@@ -42,7 +45,10 @@ const merchantDetailValidations = [
     .notEmpty()
     .withMessage("Pancard number is required"),
   check("pancardImage").custom((value, { req }) => {
-    if (!value && (!req.files || !req.files?.pancardImage)) {
+    if (
+      !req.body.merchantDetail.pancardImageURL &&
+      (!req.files || !req.files?.pancardImage)
+    ) {
       throw new Error("Pancard image is required");
     }
     return true;
@@ -52,7 +58,10 @@ const merchantDetailValidations = [
     .notEmpty()
     .withMessage("GSTIN number is required"),
   check("GSTINImage").custom((value, { req }) => {
-    if (!value && (!req.files || !req.files?.GSTINImage)) {
+    if (
+      !req.body.merchantDetail.GSTINImageURL &&
+      (!req.files || !req.files?.GSTINImage)
+    ) {
       throw new Error("GSTIN image is required");
     }
     return true;
@@ -62,7 +71,10 @@ const merchantDetailValidations = [
     .notEmpty()
     .withMessage("FSSAI number is required"),
   check("FSSAIImage").custom((value, { req }) => {
-    if (!value && (!req.files || !req.files?.FSSAIImage)) {
+    if (
+      !req.body.merchantDetail.FSSAIImageURL &&
+      (!req.files || !req.files?.FSSAIImage)
+    ) {
       throw new Error("FSSAI image is required");
     }
     return true;
@@ -72,7 +84,10 @@ const merchantDetailValidations = [
     .notEmpty()
     .withMessage("Aadhar number is required"),
   check("aadharImage").custom((value, { req }) => {
-    if (!value && (!req.files || !req.files?.aadharImage)) {
+    if (
+      !req.body.merchantDetail.aadharImageURL &&
+      (!req.files || !req.files?.aadharImage)
+    ) {
       throw new Error("Aadhar image is required");
     }
     return true;
