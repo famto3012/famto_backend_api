@@ -275,10 +275,16 @@ const getRecipientFcmToken = (recipientId) => {
 // Connection socket
 io.on("connection", async (socket) => {
   // console.log("user connected", socket.id);
-  const userId = socket.handshake.query.userId;
-  const fcmToken = socket.handshake.query.fcmToken;
+  const userId = socket?.handshake?.query?.userId;
+  const fcmToken = socket?.handshake?.query?.fcmToken;
+  // const userId = null
+  // const fcmToken = null
+  // console.log("userId",typeof userId)
+  // console.log("fcmToken",typeof fcmToken)
+  // console.log("userId",userId)
+  // console.log("fcmToken",fcmToken)
 
-  if (userId && fcmToken) {
+  if (userId !== 'null' && fcmToken !== 'null') {
     const user = await FcmToken.findOne({ userId });
     // console.log("Server", user);
     if (!user) {
@@ -292,6 +298,10 @@ io.on("connection", async (socket) => {
           token: fcmToken,
         });
     }
+  }else{
+    console.error("Invalid user or FCM token provided");
+    socket.disconnect();
+    return;
   }
 
   if (userId !== "undefined") {
