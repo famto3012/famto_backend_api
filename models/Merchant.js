@@ -17,21 +17,29 @@ const daySchema = new mongoose.Schema(
     },
     startTime: {
       type: String,
-      validate: {
-        validator: function (v) {
-          return /^([01]\d|2[0-3]):?([0-5]\d)$/.test(v);
-        },
-        message: (props) => `${props.value} is not a valid time format!`,
-      },
+      // validate: {
+      //   validator: function (v) {
+      //     if (this.specificTime) {
+      //       return /^([01]\d|2[0-3]):?([0-5]\d)$/.test(v);
+      //     }
+      //     return v === null;
+      //   },
+      //   message: (props) => `${props.value} is not a valid time format!`,
+      // },
+      default: null,
     },
     endTime: {
       type: String,
-      validate: {
-        validator: function (v) {
-          return /^([01]\d|2[0-3]):?([0-5]\d)$/.test(v);
-        },
-        message: (props) => `${props.value} is not a valid time format!`,
-      },
+      // validate: {
+      //   validator: function (v) {
+      //     if (this.specificTime) {
+      //       return /^([01]\d|2[0-3]):?([0-5]\d)$/.test(v);
+      //     }
+      //     return v === null;
+      //   },
+      //   message: (props) => `${props.value} is not a valid time format!`,
+      // },
+      default: null,
     },
   },
   {
@@ -365,6 +373,26 @@ merchantDetailSchema.virtual("isServiceableToday").get(function () {
   return "closed";
 });
 // });
+
+daySchema.pre("save", function (next) {
+  if (this.openAllDay) {
+    this.startTime = null;
+    this.endTime = null;
+  } else if (this.closedAllDay) {
+    this.startTime = null;
+    this.endTime = null;
+    this.specificTime = false;
+  } else if (this.specificTime) {
+    if (!this.startTime || !this.endTime) {
+      return next(
+        new Error(
+          "Start time and end time must be provided if specificTime is true"
+        )
+      );
+    }
+  }
+  next();
+});
 
 const Merchant = mongoose.model("Merchant", merchantSchema);
 module.exports = Merchant;
