@@ -3,6 +3,7 @@ const Commission = require("../../../models/Commission");
 const appError = require("../../../utils/appError");
 const CommissionLogs = require("../../../models/CommissionLog");
 const moment = require("moment");
+const Merchant = require("../../../models/Merchant");
 
 const addAndEditCommissionController = async (req, res, next) => {
   const errors = validationResult(req);
@@ -45,6 +46,10 @@ const addAndEditCommissionController = async (req, res, next) => {
       });
 
       await savedCommission.save();
+
+      const merchantFound = await Merchant.findById(merchantId);
+      merchantFound.merchantDetail.pricing.push(savedCommission._id);
+      await merchantFound.save();
 
       res.status(200).json({
         message: "Commission added successfully",
