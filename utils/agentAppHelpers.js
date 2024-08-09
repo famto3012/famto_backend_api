@@ -3,11 +3,12 @@ const formatToHours = (milliseconds) => {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
 
-  if (hours && minutes) {
-    return `${hours}:${minutes < 10 ? "0" : ""}${minutes} hr`;
-  } else {
-    return `0:00 hr`;
-  }
+  // Format the hours and minutes for readability
+  const hoursFormatted = hours > 0 ? `${hours} h ` : "";
+  const minutesFormatted = minutes > 0 ? `${minutes} min` : "";
+
+  // If both hours and minutes are zero, return '0m'
+  return hoursFormatted + (minutesFormatted || "0 min");
 };
 
 const moveAppDetailToHistoryAndResetForAllAgents = async () => {

@@ -547,6 +547,7 @@ const getSingleMerchantController = async (req, res, next) => {
     const merchantFound = await Merchant.findById(req.params.merchantId)
       .populate("merchantDetail.geofenceId", "name _id")
       .populate("merchantDetail.businessCategoryId")
+      .populate("merchantDetail.pricing")
       .select("-password")
       .lean({ virtuals: true });
 
@@ -570,6 +571,7 @@ const getSingleMerchantController = async (req, res, next) => {
             merchantFound?.merchantDetail?.businessCategoryId?._id || "",
         } || {},
       sponsorshipDetail: merchantFound?.sponsorshipDetail[0] || [],
+      pricing: merchantFound?.merchantDetail?.pricing?.[0] || {},
     };
 
     res.status(200).json({
@@ -680,7 +682,7 @@ const editMerchantController = async (req, res, next) => {
       return next(appError("Error in updating merchant"));
     }
 
-    res.status(200).josn({ message: "Merchant updated successfully" });
+    res.status(200).json({ message: "Merchant updated successfully" });
   } catch (err) {
     next(appError(err.message));
   }

@@ -105,16 +105,16 @@ customerRoute.get("/all-business-categories", getAllBusinessCategoryController);
 customerRoute.get("/search-home", homeSearchController);
 
 // List all restaurants in customers geofence
-customerRoute.get("/list-restaurants", listRestaurantsController);
+customerRoute.post("/list-restaurants", listRestaurantsController);
 
 // Get all categories and products of a merchant
 customerRoute.get(
-  "/merchant-with-categories-and-products/:merchantId",
+  "/merchant-with-categories-and-products/:customerId/:merchantId",
   getMerchantWithCategoriesAndProductsController
 );
 
 // Filter merchants by criteria (Pure veg, Rating, Nearby)
-customerRoute.get("/filter-merchants", filterMerchantController);
+customerRoute.post("/filter-merchants", filterMerchantController);
 
 // Search products in merchant
 customerRoute.get(
