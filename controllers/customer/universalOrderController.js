@@ -213,8 +213,7 @@ const getMerchantWithCategoriesAndProductsController = async (
   next
 ) => {
   try {
-    const { merchantId } = req.params;
-    const { customerId } = req.body;
+    const { merchantId, customerId } = req.params;
 
     const merchantFound = await Merchant.findOne({
       _id: merchantId,

@@ -1138,11 +1138,11 @@ const getCheckoutDetailController = async (req, res, next) => {
       orderId: taskFound.orderId,
       distance: taskFound.orderId.orderDetail.distance,
       timeTaken: taskFound?.orderId?.orderDetail?.timeTaken
-        ? formatTime(taskFound.orderId.orderDetail.timeTaken)
-        : "0:00 hr",
+        ? formatToHours(taskFound.orderId.orderDetail.timeTaken)
+        : "0 h 0 min",
       delayedBy: taskFound?.orderId?.orderDetail?.delayedBy
-        ? formatTime(taskFound.orderId.orderDetail.delayedBy)
-        : "0:00 hr",
+        ? formatToHours(taskFound.orderId.orderDetail.delayedBy)
+        : "0 h 0 min",
       paymentType: taskFound.orderId.paymentMode,
       paymentStatus: taskFound.orderId.paymentStatus,
       grandTotal: taskFound?.orderId?.billDetail?.grandTotal,
@@ -1218,6 +1218,10 @@ const completeOrderController = async (req, res, next) => {
 
     if (!orderFound) {
       return next(appError("Order not found", 404));
+    }
+
+    if (orderFound.status === "Completed") {
+      return next(appError("Order already completed", 400));
     }
 
     const customerFound = await Customer.findById(orderFound.customerId);
@@ -1304,8 +1308,6 @@ const completeOrderController = async (req, res, next) => {
       completedOn: new Date(),
       grandTotal: orderFound?.billDetail?.grandTotal,
     };
-
-    console.log(calculatedSalary);
 
     agentFound.appDetail.orders += 1;
     agentFound.appDetail.totalEarning += parseFloat(calculatedSalary);
