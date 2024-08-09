@@ -277,17 +277,17 @@ io.on("connection", async (socket) => {
   // console.log("user connected", socket.id);
   const userId = socket.handshake.query.userId;
   const fcmToken = socket.handshake.query.fcmToken;
-  if (userId) {
-    const user = await FcmToken.find({ userId });
+  if (userId && fcmToken) {
+    const user = await FcmToken.findOne({ userId });
     // console.log("Server", user);
-    if (user.length === 0) {
+    if (!user) {
       await FcmToken.create({
         userId,
         token: fcmToken,
       });
     } else {
-      if (user[0].token === null || user[0].token !== fcmToken)
-        await FcmToken.findByIdAndUpdate(user[0]._id, {
+      if (user.token === null || user.token !== fcmToken)
+        await FcmToken.findByIdAndUpdate(user._id, {
           token: fcmToken,
         });
     }
