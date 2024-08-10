@@ -136,6 +136,7 @@ merchantRoute.put(
   editMerchantController
 );
 
+// Change merchant status
 merchantRoute.patch(
   "/admin/change-status/:merchantId",
   changeMerchantStatusController

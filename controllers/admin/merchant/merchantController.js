@@ -287,7 +287,7 @@ const verifyPaymentByMerchantController = async (req, res, next) => {
 // Search merchant
 const searchMerchantController = async (req, res, next) => {
   try {
-    const { query } = req.query;
+    let { query, page = 1, limit = 20 } = req.query;
 
     if (!query || query.trim() === "") {
       return res.status(400).json({
@@ -295,11 +295,24 @@ const searchMerchantController = async (req, res, next) => {
       });
     }
 
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
     const searchTerm = query.toLowerCase();
 
     const searchResults = await Merchant.find({
       "merchantDetail.merchantName": { $regex: searchTerm, $options: "i" },
-    }).select("merchantDetail.merchantName phoneNumber isApproved");
+    })
+      .select("merchantDetail.merchantName phoneNumber isApproved")
+      .skip(skip)
+      .limit(limit);
+
+    // Count total documents
+    const totalDocuments = await Merchant.countDocuments({});
 
     const merchantsWithDetails = await Promise.all(
       searchResults.map(async (merchant) => {
@@ -332,9 +345,19 @@ const searchMerchantController = async (req, res, next) => {
       })
     );
 
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
     res.status(200).json({
       message: "Searched merchant results",
       data: merchantsWithDetails,
+      pagination,
     });
   } catch (err) {
     next(appError(err.message));
@@ -344,7 +367,13 @@ const searchMerchantController = async (req, res, next) => {
 // Filter merchant
 const filterMerchantsController = async (req, res, next) => {
   try {
-    const { serviceable, businessCategory, geofence } = req.query;
+    let {
+      serviceable,
+      businessCategory,
+      geofence,
+      page = 1,
+      limit = 20,
+    } = req.query;
 
     // Validate query parameters
     if (!serviceable && !businessCategory && !geofence) {
@@ -353,16 +382,23 @@ const filterMerchantsController = async (req, res, next) => {
         .json({ message: "At least one filter is required" });
     }
 
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
     const filterCriteria = {};
 
     // Add filters based on query parameters
-    if (serviceable) {
+    if (serviceable && serviceable.toLowerCase() !== "all") {
       if (!["open", "closed"].includes(serviceable.toLowerCase())) {
         return res.status(400).json({ message: "Invalid serviceable value" });
       }
     }
 
-    if (businessCategory) {
+    if (businessCategory && businessCategory.toLowerCase() !== "all") {
       try {
         filterCriteria["merchantDetail.businessCategoryId"] =
           new mongoose.Types.ObjectId(businessCategory.trim());
@@ -373,7 +409,7 @@ const filterMerchantsController = async (req, res, next) => {
       }
     }
 
-    if (geofence) {
+    if (geofence && geofence.toLowerCase() !== "all") {
       try {
         filterCriteria["merchantDetail.geofenceId"] =
           new mongoose.Types.ObjectId(geofence.trim());
@@ -385,7 +421,12 @@ const filterMerchantsController = async (req, res, next) => {
     // Fetch merchants based on the constructed filter criteria
     const merchants = await Merchant.find(filterCriteria)
       .populate("merchantDetail.geofenceId")
-      .populate("merchantDetail.businessCategoryId");
+      .populate("merchantDetail.businessCategoryId")
+      .skip(skip)
+      .limit(limit);
+
+    // Count total documents
+    const totalDocuments = await Merchant.countDocuments({});
 
     // Filter merchants based on the serviceable virtual field if specified
     const filteredMerchants = serviceable
@@ -417,9 +458,19 @@ const filterMerchantsController = async (req, res, next) => {
       };
     });
 
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
     res.status(200).json({
       message: "Filtered merchants",
       data: merchantsWithDetails,
+      pagination,
     });
   } catch (err) {
     next(appError(err.message));
@@ -507,9 +558,24 @@ const rejectRegistrationController = async (req, res, next) => {
 // Get all merchant details
 const getAllMerchantsController = async (req, res, next) => {
   try {
+    // Get page and limit from query parameters
+    let { page = 1, limit = 10 } = req.query;
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
     const merchantsFound = await Merchant.find({ isBlocked: false })
       .select("fullName phoneNumber isApproved status merchantDetail")
-      .populate("merchantDetail.geofenceId", "name");
+      .populate("merchantDetail.geofenceId", "name")
+      .skip(skip)
+      .limit(limit);
+
+    // Count total documents
+    const totalDocuments = await Merchant.countDocuments({});
 
     const merchantsWithDetails = merchantsFound.map((merchant) => {
       const geofenceName = merchant?.merchantDetail?.geofenceId
@@ -532,9 +598,19 @@ const getAllMerchantsController = async (req, res, next) => {
       };
     });
 
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
     res.status(200).json({
       message: "Getting all merchants",
       data: merchantsWithDetails,
+      pagination,
     });
   } catch (err) {
     next(appError(err.message));

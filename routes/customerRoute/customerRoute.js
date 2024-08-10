@@ -27,6 +27,10 @@ const {
   searchPromocodeController,
   getWalletAndLoyaltyController,
   getCustomerCartController,
+  getCustomerAppBannerController,
+  getSpalshScreenImageController,
+  getPickAndDropBannersController,
+  getCustomOrderBannersController,
 } = require("../../controllers/customer/customerController");
 const {
   getAllBusinessCategoryController,
@@ -327,5 +331,17 @@ customerRoute.post(
   isAuthenticated,
   confirmCustomOrderController
 );
+
+// ============================================
+// App Banners
+// ============================================
+
+customerRoute.get("/app-banners", getCustomerAppBannerController);
+
+customerRoute.get("/app-splash-screen", getSpalshScreenImageController);
+
+customerRoute.get("/pick-and-drop-banners", getPickAndDropBannersController);
+
+customerRoute.get("/custom-order-banners", getCustomOrderBannersController);
 
 module.exports = customerRoute;
