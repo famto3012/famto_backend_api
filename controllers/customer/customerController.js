@@ -22,6 +22,10 @@ const Order = require("../../models/Order");
 const Agent = require("../../models/Agent");
 const { formatDate, formatTime } = require("../../utils/formatters");
 const CustomerSubscription = require("../../models/CustomerSubscription");
+const CustomerAppCustomization = require("../../models/CustomerAppCustomization");
+const PickAndDropBanner = require("../../models/PickAndDropBanner");
+const CustomOrderBanner = require("../../models/CustomOrderBanner");
+const Banner = require("../../models/Banner");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -1010,6 +1014,66 @@ const getCustomerCartController = async (req, res, next) => {
   }
 };
 
+const getSpalshScreenImageController = async (req, res, next) => {
+  try {
+    const spalshScreenImage = await CustomerAppCustomization.findOne({}).select(
+      "splashScreenUrl"
+    );
+
+    res.status(200).json({
+      message: "Splash screen image",
+      data: spalshScreenImage,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getCustomerAppBannerController = async (req, res, next) => {
+  try {
+    const allBanners = await Banner.find({ status: true }).select(
+      "name imageUrl"
+    );
+
+    res.status(200).json({
+      message: "All Banners",
+      data: allBanners,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getPickAndDropBannersController = async (req, res, next) => {
+  try {
+    const allBanners = await PickAndDropBanner.find({ status: true }).select(
+      "title description imageUrl"
+    );
+
+    res.status(200).json({
+      message: "All Pick and Drop Banners",
+      data: allBanners,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getCustomOrderBannersController = async (req, res, next) => {
+  try {
+    const allBanners = await CustomOrderBanner.find({ status: true }).select(
+      "title description imageUrl"
+    );
+
+    res.status(200).json({
+      message: "All Custom Order Banners",
+      data: allBanners,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerAndLoginController,
   getCustomerProfileController,
@@ -1029,4 +1093,8 @@ module.exports = {
   searchOrderController,
   getWalletAndLoyaltyController,
   getCustomerCartController,
+  getCustomerAppBannerController,
+  getSpalshScreenImageController,
+  getPickAndDropBannersController,
+  getCustomOrderBannersController,
 };

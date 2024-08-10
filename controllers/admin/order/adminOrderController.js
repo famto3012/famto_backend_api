@@ -223,8 +223,10 @@ const searchOrderByIdByAdminController = async (req, res, next) => {
   try {
     let { query, page = 1, limit = 15 } = req.query;
 
-    if (!query) {
-      return next(appError("Order ID is required", 400));
+    if (!query || query.trim() === "") {
+      return res.status(400).json({
+        message: "Search query cannot be empty",
+      });
     }
 
     // Convert to integers
