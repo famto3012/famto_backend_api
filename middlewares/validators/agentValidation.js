@@ -69,7 +69,7 @@ const addAgentByAdminValidations = [
     }
     return true;
   }),
-  body("managerId").trim().notEmpty().withMessage("Manager is required"),
+  // body("managerId").optional().trim(),
   body("salaryStructureId")
     .trim()
     .notEmpty()
@@ -151,7 +151,7 @@ const editAgentByAdminValidations = [
     }
     return true;
   }),
-  body("manager").trim().notEmpty().withMessage("Full name is required"),
+  body("managerId").optional().trim(),
   body("salaryStructure")
     .trim()
     .notEmpty()

@@ -41,7 +41,7 @@ const addMerchantPricingController = async (req, res, next) => {
       return res.status(409).json({ errors: formattedErrors });
     }
 
-    const newRule = await MerchantPricing.create({
+    let newRule = await MerchantPricing.create({
       ruleName,
       baseFare,
       baseDistance,
@@ -185,7 +185,7 @@ const editMerchantPricingController = async (req, res, next) => {
 
     res.status(200).json({
       message: `${ruleName} updated successfully`,
-      data: newRule,
+      data: updatedmerchantPricing,
     });
   } catch (err) {
     next(appError(err.message));

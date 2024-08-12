@@ -105,7 +105,7 @@ const addAgentByAdminController = async (req, res, next) => {
       geofenceId,
       agentImageURL,
       workStructure: {
-        managerId,
+        // managerId: managerId || null,
         salaryStructureId,
         tag,
       },
@@ -256,6 +256,7 @@ const editAgentByAdminController = async (req, res, next) => {
         geofenceId,
         agentImageURL,
         workStructure: {
+          managerId: managerId || null,
           salaryStructureId,
           tag,
         },

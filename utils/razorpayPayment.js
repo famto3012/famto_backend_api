@@ -2,12 +2,14 @@ const Razorpay = require("razorpay");
 const crypto = require("crypto");
 
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
+  key_id: "rzp_test_uMUjtRDrLWETXs", //process.env.RAZORPAY_KEY_ID,
+  key_secret: "G4hSZ4MGSLlB7uOPBR2dyMQ1", //process.env.RAZORPAY_KEY_SECRET,
 });
 
 const createRazorpayOrderId = async (amount) => {
   try {
+    console.log("amount", amount);
+
     const options = {
       amount: Math.round(amount * 100), // amount in paise
       currency: "INR",
@@ -15,6 +17,9 @@ const createRazorpayOrderId = async (amount) => {
     };
 
     const order = await razorpay.orders.create(options);
+
+    console.log(order);
+
     return { success: true, orderId: order.id };
   } catch (err) {
     console.error("Error in processing payment:", err);

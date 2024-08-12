@@ -16,7 +16,6 @@ const addGeofence = async (req, res, next) => {
   try {
     const { name, color, description, coordinates } = req.body;
 
-    
     if (
       !Array.isArray(coordinates) ||
       !coordinates.every((coord) => Array.isArray(coord) && coord.length === 2)

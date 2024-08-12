@@ -22,6 +22,7 @@ const orderCommissionLogHelper = async (orderId) => {
     if (commissions.length === 0) {
       throw new Error("No commission found for the merchant");
     }
+
     const commission = commissions[0];
 
     const totalAmount = order.billDetail.itemTotal;
@@ -48,6 +49,9 @@ const orderCommissionLogHelper = async (orderId) => {
     });
 
     await commissionLog.save();
+
+    console.log(payableAmountToFamto);
+    console.log(payableAmountToMerchant);
 
     return { payableAmountToFamto, payableAmountToMerchant };
   } catch (err) {

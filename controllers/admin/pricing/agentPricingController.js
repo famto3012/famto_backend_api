@@ -141,20 +141,14 @@ const editAgentPricingController = async (req, res, next) => {
       .trim()
       .replace(/\s+/g, " ")
       .toLowerCase();
-    const normalizedDBRuleName = agentPricingFound.ruleName
-      .trim()
-      .replace(/\s+/g, " ")
-      .toLowerCase();
 
-    if (normalizedRuleName !== normalizedDBRuleName) {
-      const ruleNameFound = await AgentPricing.findOne({
-        ruleName: new RegExp(`^${normalizedRuleName}$`, "i"),
-      });
+    const ruleNameFound = await AgentPricing.findOne({
+      ruleName: new RegExp(`^${normalizedRuleName}$`, "i"),
+    });
 
-      if (ruleNameFound) {
-        formattedErrors.ruleName = "Rule name already exists";
-        return res.status(409).json({ errors: formattedErrors });
-      }
+    if (ruleNameFound) {
+      formattedErrors.ruleName = "Rule name already exists";
+      return res.status(409).json({ errors: formattedErrors });
     }
 
     let updatedAgentPricing = await AgentPricing.findByIdAndUpdate(

@@ -214,6 +214,8 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
     orderFound.status = "On-going";
 
     if (orderFound.merchantId) {
+      console.log(orderId);
+
       const { payableAmountToFamto, payableAmountToMerchant } =
         await orderCommissionLogHelper(orderId);
 

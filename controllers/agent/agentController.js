@@ -1318,7 +1318,10 @@ const completeOrderController = async (req, res, next) => {
     await customerFound.save();
     await agentFound.save();
 
-    res.status(200).json({ message: "Order completed successfully" });
+    res.status(200).json({
+      message: "Order completed successfully",
+      data: calculatedSalary,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -1596,6 +1599,21 @@ const updateCustomOrderStatusController = async (req, res, next) => {
   }
 };
 
+const getCompleteOrderMessageController = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+
+    const orderFound = await Order.findById(orderId).select("billDetail");
+
+    res.status(200).json({
+      message: "Order amount",
+      data: orderFound.billDetail.grandTotal,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   updateLocationController,
   registerAgentController,
@@ -1631,4 +1649,5 @@ module.exports = {
   getAgentEarningsLast7DaysController,
   updateCustomOrderStatusController,
   getCheckoutDetailController,
+  getCompleteOrderMessageController,
 };
