@@ -305,9 +305,9 @@ const addPickandDropItemsController = async (req, res, next) => {
     });
 
     let updatedBill = {
-      originalDeliveryCharge: deliveryCharge,
+      originalDeliveryCharge: Math.round(deliveryCharge),
       vehicleType,
-      originalGrandTotal: deliveryCharge,
+      originalGrandTotal: Math.round(deliveryCharge),
     };
 
     cart.billDetail = updatedBill;
@@ -352,7 +352,7 @@ const addTipAndApplyPromocodeInPickAndDropController = async (
       parseFloat(cart.billDetail.originalDeliveryCharge) || 0;
 
     // Add the tip
-    const tip = parseFloat(addedTip) || 0;
+    const tip = parseInt(addedTip) || 0;
     const originalGrandTotalWithTip = originalDeliveryCharge + tip;
 
     cart.billDetail.addedTip = tip;
@@ -416,8 +416,8 @@ const addTipAndApplyPromocodeInPickAndDropController = async (
     const discountedGrandTotal = originalGrandTotalWithTip - discountAmount;
 
     cart.billDetail.discountedDeliveryCharge =
-      discountedDeliveryCharge < 0 ? 0 : discountedDeliveryCharge.toFixed(2);
-    cart.billDetail.discountedGrandTotal = discountedGrandTotal.toFixed(2);
+      discountedDeliveryCharge < 0 ? 0 : Math.round(discountedDeliveryCharge);
+    cart.billDetail.discountedGrandTotal = Math.round(discountedGrandTotal);
     cart.billDetail.discountedAmount = discountAmount.toFixed(2);
 
     await cart.save();

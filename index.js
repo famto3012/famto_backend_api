@@ -208,11 +208,11 @@ cron.schedule("* * * * *", async () => {
   }
 });
 
-cron.schedule("25 11 * * *", async () => {
+cron.schedule("01 23 * * *", async () => {
   await generateMapplsAuthToken();
-  await moveAppDetailToHistoryAndResetForAllAgents();
-  await updateOneDayLoyaltyPointEarning();
-  await resetAllAgentTaskHelper();
+  // await moveAppDetailToHistoryAndResetForAllAgents();
+  // await updateOneDayLoyaltyPointEarning();
+  // await resetAllAgentTaskHelper();
 });
 
 //global errors

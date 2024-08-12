@@ -65,6 +65,14 @@ const cartDetailSchema = mongoose.Schema(
       type: String,
       default: null,
     },
+    voiceInstructionToMerchant: {
+      type: String,
+      default: null,
+    },
+    voiceInstructionToDeliveryAgent: {
+      type: String,
+      default: null,
+    },
     distance: {
       type: Number,
       required: true,

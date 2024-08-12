@@ -26,7 +26,7 @@ const managerSchema = mongoose.Schema(
     merchants: {
       type: String,
       ref: "Merchant",
-      required: true,
+      default: null,
     },
     geofenceId: {
       type: mongoose.Schema.Types.ObjectId,

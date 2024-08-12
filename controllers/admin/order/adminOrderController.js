@@ -73,7 +73,7 @@ const getAllOrdersForAdminController = async (req, res, next) => {
       return {
         _id: order._id,
         orderStatus: order.status,
-        merchantName: order?.merchantId?.merchantDetail?.merchantName || "N/A",
+        merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
         customerName:
           order.orderDetail.deliveryAddress.fullName ||
           order.customerId.fullName,
@@ -104,6 +104,96 @@ const getAllOrdersForAdminController = async (req, res, next) => {
     res.status(200).json({
       message: "All orders of merchant",
       data: formattedOrders,
+      pagination,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getAllScheduledOrdersForAdminController = async (req, res, next) => {
+  try {
+    // Get page and limit from query parameters
+    let { page = 1, limit = 25 } = req.query;
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
+    // Fetch documents from both collections
+    const scheduledOrders = await ScheduledOrder.find({})
+      .populate({
+        path: "merchantId",
+        select: "merchantDetail.merchantName merchantDetail.deliveryTime",
+      })
+      .populate({
+        path: "customerId",
+        select: "fullName",
+      })
+      .skip(skip)
+      .limit(limit)
+      .lean(); // Convert MongoDB documents to plain JavaScript objects
+
+    const customOrders = await scheduledPickAndCustom
+      .find({})
+      .populate({
+        path: "customerId",
+        select: "fullName",
+      })
+      .skip(skip)
+      .limit(limit)
+      .lean(); // Convert MongoDB documents to plain JavaScript objects
+
+    // Combine the results from both collections
+    const allOrders = [...scheduledOrders, ...customOrders];
+
+    // Sort the combined results by createdAt in descending order
+    const sortedOrders = allOrders.sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+    const formattedOrders = sortedOrders?.map((order) => {
+      return {
+        _id: order._id,
+        status: order._status,
+        merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
+        customerName:
+          order?.orderDetail?.deliveryAddress?.fullName ||
+          order?.customerId?.fullName ||
+          "-",
+        deliveryMode: order?.orderDetail?.deliveryMode,
+        orderTime: formatTime(order?.createdAt),
+        orderDate: formatDate(order?.createdAt),
+        paymentMethod: order?.paymentMethod,
+        deliveryOption: order?.orderDetail?.deliveryOption,
+        amount: order?.billDetail?.grandTotal,
+      };
+    });
+
+    // Implement pagination on the combined results
+    const paginatedOrders = formattedOrders.slice(skip, skip + limit);
+
+    // Count total documents in both collections
+    const totalDocuments =
+      (await ScheduledOrder.countDocuments({})) +
+      (await scheduledPickAndCustom.countDocuments({}));
+
+    // Prepare pagination details
+    const pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
+    res.status(200).json({
+      message: "All scheduled orders and custom orders",
+      data: paginatedOrders,
       pagination,
     });
   } catch (err) {
@@ -258,7 +348,7 @@ const searchOrderByIdByAdminController = async (req, res, next) => {
       return {
         _id: order._id,
         orderStatus: order.status,
-        merchantName: order?.merchantId?.merchantDetail?.merchantName || "N/A",
+        merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
         customerName:
           order.orderDetail.deliveryAddress.fullName ||
           order.customerId.fullName,
@@ -348,7 +438,7 @@ const filterOrdersByAdminController = async (req, res, next) => {
       return {
         _id: order._id,
         orderStatus: order.status,
-        merchantName: order?.merchantId?.merchantDetail?.merchantName || "N/A",
+        merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
         customerName:
           order.orderDetail.deliveryAddress.fullName ||
           order.customerId.fullName,
@@ -432,37 +522,35 @@ const getOrderDetailByAdminController = async (req, res, next) => {
         name:
           orderFound.customerId.fullName ||
           orderFound.orderDetail.deliveryAddress.fullName,
-        email: orderFound.customerId.email || "N/A",
+        email: orderFound.customerId.email || "-",
         phone: orderFound.customerId.phoneNumber,
         address: orderFound.orderDetail.deliveryAddress,
         ratingsToDeliveryAgent: {
           rating: orderFound?.orderRating?.ratingToDeliveryAgent?.rating || 0,
-          review: orderFound.orderRating?.ratingToDeliveryAgent.review || "N/A",
+          review: orderFound.orderRating?.ratingToDeliveryAgent.review || "-",
         },
         ratingsByDeliveryAgent: {
           rating: orderFound?.orderRating?.ratingByDeliveryAgent?.rating || 0,
-          review:
-            orderFound?.orderRating?.ratingByDeliveryAgent?.review || "N/A",
+          review: orderFound?.orderRating?.ratingByDeliveryAgent?.review || "-",
         },
       },
       merchantDetail: {
-        _id: orderFound?.merchantId?._id || "N/A",
-        name: orderFound?.merchantId?.merchantDetail?.merchantName || "N/A",
+        _id: orderFound?.merchantId?._id || "-",
+        name: orderFound?.merchantId?.merchantDetail?.merchantName || "-",
         instructionsByCustomer:
-          orderFound?.orderDetail?.instructionToMerchant || "N/A",
-        merchantEarnings:
-          orderFound?.commissionDetail?.merchantEarnings || "N/A",
-        famtoEarnings: orderFound?.commissionDetail?.famtoEarnings || "N/A",
+          orderFound?.orderDetail?.instructionToMerchant || "-",
+        merchantEarnings: orderFound?.commissionDetail?.merchantEarnings || "-",
+        famtoEarnings: orderFound?.commissionDetail?.famtoEarnings || "-",
       },
       deliveryAgentDetail: {
-        _id: orderFound?.agentId?._id || "N/A",
+        _id: orderFound?.agentId?._id || "-",
         name: orderFound?.agentId?.fullName,
         team: orderFound?.agentId?.workStructure?.managerId?.name,
         instructionsByCustomer:
-          orderFound?.orderDetail?.instructionToDeliveryAgent || "N/A",
+          orderFound?.orderDetail?.instructionToDeliveryAgent || "-",
         distanceTravelled: orderFound?.orderDetail?.distance,
-        timeTaken: formatToHours(orderFound?.orderDetail?.timeTaken) || "N/A",
-        delayedBy: formatToHours(orderFound?.orderDetail?.delayedBy) || "N/A",
+        timeTaken: formatToHours(orderFound?.orderDetail?.timeTaken) || "-",
+        delayedBy: formatToHours(orderFound?.orderDetail?.delayedBy) || "-",
       },
       items: orderFound.items,
       billDetail: orderFound.billDetail,
@@ -673,7 +761,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
     // console.log("re updated details", updatedCartDetail);
 
     if (deliveryMode === "Take Away" || deliveryMode === "Home Delivery") {
-      // console.log("Finding business category");
+      console.log("Items", items);
       const itemTotal = calculateItemTotal(items);
 
       const businessCategory = await BusinessCategory.findById(
@@ -687,8 +775,8 @@ const createInvoiceByAdminController = async (req, res, next) => {
       if (deliveryMode === "Home Delivery") {
         console.log("checking", customer.customerDetails);
 
-        console.log("businessId", businessCategory._id);
-        console.log("GeofenceId", customer.customerDetails.geofenceId);
+        // console.log("businessId", businessCategory._id);
+        // console.log("GeofenceId", customer.customerDetails.geofenceId);
 
         customerPricing = await CustomerPricing.findOne({
           deliveryMode: "Home Delivery",
@@ -710,7 +798,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
         customerPricing?.fareAfterBaseDistance
       );
 
-      console.log("oneTimeDeliveryCharge", oneTimeDeliveryCharge);
+      // console.log("oneTimeDeliveryCharge", oneTimeDeliveryCharge);
 
       const customerSurge = await CustomerSurge.findOne({
         geofenceId: customer?.customerDetails?.geofenceId,
@@ -983,14 +1071,14 @@ const createInvoiceByAdminController = async (req, res, next) => {
         vehiclePrice.fareAfterBaseWeight
       );
 
-      console.log("deliveryCharges", deliveryCharges);
-      console.log("additionalWeightCharge", additionalWeightCharge);
+      // console.log("deliveryCharges", deliveryCharges);
+      // console.log("additionalWeightCharge", additionalWeightCharge);
 
       const deliveryChargePerDay = (
         parseFloat(deliveryCharges) + parseFloat(additionalWeightCharge)
       ).toFixed(2);
 
-      console.log("deliveryChargePerDay", deliveryChargePerDay);
+      // console.log("deliveryChargePerDay", deliveryChargePerDay);
 
       let originalDeliveryCharge = deliveryChargePerDay;
       if (deliveryOption === "Scheduled") {
@@ -1038,7 +1126,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
       });
       return;
     } else if (deliveryMode === "Custom Order") {
-      console.log("Inside custom order cart creation");
+      // console.log("Inside custom order cart creation");
 
       const customerPricing = await CustomerPricing.findOne({
         deliveryMode: "Custom Order",
@@ -1109,7 +1197,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
         itemImageURL: item?.itemImageURL,
       }));
 
-      console.log(transformedItems);
+      // console.log(transformedItems);
 
       const customerCart = await PickAndCustomCart.findOneAndUpdate(
         { customerId: customer._id },
@@ -1178,6 +1266,29 @@ const createOrderByAdminController = async (req, res, next) => {
 
     const cartDeliveryMode = cartFound.cartDetail.deliveryMode;
     const cartDeliveryOption = cartFound.cartDetail.deliveryOption;
+
+    let deliveryTime;
+    if (
+      cartDeliveryMode === "Take Away" ||
+      cartDeliveryMode === "Home Delivery"
+    ) {
+      const merchant = await Merchant.findById(cartFound.merchantId);
+
+      if (!merchant) {
+        return next(appError("Merchant not found", 404));
+      }
+
+      const deliveryTimeMinutes = parseInt(
+        merchant.merchantDetail.deliveryTime,
+        10
+      );
+
+      deliveryTime = new Date();
+      deliveryTime.setMinutes(deliveryTime.getMinutes() + deliveryTimeMinutes);
+    } else {
+      deliveryTime = new Date();
+      deliveryTime.setMinutes(deliveryTime.getMinutes() + 60);
+    }
 
     const orderAmount =
       cartFound.billDetail.discountedGrandTotal ||
@@ -1250,7 +1361,10 @@ const createOrderByAdminController = async (req, res, next) => {
           cartDeliveryMode === "Home Delivery"
             ? formattedItems
             : cartFound.items,
-        orderDetail: cartFound.cartDetail,
+        orderDetail: {
+          ...cartFound.cartDetail,
+          deliveryTime,
+        },
         billDetail: orderBill,
         totalAmount: orderAmount,
         status: "Pending",
@@ -1298,7 +1412,10 @@ const createOrderByAdminController = async (req, res, next) => {
           cartDeliveryMode === "Home Delivery"
             ? formattedItems
             : cartFound.items,
-        orderDetail: cartFound.cartDetail,
+        orderDetail: {
+          ...cartFound.cartDetail,
+          deliveryTime,
+        },
         billDetail: orderBill,
         totalAmount: orderAmount,
         status: "Pending",
@@ -1395,6 +1512,7 @@ const createOrderByAdminController = async (req, res, next) => {
 
 module.exports = {
   getAllOrdersForAdminController,
+  getAllScheduledOrdersForAdminController,
   confirmOrderByAdminContrroller,
   rejectOrderByAdminController,
   searchOrderByIdByAdminController,

@@ -26,6 +26,7 @@ const CustomerAppCustomization = require("../../models/CustomerAppCustomization"
 const PickAndDropBanner = require("../../models/PickAndDropBanner");
 const CustomOrderBanner = require("../../models/CustomOrderBanner");
 const Banner = require("../../models/Banner");
+const ServiceCategory = require("../../models/ServiceCategory");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -122,8 +123,8 @@ const getCustomerProfileController = async (req, res, next) => {
 
     const formattedCustomer = {
       _id: currentCustomer._id,
-      fullName: currentCustomer.fullName || "N/A",
-      email: currentCustomer.email || "N/A",
+      fullName: currentCustomer.fullName || "-",
+      email: currentCustomer.email || "-",
       phoneNumber: currentCustomer.phoneNumber,
       walletBalance: currentCustomer?.customerDetails?.walletBalance || 0.0,
     };
@@ -473,7 +474,7 @@ const getFavoriteMerchantsController = async (req, res, next) => {
           averageRating: merchant.merchantDetail.averageRating,
           status: merchant.status,
           distanceInKM: parseFloat(distance),
-          restaurantType: merchant.merchantDetail.merchantFoodType || "N/A",
+          restaurantType: merchant.merchantDetail.merchantFoodType || "-",
           merchantImageURL: merchant.merchantDetail.merchantImageURL,
           isFavorite,
         };
@@ -766,7 +767,7 @@ const getTransactionOfCustomerController = async (req, res, next) => {
 
     const formattedData = sortedTransactions.map((transaction) => {
       return {
-        customerName: customerFound.fullName || "N/A",
+        customerName: customerFound.fullName || "-",
         customerImage:
           customerFound.customerDetails.customerImageURL ||
           "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/AgentImages%2Fdemo-image.png-0fe7a62e-6d1c-4e5f-9d3c-87698bdfc32e?alt=media&token=97737725-250d-481e-a8db-69bdaedbb073",
@@ -1074,6 +1075,19 @@ const getCustomOrderBannersController = async (req, res, next) => {
   }
 };
 
+const getAvailableServiceController = async (req, res, next) => {
+  try {
+    const availableServices = await ServiceCategory.find({});
+
+    res.status(200).json({
+      message: "All service categories",
+      data: availableServices,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerAndLoginController,
   getCustomerProfileController,
@@ -1097,4 +1111,5 @@ module.exports = {
   getSpalshScreenImageController,
   getPickAndDropBannersController,
   getCustomOrderBannersController,
+  getAvailableServiceController,
 };

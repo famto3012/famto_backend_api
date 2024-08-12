@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const databaseCounterSchema = mongoose.Schema({
   type: {
     type: String,
-    enum: ["Agent", "Customer", "Merchant", "Order"],
+    enum: ["Agent", "Customer", "Merchant", "Order", "ScheduledOrder"],
     required: true,
   },
   year: {

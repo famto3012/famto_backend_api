@@ -326,21 +326,19 @@ const searchMerchantController = async (req, res, next) => {
         return {
           _id: merchant._id,
           merchantName:
-            merchant?.merchantDetail?.merchantName ||
-            merchant.fullName ||
-            "N/A",
+            merchant?.merchantDetail?.merchantName || merchant.fullName || "-",
           phoneNumber: merchant.phoneNumber,
           isApproved: merchant.isApproved,
-          status: merchantDetail ? merchantDetail.status : "N/A",
+          status: merchantDetail ? merchantDetail.status : "-",
           geofence: merchantDetail //&& merchantDetail?.merchantDetail?.geofenceId
             ? merchantDetail.merchantDetail?.geofenceId.name
-            : "N/A",
+            : "-",
           averageRating: merchantDetail // && merchantDetail?.merchantDetail
             ? merchantDetail?.merchantDetail?.averageRating
-            : "0",
+            : 0,
           isServiceableToday: merchantDetail // && merchantDetail.merchantDetail
             ? merchantDetail.merchantDetail.isServiceableToday
-            : "N/A",
+            : "-",
         };
       })
     );
@@ -442,7 +440,7 @@ const filterMerchantsController = async (req, res, next) => {
       const merchantDetail = merchant.merchantDetail;
       return {
         _id: merchant._id,
-        merchantName: merchantDetail?.merchantName || "N/A",
+        merchantName: merchantDetail?.merchantName || "-",
         phoneNumber: merchant.phoneNumber,
         status: merchant.status,
         isApproved: merchant.isApproved,
@@ -453,8 +451,7 @@ const filterMerchantsController = async (req, res, next) => {
             ? merchantDetail.geofenceId.name
             : null,
         averageRating: merchantDetail ? merchantDetail.averageRating : 0,
-        isServiceableToday:
-          merchant.merchantDetail?.isServiceableToday || "N/A",
+        isServiceableToday: merchant.merchantDetail?.isServiceableToday || "-",
       };
     });
 
@@ -580,14 +577,14 @@ const getAllMerchantsController = async (req, res, next) => {
     const merchantsWithDetails = merchantsFound.map((merchant) => {
       const geofenceName = merchant?.merchantDetail?.geofenceId
         ? merchant.merchantDetail.geofenceId.name
-        : "N/A";
+        : "-";
 
       // Access isServiceableToday directly as it's a virtual field
       const isServiceableToday = merchant.merchantDetail?.isServiceableToday;
 
       return {
         _id: merchant._id,
-        merchantName: merchant?.merchantDetail?.merchantName || "N/A",
+        merchantName: merchant?.merchantDetail?.merchantName || "-",
         phoneNumber: merchant.phoneNumber,
         isApproved: merchant.isApproved,
         status: merchant.status && isServiceableToday === "open" ? true : false,

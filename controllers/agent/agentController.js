@@ -814,7 +814,7 @@ const getRatingsOfAgentController = async (req, res, next) => {
       rating: rating.rating,
       customerId: {
         id: rating.customerId._id,
-        fullName: rating.customerId.fullName || "N/A",
+        fullName: rating.customerId.fullName || "-",
       },
     }));
 
@@ -1186,7 +1186,7 @@ const confirmCashReceivedController = async (req, res, next) => {
     let updatedOrderDetail = {
       orderId,
       deliveryMode: orderFound.orderDetail.deliveryMode,
-      customerName: orderFound.orderDetail.deliveryAddress.fullName || "N/A",
+      customerName: orderFound.orderDetail.deliveryAddress.fullName || "-",
       completedOn: new Date(),
       grandTotal: orderFound.billDetail.grandTotal,
     };
