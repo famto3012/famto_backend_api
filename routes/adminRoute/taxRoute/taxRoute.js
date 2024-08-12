@@ -12,6 +12,7 @@ const isAdmin = require("../../../middlewares/isAdmin");
 const {
   taxValidations,
 } = require("../../../middlewares/validators/taxValidations");
+const isAdminOrMerchant = require("../../../middlewares/isAdminOrMerchant");
 const taxRoute = express.Router();
 
 taxRoute.post(
@@ -21,7 +22,12 @@ taxRoute.post(
   isAdmin,
   addTaxController
 );
-taxRoute.get("/all-tax", isAuthenticated, isAdmin, getAllTaxController);
+taxRoute.get(
+  "/all-tax",
+  isAuthenticated,
+  isAdminOrMerchant,
+  getAllTaxController
+);
 taxRoute.get("/:taxId", isAuthenticated, isAdmin, getSinglTaxController);
 taxRoute.put(
   "/edit-tax/:taxId",

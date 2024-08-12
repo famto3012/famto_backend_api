@@ -15,6 +15,7 @@ const {
 } = require("../../../controllers/admin/commissionAndSubscription/subscriptionController");
 const { body } = require("express-validator");
 const subscriptionValidationRules = require("../../../middlewares/validators/subscriptionValidations");
+const isAdminOrMerchant = require("../../../middlewares/isAdminOrMerchant");
 
 const subscriptionRoute = express.Router();
 
@@ -29,7 +30,7 @@ subscriptionRoute.post(
 subscriptionRoute.get(
   "/get-merchant-subscription",
   isAuthenticated,
-  isAdmin,
+  isAdminOrMerchant,
   getAllMerchantSubscriptionPlansController
 );
 

@@ -174,9 +174,10 @@ const editCustomerPricingController = async (req, res, next) => {
       return next(appError("Error in updating customer pricing"));
     }
 
-    updatedCustomerPricing = await updatedCustomerPricing
-      .populate("geofenceId", "name")
-      .execPopulate();
+    updatedCustomerPricing = await updatedCustomerPricing.populate(
+      "geofenceId",
+      "name"
+    );
 
     res.status(200).json({
       message: `${normalizedRuleName} updated successfully`,

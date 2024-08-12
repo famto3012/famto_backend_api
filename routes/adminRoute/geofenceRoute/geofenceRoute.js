@@ -29,7 +29,21 @@ geofenceRoute.post(
   addGeofence
 );
 
-geofenceRoute.put("/edit-geofence/:id", isAuthenticated, isAdmin, editGeofence);
+geofenceRoute.put(
+  "/edit-geofence/:id",
+  [
+    body("name").trim().notEmpty().withMessage("Name is required"),
+    body("color").trim().notEmpty().withMessage("Color is required"),
+    body("description")
+      .trim()
+      .notEmpty()
+      .withMessage("Description is required"),
+    body("coordinates").isArray().withMessage("Coordinates should be an array"),
+  ],
+  isAuthenticated,
+  isAdmin,
+  editGeofence
+);
 
 geofenceRoute.delete(
   "/delete-geofence/:id",
