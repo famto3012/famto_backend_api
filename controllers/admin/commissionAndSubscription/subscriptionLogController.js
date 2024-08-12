@@ -31,9 +31,6 @@ const createSubscriptionLog = async (req, res, next) => {
 
     const { amount, duration } = subscriptionPlan;
 
-    console.log(amount);
-    console.log(duration);
-
     let responseOrderId;
     if (paymentMode === "Online") {
       const { orderId, success, error } = await createRazorpayOrderId(amount);
@@ -84,8 +81,6 @@ const createSubscriptionLog = async (req, res, next) => {
 
       await subscriptionLog.save();
     }
-
-    console.log(responseOrderId);
 
     if (paymentMode === "Online") {
       res.status(201).json({

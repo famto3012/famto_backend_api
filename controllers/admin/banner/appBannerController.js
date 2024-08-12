@@ -25,18 +25,18 @@ const addAppBannerController = async (req, res, next) => {
       imageUrl = await uploadToFirebase(req.file, "AppBannerImages");
     }
 
-    const newAppBanner = new AppBanner({
+    let newAppBanner = new AppBanner({
       name,
       geofenceId,
       imageUrl,
       merchantId,
     });
 
-    const savedAppBanner = await newAppBanner.save();
+    newAppBanner = await newAppBanner.populate("geofenceId", "name");
 
     res.status(201).json({
       success: "App Banner created successfully",
-      data: savedAppBanner,
+      data: newAppBanner,
     });
   } catch (err) {
     next(appError(err.message));
@@ -57,7 +57,7 @@ const editAppBannerController = async (req, res, next) => {
     }
 
     // Find the banner by ID and update it with the new data
-    const updatedAppBanner = await AppBanner.findByIdAndUpdate(
+    let updatedAppBanner = await AppBanner.findByIdAndUpdate(
       id,
       {
         name,
@@ -73,12 +73,12 @@ const editAppBannerController = async (req, res, next) => {
       return next(appError("App Banner not found", 404));
     }
 
-    res
-      .status(200)
-      .json({
-        message: "App Banner updated successfully!",
-        banner: updatedAppBanner,
-      });
+    updatedAppBanner = await updatedAppBanner.populate("geofenceId", "name");
+
+    res.status(200).json({
+      message: "App Banner updated successfully!",
+      data: updatedAppBanner,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -86,7 +86,7 @@ const editAppBannerController = async (req, res, next) => {
 
 const getAllAppBannersController = async (req, res, next) => {
   try {
-    const appBanners = await AppBanner.find().populate('geofenceId', 'name');
+    const appBanners = await AppBanner.find().populate("geofenceId", "name");
 
     if (!appBanners) {
       return next(appError("No app banners found", 404));
