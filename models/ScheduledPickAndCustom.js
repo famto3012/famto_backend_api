@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const DatabaseCounter = require("./DatabaseCounter");
 
 const scheduledPickAndCustomItemSchema = mongoose.Schema(
   {
@@ -178,6 +179,37 @@ const scheduledPickAndCustomSchema = mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Middleware to set the custom _id before saving
+scheduledPickAndCustomSchema.pre("save", async function (next) {
+  try {
+    if (this.isNew) {
+      const now = new Date();
+      const year = now.getFullYear().toString().slice(-2); // Last two digits of the year
+      const month = `0${now.getMonth() + 1}`.slice(-2); // Zero-padded month
+
+      let counter = await DatabaseCounter.findOneAndUpdate(
+        {
+          type: "ScheduledOrder",
+          year: parseInt(year, 10),
+          month: parseInt(month, 10),
+        },
+        { $inc: { count: 1 } },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      );
+
+      if (!counter) {
+        throw new Error("Counter document could not be created or updated.");
+      }
+
+      const customId = `SO${year}${month}${counter.count}`;
+      this._id = customId;
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 const scheduledPickAndCustom = mongoose.model(
   "scheduledPickAndCustom",

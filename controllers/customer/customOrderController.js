@@ -44,8 +44,6 @@ const addShopController = async (req, res, next) => {
         distance,
         duration,
       };
-
-      console.log("here");
     } else {
       pickupLocation = [latitude, longitude];
       deliveryLocation = customer.customerDetails.location;
@@ -339,17 +337,17 @@ const addDeliveryAddressController = async (req, res, next) => {
     );
 
     updatedBillDetail = {
-      originalDeliveryCharge: deliveryCharges || 0,
+      originalDeliveryCharge: Math.round(deliveryCharges) || 0,
       deliveryChargePerDay: null,
       discountedDeliveryCharge: null,
       discountedAmount: null,
-      originalGrandTotal: deliveryCharges || 0,
+      originalGrandTotal: Math.round(deliveryCharges) || 0,
       discountedGrandTotal: null,
       itemTotal: null,
       addedTip: null,
       subTotal: null,
       vehicleType: null,
-      surgePrice: surgeCharges || null,
+      surgePrice: Math.round(surgeCharges) || null,
     };
 
     cartFound.billDetail = updatedBillDetail;
@@ -407,7 +405,7 @@ const addTipAndApplyPromocodeInCustomOrderController = async (
       parseFloat(cart.billDetail.originalDeliveryCharge) || 0;
 
     // Add the tip
-    const tip = parseFloat(addedTip) || 0;
+    const tip = parseInt(addedTip) || 0;
     const originalGrandTotalWithTip = originalDeliveryCharge + tip;
 
     cart.billDetail.addedTip = tip;
@@ -471,8 +469,8 @@ const addTipAndApplyPromocodeInCustomOrderController = async (
     const discountedGrandTotal = originalGrandTotalWithTip - discountAmount;
 
     cart.billDetail.discountedDeliveryCharge =
-      discountedDeliveryCharge < 0 ? 0 : discountedDeliveryCharge.toFixed(2);
-    cart.billDetail.discountedGrandTotal = discountedGrandTotal.toFixed(2);
+      discountedDeliveryCharge < 0 ? 0 : Math.round(discountedDeliveryCharge);
+    cart.billDetail.discountedGrandTotal = Math.round(discountedGrandTotal);
     cart.billDetail.discountedAmount = discountAmount.toFixed(2);
 
     await cart.save();
@@ -533,28 +531,28 @@ const confirmCustomOrderController = async (req, res, next) => {
       type: "Debit",
     };
 
-    const loyaltyPointCriteria = await LoyaltyPoint.findOne({ status: true });
+    // const loyaltyPointCriteria = await LoyaltyPoint.findOne({ status: true });
 
-    // let loyaltyPoint = 0;
-    const loyaltyPointEarnedToday =
-      customer.customerDetails?.loyaltyPointEarnedToday || 0;
+    // // let loyaltyPoint = 0;
+    // const loyaltyPointEarnedToday =
+    //   customer.customerDetails?.loyaltyPointEarnedToday || 0;
 
-    if (loyaltyPointCriteria) {
-      if (orderAmount >= loyaltyPointCriteria.minOrderAmountForEarning) {
-        if (loyaltyPointEarnedToday < loyaltyPointCriteria.maxEarningPoint) {
-          const calculatedLoyaltyPoint = Math.min(
-            orderAmount * loyaltyPointCriteria.earningCriteriaPoint,
-            loyaltyPointCriteria.maxEarningPoint - loyaltyPointEarnedToday
-          );
-          customer.customerDetails.loyaltyPointEarnedToday =
-            customer.customerDetails.loyaltyPointEarnedToday +
-            Number(calculatedLoyaltyPoint);
-          customer.customerDetails.totalLoyaltyPointEarned =
-            customer.customerDetails.totalLoyaltyPointEarned +
-            Number(calculatedLoyaltyPoint);
-        }
-      }
-    }
+    // if (loyaltyPointCriteria) {
+    //   if (orderAmount >= loyaltyPointCriteria.minOrderAmountForEarning) {
+    //     if (loyaltyPointEarnedToday < loyaltyPointCriteria.maxEarningPoint) {
+    //       const calculatedLoyaltyPoint = Math.min(
+    //         orderAmount * loyaltyPointCriteria.earningCriteriaPoint,
+    //         loyaltyPointCriteria.maxEarningPoint - loyaltyPointEarnedToday
+    //       );
+    //       customer.customerDetails.loyaltyPointEarnedToday =
+    //         customer.customerDetails.loyaltyPointEarnedToday +
+    //         Number(calculatedLoyaltyPoint);
+    //       customer.customerDetails.totalLoyaltyPointEarned =
+    //         customer.customerDetails.totalLoyaltyPointEarned +
+    //         Number(calculatedLoyaltyPoint);
+    //     }
+    //   }
+    // }
 
     const newOrder = await Order.create({
       customerId,

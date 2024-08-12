@@ -7,26 +7,54 @@ const { formatDate, formatTime } = require("../../../utils/formatters");
 
 const getAllCustomersController = async (req, res, next) => {
   try {
-    const allCustomers = await Customer.find().select(
-      "fullName email phoneNumber lastPlatformUsed createdAt customerDetails averageRating"
-    );
+    // Get page and limit from query parameters
+    let { page = 1, limit = 25 } = req.query;
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
+    const allCustomers = await Customer.find()
+      .select(
+        "fullName email phoneNumber lastPlatformUsed createdAt customerDetails averageRating"
+      )
+      .skip(skip)
+      .limit(limit);
+
+    // Count total documents
+    const totalDocuments = await Customer.countDocuments({});
 
     // Calculate averageRating and format registrationDate for each customer
     const formattedCustomers = allCustomers?.map((customer) => {
       return {
         _id: customer._id,
-        fullName: customer.fullName || "N/A",
-        email: customer.email || "N/A",
-        phoneNumber: customer.phoneNumber || "N/A",
-        lastPlatformUsed: customer.lastPlatformUsed || "N/A",
+        fullName: customer.fullName || "-",
+        email: customer.email || "-",
+        phoneNumber: customer.phoneNumber || "-",
+        lastPlatformUsed: customer.lastPlatformUsed || "-",
         registrationDate: formatDate(customer.createdAt),
         rating: customer?.customerDetails?.averageRating || 0,
       };
     });
 
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
+    console.log(pagination);
+
     res.status(200).json({
       message: "All customers",
       data: formattedCustomers || [],
+      pagination,
     });
   } catch (err) {
     next(appError(err.message));
@@ -35,7 +63,7 @@ const getAllCustomersController = async (req, res, next) => {
 
 const searchCustomerByNameController = async (req, res, next) => {
   try {
-    const { query } = req.query;
+    let { query, page = 1, limit = 25 } = req.query;
 
     if (!query || query.trim() === "") {
       return res.status(400).json({
@@ -43,13 +71,25 @@ const searchCustomerByNameController = async (req, res, next) => {
       });
     }
 
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
     const searchResults = await Customer.find({
       fullName: { $regex: query.trim(), $options: "i" },
     })
       .select(
         "fullName email phoneNumber lastPlatformUsed createdAt customerDetails"
       )
+      .skip(skip)
+      .limit(limit)
       .lean({ virtuals: true });
+
+    // Count total documents
+    const totalDocuments = await Customer.countDocuments({});
 
     // Calculate averageRating and format registrationDate for each customer
     const formattedCustomers = searchResults.map((customer) => {
@@ -59,8 +99,8 @@ const searchCustomerByNameController = async (req, res, next) => {
 
       return {
         _id: customer._id,
-        fullName: customer.fullName || "N/A",
-        email: customer.email || "N/A",
+        fullName: customer.fullName || "-",
+        email: customer.email || "-",
         phoneNumber: customer.phoneNumber,
         lastPlatformUsed: customer.lastPlatformUsed,
         registrationDate: formatDate(customer.createdAt),
@@ -73,9 +113,19 @@ const searchCustomerByNameController = async (req, res, next) => {
       };
     });
 
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
     res.status(200).json({
       message: "Searched customers",
       data: formattedCustomers,
+      pagination,
     });
   } catch (err) {
     next(appError(err.message));
@@ -84,11 +134,18 @@ const searchCustomerByNameController = async (req, res, next) => {
 
 const filterCustomerByGeofenceController = async (req, res, next) => {
   try {
-    const { filter } = req.query;
+    let { filter, page = 1, limit = 25 } = req.query;
 
     if (!filter) {
       return res.status(400).json({ message: "Geofence is required" });
     }
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
 
     // Convert geofence query parameter to ObjectId
     const geofenceObjectId = new mongoose.Types.ObjectId(filter.trim());
@@ -99,24 +156,39 @@ const filterCustomerByGeofenceController = async (req, res, next) => {
       .select(
         "fullName email phoneNumber lastPlatformUsed createdAt customerDetails"
       )
+      .skip(skip)
+      .limit(limit)
       .lean({ virtuals: true });
+
+    // Count total documents
+    const totalDocuments = await Customer.countDocuments({});
 
     // Calculate averageRating and format registrationDate for each customer
     const formattedCustomers = filteredResults.map((customer) => {
       return {
         _id: customer._id,
-        fullName: customer.fullName || "N/A",
-        email: customer.email || "N/A",
+        fullName: customer.fullName || "-",
+        email: customer.email || "-",
         phoneNumber: customer.phoneNumber,
-        lastPlatformUsed: customer?.lastPlatformUsed || "N/A",
+        lastPlatformUsed: customer?.lastPlatformUsed || "-",
         registrationDate: formatDate(customer.createdAt),
         averageRating: customer.customerDetails?.averageRating || 0,
       };
     });
 
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
     res.status(200).json({
       message: "Searched customers",
       data: formattedCustomers,
+      pagination,
     });
   } catch (err) {
     next(appError(err.message));
@@ -174,26 +246,26 @@ const getSingleCustomerController = async (req, res, next) => {
         return {
           closingBalance: transaction.closingBalance || 0,
           transactionAmount: transaction.transactionAmount || 0,
-          transactionId: transaction.transactionId || "N/A",
-          orderId: transaction.orderId || "N/A",
+          transactionId: transaction.transactionId || "-",
+          orderId: transaction.orderId || "-",
           date:
             `${formatDate(transaction.date)} | ${formatTime(
               transaction.date
-            )}` || "N/A",
+            )}` || "-",
         };
       });
 
     const formattedCustomer = {
       _id: customerFound._id,
-      fullName: customerFound.fullName || "N/A",
-      email: customerFound.email || "N/A",
+      fullName: customerFound.fullName || "-",
+      email: customerFound.email || "-",
       phoneNumber: customerFound.phoneNumber,
       lastPlatformUsed: customerFound.lastPlatformUsed,
       registrationDate: formatDate(customerFound.createdAt),
       walletBalance: customerFound.customerDetails.walletBalance,
-      homeAddress: customerFound.customerDetails?.homeAddress || "N/A",
-      workAddress: customerFound.customerDetails?.workAddress || "N/A",
-      otherAddress: customerFound.customerDetails?.otherAddress || "N/A",
+      homeAddress: customerFound.customerDetails?.homeAddress || "-",
+      workAddress: customerFound.customerDetails?.workAddress || "-",
+      otherAddress: customerFound.customerDetails?.otherAddress || "-",
       walletDetails: formattedcustomerTransactions || [],
       orderDetails: formattedCustomerOrders || [],
     };
@@ -398,9 +470,9 @@ const getCustomersOfMerchant = async (req, res, next) => {
     const formattedResponse = customers?.map((customer) => {
       return {
         _id: customer._id,
-        fullName: customer?.fullName || "N/A",
-        phoneNumber: customer?.phoneNumber || "N/A",
-        email: customer?.email || "N/A",
+        fullName: customer?.fullName || "-",
+        phoneNumber: customer?.phoneNumber || "-",
+        email: customer?.email || "-",
         lastPlatformUsed: customer.lastPlatformUsed,
         registrationDate: formatDate(customer.createdAt),
         rating: Math.floor(customer?.averageRating) || 0,

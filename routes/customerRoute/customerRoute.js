@@ -31,6 +31,7 @@ const {
   getSpalshScreenImageController,
   getPickAndDropBannersController,
   getCustomOrderBannersController,
+  getAvailableServiceController,
 } = require("../../controllers/customer/customerController");
 const {
   getAllBusinessCategoryController,
@@ -343,5 +344,7 @@ customerRoute.get("/app-splash-screen", getSpalshScreenImageController);
 customerRoute.get("/pick-and-drop-banners", getPickAndDropBannersController);
 
 customerRoute.get("/custom-order-banners", getCustomOrderBannersController);
+
+customerRoute.get("/available-services", getAvailableServiceController);
 
 module.exports = customerRoute;

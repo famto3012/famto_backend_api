@@ -331,9 +331,9 @@ const getAllAgentsController = async (req, res, next) => {
         email: agent.email,
         phoneNumber: agent.phoneNumber,
         isApproved: agent.isApproved,
-        geofence: agent?.geofenceId?.name || "N/A",
+        geofence: agent?.geofenceId?.name || "-",
         status: agent.status === "Inactive" ? false : true,
-        manager: agent?.workStructure?.managerId?.name || "N/A",
+        manager: agent?.workStructure?.managerId?.name || "-",
         location: agent.location,
       };
     });
@@ -371,9 +371,9 @@ const searchAgentByNameController = async (req, res, next) => {
         email: agent.email,
         phoneNumber: agent.phoneNumber,
         isApproved: agent.isApproved,
-        geofence: agent?.geofenceId?.name || "N/A",
+        geofence: agent?.geofenceId?.name || "-",
         status: agent.status === "Inactive" ? false : true,
-        manager: agent?.workStructure?.managerId?.name || "N/A",
+        manager: agent?.workStructure?.managerId?.name || "-",
       };
     });
 
@@ -535,8 +535,8 @@ const filterAgentsController = async (req, res, next) => {
         fullName: agent.fullName,
         email: agent.email,
         phoneNumber: agent.phoneNumber,
-        manager: agent?.workStructure?.managerId?.name || "N/A",
-        geofence: agent?.geofenceId?.name || "N/A",
+        manager: agent?.workStructure?.managerId?.name || "-",
+        geofence: agent?.geofenceId?.name || "-",
         status: agent.status === "Inactive" ? false : true,
         isApproved: agent.isApproved,
       };

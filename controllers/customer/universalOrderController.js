@@ -25,6 +25,10 @@ const Order = require("../../models/Order");
 const ScheduledOrder = require("../../models/ScheduledOrder");
 const { convertToUTC } = require("../../utils/formatters");
 const SubscriptionLog = require("../../models/SubscriptionLog");
+const {
+  deleteFromFirebase,
+  uploadToFirebase,
+} = require("../../utils/imageOperation");
 
 // Get all available business categories according to the order
 const getAllBusinessCategoryController = async (req, res, next) => {
@@ -190,7 +194,7 @@ const listRestaurantsController = async (req, res, next) => {
           averageRating: merchant.merchantDetail.averageRating,
           status: merchant.status,
           distanceInKM: parseFloat(distanceInKM),
-          restaurantType: merchant.merchantDetail.merchantFoodType || "N/A",
+          restaurantType: merchant.merchantDetail.merchantFoodType || "-",
           merchantImageURL: merchant.merchantDetail.merchantImageURL,
           isFavorite,
         };
@@ -335,12 +339,12 @@ const getMerchantWithCategoriesAndProductsController = async (
     const formattedResponse = {
       merchant: {
         _id: merchantFound.id,
-        phoneNumber: merchantFound.phoneNumber || "N/A",
-        FSSAINumber: merchantFound.merchantDetail?.FSSAINumber || "N/A",
-        merchantName: merchantFound.merchantDetail?.merchantName || "N/A",
-        deliveryTime: merchantFound.merchantDetail?.deliveryTime || "N/A",
-        description: merchantFound.merchantDetail?.description || "N/A",
-        displayAddress: merchantFound.merchantDetail?.displayAddress || "N/A",
+        phoneNumber: merchantFound.phoneNumber || "-",
+        FSSAINumber: merchantFound.merchantDetail?.FSSAINumber || "-",
+        merchantName: merchantFound.merchantDetail?.merchantName || "-",
+        deliveryTime: merchantFound.merchantDetail?.deliveryTime || "-",
+        description: merchantFound.merchantDetail?.description || "-",
+        displayAddress: merchantFound.merchantDetail?.displayAddress || "-",
       },
       categories: categoriesWithProducts,
     };
@@ -941,6 +945,35 @@ const addCartDetailsController = async (req, res, next) => {
       0
     );
 
+    let voiceInstructiontoMerchantURL =
+      cart?.cartDetail?.voiceInstructiontoMerchant || "";
+    let voiceInstructiontoAgentURL =
+      cart?.cartDetail?.voiceInstructiontoAgent || "";
+
+    if (req.files) {
+      const { voiceInstructiontoMerchant, voiceInstructiontoAgent } = req.files;
+
+      if (req.files.voiceInstructiontoMerchant) {
+        if (voiceInstructiontoMerchantURL) {
+          await deleteFromFirebase(voiceInstructiontoMerchantURL);
+        }
+        voiceInstructiontoMerchantURL = await uploadToFirebase(
+          voiceInstructiontoMerchant,
+          "VoiceInstructions"
+        );
+      }
+
+      if (req.files.voiceInstructiontoAgent) {
+        if (voiceInstructiontoAgentURL) {
+          await deleteFromFirebase(voiceInstructiontoAgentURL);
+        }
+        voiceInstructiontoAgentURL = await uploadToFirebase(
+          voiceInstructiontoAgent,
+          "VoiceInstructions"
+        );
+      }
+    }
+
     let updatedCartDetail = {
       pickupLocation: pickupCoordinates,
       pickupAddress: {
@@ -952,6 +985,8 @@ const addCartDetailsController = async (req, res, next) => {
       deliveryOption: startDate && endDate && time ? "Scheduled" : "On-demand",
       instructionToMerchant,
       instructionToDeliveryAgent,
+      voiceInstructiontoMerchant: voiceInstructiontoMerchantURL,
+      voiceInstructiontoAgent: voiceInstructiontoAgentURL,
       startDate,
       endDate,
       time: time && convertToUTC(time),
@@ -975,6 +1010,7 @@ const addCartDetailsController = async (req, res, next) => {
         subscriptionLog.currentNumberOfOrders < subscriptionLog.maxOrders
       ) {
         discountedAmount = subscriptionLog.amount;
+        // TODO: Increase the count
       }
     }
 
@@ -1111,11 +1147,11 @@ const addCartDetailsController = async (req, res, next) => {
           parseFloat(subTotal) + parseFloat(taxAmount)
         ).toFixed(2);
 
-        updatedBill.originalGrandTotal = parseFloat(grandTotal);
+        updatedBill.originalGrandTotal = Math.round(parseFloat(grandTotal));
       }
     }
 
-    updatedBill.subTotal = parseFloat(subTotal).toFixed(2);
+    updatedBill.subTotal = Math.round(parseFloat(subTotal).toFixed(2));
 
     // Ensure billDetail is initialized
     cart.billDetail = cart.billDetail || {};
@@ -1281,9 +1317,9 @@ const applyPromocodeController = async (req, res, next) => {
 
     cart.billDetail.discountedDeliveryCharge =
       discountedDeliveryCharge.toFixed(2);
-    cart.billDetail.discountedGrandTotal = discountedGrandTotal;
+    cart.billDetail.discountedGrandTotal = Math.round(discountedGrandTotal);
     cart.billDetail.discountedAmount = discountedAmount;
-    cart.billDetail.subTotal = subTotal;
+    cart.billDetail.subTotal = Math.round(subTotal);
 
     promoCodeFound.noOfUserUsed += 1;
 
@@ -1332,7 +1368,6 @@ const applyPromocodeController = async (req, res, next) => {
       success: "Promo code applied successfully",
       data: {
         data: populatedCartWithVariantNames,
-        // promocodeApplied: discountAmount,
       },
     });
   } catch (err) {

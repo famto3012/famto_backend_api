@@ -19,7 +19,6 @@ const subscriptionLogSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
-    // TODO: Add fields of maxOrders currentNumberOfOrders to the controller whole creating
     maxOrders: {
       type: Number,
       default: null,

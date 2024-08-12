@@ -9,6 +9,7 @@ const {
   getOrderDetailController,
   createInvoiceController,
   createOrderController,
+  getAllScheduledOrdersOfMerchantController,
 } = require("../../../controllers/admin/order/merchantOrderController");
 const {
   getAllOrdersForAdminController,
@@ -19,6 +20,7 @@ const {
   getOrderDetailByAdminController,
   createInvoiceByAdminController,
   createOrderByAdminController,
+  getAllScheduledOrdersForAdminController,
 } = require("../../../controllers/admin/order/adminOrderController");
 const isAdmin = require("../../../middlewares/isAdmin");
 const { upload } = require("../../../utils/imageOperation");
@@ -32,6 +34,12 @@ orderRoute.get(
   "/all-orders",
   isAuthenticated,
   getAllOrdersOfMerchantController
+);
+
+orderRoute.get(
+  "/all-scheduled-orders",
+  isAuthenticated,
+  getAllScheduledOrdersOfMerchantController
 );
 
 orderRoute.patch(
@@ -83,6 +91,13 @@ orderRoute.get(
   isAuthenticated,
   isAdmin,
   getAllOrdersForAdminController
+);
+
+orderRoute.get(
+  "/admin/all-scheduled-orders",
+  isAuthenticated,
+  isAdmin,
+  getAllScheduledOrdersForAdminController
 );
 
 orderRoute.get(
