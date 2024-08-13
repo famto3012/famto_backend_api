@@ -138,6 +138,36 @@ const addPickUpAddressController = async (req, res, next) => {
       }
     }
 
+    let voiceInstructionInPickupURL =
+      cart?.cartDetail?.voiceInstructionInPickup || "";
+    let voiceInstructionInDeliveryURL =
+      cart?.cartDetail?.voiceInstructionInDelivery || "";
+
+    if (req.files) {
+      const { voiceInstructionInPickup, voiceInstructionInDelivery } =
+        req.files;
+
+      if (req.files.voiceInstructionInPickup) {
+        if (voiceInstructionInPickupURL) {
+          await deleteFromFirebase(voiceInstructionInPickupURL);
+        }
+        voiceInstructionInPickupURL = await uploadToFirebase(
+          voiceInstructionInPickup[0],
+          "VoiceInstructions"
+        );
+      }
+
+      if (req.files.voiceInstructionInDelivery) {
+        if (voiceInstructionInDeliveryURL) {
+          await deleteFromFirebase(voiceInstructionInDeliveryURL);
+        }
+        voiceInstructionInDeliveryURL = await uploadToFirebase(
+          voiceInstructionInDelivery[0],
+          "VoiceInstructions"
+        );
+      }
+    }
+
     let updatedCartDetail = {
       pickupAddress: pickupAddress._doc,
       pickupLocation: pickupCoordinates,
@@ -147,6 +177,8 @@ const addPickUpAddressController = async (req, res, next) => {
       deliveryOption: startDate && endDate && time ? "Scheduled" : "On-demand",
       instructionInPickup,
       instructionInDelivery,
+      voiceInstructionInPickup: voiceInstructionInPickupURL,
+      voiceInstructionInDelivery: voiceInstructionInDeliveryURL,
       startDate,
       endDate,
       time: time && convertToUTC(startDate, time),
@@ -434,6 +466,8 @@ const addTipAndApplyPromocodeInPickAndDropController = async (
 const confirmPickAndDropController = async (req, res, next) => {
   try {
     const customerId = req.userAuth;
+
+    console.log(customerId);
 
     const cartFound = await PickAndCustomCart.findOne({ customerId });
 

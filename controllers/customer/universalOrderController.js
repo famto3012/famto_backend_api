@@ -122,6 +122,8 @@ const listRestaurantsController = async (req, res, next) => {
         .exec();
     }
 
+    console.log(req.body);
+
     // Fetch all geofences from the database
     const geofences = await Geofence.find({}).exec();
 
@@ -144,14 +146,18 @@ const listRestaurantsController = async (req, res, next) => {
       return next(appError("Geofence not found", 404));
     }
 
+    console.log(foundGeofence);
+
     // Query merchants based on geofence and other conditions
     const merchants = await Merchant.find({
       "merchantDetail.geofenceId": foundGeofence._id,
       "merchantDetail.businessCategoryId": businessCategoryId,
-      "sponsorshipDetail.0": { $exists: true },
+      // "sponsorshipDetail.0": { $exists: true },
       isBlocked: false,
       isApproved: "Approved",
     }).exec();
+
+    console.log(merchants);
 
     // Filter merchants based on serving radius
     const filteredMerchants = merchants?.filter((merchant) => {

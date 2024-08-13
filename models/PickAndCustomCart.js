@@ -60,10 +60,7 @@ const cartDetailSchema = mongoose.Schema(
       area: String,
       landmark: String,
     },
-    instructionInPickup: {
-      type: String,
-      default: null,
-    },
+
     deliveryLocation: {
       type: [Number],
       required: true,
@@ -75,7 +72,23 @@ const cartDetailSchema = mongoose.Schema(
       area: String,
       landmark: String,
     },
+    instructionInPickup: {
+      type: String,
+      default: null,
+    },
     instructionInDelivery: {
+      type: String,
+      default: null,
+    },
+    voiceInstructionInPickup: {
+      type: String,
+      default: null,
+    },
+    voiceInstructionInDelivery: {
+      type: String,
+      default: null,
+    },
+    voiceInstructiontoAgent: {
       type: String,
       default: null,
     },

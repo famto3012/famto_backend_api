@@ -79,6 +79,18 @@ const scheduledPickAndCustomDetailSchema = mongoose.Schema(
       type: String,
       default: null,
     },
+    voiceInstructionInPickup: {
+      type: String,
+      default: null,
+    },
+    voiceInstructionInDelivery: {
+      type: String,
+      default: null,
+    },
+    voiceInstructiontoAgent: {
+      type: String,
+      default: null,
+    },
     distance: {
       type: Number,
     },
