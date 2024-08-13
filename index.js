@@ -68,6 +68,8 @@ const tokenRoute = require("./routes/tokenRoute/tokenRoute.js");
 const {
   generateMapplsAuthToken,
 } = require("./controllers/Token/tokenOperation.js");
+const messageRoute = require("./routes/customerRoute/messageRoute.js");
+const deleteExpiredConversationsAndMessages = require("./utils/deleteChatDataHelper.js");
 
 // const app = express();
 
@@ -78,6 +80,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
+      "http://localhost:3000",
       "https://famto-backend-api.vercel.app",
       "*",
     ],
@@ -133,6 +136,7 @@ app.use("/api/v1/agents", agentRoute);
 
 //customer
 app.use("/api/v1/customers", customerRoute);
+app.use("/api/v1/customers/chat", messageRoute);
 app.use("/api/v1/customers/subscription-payment", subscriptionLogRoute);
 
 // Token
@@ -151,6 +155,7 @@ cron.schedule("* * * * *", async () => {
   const now = new Date();
   console.log("Current Date and Time:", now);
   populateUserSocketMap();
+  deleteExpiredConversationsAndMessages()
 
   // Universal order
   const universalScheduledOrders = await ScheduledOrder.find({
