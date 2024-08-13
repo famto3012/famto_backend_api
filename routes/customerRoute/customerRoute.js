@@ -185,19 +185,19 @@ customerRoute.post("/confirm-order", isAuthenticated, orderPaymentController);
 
 customerRoute.post(
   "/verify-payment",
-  // isAuthenticated,
+  isAuthenticated,
   verifyOnlinePaymentController
 );
 
 customerRoute.post(
   "/wallet-recharge",
-  // isAuthenticated,
+  isAuthenticated,
   addWalletBalanceController
 );
 
 customerRoute.post(
   "/verify-wallet-recharge",
-  // isAuthenticated,
+  isAuthenticated,
   verifyWalletRechargeController
 );
 
@@ -279,13 +279,13 @@ customerRoute.post(
 
 customerRoute.post(
   "/confirm-pick-and-drop",
-  // isAuthenticated,
+  isAuthenticated,
   confirmPickAndDropController
 );
 
 customerRoute.post(
   "/verify-pick-and-drop",
-  // isAuthenticated,
+  isAuthenticated,
   verifyPickAndDropPaymentController
 );
 

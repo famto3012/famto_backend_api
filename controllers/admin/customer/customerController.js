@@ -403,18 +403,27 @@ const addMoneyToWalletController = async (req, res, next) => {
     const { amount } = req.body;
     const { customerId } = req.params;
 
+    if (isNaN(amount)) {
+      return next(appError("Invalid amount provided", 400));
+    }
+
     const customerFound = await Customer.findById(customerId);
 
     if (!customerFound) {
       return next(appError("Customer not found", 404));
     }
 
-    customerFound.customerDetails.walletBalance += amount;
+    // Ensure walletBalance is a number
+    const currentBalance =
+      Number(customerFound.customerDetails.walletBalance) || 0;
+    const amountToAdd = Number(amount);
+
+    customerFound.customerDetails.walletBalance = currentBalance + amountToAdd;
     await customerFound.save();
 
-    res
-      .status(200)
-      .json({ message: `${amount} Rs is added to customer's wallet` });
+    res.status(200).json({
+      message: `${amount} Rs is added to customer's wallet`,
+    });
   } catch (err) {
     next(appError(err.message));
   }

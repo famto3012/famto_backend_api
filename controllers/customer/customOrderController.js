@@ -12,7 +12,6 @@ const {
 } = require("../../utils/imageOperation");
 const PromoCode = require("../../models/PromoCode");
 const Order = require("../../models/Order");
-const LoyaltyPoint = require("../../models/LoyaltyPoint");
 
 const addShopController = async (req, res, next) => {
   try {
@@ -71,6 +70,18 @@ const addShopController = async (req, res, next) => {
     }
 
     if (cartFound) {
+      if (cartFound.cartDetail.deliveryMode !== "Custom Order") {
+        await PickAndCustomCart.findByIdAndUpdate(
+          cartFound._id,
+          {
+            cartDetail: {},
+            items: [],
+            billDetail: {},
+          },
+          { new: true }
+        );
+      }
+
       await PickAndCustomCart.findByIdAndUpdate(
         cartFound._id,
         {
@@ -317,6 +328,21 @@ const addDeliveryAddressController = async (req, res, next) => {
       duration = parseInt(durationInMinutes);
     }
 
+    let voiceInstructiontoAgentURL =
+      cart?.cartDetail?.voiceInstructiontoAgent || "";
+    if (req.file) {
+      if (req.file.voiceInstructiontoAgent) {
+        if (voiceInstructiontoAgentURL) {
+          await deleteFromFirebase(voiceInstructiontoAgentURL);
+        }
+
+        voiceInstructiontoAgentURL = await uploadToFirebase(
+          req.file.voiceInstructiontoAgent[0],
+          "VoiceInstructions"
+        );
+      }
+    }
+
     let updatedCartDetail = {
       pickupLocation: cartFound.cartDetail.pickupLocation,
       pickupAddress: cartFound.cartDetail.pickupAddress,
@@ -325,6 +351,7 @@ const addDeliveryAddressController = async (req, res, next) => {
       deliveryMode: cartFound.cartDetail.deliveryMode,
       distance,
       duration,
+      voiceInstructiontoAgent: voiceInstructiontoAgentURL,
       deliveryOption: "On-demand",
     };
 
