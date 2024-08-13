@@ -172,6 +172,8 @@ const { getMessaging } = require("firebase-admin/messaging");
 const FcmToken = require("../models/fcmToken");
 const appError = require("../utils/appError");
 const AgentNotificationLogs = require("../models/AgentNotificationLog");
+const Message = require("../models/Message");
+const Conversation = require("../models/Conversation");
 
 // const serviceAccount = require("./path/to/serviceAccountKey.json");
 
@@ -258,7 +260,7 @@ async function populateUserSocketMap() {
         userSocketMap[token.userId] = { socketId: null, fcmToken: token.token };
       }
     });
-    // console.log("User Socket Map populated with FCM tokens:", userSocketMap); //TODO: Uncomment
+     console.log("User Socket Map populated with FCM tokens:", userSocketMap); //TODO: Uncomment
   } catch (error) {
     console.error("Error populating User Socket Map:", error);
   }
@@ -284,7 +286,7 @@ io.on("connection", async (socket) => {
   // console.log("userId",userId)
   // console.log("fcmToken",fcmToken)
 
-  if (userId !== 'null' && fcmToken !== 'null') {
+  if (userId !== "null" && fcmToken !== "null") {
     const user = await FcmToken.findOne({ userId });
     // console.log("Server", user);
     if (!user) {
@@ -298,7 +300,7 @@ io.on("connection", async (socket) => {
           token: fcmToken,
         });
     }
-  }else{
+  } else {
     console.error("Invalid user or FCM token provided");
     socket.disconnect();
     return;
@@ -487,6 +489,22 @@ io.on("connection", async (socket) => {
     }
   });
 
+  socket.on("markMessagesAsSeen", async ({ conversationId, userId }) => {
+    try {
+      await Message.updateMany(
+        { conversationId: conversationId, seen: false },
+        { $set: { seen: true } }
+      );
+      await Conversation.updateOne(
+        { _id: conversationId },
+        { $set: { "lastMessage.seen": true } }
+      );
+      io.to(userSocketMap[userId].socketId).emit("messagesSeen", { conversationId });
+    } catch (error) {
+      console.log(error);
+    }
+  });
+
   // User disconnected socket
   socket.on("disconnect", () => {
     // console.log("user disconnected", socket.id);
@@ -506,4 +524,5 @@ module.exports = {
   sendNotification,
   userSocketMap,
   populateUserSocketMap,
+  sendPushNotificationToUser
 };

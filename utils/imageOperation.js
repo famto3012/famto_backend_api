@@ -31,7 +31,7 @@ const uploadToFirebase = async (file, folderName) => {
 
   const uniqueName = uuidv4();
 
-  const storageRef = ref(
+  const storageRef = ref( 
     storage,
     `${folderName}/${file.originalname}-${uniqueName}`
   );
