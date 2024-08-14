@@ -36,7 +36,7 @@ const {
 const {
   getAllBusinessCategoryController,
   homeSearchController,
-  listRestaurantsController,
+
   getMerchantWithCategoriesAndProductsController,
   filterMerchantController,
   searchProductsInMerchantController,
@@ -50,6 +50,7 @@ const {
   applyPromocodeController,
   orderPaymentController,
   verifyOnlinePaymentController,
+  listRestaurantsController,
 } = require("../../controllers/customer/universalOrderController");
 const {
   addPickUpAddressController,

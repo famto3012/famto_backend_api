@@ -229,6 +229,24 @@ const editAgentProfileController = async (req, res, next) => {
   }
 };
 
+const deleteAgentProfileController = async (req, res, next) => {
+  try {
+    const agentId = req.userAuth;
+
+    const agentFound = await Agent.findById(agentId);
+
+    if (!agentFound) {
+      return next(appError("Agent not found", 404));
+    }
+
+    await Agent.findByIdAndDelete(agentId);
+
+    res.status(200).josn({ message: "Agent profile deleted successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 // Update Bank account details controller
 const updateAgentBankDetailController = async (req, res, next) => {
   const { accountHolderName, accountNumber, IFSCCode, UPIId } = req.body;
@@ -1052,7 +1070,10 @@ const addCustomOrderItemPriceController = async (req, res, next) => {
 
     await orderFound.save();
 
-    res.status(200).json({ message: "Item price updated successfully" });
+    res.status(200).json({
+      message: "Item price updated successfully",
+      data: price,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -1618,6 +1639,7 @@ module.exports = {
   updateLocationController,
   registerAgentController,
   agentLoginController,
+  deleteAgentProfileController,
   getAgentProfileDetailsController,
   editAgentProfileController,
   updateAgentBankDetailController,

@@ -213,18 +213,18 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
 
     orderFound.status = "On-going";
 
-    if (orderFound.merchantId) {
-      console.log(orderId);
+    // if (orderFound.merchantId) {
+    //   console.log(orderId);
 
-      const { payableAmountToFamto, payableAmountToMerchant } =
-        await orderCommissionLogHelper(orderId);
+    //   const { payableAmountToFamto, payableAmountToMerchant } =
+    //     await orderCommissionLogHelper(orderId);
 
-      let updatedCommission = {
-        merchantEarnings: payableAmountToMerchant,
-        famtoEarnings: payableAmountToFamto,
-      };
-      orderFound.commissionDetail = updatedCommission;
-    }
+    //   let updatedCommission = {
+    //     merchantEarnings: payableAmountToMerchant,
+    //     famtoEarnings: payableAmountToFamto,
+    //   };
+    //   orderFound.commissionDetail = updatedCommission;
+    // }
 
     const task = await orderCreateTaskHelper(orderId);
 

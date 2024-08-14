@@ -5,27 +5,35 @@ const orderItemSchema = mongoose.Schema(
   {
     price: {
       type: Number,
+      default: null,
     },
     variantTypeName: {
       type: String,
+      default: null,
     },
     itemName: {
       type: String,
+      default: null,
     },
     length: {
       type: Number,
+      default: null,
     },
     width: {
       type: Number,
+      default: null,
     },
     height: {
       type: Number,
+      default: null,
     },
     unit: {
       type: String,
+      default: null,
     },
     weight: {
       type: Number,
+      default: null,
     },
     numOfUnits: {
       type: Number,
@@ -41,6 +49,7 @@ const orderItemSchema = mongoose.Schema(
     },
     itemId: {
       type: mongoose.Schema.Types.ObjectId,
+      default: null,
     },
   },
   {
