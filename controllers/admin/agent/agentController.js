@@ -300,17 +300,33 @@ const editAgentByAdminController = async (req, res, next) => {
 
 const getSingleAgentController = async (req, res, next) => {
   try {
-    const agentFound = await Agent.findById(req.params.agentId)
+    const { agentId } = req.params;
+
+    const agentFound = await Agent.findById(agentId)
       .populate("geofenceId", "name")
       .populate("workStructure.managerId", "name")
       .populate("workStructure.salaryStructureId", "ruleName")
-      .select("-ratingsByCustomers");
+      .select(
+        "-ratingsByCustomers -appDetail -appDetailHistory -agentTransaction"
+      );
 
     if (!agentFound) {
       return next(appError("Agent not found", 404));
     }
 
-    res.status(200).json({ message: "Agent by id", data: agentFound });
+    let vehicleDetail = {};
+    if (agentFound.vehicleDetail && agentFound.vehicleDetail.length > 0) {
+      vehicleDetail = agentFound.vehicleDetail[0];
+    }
+
+    console.log(vehicleDetail);
+
+    agentFound.vehicleDetail = vehicleDetail;
+
+    res.status(200).json({
+      message: "Single agent detail",
+      data: agentFound,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -553,9 +569,11 @@ const filterAgentsController = async (req, res, next) => {
 };
 
 const blockAgentController = async (req, res, next) => {
-  const { reason } = req.body;
   try {
-    const agentFound = await Agent.findById(req.params.agentId);
+    const { reason } = req.body;
+    const { agentId } = req.params;
+
+    const agentFound = await Agent.findById(agentId);
 
     if (!agentFound) {
       return next(appError("Agent not found", 404));
@@ -566,13 +584,15 @@ const blockAgentController = async (req, res, next) => {
     agentFound.blockedDate = new Date();
 
     await agentFound.save();
-    const accountLogs = await new AccountLogs({
-      _id: agentFound._id,
+
+    await AccountLogs.create({
+      userId: agentId,
       fullName: agentFound.fullName,
       role: agentFound.role,
       description: reason,
     });
-    await accountLogs.save();
+
+    // await accountLogs.save();
 
     res.status(200).json({ message: "Agent blocked successfully" });
   } catch (err) {

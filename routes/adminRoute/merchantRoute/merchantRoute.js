@@ -16,6 +16,8 @@ const {
   filterMerchantsController,
   updateMerchantDetailsByMerchantController,
   addMerchantController,
+  getMerchantProfileController,
+  editMerchantProfileController,
 } = require("../../../controllers/admin/merchant/merchantController");
 const { upload } = require("../../../utils/imageOperation");
 const isAdmin = require("../../../middlewares/isAdmin");
@@ -27,21 +29,32 @@ const {
 
 const merchantRoute = express.Router();
 
-//Register merchant
+// Register merchant
 merchantRoute.post(
   "/register",
   merchantValidations,
   registerMerchantController
 );
 
-//Change status
+// Change status
 merchantRoute.patch(
   "/change-status",
   isAuthenticated,
   changeMerchantStatusByMerchantController
 );
 
-//Update Merchant details
+// Get merchant profile
+merchantRoute.get("/profile", isAuthenticated, getMerchantProfileController);
+
+// Edit merchant profile
+merchantRoute.put(
+  "/edit-profile",
+  merchantValidations,
+  isAuthenticated,
+  editMerchantProfileController
+);
+
+//  Update Merchant details
 merchantRoute.put(
   "/update-merchant-details",
   upload.fields([
@@ -56,21 +69,21 @@ merchantRoute.put(
   updateMerchantDetailsByMerchantController
 );
 
-//Sponsorship payment
+// Sponsorship payment
 merchantRoute.post(
   "/sponsorship-payment",
   isAuthenticated,
   sponsorshipPaymentController
 );
 
-//Verify sponsorship payment
+// Verify sponsorship payment
 merchantRoute.post("/verify-payment", isAuthenticated, verifyPaymentController);
 
-//-------------------------------
-//For Admin
-//-------------------------------
+// -------------------------------
+// For Admin
+// -------------------------------
 
-//Approve merchant registration
+// Approve merchant registration
 merchantRoute.patch(
   "/admin/approve-merchant/:merchantId",
   isAuthenticated,
@@ -78,7 +91,7 @@ merchantRoute.patch(
   approveRegistrationController
 );
 
-//Decline merchant registration
+// Decline merchant registration
 merchantRoute.patch(
   "/admin/reject-merchant/:merchantId",
   isAuthenticated,
@@ -86,7 +99,7 @@ merchantRoute.patch(
   rejectRegistrationController
 );
 
-// Search merchant
+//  Search merchant
 merchantRoute.get(
   "/admin/search",
   isAuthenticated,
@@ -94,7 +107,7 @@ merchantRoute.get(
   searchMerchantController
 );
 
-// Filter merchant
+//  Filter merchant
 merchantRoute.get(
   "/admin/filter",
   isAuthenticated,
@@ -102,7 +115,7 @@ merchantRoute.get(
   filterMerchantsController
 );
 
-//Get all merchants
+// Get all merchants
 merchantRoute.get(
   "/admin/all-merchants",
   isAuthenticated,
@@ -110,7 +123,7 @@ merchantRoute.get(
   getAllMerchantsController
 );
 
-//Get single merchant
+// Get single merchant
 merchantRoute.get(
   "/admin/:merchantId",
   isAuthenticated,

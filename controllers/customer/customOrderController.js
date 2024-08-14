@@ -329,7 +329,7 @@ const addDeliveryAddressController = async (req, res, next) => {
     }
 
     let voiceInstructiontoAgentURL =
-      cart?.cartDetail?.voiceInstructiontoAgent || "";
+      cartFound?.cartDetail?.voiceInstructiontoAgent || "";
     if (req.file) {
       if (req.file.voiceInstructiontoAgent) {
         if (voiceInstructiontoAgentURL) {
@@ -357,24 +357,32 @@ const addDeliveryAddressController = async (req, res, next) => {
 
     cartFound.cartDetail = updatedCartDetail;
 
-    const { deliveryCharges, surgeCharges } = await getDeliveryAndSurgeCharge(
-      cartFound.customerId,
-      cartFound.cartDetail.deliveryMode,
-      distance
-    );
+    let updatedDeliveryCharges;
+    let updatedSurgeCharges;
+
+    if (distance) {
+      const { deliveryCharges, surgeCharges } = await getDeliveryAndSurgeCharge(
+        cartFound.customerId,
+        cartFound.cartDetail.deliveryMode,
+        distance
+      );
+
+      updatedDeliveryCharges = deliveryCharges;
+      updatedSurgeCharges = surgeCharges;
+    }
 
     updatedBillDetail = {
-      originalDeliveryCharge: Math.round(deliveryCharges) || 0,
+      originalDeliveryCharge: Math.round(updatedDeliveryCharges) || 0,
       deliveryChargePerDay: null,
       discountedDeliveryCharge: null,
       discountedAmount: null,
-      originalGrandTotal: Math.round(deliveryCharges) || 0,
+      originalGrandTotal: Math.round(updatedDeliveryCharges) || 0,
       discountedGrandTotal: null,
       itemTotal: null,
       addedTip: null,
       subTotal: null,
       vehicleType: null,
-      surgePrice: Math.round(surgeCharges) || null,
+      surgePrice: Math.round(updatedSurgeCharges) || null,
     };
 
     cartFound.billDetail = updatedBillDetail;
