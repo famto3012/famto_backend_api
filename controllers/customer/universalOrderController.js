@@ -351,6 +351,7 @@ const getMerchantWithCategoriesAndProductsController = async (
         deliveryTime: merchantFound.merchantDetail?.deliveryTime || "-",
         description: merchantFound.merchantDetail?.description || "-",
         displayAddress: merchantFound.merchantDetail?.displayAddress || "-",
+        merchantImageURL: merchantFound.merchantDetail.merchantImageURL,
       },
       categories: categoriesWithProducts,
     };

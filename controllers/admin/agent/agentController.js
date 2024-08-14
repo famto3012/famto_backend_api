@@ -5,7 +5,7 @@ const {
   deleteFromFirebase,
 } = require("../../../utils/imageOperation");
 const Agent = require("../../../models/Agent");
-const { default: mongoose } = require("mongoose");
+const mongoose = require("mongoose");
 const AccountLogs = require("../../../models/AccountLogs");
 const { formatDate } = require("../../../utils/formatters");
 const { formatToHours } = require("../../../utils/agentAppHelpers");
@@ -91,10 +91,7 @@ const addAgentByAdminController = async (req, res, next) => {
         );
       }
       if (agentImage) {
-        agentImageURL = await uploadToFirebase(
-          agentImage[0],
-          "DrivingLicenseImages"
-        );
+        agentImageURL = await uploadToFirebase(agentImage[0], "AgentImages");
       }
     }
 
@@ -148,22 +145,16 @@ const addAgentByAdminController = async (req, res, next) => {
 const editAgentByAdminController = async (req, res, next) => {
   const {
     fullName,
-    phoneNumber,
     email,
-    managerId,
-    salaryStructureId,
+    phoneNumber,
     geofenceId,
-    tag,
-    aadharNumber,
-    drivingLicenseNumber,
-    model,
-    type,
-    licensePlate,
-    accountHolderName,
-    accountNumber,
-    IFSCCode,
-    UPIId,
+    vehicleDetail,
+    governmentCertificateDetail,
+    bankDetail,
+    workStructure,
   } = req.body;
+
+  console.log(req.body);
 
   const errors = validationResult(req);
 
@@ -182,13 +173,19 @@ const editAgentByAdminController = async (req, res, next) => {
       return next(appError("Agent not found", 404));
     }
 
-    let rcFrontImageURL = agentFound.rcFrontImageURL;
-    let rcBackImageURL = agentFound.rcBackImageURL;
-    let aadharFrontImageURL = agentFound.aadharFrontImageURL;
-    let aadharBackImageURL = agentFound.aadharBackImageURL;
-    let drivingLicenseFrontImageURL = agentFound.drivingLicenseFrontImageURL;
-    let drivingLicenseBackImageURL = agentFound.drivingLicenseBackImageURL;
-    let agentImageURL = agentFound.agentImageURL;
+    let {
+      rcFrontImageURL = agentFound?.vehicleDetail[0]?.rcFrontImageURL,
+      rcBackImageURL = agentFound?.vehicleDetail[0]?.rcBackImageURL,
+      aadharFrontImageURL = agentFound?.governmentCertificateDetail
+        ?.aadharFrontImageURL,
+      aadharBackImageURL = agentFound?.governmentCertificateDetail
+        ?.aadharBackImageURL,
+      drivingLicenseFrontImageURL = agentFound?.governmentCertificateDetail
+        ?.drivingLicenseFrontImageURL,
+      drivingLicenseBackImageURL = agentFound?.governmentCertificateDetail
+        ?.drivingLicenseBackImageURL,
+      agentImageURL = agentFound?.agentImageURL,
+    } = {};
 
     if (req.files) {
       const {
@@ -201,48 +198,58 @@ const editAgentByAdminController = async (req, res, next) => {
         agentImage,
       } = req.files;
 
-      if (rcFrontImage) {
-        await deleteFromFirebase(rcFrontImageURL);
-        rcFrontImageURL = await uploadToFirebase(rcFrontImage[0], "RCImages");
-      }
-      if (rcBackImage) {
-        await deleteFromFirebase(rcBackImageURL);
-        rcBackImageURL = await uploadToFirebase(rcBackImage[0], "RCImages");
-      }
-      if (aadharFrontImage) {
-        await deleteFromFirebase(aadharFrontImageURL);
-        aadharFrontImageURL = await uploadToFirebase(
-          aadharFrontImage[0],
-          "AadharImages"
-        );
-      }
-      if (aadharBackImage) {
-        await deleteFromFirebase(aadharBackImageURL);
-        aadharBackImageURL = await uploadToFirebase(
-          aadharBackImage[0],
-          "AadharImages"
-        );
-      }
-      if (drivingLicenseFrontImage) {
-        await deleteFromFirebase(drivingLicenseFrontImageURL);
-        drivingLicenseFrontImageURL = await uploadToFirebase(
-          drivingLicenseFrontImage[0],
-          "DrivingLicenseImages"
-        );
-      }
-      if (drivingLicenseBackImage) {
-        await deleteFromFirebase(drivingLicenseBackImageURL);
-        drivingLicenseBackImageURL = await uploadToFirebase(
-          drivingLicenseBackImage[0],
-          "DrivingLicenseImages"
-        );
-      }
-      if (agentImage) {
-        await deleteFromFirebase(agentImageURL);
-        agentImageURL = await uploadToFirebase(
-          agentImage[0],
-          "DrivingLicenseImages"
-        );
+      const fileOperations = [
+        {
+          file: rcFrontImage,
+          url: rcFrontImageURL,
+          type: "RCImages",
+          setUrl: (url) => (rcFrontImageURL = url),
+        },
+        {
+          file: rcBackImage,
+          url: rcBackImageURL,
+          type: "RCImages",
+          setUrl: (url) => (rcBackImageURL = url),
+        },
+        {
+          file: aadharFrontImage,
+          url: aadharFrontImageURL,
+          type: "AadharImages",
+          setUrl: (url) => (aadharFrontImageURL = url),
+        },
+        {
+          file: aadharBackImage,
+          url: aadharBackImageURL,
+          type: "AadharImages",
+          setUrl: (url) => (aadharBackImageURL = url),
+        },
+        {
+          file: drivingLicenseFrontImage,
+          url: drivingLicenseFrontImageURL,
+          type: "DrivingLicenseImages",
+          setUrl: (url) => (drivingLicenseFrontImageURL = url),
+        },
+        {
+          file: drivingLicenseBackImage,
+          url: drivingLicenseBackImageURL,
+          type: "DrivingLicenseImages",
+          setUrl: (url) => (drivingLicenseBackImageURL = url),
+        },
+        {
+          file: agentImage,
+          url: agentImageURL,
+          type: "AgentImages",
+          setUrl: (url) => (agentImageURL = url),
+        },
+      ];
+
+      for (const { file, url, type, setUrl } of fileOperations) {
+        if (file) {
+          if (url) {
+            await deleteFromFirebase(url);
+          }
+          setUrl(await uploadToFirebase(file[0], type));
+        }
       }
     }
 
@@ -252,32 +259,24 @@ const editAgentByAdminController = async (req, res, next) => {
         fullName,
         phoneNumber,
         email,
-        managerId,
         geofenceId,
         agentImageURL,
         workStructure: {
           managerId: managerId || null,
-          salaryStructureId,
-          tag,
+          ...workStructure,
         },
         bankDetail: {
-          accountHolderName,
-          accountNumber,
-          IFSCCode,
-          UPIId,
+          ...bankDetail,
         },
         governmentCertificateDetail: {
-          aadharNumber,
+          ...governmentCertificateDetail,
           aadharFrontImageURL,
           aadharBackImageURL,
-          drivingLicenseNumber,
           drivingLicenseFrontImageURL,
           drivingLicenseBackImageURL,
         },
         vehicleDetail: {
-          model,
-          type,
-          licensePlate,
+          ...vehicleDetail,
           rcFrontImageURL,
           rcBackImageURL,
         },
@@ -290,7 +289,7 @@ const editAgentByAdminController = async (req, res, next) => {
     }
 
     res.status(200).json({
-      message: "Add agent by admin",
+      message: "Updated agent by admin",
       data: updatedAgent,
     });
   } catch (err) {
@@ -307,7 +306,7 @@ const getSingleAgentController = async (req, res, next) => {
       .populate("workStructure.managerId", "name")
       .populate("workStructure.salaryStructureId", "ruleName")
       .select(
-        "-ratingsByCustomers -appDetail -appDetailHistory -agentTransaction"
+        "-ratingsByCustomers -appDetail -appDetailHistory -agentTransaction -location -role -status -taskCompleted -isBlocked -reasonForBlockingOrDeleting -blockedDate -loginStartTime -loginEndTime"
       );
 
     if (!agentFound) {
@@ -318,8 +317,6 @@ const getSingleAgentController = async (req, res, next) => {
     if (agentFound.vehicleDetail && agentFound.vehicleDetail.length > 0) {
       vehicleDetail = agentFound.vehicleDetail[0];
     }
-
-    console.log(vehicleDetail);
 
     agentFound.vehicleDetail = vehicleDetail;
 

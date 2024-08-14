@@ -155,7 +155,7 @@ cron.schedule("* * * * *", async () => {
   const now = new Date();
   console.log("Current Date and Time:", now);
   populateUserSocketMap();
-  deleteExpiredConversationsAndMessages()
+  deleteExpiredConversationsAndMessages();
 
   // Universal order
   const universalScheduledOrders = await ScheduledOrder.find({
@@ -213,7 +213,7 @@ cron.schedule("* * * * *", async () => {
   }
 });
 
-cron.schedule("33 16 * * *", async () => {
+cron.schedule("41 11 * * *", async () => {
   await generateMapplsAuthToken();
   // await moveAppDetailToHistoryAndResetForAllAgents();
   // await updateOneDayLoyaltyPointEarning();

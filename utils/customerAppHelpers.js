@@ -213,6 +213,9 @@ const getDeliveryAndSurgeCharge = async (
       status: true,
     });
   } else {
+    console.log(deliveryMode);
+    console.log(customer.customerDetails.geofenceId);
+
     customerPricing = await CustomerPricing.findOne({
       deliveryMode,
       geofenceId: customer.customerDetails.geofenceId,
