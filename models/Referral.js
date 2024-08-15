@@ -1,8 +1,8 @@
 const mongoose = require("mongoose");
 
-const referalSchema = mongoose.Schema(
+const referralSchema = mongoose.Schema(
   {
-    referalType: {
+    referralType: {
       type: String,
       enum: ["Flat-discount", "Percentage-discount"],
       required: true,
@@ -37,7 +37,7 @@ const referalSchema = mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    referalCodeOnCustomerSignUp: {
+    referralCodeOnCustomerSignUp: {
       type: Boolean,
       default: true,
     },
@@ -47,5 +47,5 @@ const referalSchema = mongoose.Schema(
   }
 );
 
-const Referal = mongoose.model("Referal", referalSchema);
-module.exports = Referal;
+const Referral = mongoose.model("Referral", referralSchema);
+module.exports = Referral;

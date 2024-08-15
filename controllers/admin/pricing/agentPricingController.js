@@ -143,6 +143,7 @@ const editAgentPricingController = async (req, res, next) => {
       .toLowerCase();
 
     const ruleNameFound = await AgentPricing.findOne({
+      _id: { $ne: req.params.agentPricingId },
       ruleName: new RegExp(`^${normalizedRuleName}$`, "i"),
     });
 

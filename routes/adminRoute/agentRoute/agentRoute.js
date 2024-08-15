@@ -88,7 +88,7 @@ adminAgentRoute.put(
     { name: "drivingLicenseBackImage", maxCount: 1 },
     { name: "agentImage", maxCount: 1 },
   ]),
-  editAgentByAdminValidations,
+  // editAgentByAdminValidations,
   isAuthenticated,
   isAdmin,
   editAgentByAdminController

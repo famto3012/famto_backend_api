@@ -260,7 +260,7 @@ async function populateUserSocketMap() {
         userSocketMap[token.userId] = { socketId: null, fcmToken: token.token };
       }
     });
-     console.log("User Socket Map populated with FCM tokens:", userSocketMap); //TODO: Uncomment
+    //  console.log("User Socket Map populated with FCM tokens:", userSocketMap); //TODO: Uncomment
   } catch (error) {
     console.error("Error populating User Socket Map:", error);
   }
@@ -499,7 +499,9 @@ io.on("connection", async (socket) => {
         { _id: conversationId },
         { $set: { "lastMessage.seen": true } }
       );
-      io.to(userSocketMap[userId].socketId).emit("messagesSeen", { conversationId });
+      io.to(userSocketMap[userId].socketId).emit("messagesSeen", {
+        conversationId,
+      });
     } catch (error) {
       console.log(error);
     }
@@ -524,5 +526,5 @@ module.exports = {
   sendNotification,
   userSocketMap,
   populateUserSocketMap,
-  sendPushNotificationToUser
+  sendPushNotificationToUser,
 };

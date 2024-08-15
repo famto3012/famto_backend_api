@@ -32,11 +32,12 @@ const {
   getPickAndDropBannersController,
   getCustomOrderBannersController,
   getAvailableServiceController,
+  generateReferralCode,
 } = require("../../controllers/customer/customerController");
 const {
   getAllBusinessCategoryController,
   homeSearchController,
-  listRestaurantsController,
+
   getMerchantWithCategoriesAndProductsController,
   filterMerchantController,
   searchProductsInMerchantController,
@@ -50,6 +51,7 @@ const {
   applyPromocodeController,
   orderPaymentController,
   verifyOnlinePaymentController,
+  listRestaurantsController,
 } = require("../../controllers/customer/universalOrderController");
 const {
   addPickUpAddressController,
@@ -346,5 +348,7 @@ customerRoute.get("/pick-and-drop-banners", getPickAndDropBannersController);
 customerRoute.get("/custom-order-banners", getCustomOrderBannersController);
 
 customerRoute.get("/available-services", getAvailableServiceController);
+
+customerRoute.get("/generate-referral", isAuthenticated, generateReferralCode);
 
 module.exports = customerRoute;

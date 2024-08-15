@@ -1,3 +1,7 @@
+const AgentPricing = require("../models/AgentPricing");
+const Customer = require("../models/Customer");
+const Referral = require("../models/Referral");
+
 const formatToHours = (milliseconds) => {
   const totalMinutes = Math.floor(milliseconds / 60000);
   const hours = Math.floor(totalMinutes / 60);
@@ -73,8 +77,167 @@ const calculateSalaryChargeForAgent = (
   }
 };
 
+const updateLoyaltyPoints = (customer, criteria, orderAmount) => {
+  const loyaltyPointEarnedToday =
+    customer.customerDetails?.loyaltyPointEarnedToday || 0;
+
+  if (loyaltyPointEarnedToday < criteria.maxEarningPoint) {
+    const calculatedLoyaltyPoint = Math.min(
+      orderAmount * criteria.earningCriteriaPoint,
+      criteria.maxEarningPoint - loyaltyPointEarnedToday
+    );
+    customer.customerDetails.loyaltyPointEarnedToday += Number(
+      calculatedLoyaltyPoint
+    );
+    customer.customerDetails.totalLoyaltyPointEarned += Number(
+      calculatedLoyaltyPoint
+    );
+  }
+};
+
+const processReferralRewards = async (customer, orderAmount) => {
+  const referralType = customer?.referralDetail?.referralType;
+  const referralFound = await Referral.findOne({ referralType });
+
+  const now = new Date();
+  const registrationDate = new Date(customer.createdAt);
+
+  const durationInDays = Math.floor(
+    (now - registrationDate) / (1000 * 60 * 60 * 24)
+  );
+
+  if (durationInDays > 7) return;
+
+  if (!referralFound || orderAmount < referralFound.minOrderAmount) return;
+
+  const referrerFound = await Customer.findById(
+    customer?.referralDetail?.referrerUserId
+  );
+
+  const {
+    referrerDiscount,
+    refereeDiscount,
+    referrerMaxDiscountValue,
+    refereeMaxDiscountValue,
+  } = referralFound;
+
+  if (referralType === "Flat-discount") {
+    let referrerTransation = {
+      madeOn: new Date(),
+      transactionType: "Referal",
+      transactionAmount: parseFloat(referrerDiscount),
+      type: "Credit",
+    };
+
+    let customerTransation = {
+      madeOn: new Date(),
+      transactionType: "Referal",
+      transactionAmount: parseFloat(refereeDiscount),
+      type: "Credit",
+    };
+
+    referrerFound.customerDetails.walletBalance += parseFloat(referrerDiscount);
+    referrerFound.transactionDetail.push(referrerTransation);
+
+    customer.customerDetails.walletBalance += parseFloat(refereeDiscount);
+    customer.transactionDetail.push(customerTransation);
+  } else if (referralType === "Percentage-discount") {
+    const referrerAmount = Math.min(
+      (orderAmount * referrerDiscount) / 100,
+      referrerMaxDiscountValue
+    );
+    const refereeAmount = Math.min(
+      (orderAmount * refereeDiscount) / 100,
+      refereeMaxDiscountValue
+    );
+
+    let referrerTransation = {
+      madeOn: new Date(),
+      transactionType: "Referal",
+      transactionAmount: parseFloat(referrerAmount),
+      type: "Credit",
+    };
+
+    let customerTransation = {
+      madeOn: new Date(),
+      transactionType: "Referal",
+      transactionAmount: parseFloat(refereeAmount),
+      type: "Credit",
+    };
+
+    referrerFound.customerDetails.walletBalance += parseFloat(referrerAmount);
+    referrerFound.transactionDetail.push(referrerTransation);
+
+    customer.customerDetails.walletBalance += parseFloat(refereeAmount);
+    customer.transactionDetail.push(customerTransation);
+  }
+
+  customer.referralDetail.processed = true;
+
+  await Promise.all([referrerFound.save(), customer.save()]);
+};
+
+const calculateAgentEarnings = async (agent, order) => {
+  const agentPricing = await AgentPricing.findOne({
+    status: true,
+    geofenceId: agent.geofenceId,
+  });
+  if (!agentPricing) throw new Error("Agent pricing not found");
+
+  const orderSalary =
+    order.orderDetail.distance * agentPricing.baseDistanceFarePerKM;
+  let totalPurchaseFare = 0;
+
+  if (order.orderDetail === "Custom Order") {
+    const taskFound = await Task.findOne({ orderId: order._id });
+    if (taskFound) {
+      const durationInHours =
+        (new Date(taskFound.endTime) - new Date(taskFound.startTime)) /
+        (1000 * 60 * 60);
+      totalPurchaseFare = durationInHours * agentPricing.purchaseFarePerHour;
+    }
+  }
+
+  return parseFloat(orderSalary + totalPurchaseFare).toFixed(2);
+};
+
+const updateOrderDetails = (order) => {
+  const currentTime = new Date();
+  let delayedBy = null;
+
+  if (currentTime > new Date(order.orderDetail.deliveryTime)) {
+    delayedBy = currentTime - new Date(order.orderDetail.deliveryTime);
+  }
+
+  order.status = "Completed";
+  order.paymentStatus = "Completed";
+  order.orderDetail.deliveryTime = currentTime;
+  order.orderDetail.timeTaken =
+    currentTime - new Date(order.orderDetail.agentAcceptedAt);
+  order.orderDetail.delayedBy = delayedBy;
+};
+
+const updateAgentDetails = (agent, order, calculatedSalary) => {
+  agent.appDetail.orders += 1;
+  agent.appDetail.totalEarning += parseFloat(calculatedSalary);
+  agent.appDetail.totalDistance += order.orderDetail.distance;
+
+  agent.appDetail.orderDetail.push({
+    orderId: order._id,
+    deliveryMode: order?.orderDetail?.deliveryMode,
+    customerName: order?.orderDetail?.deliveryAddress?.fullName,
+    completedOn: new Date(),
+    grandTotal: order?.billDetail?.grandTotal,
+  });
+};
+
 module.exports = {
   formatToHours,
   moveAppDetailToHistoryAndResetForAllAgents,
   calculateSalaryChargeForAgent,
+  updateLoyaltyPoints,
+  processReferralRewards,
+  calculateAgentEarnings,
+  updateOrderDetails,
+  updateAgentDetails,
 };

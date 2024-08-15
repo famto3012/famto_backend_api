@@ -69,6 +69,50 @@ const registerMerchantController = async (req, res, next) => {
   }
 };
 
+// Get profile
+const getMerchantProfileController = async (req, res, next) => {
+  try {
+    const merchantId = req.userAuth;
+
+    const merchantFound = await Merchant.findById(merchantId)
+      .populate("merchantDetail.geofenceId", "name _id")
+      .populate("merchantDetail.businessCategoryId")
+      .populate("merchantDetail.pricing")
+      .select("-password")
+      .lean({ virtuals: true });
+
+    if (!merchantFound) {
+      return next(appError("Merchant not found", 404));
+    }
+
+    const formattedResponse = {
+      _id: merchantFound._id,
+      fullName: merchantFound.fullName,
+      email: merchantFound.email,
+      phoneNumber: merchantFound.phoneNumber,
+      isApproved: merchantFound.isApproved,
+      status: merchantFound.status,
+      isBlocked: merchantFound.isBlocked,
+      merchantDetail:
+        {
+          ...merchantFound?.merchantDetail,
+          geofenceId: merchantFound?.merchantDetail?.geofenceId?._id || "",
+          businessCategoryId:
+            merchantFound?.merchantDetail?.businessCategoryId?._id || "",
+        } || {},
+      sponsorshipDetail: merchantFound?.sponsorshipDetail[0] || [],
+      pricing: merchantFound?.merchantDetail?.pricing?.[0] || {},
+    };
+
+    res.status(200).json({
+      message: "Merchant profile",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 //Change status by merchant
 const changeMerchantStatusByMerchantController = async (req, res, next) => {
   try {
@@ -82,6 +126,66 @@ const changeMerchantStatusByMerchantController = async (req, res, next) => {
     await merchantFound.save();
 
     res.status(200).json({ message: "Merchant status changed" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const editMerchantProfileController = async (req, res, next) => {
+  const { fullName, email, phoneNumber, password } = req.body;
+
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(500).json({ errors: formattedErrors });
+  }
+
+  try {
+    const merchantId = req.userAuth;
+
+    const merchantFound = await Merchant.findById(merchantId);
+
+    if (!merchantFound) {
+      return next(appError("Merchant not found", 404));
+    }
+
+    const normalizedEmail = email.toLowerCase();
+
+    if (normalizedEmail !== merchantFound.email) {
+      const emailExists = await Merchant.findOne({
+        _id: { $ne: merchantId },
+        email: normalizedEmail,
+      });
+
+      if (emailExists) {
+        formattedErrors.email = "Email already exists";
+        return res.status(409).json({ errors: formattedErrors });
+      }
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const updatedMerchant = await Merchant.findByIdAndUpdate(
+      merchantId,
+      {
+        fullName,
+        email: normalizedEmail,
+        phoneNumber,
+        password: hashedPassword,
+      },
+      { new: true }
+    );
+
+    if (!updatedMerchant) {
+      return next(appError("Error in updating merchant"));
+    }
+
+    res.status(200).json({ message: "Merchant updated successfully" });
   } catch (err) {
     next(appError(err.message));
   }
@@ -102,12 +206,9 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
   }
 
   try {
-    console.log("Request", req);
     const merchantId = req.userAuth;
 
-    console.log("merchantId print", merchantId);
-
-    const merchantFound = await Merchant.findOne({ _id: merchantId });
+    const merchantFound = await Merchant.findById(merchantId);
 
     if (!merchantFound) {
       return next(appError("Merchant not found", 404));
@@ -783,8 +884,6 @@ const changeMerchantStatusController = async (req, res, next) => {
 const updateMerchantDetailsController = async (req, res, next) => {
   const { fullName, email, phoneNumber, merchantDetail } = req.body;
 
-  console.log(req.body);
-
   const errors = validationResult(req);
 
   let formattedErrors = {};
@@ -1013,6 +1112,8 @@ const blockMerchant = async (req, res, next) => {
 
 module.exports = {
   registerMerchantController,
+  getMerchantProfileController,
+  editMerchantProfileController,
   changeMerchantStatusByMerchantController,
   updateMerchantDetailsByMerchantController,
   sponsorshipPaymentByMerchantController,

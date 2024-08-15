@@ -11,7 +11,14 @@ const appError = require("../../utils/appError");
 const mongoose = require("mongoose");
 const Customer = require("../../models/Customer");
 const Order = require("../../models/Order");
-const { formatToHours } = require("../../utils/agentAppHelpers");
+const {
+  formatToHours,
+  updateLoyaltyPoints,
+  processReferralRewards,
+  calculateAgentEarnings,
+  updateOrderDetails,
+  updateAgentDetails,
+} = require("../../utils/agentAppHelpers");
 const { formatDate, formatTime } = require("../../utils/formatters");
 const Task = require("../../models/Task");
 const LoyaltyPoint = require("../../models/LoyaltyPoint");
@@ -24,6 +31,7 @@ const {
   createRazorpayOrderId,
   verifyPayment,
 } = require("../../utils/razorpayPayment");
+const Referral = require("../../models/Referral");
 
 //Function for getting agent's manager from geofence
 const getManager = async (geofenceId) => {
@@ -224,6 +232,24 @@ const editAgentProfileController = async (req, res, next) => {
     res.status(200).json({
       message: "Agent updated successfully",
     });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const deleteAgentProfileController = async (req, res, next) => {
+  try {
+    const agentId = req.userAuth;
+
+    const agentFound = await Agent.findById(agentId);
+
+    if (!agentFound) {
+      return next(appError("Agent not found", 404));
+    }
+
+    await Agent.findByIdAndDelete(agentId);
+
+    res.status(200).josn({ message: "Agent profile deleted successfully" });
   } catch (err) {
     next(appError(err.message));
   }
@@ -1052,7 +1078,10 @@ const addCustomOrderItemPriceController = async (req, res, next) => {
 
     await orderFound.save();
 
-    res.status(200).json({ message: "Item price updated successfully" });
+    res.status(200).json({
+      message: "Item price updated successfully",
+      data: price,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -1208,115 +1237,52 @@ const completeOrderController = async (req, res, next) => {
     const { orderId } = req.body;
     const agentId = req.userAuth;
 
-    const agentFound = await Agent.findById(agentId);
+    const [agentFound, orderFound] = await Promise.all([
+      Agent.findById(agentId),
+      Order.findById(orderId),
+    ]);
 
-    if (!agentFound) {
-      return next(appError("Agent not found", 404));
-    }
-
-    const orderFound = await Order.findById(orderId);
-
-    if (!orderFound) {
-      return next(appError("Order not found", 404));
-    }
-
-    if (orderFound.status === "Completed") {
+    if (!agentFound) return next(appError("Agent not found", 404));
+    if (!orderFound) return next(appError("Order not found", 404));
+    if (orderFound.status === "Completed")
       return next(appError("Order already completed", 400));
-    }
 
     const customerFound = await Customer.findById(orderFound.customerId);
-
-    if (!customerFound) {
-      return next(appError("Customer not found", 404));
-    }
+    if (!customerFound) return next(appError("Customer not found", 404));
 
     const orderAmount = orderFound.billDetail.grandTotal;
 
-    // Calculate loyalty point
+    // Calculate loyalty points for customer
     const loyaltyPointCriteria = await LoyaltyPoint.findOne({ status: true });
-
-    const loyaltyPointEarnedToday =
-      customerFound.customerDetails?.loyaltyPointEarnedToday || 0;
-
-    if (loyaltyPointCriteria) {
-      if (orderAmount >= loyaltyPointCriteria.minOrderAmountForEarning) {
-        if (loyaltyPointEarnedToday < loyaltyPointCriteria.maxEarningPoint) {
-          const calculatedLoyaltyPoint = Math.min(
-            orderAmount * loyaltyPointCriteria.earningCriteriaPoint,
-            loyaltyPointCriteria.maxEarningPoint - loyaltyPointEarnedToday
-          );
-          customerFound.customerDetails.loyaltyPointEarnedToday =
-            customerFound.customerDetails.loyaltyPointEarnedToday +
-            Number(calculatedLoyaltyPoint);
-          customerFound.customerDetails.totalLoyaltyPointEarned =
-            customerFound.customerDetails.totalLoyaltyPointEarned +
-            Number(calculatedLoyaltyPoint);
-        }
-      }
+    if (
+      loyaltyPointCriteria &&
+      orderAmount >= loyaltyPointCriteria.minOrderAmountForEarning
+    ) {
+      updateLoyaltyPoints(customerFound, loyaltyPointCriteria, orderAmount);
     }
 
-    // Calculate Earnings of agent
-    const agentPricing = await AgentPricing.findOne({
-      status: true,
-      geofenceId: agentFound.geofenceId,
-    });
-
-    if (!agentPricing) {
-      return res.status(404).json({ error: "Agent pricing not found" });
+    // Calculate referral rewards for customer
+    if (!customerFound?.referralDetail?.processed) {
+      await processReferralRewards(customerFound, orderAmount);
     }
 
-    const baseDistanceFarePerKM = agentPricing.baseDistanceFarePerKM;
+    // Calculate earnings for agent
+    const calculatedSalary = await calculateAgentEarnings(
+      agentFound,
+      orderFound
+    );
 
-    const orderSalary = orderFound.orderDetail.distance * baseDistanceFarePerKM;
+    // Update order details
+    updateOrderDetails(orderFound);
 
-    let totalPurchaseFare = 0;
-    if (orderFound.orderDetail === "Custom Order") {
-      let purchaseFareOfAgentPerHour = agentPricing.purchaseFarePerHour;
+    // Update agent details
+    updateAgentDetails(agentFound, orderFound, calculatedSalary);
 
-      const taskFound = await Task.findOne({ orderId });
-      const startTime = new Date(taskFound.startTime);
-      const endTime = new Date(taskFound.endTime);
-
-      if (endTime > startTime) {
-        const durationInHours = (endTime - startTime) / (1000 * 60 * 60);
-        totalPurchaseFare = durationInHours * purchaseFareOfAgentPerHour;
-      }
-    }
-
-    let delayedBy = null;
-    if (new Date() > new Date(orderFound.orderDetail.deliveryTime)) {
-      delayedBy = new Date() - new Date(orderFound.orderDetail.deliveryTime);
-    }
-
-    const timeTaken =
-      new Date() - new Date(orderFound.orderDetail.agentAcceptedAt);
-
-    orderFound.status = "Completed";
-    orderFound.paymentStatus = "Completed";
-    orderFound.orderDetail.deliveryTime = new Date();
-    orderFound.orderDetail.timeTaken = timeTaken;
-    orderFound.orderDetail.delayedBy = delayedBy;
-
-    const calculatedSalary = parseFloat(
-      orderSalary + totalPurchaseFare
-    ).toFixed(2);
-
-    const updatedOrderDetailForAgent = {
-      orderId: orderFound._id,
-      deliveryMode: orderFound?.orderDetail?.deliveryMode,
-      customerName: orderFound?.orderDetail?.deliveryAddress?.fullName,
-      completedOn: new Date(),
-      grandTotal: orderFound?.billDetail?.grandTotal,
-    };
-
-    agentFound.appDetail.orders += 1;
-    agentFound.appDetail.totalEarning += parseFloat(calculatedSalary);
-    agentFound.appDetail.totalDistance += orderFound.orderDetail.distance;
-    agentFound.appDetail.orderDetail.push(updatedOrderDetailForAgent);
-
-    await orderFound.save();
-    await customerFound.save();
-    await agentFound.save();
+    await Promise.all([
+      orderFound.save(),
+      customerFound.save(),
+      agentFound.save(),
+    ]);
 
     res.status(200).json({
       message: "Order completed successfully",
@@ -1618,6 +1584,7 @@ module.exports = {
   updateLocationController,
   registerAgentController,
   agentLoginController,
+  deleteAgentProfileController,
   getAgentProfileDetailsController,
   editAgentProfileController,
   updateAgentBankDetailController,

@@ -31,7 +31,7 @@ const appBannerRoute = require("./routes/adminRoute/bannerRoute/appBannerRoute")
 const appCustomizationRoute = require("./routes/adminRoute/appCustomizationRoute/appCustomizationRoute");
 const { deleteExpiredSponsorshipPlans } = require("./utils/sponsorshipHelpers");
 const settingsRoute = require("./routes/adminRoute/settingsRoute/settingsRoute");
-const referalRoute = require("./routes/adminRoute/referalRoute/referalRoute");
+const referralRoute = require("./routes/adminRoute/referralRoute/referralRoute");
 const adminCustomerRoute = require("./routes/adminRoute/customerRoute/customerRoute");
 const serviceCategoryRoute = require("./routes/adminRoute/serviceCategoryRoute/serviceCategoryRoute");
 const pickAndDropBannerRoute = require("./routes/adminRoute/bannerRoute/pickAndDropBannerRoute");
@@ -120,7 +120,7 @@ app.use("/api/v1/admin/customer-surge", customerSurgeRoute);
 app.use("/api/v1/admin/agent-pricing", agentPricingRoute);
 app.use("/api/v1/admin/agent-surge", agentSurgeRoute);
 app.use("/api/v1/settings", settingsRoute);
-app.use("/api/v1/referals", referalRoute);
+app.use("/api/v1/referrals", referralRoute);
 app.use("/api/v1/admin/customers", adminCustomerRoute);
 app.use("/api/v1/admin/account-log", accountLogRoute);
 app.use("/api/v1/admin/commission", commissionRoute);
@@ -155,7 +155,7 @@ cron.schedule("* * * * *", async () => {
   const now = new Date();
   console.log("Current Date and Time:", now);
   populateUserSocketMap();
-  deleteExpiredConversationsAndMessages()
+  deleteExpiredConversationsAndMessages();
 
   // Universal order
   const universalScheduledOrders = await ScheduledOrder.find({

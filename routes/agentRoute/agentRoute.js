@@ -35,6 +35,7 @@ const {
   updateCustomOrderStatusController,
   getCheckoutDetailController,
   getCompleteOrderMessageController,
+  deleteAgentProfileController,
 } = require("../../controllers/agent/agentController");
 const { upload } = require("../../utils/imageOperation");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
@@ -77,6 +78,13 @@ agentRoute.put(
   editAgentValidations,
   isAuthenticated,
   editAgentProfileController
+);
+
+// Delete agent profile
+agentRoute.delete(
+  "/delete-profile",
+  isAuthenticated,
+  deleteAgentProfileController
 );
 
 // Update Agent's Bank details

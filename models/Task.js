@@ -8,7 +8,6 @@ const pickupSchema = new mongoose.Schema({
   },
   pickupLocation: {
     type: [Number],
-    required: true,
   },
   pickupAddress: {
     fullName: String,
