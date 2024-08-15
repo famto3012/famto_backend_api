@@ -1,9 +1,10 @@
-const Referal = require("../../../models/Referal");
+const Referral = require("../../../models/Referral");
+const ReferralCode = require("../../../models/ReferralCode");
 const appError = require("../../../utils/appError");
 
-const addOrUpdateReferalController = async (req, res, next) => {
+const addOrUpdateReferralController = async (req, res, next) => {
   const {
-    referalType,
+    referralType,
     referrerDiscount,
     referrerMaxDiscountValue,
     referrerAppHeadingAndDescription,
@@ -12,38 +13,38 @@ const addOrUpdateReferalController = async (req, res, next) => {
     minOrderAmount,
     refereeDescription,
     status,
-    referalCodeOnCustomerSignUp,
+    referralCodeOnCustomerSignUp,
   } = req.body;
 
   try {
-    if (referalType === "Flat-discount") {
-      let existingFlatDiscountReferal = await Referal.findOne({
-        referalType: "Flat-discount",
+    if (referralType === "Flat-discount") {
+      let existingFlatDiscountReferral = await Referral.findOne({
+        referralType: "Flat-discount",
       });
 
-      if (existingFlatDiscountReferal) {
-        existingFlatDiscountReferal.referrerDiscount = referrerDiscount;
-        existingFlatDiscountReferal.referrerAppHeadingAndDescription =
+      if (existingFlatDiscountReferral) {
+        existingFlatDiscountReferral.referrerDiscount = referrerDiscount;
+        existingFlatDiscountReferral.referrerAppHeadingAndDescription =
           referrerAppHeadingAndDescription;
-        existingFlatDiscountReferal.refereeDiscount = refereeDiscount;
-        existingFlatDiscountReferal.minOrderAmount = minOrderAmount;
-        existingFlatDiscountReferal.refereeDescription = refereeDescription;
-        existingFlatDiscountReferal.status = status;
-        existingFlatDiscountReferal.referalCodeOnCustomerSignUp =
-          referalCodeOnCustomerSignUp;
+        existingFlatDiscountReferral.refereeDiscount = refereeDiscount;
+        existingFlatDiscountReferral.minOrderAmount = minOrderAmount;
+        existingFlatDiscountReferral.refereeDescription = refereeDescription;
+        existingFlatDiscountReferral.status = status;
+        existingFlatDiscountReferral.referralCodeOnCustomerSignUp =
+          referralCodeOnCustomerSignUp;
 
-        await existingFlatDiscountReferal.save();
+        await existingFlatDiscountReferral.save();
         res.status(200).json({ message: "Flat-discount criteria updated" });
       } else {
-        const newFlatDiscountRefetal = await Referal.create({
-          referalType,
+        const newFlatDiscountRefetal = await Referral.create({
+          referralType,
           referrerDiscount,
           referrerAppHeadingAndDescription,
           refereeDiscount,
           minOrderAmount,
           refereeDescription,
           status,
-          referalCodeOnCustomerSignUp,
+          referralCodeOnCustomerSignUp,
         });
 
         if (!newFlatDiscountRefetal) {
@@ -53,8 +54,8 @@ const addOrUpdateReferalController = async (req, res, next) => {
         res.status(201).json({ message: "Flat-discount criteria created" });
       }
     } else {
-      let existingPercentageDiscountRefetal = await Referal.findOne({
-        referalType: "Percentage-discount",
+      let existingPercentageDiscountRefetal = await Referral.findOne({
+        referralType: "Percentage-discount",
       });
 
       if (existingPercentageDiscountRefetal) {
@@ -70,16 +71,16 @@ const addOrUpdateReferalController = async (req, res, next) => {
         existingPercentageDiscountRefetal.refereeDescription =
           refereeDescription;
         existingPercentageDiscountRefetal.status = status;
-        existingPercentageDiscountRefetal.referalCodeOnCustomerSignUp =
-          referalCodeOnCustomerSignUp;
+        existingPercentageDiscountRefetal.referralCodeOnCustomerSignUp =
+          referralCodeOnCustomerSignUp;
 
         await existingPercentageDiscountRefetal.save();
         res
           .status(200)
           .json({ message: "Percentage-discount criteria updated" });
       } else {
-        const newPercentageDiscountRefetal = await Referal.create({
-          referalType,
+        const newPercentageDiscountRefetal = await Referral.create({
+          referralType,
           referrerDiscount,
           referrerMaxDiscountValue,
           referrerAppHeadingAndDescription,
@@ -88,7 +89,7 @@ const addOrUpdateReferalController = async (req, res, next) => {
           minOrderAmount,
           refereeDescription,
           status,
-          referalCodeOnCustomerSignUp,
+          referralCodeOnCustomerSignUp,
         });
 
         if (!newPercentageDiscountRefetal) {
@@ -105,32 +106,49 @@ const addOrUpdateReferalController = async (req, res, next) => {
   }
 };
 
-const getReferalController = async (req, res, next) => {
+const getReferralController = async (req, res, next) => {
   try {
-    const { referalType } = req.query;
+    const { referralType } = req.query;
 
-    let referalCriteria;
+    let referralCriteria;
 
     if (
-      referalType === "Flat-discount" ||
-      referalType === "Percentage-discount"
+      referralType === "Flat-discount" ||
+      referralType === "Percentage-discount"
     ) {
-      referalCriteria = await Referal.findOne({ referalType });
+      referralCriteria = await Referral.findOne({ referralType });
     } else {
-      return next(appError("Invalid referal type"));
+      return next(appError("Invalid referral type"));
     }
 
-    if (!referalCriteria) {
-      return next(appError(`No ${referalType} criteria found`));
+    if (!referralCriteria) {
+      return next(appError(`No ${referralType} criteria found`));
     }
 
     res.status(200).json({
-      message: `${referalType} criteria found`,
-      data: referalCriteria,
+      message: `${referralType} criteria found`,
+      data: referralCriteria,
     });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
-module.exports = { addOrUpdateReferalController, getReferalController };
+const getReferralDetailController = async (req, res, next) => {
+  try {
+    const allReferrals = await ReferralCode.find({});
+
+    res.status(200).json({
+      message: "All referrals",
+      data: allReferrals,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+module.exports = {
+  addOrUpdateReferralController,
+  getReferralController,
+  getReferralDetailController,
+};

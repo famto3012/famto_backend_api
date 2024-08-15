@@ -1,6 +1,7 @@
 const appError = require("../../utils/appError");
 const generateToken = require("../../utils/generateToken");
 const os = require("os");
+const crypto = require("crypto");
 const Customer = require("../../models/Customer");
 const { validationResult } = require("express-validator");
 const geoLocation = require("../../utils/getGeoLocation");
@@ -10,6 +11,7 @@ const {
 } = require("../../utils/imageOperation");
 const {
   getDistanceFromPickupToDelivery,
+  completeReferralDetail,
 } = require("../../utils/customerAppHelpers");
 const CustomerCart = require("../../models/CustomerCart");
 const mongoose = require("mongoose");
@@ -27,6 +29,7 @@ const PickAndDropBanner = require("../../models/PickAndDropBanner");
 const CustomOrderBanner = require("../../models/CustomOrderBanner");
 const Banner = require("../../models/Banner");
 const ServiceCategory = require("../../models/ServiceCategory");
+const ReferralCode = require("../../models/ReferralCode");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -41,7 +44,7 @@ const registerAndLoginController = async (req, res, next) => {
   }
 
   try {
-    const { email, phoneNumber, latitude, longitude } = req.body;
+    const { email, phoneNumber, latitude, longitude, referralCode } = req.body;
     const location = [latitude, longitude];
 
     const normalizedEmail = email?.toLowerCase();
@@ -63,6 +66,7 @@ const registerAndLoginController = async (req, res, next) => {
         const geofence = await geoLocation(latitude, longitude, next);
 
         customer.lastPlatformUsed = os.platform();
+        customer.customerDetails.location = location;
         customer.customerDetails.geofenceId = geofence._id;
 
         await customer.save();
@@ -88,7 +92,7 @@ const registerAndLoginController = async (req, res, next) => {
         ? { email: normalizedEmail }
         : { phoneNumber };
 
-      const newCustomer = new Customer({
+      const newCustomer = await Customer.create({
         ...newCustomerData,
         lastPlatformUsed: os.platform(),
         customerDetails: {
@@ -97,7 +101,9 @@ const registerAndLoginController = async (req, res, next) => {
         },
       });
 
-      await newCustomer.save();
+      if (referralCode) {
+        await completeReferralDetail(newCustomer, referralCode);
+      }
 
       return res.status(201).json({
         success: "User created successfully",
@@ -333,8 +339,8 @@ const addWalletBalanceController = async (req, res, next) => {
 // Verifying adding money to wallet
 const verifyWalletRechargeController = async (req, res, next) => {
   try {
-    const { paymentDetails, amount, customerId } = req.body;
-    // const customerId = req.userAuth;
+    const { paymentDetails, amount } = req.body;
+    const customerId = req.userAuth;
 
     if (!customerId) {
       return next(appError("Customer is not authenticated", 401));
@@ -501,11 +507,15 @@ const getCustomerOrdersController = async (req, res, next) => {
         path: "merchantId",
         select: "merchantDetail",
       })
-      .populate({
-        path: "items.productId",
-        select: "productName productImageURL description variants",
-      })
+      // .populate({
+      //   path: "items.productId",
+      //   select: "productName productImageURL description variants",
+      // })
       .exec();
+
+    console.log(ordersOfCustomer);
+
+    return;
 
     const populatedOrdersWithVariantNames = ordersOfCustomer.map((order) => {
       const orderObj = order.toObject();
@@ -1088,6 +1098,66 @@ const getAvailableServiceController = async (req, res, next) => {
   }
 };
 
+const generateReferralCode = async (req, res, next) => {
+  try {
+    const customerId = req.userAuth;
+
+    const customerFound = await Customer.findById(customerId).select(
+      "fullName email "
+    );
+
+    if (!customerFound) {
+      return next(appError("Customer not found", 404));
+    }
+
+    const referralFound = await ReferralCode.findOne({ customerId });
+
+    // App link
+    const appLink = process.env.PLAY_STORE_APP_LINK;
+
+    if (referralFound) {
+      return res.status(200).json({
+        message: "Referral Code",
+        appLink,
+        referralCode: referralFound.referralCode,
+      });
+    } else {
+      // Extract digits from customerId
+      const digits = customerId.replace(/\D/g, "");
+
+      // Generate a secure random alphanumeric string of length 4
+      const randomPart = crypto.randomBytes(2).toString("hex").toUpperCase();
+
+      // Combine digits with the random part
+      const referralCode = `${digits}${randomPart}`;
+
+      const newReferral = await ReferralCode.create({
+        customerId,
+        name: customerFound?.fullName,
+        email: customerFound?.email,
+        referralCode,
+      });
+
+      if (!newReferral) {
+        return next(appError("Error in creating referral code"));
+      }
+
+      customerFound.customerDetails.referralCode = referralCode;
+
+      await customerFound.save();
+
+      // Respond with the generated referral code
+      return res.status(200).json({
+        message: "Referral Code",
+        appLink,
+        referralCode,
+      });
+    }
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerAndLoginController,
   getCustomerProfileController,
@@ -1112,4 +1182,5 @@ module.exports = {
   getPickAndDropBannersController,
   getCustomOrderBannersController,
   getAvailableServiceController,
+  generateReferralCode,
 };

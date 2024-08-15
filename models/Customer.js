@@ -87,6 +87,10 @@ const customerDetailSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    referralCode: {
+      type: String,
+      default: null,
+    },
     ratingsByAgents: [ratingByAgentSchema],
     isBlocked: {
       type: Boolean,
@@ -186,6 +190,22 @@ const transactionDetailSchema = mongoose.Schema(
   }
 );
 
+const referralDetailSchema = mongoose.Schema({
+  referralType: {
+    type: String,
+    required: true,
+  },
+  referrerUserId: {
+    type: String,
+    ref: "Customer",
+    required: true,
+  },
+  processed: {
+    type: Boolean,
+    default: false,
+  },
+});
+
 const customerSchema = new mongoose.Schema(
   {
     _id: {
@@ -210,6 +230,7 @@ const customerSchema = new mongoose.Schema(
     customerDetails: customerDetailSchema,
     walletTransactionDetail: [walletTransactionDetailSchema],
     transactionDetail: [transactionDetailSchema],
+    referralDetail: referralDetailSchema,
   },
   {
     timestamps: true,

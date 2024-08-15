@@ -32,6 +32,7 @@ const {
   getPickAndDropBannersController,
   getCustomOrderBannersController,
   getAvailableServiceController,
+  generateReferralCode,
 } = require("../../controllers/customer/customerController");
 const {
   getAllBusinessCategoryController,
@@ -347,5 +348,7 @@ customerRoute.get("/pick-and-drop-banners", getPickAndDropBannersController);
 customerRoute.get("/custom-order-banners", getCustomOrderBannersController);
 
 customerRoute.get("/available-services", getAvailableServiceController);
+
+customerRoute.get("/generate-referral", isAuthenticated, generateReferralCode);
 
 module.exports = customerRoute;
