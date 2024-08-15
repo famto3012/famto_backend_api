@@ -331,16 +331,14 @@ const addDeliveryAddressController = async (req, res, next) => {
     let voiceInstructiontoAgentURL =
       cartFound?.cartDetail?.voiceInstructiontoAgent || "";
     if (req.file) {
-      if (req.file.voiceInstructiontoAgent) {
-        if (voiceInstructiontoAgentURL) {
-          await deleteFromFirebase(voiceInstructiontoAgentURL);
-        }
-
-        voiceInstructiontoAgentURL = await uploadToFirebase(
-          req.file.voiceInstructiontoAgent[0],
-          "VoiceInstructions"
-        );
+      if (voiceInstructiontoAgentURL) {
+        await deleteFromFirebase(voiceInstructiontoAgentURL);
       }
+
+      voiceInstructiontoAgentURL = await uploadToFirebase(
+        req.file,
+        "VoiceInstructions"
+      );
     }
 
     let updatedCartDetail = {

@@ -263,6 +263,10 @@ customerRoute.get("/get-cart", isAuthenticated, getCustomerCartController);
 
 customerRoute.post(
   "/add-pick-and-drop-address",
+  upload.fields([
+    { name: "voiceInstructionInPickup", maxCount: 1 },
+    { name: "voiceInstructionInDelivery", maxCount: 1 },
+  ]),
   isAuthenticated,
   addPickUpAddressController
 );
@@ -319,6 +323,7 @@ customerRoute.delete(
 
 customerRoute.post(
   "/add-delivery-address",
+  upload.single("voiceInstructiontoAgent"),
   isAuthenticated,
   addDeliveryAddressController
 );
