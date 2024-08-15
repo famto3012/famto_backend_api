@@ -154,7 +154,7 @@ const editAgentByAdminController = async (req, res, next) => {
     workStructure,
   } = req.body;
 
-  console.log(req.body);
+  console.log("workStructure", workStructure);
 
   const errors = validationResult(req);
 
@@ -253,20 +253,22 @@ const editAgentByAdminController = async (req, res, next) => {
       }
     }
 
-    const updatedVehicleDetail = agentFound.vehicleDetail.map(
-      (detail, index = 0) => {
-        if (index === 0) {
-          // assuming you want to update the first item
-          return {
-            ...detail,
-            ...vehicleDetail,
-            rcFrontImageURL,
-            rcBackImageURL,
-          };
-        }
-        return detail;
-      }
-    );
+    // Handle updating or adding to vehicleDetail
+    let updatedVehicleDetail = agentFound.vehicleDetail;
+    if (updatedVehicleDetail.length > 0) {
+      updatedVehicleDetail[0] = {
+        ...updatedVehicleDetail[0],
+        ...vehicleDetail[0],
+        rcFrontImageURL,
+        rcBackImageURL,
+      };
+    } else {
+      updatedVehicleDetail.push({
+        ...vehicleDetail[0],
+        rcFrontImageURL,
+        rcBackImageURL,
+      });
+    }
 
     const updatedAgent = await Agent.findByIdAndUpdate(
       req.params.agentId,
@@ -274,7 +276,7 @@ const editAgentByAdminController = async (req, res, next) => {
         fullName,
         phoneNumber,
         email,
-        geofenceId,
+        geofenceId: geofenceId._id,
         agentImageURL,
         workStructure: {
           ...workStructure,
@@ -316,12 +318,14 @@ const getSingleAgentController = async (req, res, next) => {
       .populate("workStructure.managerId", "name")
       .populate("workStructure.salaryStructureId", "ruleName")
       .select(
-        "-ratingsByCustomers -appDetail -appDetailHistory -agentTransaction -location -role -status -taskCompleted -isBlocked -reasonForBlockingOrDeleting -blockedDate -loginStartTime -loginEndTime"
+        "-ratingsByCustomers -appDetail -appDetailHistory -agentTransaction -location -role -taskCompleted -isBlocked -reasonForBlockingOrDeleting -blockedDate -loginStartTime -loginEndTime"
       );
 
     if (!agentFound) {
       return next(appError("Agent not found", 404));
     }
+
+    agentFound.status = agentFound.status === "Inactive" ? false : true;
 
     let vehicleDetail = {};
     if (agentFound.vehicleDetail && agentFound.vehicleDetail.length > 0) {
@@ -332,7 +336,10 @@ const getSingleAgentController = async (req, res, next) => {
 
     res.status(200).json({
       message: "Single agent detail",
-      data: agentFound,
+      data: {
+        ...agentFound.toObject(),
+        status: Boolean(agentFound.status),
+      },
     });
   } catch (err) {
     next(appError(err.message));

@@ -80,7 +80,7 @@ const workStructureSchema = mongoose.Schema(
     managerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Manager",
-      default: null,
+      // default: null,
       // required: true,
     },
     salaryStructureId: {
