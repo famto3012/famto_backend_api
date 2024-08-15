@@ -507,53 +507,14 @@ const getCustomerOrdersController = async (req, res, next) => {
         path: "merchantId",
         select: "merchantDetail",
       })
-      // .populate({
-      //   path: "items.productId",
-      //   select: "productName productImageURL description variants",
-      // })
       .exec();
 
-    console.log(ordersOfCustomer);
-
-    return;
-
-    const populatedOrdersWithVariantNames = ordersOfCustomer.map((order) => {
-      const orderObj = order.toObject();
-      orderObj.items = orderObj.items.map((item) => {
-        const product = item.productId;
-        let variantTypeName = null;
-        let variantTypeData = null;
-        if (item.variantTypeId && product.variants) {
-          const variantType = product.variants
-            .flatMap((variant) => variant.variantTypes)
-            .find((type) => type._id.equals(item.variantTypeId));
-          if (variantType) {
-            variantTypeName = variantType.typeName;
-            variantTypeData = {
-              _id: variantType._id,
-              variantTypeName: variantTypeName,
-            };
-          }
-        }
-        return {
-          ...item,
-          productId: {
-            _id: product._id,
-            productName: product.productName,
-            description: product.description,
-            productImageURL: product.productImageURL,
-          },
-          variantTypeId: variantTypeData,
-        };
-      });
-      return orderObj;
-    });
-
-    const formattedResponse = populatedOrdersWithVariantNames.map((order) => {
+    const formattedResponse = ordersOfCustomer.map((order) => {
       return {
         _id: order._id,
-        merchantName: order.merchantId.merchantDetail.merchantName,
-        displayAddress: order.merchantId.merchantDetail.displayAddress,
+        merchantName: order?.merchantId?.merchantDetail?.merchantName || null,
+        displayAddress:
+          order?.merchantId?.merchantDetail?.displayAddress || null,
         orderStatus: order.status,
         orderDate: `${formatDate(order.createdAt)} | ${formatTime(
           order.createdAt
@@ -562,8 +523,6 @@ const getCustomerOrdersController = async (req, res, next) => {
         grandTotal: order.billDetail.grandTotal,
       };
     });
-
-    console.log(formattedResponse);
 
     res.status(200).json({
       message: "Orders of customer",
@@ -589,10 +548,7 @@ const getsingleOrderDetailController = async (req, res, next) => {
         path: "merchantId",
         select: "phoneNumber merchantDetail",
       })
-      .populate({
-        path: "items.productId",
-        select: "productName productImageURL description variants",
-      })
+
       .exec();
 
     if (!singleOrderDetail) {
@@ -603,54 +559,28 @@ const getsingleOrderDetailController = async (req, res, next) => {
       "customerDetails.location"
     );
 
-    const orderObj = singleOrderDetail.toObject();
-    orderObj.items = orderObj.items.map((item) => {
-      const product = item.productId;
-      let variantTypeName = null;
-      let variantTypeData = null;
-      if (item.variantTypeId && product.variants) {
-        const variantType = product.variants
-          .flatMap((variant) => variant.variantTypes)
-          .find((type) => type._id.equals(item.variantTypeId));
-        if (variantType) {
-          variantTypeName = variantType.typeName;
-          variantTypeData = {
-            _id: variantType._id,
-            variantTypeName: variantTypeName,
-          };
-        }
-      }
-      return {
-        ...item,
-        productId: {
-          _id: product._id,
-          productName: product.productName,
-          description: product.description,
-          productImageURL: product.productImageURL,
-        },
-        variantTypeId: variantTypeData,
-      };
-    });
-
     const distance = await getDistanceFromPickupToDelivery(
-      orderObj.merchantId.merchantDetail.location,
-      customer.customerDetails.location[0]
+      singleOrderDetail.merchantId.merchantDetail.location,
+      customer.customerDetails.location
     );
 
     const formattedResponse = {
-      _id: orderObj._id,
-      merchantName: orderObj.merchantId.merchantDetail.merchantName,
-      displayAddress: orderObj.merchantId.merchantDetail.displayAddress,
-      deliveryTime: orderObj.merchantId.merchantDetail.deliveryTime,
+      _id: singleOrderDetail._id,
+      merchantName:
+        singleOrderDetail?.merchantId?.merchantDetail?.merchantName || null,
+      displayAddress:
+        singleOrderDetail?.merchantId?.merchantDetail?.displayAddress || null,
+      deliveryTime: singleOrderDetail.merchantId.merchantDetail.deliveryTime,
       distance,
-      items: orderObj.items,
-      billDetail: orderObj.billDetail,
-      deliveryAddress: orderObj.orderDetail.deliveryAddress,
-      orderDate: `${formatDate(orderObj.createdAt)}`,
-      orderTime: `${formatTime(orderObj.createdAt)}`,
-      paymentMode: orderObj.paymentMode,
-      merchantPhone: orderObj.merchantId.phoneNumber,
-      fssaiNumber: orderObj.merchantId.merchantDetail.FSSAINumber,
+      items: singleOrderDetail.items,
+      billDetail: singleOrderDetail.billDetail,
+      deliveryAddress: singleOrderDetail.orderDetail.deliveryAddress,
+      orderDate: `${formatDate(singleOrderDetail.createdAt)}`,
+      orderTime: `${formatTime(singleOrderDetail.createdAt)}`,
+      paymentMode: singleOrderDetail.paymentMode,
+      merchantPhone: singleOrderDetail?.merchantId?.phoneNumber || null,
+      fssaiNumber:
+        singleOrderDetail?.merchantId?.merchantDetail?.FSSAINumber || null,
     };
 
     res.status(200).json({
@@ -672,9 +602,6 @@ const searchOrderController = async (req, res, next) => {
       return next(appError("Search query is required", 400));
     }
 
-    console.log("Customer ID:", currentCustomer);
-    console.log("Search Query:", query);
-
     const ordersOfCustomer = await Order.find({
       customerId: currentCustomer,
     })
@@ -683,63 +610,26 @@ const searchOrderController = async (req, res, next) => {
         path: "merchantId",
         select: "merchantDetail",
       })
-      .populate({
-        path: "items.productId",
-        select: "productName productImageURL description variants",
-      })
       .exec();
 
     // Filter orders based on the search query
     const filteredOrders = ordersOfCustomer.filter((order) => {
       const merchantName =
-        order.merchantId.merchantDetail.merchantName.toLowerCase();
+        order?.merchantId?.merchantDetail?.merchantName?.toLowerCase();
+      const regex = new RegExp(query, "i");
+
       const items = order.items.some((item) => {
-        return item.productId.productName
-          .toLowerCase()
-          .includes(query.toLowerCase());
+        return regex.test(item.itemName) || regex.test(item.variantTypeName);
       });
-      return merchantName.includes(query.toLowerCase()) || items;
+      return merchantName?.includes(query?.toLowerCase()) || items;
     });
 
-    console.log("Orders Found:", filteredOrders.length);
-
-    const populatedOrdersWithVariantNames = filteredOrders.map((order) => {
-      const orderObj = order.toObject();
-      orderObj.items = orderObj.items.map((item) => {
-        const product = item.productId;
-        let variantTypeName = null;
-        let variantTypeData = null;
-        if (item.variantTypeId && product.variants) {
-          const variantType = product.variants
-            .flatMap((variant) => variant.variantTypes)
-            .find((type) => type._id.equals(item.variantTypeId));
-          if (variantType) {
-            variantTypeName = variantType.typeName;
-            variantTypeData = {
-              _id: variantType._id,
-              variantTypeName: variantTypeName,
-            };
-          }
-        }
-        return {
-          ...item,
-          productId: {
-            _id: product._id,
-            productName: product.productName,
-            description: product.description,
-            productImageURL: product.productImageURL,
-          },
-          variantTypeId: variantTypeData,
-        };
-      });
-      return orderObj;
-    });
-
-    const formattedResponse = populatedOrdersWithVariantNames.map((order) => {
+    const formattedResponse = filteredOrders.map((order) => {
       return {
         _id: order._id,
-        merchantName: order.merchantId.merchantDetail.merchantName,
-        displayAddress: order.merchantId.merchantDetail.displayAddress,
+        merchantName: order?.merchantId?.merchantDetail?.merchantName || null,
+        displayAddress:
+          order?.merchantId?.merchantDetail?.displayAddress || null,
         orderStatus: order.status,
         orderDate: `${formatDate(order.createdAt)} | ${formatTime(
           order.createdAt
@@ -783,6 +673,7 @@ const getTransactionOfCustomerController = async (req, res, next) => {
           "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/AgentImages%2Fdemo-image.png-0fe7a62e-6d1c-4e5f-9d3c-87698bdfc32e?alt=media&token=97737725-250d-481e-a8db-69bdaedbb073",
         transactionAmount: transaction.transactionAmount,
         transactionType: transaction.transactionType,
+        type: transaction.type,
         transactionDate: `${formatDate(transaction.madeOn)}`,
         transactionTime: `${formatTime(transaction.madeOn)}`,
       };
@@ -881,6 +772,7 @@ const getPromocodesOfCustomerController = async (req, res, next) => {
       status: true,
       geofenceId: customerFound.customerDetails.geofenceId,
       fromDate: { $lte: currentDate },
+      applicationMode: "Public",
       toDate: { $gte: currentDate },
       $expr: { $lt: ["$noOfUserUsed", "$maxAllowedUsers"] },
     });
@@ -1087,7 +979,9 @@ const getCustomOrderBannersController = async (req, res, next) => {
 
 const getAvailableServiceController = async (req, res, next) => {
   try {
-    const availableServices = await ServiceCategory.find({});
+    const availableServices = await ServiceCategory.find({})
+      .select("title geofenceId bannerImageURL")
+      .sort({ order: 1 });
 
     res.status(200).json({
       message: "All service categories",

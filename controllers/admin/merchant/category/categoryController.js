@@ -102,7 +102,7 @@ const addCategoryByAdminController = async (req, res, next) => {
 
     res.status(201).json({
       message: "Category created successfully",
-      data: newCategory
+      data: newCategory,
     });
   } catch (err) {
     next(appError(err.message));
@@ -148,7 +148,7 @@ const editCategoryByAdminController = async (req, res, next) => {
     await Category.findByIdAndUpdate(
       req.params.categoryId,
       {
-        businessCategoryId,
+        businessCategoryId: businessCategoryId._id,
         merchantId,
         categoryName,
         description,

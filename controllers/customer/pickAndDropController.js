@@ -21,6 +21,10 @@ const {
 const PickAndCustomCart = require("../../models/PickAndCustomCart");
 const ScheduledPickAndCustom = require("../../models/ScheduledPickAndCustom");
 const CustomerSurge = require("../../models/CustomerSurge");
+const {
+  deleteFromFirebase,
+  uploadToFirebase,
+} = require("../../utils/imageOperation");
 
 const addPickUpAddressController = async (req, res, next) => {
   try {
@@ -39,6 +43,8 @@ const addPickUpAddressController = async (req, res, next) => {
       endDate,
       time,
     } = req.body;
+
+    console.log(req.body);
 
     const customerId = req.userAuth;
 
@@ -138,10 +144,12 @@ const addPickUpAddressController = async (req, res, next) => {
       }
     }
 
+    const cartFound = await PickAndCustomCart.findOne({ customerId });
+
     let voiceInstructionInPickupURL =
-      cart?.cartDetail?.voiceInstructionInPickup || "";
+      cartFound?.cartDetail?.voiceInstructionInPickup || "";
     let voiceInstructionInDeliveryURL =
-      cart?.cartDetail?.voiceInstructionInDelivery || "";
+      cartFound?.cartDetail?.voiceInstructionInDelivery || "";
 
     if (req.files) {
       const { voiceInstructionInPickup, voiceInstructionInDelivery } =
@@ -273,8 +281,6 @@ const addPickUpAddressController = async (req, res, next) => {
         }
       })
       .filter(Boolean);
-
-    const cartFound = await PickAndCustomCart.findOne({ customerId });
 
     if (cartFound) {
       await PickAndCustomCart.findByIdAndUpdate(
