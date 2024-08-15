@@ -5,18 +5,15 @@ const Order = require("../../../models/Order");
 const appError = require("../../../utils/appError");
 const { formatDate, formatTime } = require("../../../utils/formatters");
 
+
 const getAllCustomersController = async (req, res, next) => {
   try {
-    // Get page and limit from query parameters
-    let { page = 1, limit = 25 } = req.query;
-
-    // Convert to integers
-    page = parseInt(page, 10);
-    limit = parseInt(limit, 10);
-
-    // Calculate the number of documents to skip
+    // Get page and limit from query parameters with default values
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 25;
     const skip = (page - 1) * limit;
 
+    // Fetch customers with pagination
     const allCustomers = await Customer.find()
       .select(
         "fullName email phoneNumber lastPlatformUsed createdAt customerDetails averageRating"
@@ -27,7 +24,7 @@ const getAllCustomersController = async (req, res, next) => {
     // Count total documents
     const totalDocuments = await Customer.countDocuments({});
 
-    // Calculate averageRating and format registrationDate for each customer
+    // Format customers data
     const formattedCustomers = allCustomers?.map((customer) => {
       return {
         _id: customer._id,
@@ -40,21 +37,17 @@ const getAllCustomersController = async (req, res, next) => {
       };
     });
 
-    let pagination = {
-      totalDocuments: totalDocuments || 0,
-      totalPages: Math.ceil(totalDocuments / limit),
-      currentPage: page || 1,
-      pageSize: limit,
-      hasNextPage: page < Math.ceil(totalDocuments / limit),
-      hasPrevPage: page > 1,
-    };
-
-    console.log(pagination);
+    // Calculate total pages
+    const totalPages = Math.ceil(totalDocuments / limit);
 
     res.status(200).json({
       message: "All customers",
       data: formattedCustomers || [],
-      pagination,
+      totalDocuments,
+      totalPages,
+      currentPage: page,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
     });
   } catch (err) {
     next(appError(err.message));
