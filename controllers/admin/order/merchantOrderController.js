@@ -34,24 +34,94 @@ const Product = require("../../../models/Product");
 const MerchantDiscount = require("../../../models/MerchantDiscount");
 const { formatToHours } = require("../../../utils/agentAppHelpers");
 
+// const getAllOrdersOfMerchantController = async (req, res, next) => {
+//   try {
+//     // Get page and limit from query parameters
+//     let { page = 1, limit = 10 } = req.query;
+
+//     // Convert to integers
+//     page = parseInt(page, 10);
+//     limit = parseInt(limit, 10);
+
+//     // Calculate the number of documents to skip
+//     const skip = (page - 1) * limit;
+
+//     const currentMerchant = req.userAuth;
+
+//     if (!currentMerchant) {
+//       return next(appError("Merchant is not authenticated", 401));
+//     }
+
+//     const allOrders = await Order.find({
+//       merchantId: currentMerchant,
+//     })
+//       .populate({
+//         path: "merchantId",
+//         select: "merchantDetail.merchantName merchantDetail.deliveryTime",
+//       })
+//       .populate({
+//         path: "customerId",
+//         select: "fullName",
+//       })
+//       .sort({ createdAt: -1 })
+//       .skip(skip)
+//       .limit(limit);
+
+//     // Count total documents
+//     const totalDocuments = await Order.countDocuments({});
+
+//     const formattedOrders = allOrders.map((order) => {
+//       return {
+//         _id: order._id,
+//         orderStatus: order.status,
+//         merchantName: order.merchantId.merchantDetail.merchantName,
+//         customerName:
+//           order.orderDetail.deliveryAddress.fullName ||
+//           order.customerId.fullName,
+//         deliveryMode: order.orderDetail.deliveryMode,
+//         orderDate: formatDate(order.createdAt),
+//         orderTime: formatTime(order.createdAt),
+//         deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
+//         paymentMethod: order.paymentMode,
+//         deliveryOption: order.orderDetail.deliveryOption,
+//         amount: order.billDetail.grandTotal,
+//       };
+//     });
+
+//     let pagination = {
+//       totalDocuments: totalDocuments || 0,
+//       totalPages: Math.ceil(totalDocuments / limit),
+//       currentPage: page || 1,
+//       pageSize: limit,
+//       hasNextPage: page < Math.ceil(totalDocuments / limit),
+//       hasPrevPage: page > 1,
+//     };
+
+//     res.status(200).json({
+//       message: "All orders of merchant",
+//       data: formattedOrders,
+//       pagination,
+//     });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
+
 const getAllOrdersOfMerchantController = async (req, res, next) => {
   try {
-    // Get page and limit from query parameters
-    let { page = 1, limit = 10 } = req.query;
-
-    // Convert to integers
-    page = parseInt(page, 10);
-    limit = parseInt(limit, 10);
-
-    // Calculate the number of documents to skip
+    // Get page and limit from query parameters with default values
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
+    // Get the current authenticated merchant
     const currentMerchant = req.userAuth;
 
     if (!currentMerchant) {
       return next(appError("Merchant is not authenticated", 401));
     }
 
+    // Fetch orders for the authenticated merchant with pagination
     const allOrders = await Order.find({
       merchantId: currentMerchant,
     })
@@ -65,35 +135,45 @@ const getAllOrdersOfMerchantController = async (req, res, next) => {
       })
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean(); // Convert MongoDB documents to plain JavaScript objects
 
-    // Count total documents
-    const totalDocuments = await Order.countDocuments({});
+    // Count total documents for the authenticated merchant
+    const totalDocuments = await Order.countDocuments({
+      merchantId: currentMerchant,
+    });
 
+    // Format the orders for the response
     const formattedOrders = allOrders.map((order) => {
       return {
         _id: order._id,
         orderStatus: order.status,
-        merchantName: order.merchantId.merchantDetail.merchantName,
+        merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
         customerName:
-          order.orderDetail.deliveryAddress.fullName ||
-          order.customerId.fullName,
-        deliveryMode: order.orderDetail.deliveryMode,
+          order?.orderDetail?.deliveryAddress?.fullName ||
+          order?.customerId?.fullName ||
+          "-",
+        deliveryMode: order?.orderDetail?.deliveryMode,
         orderDate: formatDate(order.createdAt),
         orderTime: formatTime(order.createdAt),
-        deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
+        deliveryTime: order?.orderDetail?.deliveryTime
+          ? formatTime(order.orderDetail.deliveryTime)
+          : "-",
         paymentMethod: order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
         amount: order.billDetail.grandTotal,
       };
     });
 
-    let pagination = {
-      totalDocuments: totalDocuments || 0,
-      totalPages: Math.ceil(totalDocuments / limit),
-      currentPage: page || 1,
-      pageSize: limit,
-      hasNextPage: page < Math.ceil(totalDocuments / limit),
+    // Calculate total pages
+    const totalPages = Math.ceil(totalDocuments / limit);
+
+    // Prepare pagination details
+    const pagination = {
+      totalDocuments,
+      totalPages,
+      currentPage: page,
+      hasNextPage: page < totalPages,
       hasPrevPage: page > 1,
     };
 
@@ -107,21 +187,100 @@ const getAllOrdersOfMerchantController = async (req, res, next) => {
   }
 };
 
+
+// const getAllScheduledOrdersOfMerchantController = async (req, res, next) => {
+//   try {
+//     // Get page and limit from query parameters
+//     let { page = 1, limit = 25 } = req.query;
+
+//     // Convert to integers
+//     page = parseInt(page, 10);
+//     limit = parseInt(limit, 10);
+
+//     // Calculate the number of documents to skip
+//     const skip = (page - 1) * limit;
+
+//     const merchantId = req.userAuth;
+
+//     // Fetch documents from both collections
+//     const scheduledOrders = await ScheduledOrder.find({ merchantId })
+//       .populate({
+//         path: "merchantId",
+//         select: "merchantDetail.merchantName merchantDetail.deliveryTime",
+//       })
+//       .populate({
+//         path: "customerId",
+//         select: "fullName",
+//       })
+//       .sort({ createdAt: -1 })
+//       .skip(skip)
+//       .limit(limit)
+//       .lean(); // Convert MongoDB documents to plain JavaScript objects
+
+//     const formattedOrders = scheduledOrders?.map((order) => {
+//       return {
+//         _id: order._id,
+//         orderStatus: order.status,
+//         merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
+//         customerName:
+//           order.orderDetail.deliveryAddress.fullName ||
+//           order.customerId.fullName,
+//         deliveryMode: order.orderDetail.deliveryMode,
+//         orderDate: formatDate(order.createdAt),
+//         orderTime: formatTime(order.createdAt),
+//         deliveryDate: order?.orderDetail?.deliveryTime
+//           ? formatDate(order.orderDetail.deliveryTime)
+//           : "",
+//         deliveryTime: order?.orderDetail?.deliveryTime
+//           ? formatTime(order.orderDetail.deliveryTime)
+//           : "",
+//         paymentMethod: order.paymentMode,
+//         deliveryOption: order.orderDetail.deliveryOption,
+//         amount: order.billDetail.grandTotal,
+//       };
+//     });
+
+//     // Implement pagination on the combined results
+//     const paginatedOrders = formattedOrders.slice(skip, skip + limit);
+
+//     // Count total documents in both collections
+//     const totalDocuments = await ScheduledOrder.countDocuments({});
+
+//     // Prepare pagination details
+//     const pagination = {
+//       totalDocuments: totalDocuments || 0,
+//       totalPages: Math.ceil(totalDocuments / limit),
+//       currentPage: page || 1,
+//       pageSize: limit,
+//       hasNextPage: page < Math.ceil(totalDocuments / limit),
+//       hasPrevPage: page > 1,
+//     };
+
+//     res.status(200).json({
+//       message: "All scheduled orders of merchant",
+//       data: paginatedOrders,
+//       pagination,
+//     });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
+
 const getAllScheduledOrdersOfMerchantController = async (req, res, next) => {
   try {
-    // Get page and limit from query parameters
-    let { page = 1, limit = 25 } = req.query;
-
-    // Convert to integers
-    page = parseInt(page, 10);
-    limit = parseInt(limit, 10);
-
-    // Calculate the number of documents to skip
+    // Get page and limit from query parameters with default values
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 25;
     const skip = (page - 1) * limit;
 
+    // Get the current authenticated merchant ID
     const merchantId = req.userAuth;
 
-    // Fetch documents from both collections
+    if (!merchantId) {
+      return next(appError("Merchant is not authenticated", 401));
+    }
+
+    // Fetch scheduled orders for the authenticated merchant with pagination
     const scheduledOrders = await ScheduledOrder.find({ merchantId })
       .populate({
         path: "merchantId",
@@ -136,54 +295,55 @@ const getAllScheduledOrdersOfMerchantController = async (req, res, next) => {
       .limit(limit)
       .lean(); // Convert MongoDB documents to plain JavaScript objects
 
-    const formattedOrders = scheduledOrders?.map((order) => {
-      return {
-        _id: order._id,
-        orderStatus: order.status,
-        merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
-        customerName:
-          order.orderDetail.deliveryAddress.fullName ||
-          order.customerId.fullName,
-        deliveryMode: order.orderDetail.deliveryMode,
-        orderDate: formatDate(order.createdAt),
-        orderTime: formatTime(order.createdAt),
-        deliveryDate: order?.orderDetail?.deliveryTime
-          ? formatDate(order.orderDetail.deliveryTime)
-          : "",
-        deliveryTime: order?.orderDetail?.deliveryTime
-          ? formatTime(order.orderDetail.deliveryTime)
-          : "",
-        paymentMethod: order.paymentMode,
-        deliveryOption: order.orderDetail.deliveryOption,
-        amount: order.billDetail.grandTotal,
-      };
-    });
+    // Format the orders for the response
+    const formattedOrders = scheduledOrders.map((order) => ({
+      _id: order._id,
+      orderStatus: order.status,
+      merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
+      customerName:
+        order?.orderDetail?.deliveryAddress?.fullName ||
+        order?.customerId?.fullName ||
+        "-",
+      deliveryMode: order?.orderDetail?.deliveryMode,
+      orderDate: formatDate(order.createdAt),
+      orderTime: formatTime(order.createdAt),
+      deliveryDate: order?.orderDetail?.deliveryTime
+        ? formatDate(order.orderDetail.deliveryTime)
+        : "",
+      deliveryTime: order?.orderDetail?.deliveryTime
+        ? formatTime(order.orderDetail.deliveryTime)
+        : "",
+      paymentMethod: order.paymentMode,
+      deliveryOption: order.orderDetail.deliveryOption,
+      amount: order.billDetail.grandTotal,
+    }));
 
-    // Implement pagination on the combined results
-    const paginatedOrders = formattedOrders.slice(skip, skip + limit);
+    // Count total documents for the authenticated merchant
+    const totalDocuments = await ScheduledOrder.countDocuments({ merchantId });
 
-    // Count total documents in both collections
-    const totalDocuments = await ScheduledOrder.countDocuments({});
+    // Calculate total pages
+    const totalPages = Math.ceil(totalDocuments / limit);
 
     // Prepare pagination details
     const pagination = {
-      totalDocuments: totalDocuments || 0,
-      totalPages: Math.ceil(totalDocuments / limit),
-      currentPage: page || 1,
+      totalDocuments,
+      totalPages,
+      currentPage: page,
       pageSize: limit,
-      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasNextPage: page < totalPages,
       hasPrevPage: page > 1,
     };
 
     res.status(200).json({
       message: "All scheduled orders of merchant",
-      data: paginatedOrders,
+      data: formattedOrders,
       pagination,
     });
   } catch (err) {
     next(appError(err.message));
   }
 };
+
 
 const confirmOrderController = async (req, res, next) => {
   try {

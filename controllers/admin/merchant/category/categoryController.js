@@ -86,7 +86,7 @@ const addCategoryByAdminController = async (req, res, next) => {
 
     const newOrder = lastCategory ? lastCategory.order + 1 : 1;
 
-    const newCategory = await Category.create({
+    let newCategory = await Category.create({
       businessCategoryId,
       merchantId,
       categoryName,
@@ -102,6 +102,7 @@ const addCategoryByAdminController = async (req, res, next) => {
 
     res.status(201).json({
       message: "Category created successfully",
+      data: newCategory
     });
   } catch (err) {
     next(appError(err.message));

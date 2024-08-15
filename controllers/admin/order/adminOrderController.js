@@ -40,16 +40,82 @@ const PickAndCustomCart = require("../../../models/PickAndCustomCart");
 const scheduledPickAndCustom = require("../../../models/ScheduledPickAndCustom");
 const { formatToHours } = require("../../../utils/agentAppHelpers");
 
+// const getAllOrdersForAdminController = async (req, res, next) => {
+//   try {
+//     // Get page and limit from query parameters
+//     let { page = 1, limit = 10 } = req.query;
+
+//     // Convert to integers
+//     page = parseInt(page, 10);
+//     limit = parseInt(limit, 10);
+
+//     // Calculate the number of documents to skip
+//     const skip = (page - 1) * limit;
+
+//     // Fetch orders with pagination
+//     const allOrders = await Order.find({})
+//       .populate({
+//         path: "merchantId",
+//         select: "merchantDetail.merchantName merchantDetail.deliveryTime",
+//       })
+//       .populate({
+//         path: "customerId",
+//         select: "fullName",
+//       })
+//       .sort({ createdAt: -1 })
+//       .skip(skip)
+//       .limit(limit);
+
+//     // Count total documents
+//     const totalDocuments = await Order.countDocuments({});
+
+//     const formattedOrders = allOrders.map((order) => {
+//       return {
+//         _id: order._id,
+//         orderStatus: order.status,
+//         merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
+//         customerName:
+//           order.orderDetail.deliveryAddress.fullName ||
+//           order.customerId.fullName,
+//         deliveryMode: order.orderDetail.deliveryMode,
+//         orderDate: formatDate(order.createdAt),
+//         orderTime: formatTime(order.createdAt),
+//         deliveryDate: order?.orderDetail?.deliveryTime
+//           ? formatDate(order.orderDetail.deliveryTime)
+//           : "",
+//         deliveryTime: order?.orderDetail?.deliveryTime
+//           ? formatTime(order.orderDetail.deliveryTime)
+//           : "",
+//         paymentMethod: order.paymentMode,
+//         deliveryOption: order.orderDetail.deliveryOption,
+//         amount: order.billDetail.grandTotal,
+//       };
+//     });
+
+//     let pagination = {
+//       totalDocuments: totalDocuments || 0,
+//       totalPages: Math.ceil(totalDocuments / limit),
+//       currentPage: page || 1,
+//       pageSize: limit,
+//       hasNextPage: page < Math.ceil(totalDocuments / limit),
+//       hasPrevPage: page > 1,
+//     };
+
+//     res.status(200).json({
+//       message: "All orders of merchant",
+//       data: formattedOrders,
+//       pagination,
+//     });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
+
 const getAllOrdersForAdminController = async (req, res, next) => {
   try {
-    // Get page and limit from query parameters
-    let { page = 1, limit = 10 } = req.query;
-
-    // Convert to integers
-    page = parseInt(page, 10);
-    limit = parseInt(limit, 10);
-
-    // Calculate the number of documents to skip
+    // Get page and limit from query parameters with default values
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
     // Fetch orders with pagination
@@ -64,40 +130,46 @@ const getAllOrdersForAdminController = async (req, res, next) => {
       })
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean(); // Convert MongoDB documents to plain JavaScript objects
 
     // Count total documents
     const totalDocuments = await Order.countDocuments({});
 
+    // Format orders
     const formattedOrders = allOrders.map((order) => {
       return {
         _id: order._id,
         orderStatus: order.status,
         merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
         customerName:
-          order.orderDetail.deliveryAddress.fullName ||
-          order.customerId.fullName,
-        deliveryMode: order.orderDetail.deliveryMode,
+          order?.orderDetail?.deliveryAddress?.fullName ||
+          order?.customerId?.fullName ||
+          "-",
+        deliveryMode: order?.orderDetail?.deliveryMode,
         orderDate: formatDate(order.createdAt),
         orderTime: formatTime(order.createdAt),
         deliveryDate: order?.orderDetail?.deliveryTime
           ? formatDate(order.orderDetail.deliveryTime)
-          : "",
+          : "-",
         deliveryTime: order?.orderDetail?.deliveryTime
           ? formatTime(order.orderDetail.deliveryTime)
-          : "",
+          : "-",
         paymentMethod: order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
         amount: order.billDetail.grandTotal,
       };
     });
 
-    let pagination = {
-      totalDocuments: totalDocuments || 0,
-      totalPages: Math.ceil(totalDocuments / limit),
-      currentPage: page || 1,
-      pageSize: limit,
-      hasNextPage: page < Math.ceil(totalDocuments / limit),
+    // Calculate total pages
+    const totalPages = Math.ceil(totalDocuments / limit);
+
+    // Prepare pagination details
+    const pagination = {
+      totalDocuments,
+      totalPages,
+      currentPage: page,
+      hasNextPage: page < totalPages,
       hasPrevPage: page > 1,
     };
 
@@ -111,19 +183,105 @@ const getAllOrdersForAdminController = async (req, res, next) => {
   }
 };
 
+
+// const getAllScheduledOrdersForAdminController = async (req, res, next) => {
+//   try {
+//     // Get page and limit from query parameters
+//     let { page = 1, limit = 25 } = req.query;
+
+//     // Convert to integers
+//     page = parseInt(page, 10);
+//     limit = parseInt(limit, 10);
+
+//     // Calculate the number of documents to skip
+//     const skip = (page - 1) * limit;
+
+//     // Fetch documents from both collections
+//     const scheduledOrders = await ScheduledOrder.find({})
+//       .populate({
+//         path: "merchantId",
+//         select: "merchantDetail.merchantName merchantDetail.deliveryTime",
+//       })
+//       .populate({
+//         path: "customerId",
+//         select: "fullName",
+//       })
+//       .skip(skip)
+//       .limit(limit)
+//       .lean(); // Convert MongoDB documents to plain JavaScript objects
+
+//     const customOrders = await scheduledPickAndCustom
+//       .find({})
+//       .populate({
+//         path: "customerId",
+//         select: "fullName",
+//       })
+//       .skip(skip)
+//       .limit(limit)
+//       .lean(); // Convert MongoDB documents to plain JavaScript objects
+
+//     // Combine the results from both collections
+//     const allOrders = [...scheduledOrders, ...customOrders];
+
+//     // Sort the combined results by createdAt in descending order
+//     const sortedOrders = allOrders.sort(
+//       (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+//     );
+
+//     const formattedOrders = sortedOrders?.map((order) => {
+//       return {
+//         _id: order._id,
+//         status: order._status,
+//         merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
+//         customerName:
+//           order?.orderDetail?.deliveryAddress?.fullName ||
+//           order?.customerId?.fullName ||
+//           "-",
+//         deliveryMode: order?.orderDetail?.deliveryMode,
+//         orderTime: formatTime(order?.createdAt),
+//         orderDate: formatDate(order?.createdAt),
+//         paymentMethod: order?.paymentMethod,
+//         deliveryOption: order?.orderDetail?.deliveryOption,
+//         amount: order?.billDetail?.grandTotal,
+//       };
+//     });
+
+//     // Implement pagination on the combined results
+//     const paginatedOrders = formattedOrders.slice(skip, skip + limit);
+
+//     // Count total documents in both collections
+//     const totalDocuments =
+//       (await ScheduledOrder.countDocuments({})) +
+//       (await scheduledPickAndCustom.countDocuments({}));
+
+//     // Prepare pagination details
+//     const pagination = {
+//       totalDocuments: totalDocuments || 0,
+//       totalPages: Math.ceil(totalDocuments / limit),
+//       currentPage: page || 1,
+//       pageSize: limit,
+//       hasNextPage: page < Math.ceil(totalDocuments / limit),
+//       hasPrevPage: page > 1,
+//     };
+
+//     res.status(200).json({
+//       message: "All scheduled orders and custom orders",
+//       data: paginatedOrders,
+//       pagination,
+//     });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
+
 const getAllScheduledOrdersForAdminController = async (req, res, next) => {
   try {
-    // Get page and limit from query parameters
-    let { page = 1, limit = 25 } = req.query;
-
-    // Convert to integers
-    page = parseInt(page, 10);
-    limit = parseInt(limit, 10);
-
-    // Calculate the number of documents to skip
+    // Get page and limit from query parameters with default values
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 25;
     const skip = (page - 1) * limit;
 
-    // Fetch documents from both collections
+    // Fetch documents from both collections with pagination
     const scheduledOrders = await ScheduledOrder.find({})
       .populate({
         path: "merchantId",
@@ -133,18 +291,13 @@ const getAllScheduledOrdersForAdminController = async (req, res, next) => {
         path: "customerId",
         select: "fullName",
       })
-      .skip(skip)
-      .limit(limit)
       .lean(); // Convert MongoDB documents to plain JavaScript objects
 
-    const customOrders = await scheduledPickAndCustom
-      .find({})
+    const customOrders = await scheduledPickAndCustom.find({})
       .populate({
         path: "customerId",
         select: "fullName",
       })
-      .skip(skip)
-      .limit(limit)
       .lean(); // Convert MongoDB documents to plain JavaScript objects
 
     // Combine the results from both collections
@@ -155,39 +308,23 @@ const getAllScheduledOrdersForAdminController = async (req, res, next) => {
       (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
     );
 
-    const formattedOrders = sortedOrders?.map((order) => {
-      return {
-        _id: order._id,
-        status: order._status,
-        merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
-        customerName:
-          order?.orderDetail?.deliveryAddress?.fullName ||
-          order?.customerId?.fullName ||
-          "-",
-        deliveryMode: order?.orderDetail?.deliveryMode,
-        orderTime: formatTime(order?.createdAt),
-        orderDate: formatDate(order?.createdAt),
-        paymentMethod: order?.paymentMethod,
-        deliveryOption: order?.orderDetail?.deliveryOption,
-        amount: order?.billDetail?.grandTotal,
-      };
-    });
-
-    // Implement pagination on the combined results
-    const paginatedOrders = formattedOrders.slice(skip, skip + limit);
+    // Paginate the sorted orders
+    const paginatedOrders = sortedOrders.slice(skip, skip + limit);
 
     // Count total documents in both collections
     const totalDocuments =
       (await ScheduledOrder.countDocuments({})) +
       (await scheduledPickAndCustom.countDocuments({}));
 
+    // Calculate total pages
+    const totalPages = Math.ceil(totalDocuments / limit);
+
     // Prepare pagination details
     const pagination = {
-      totalDocuments: totalDocuments || 0,
-      totalPages: Math.ceil(totalDocuments / limit),
-      currentPage: page || 1,
-      pageSize: limit,
-      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      totalDocuments,
+      totalPages,
+      currentPage: page,
+      hasNextPage: page < totalPages,
       hasPrevPage: page > 1,
     };
 
@@ -200,6 +337,7 @@ const getAllScheduledOrdersForAdminController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
+
 
 const confirmOrderByAdminContrroller = async (req, res, next) => {
   try {
@@ -494,7 +632,7 @@ const getOrderDetailByAdminController = async (req, res, next) => {
       })
       .populate({
         path: "agentId",
-        select: "fullName workStructure",
+        select: "fullName workStructure agentImageURL location",
         populate: {
           path: "workStructure.managerId",
           select: "name",
@@ -547,6 +685,7 @@ const getOrderDetailByAdminController = async (req, res, next) => {
       deliveryAgentDetail: {
         _id: orderFound?.agentId?._id || "-",
         name: orderFound?.agentId?.fullName,
+        avatar: orderFound?.agentId?.agentImageURL,
         team: orderFound?.agentId?.workStructure?.managerId?.name,
         instructionsByCustomer:
           orderFound?.orderDetail?.instructionToDeliveryAgent || "-",
@@ -556,6 +695,9 @@ const getOrderDetailByAdminController = async (req, res, next) => {
       },
       items: orderFound.items,
       billDetail: orderFound.billDetail,
+      pickUpLocation: orderFound?.orderDetail?.pickupLocation || null,
+      deliveryLocation: orderFound.orderDetail.deliveryLocation,
+      agentLocation: orderFound?.agentId?.location,
     };
 
     res.status(200).json({
