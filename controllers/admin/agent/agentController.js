@@ -253,6 +253,21 @@ const editAgentByAdminController = async (req, res, next) => {
       }
     }
 
+    const updatedVehicleDetail = agentFound.vehicleDetail.map(
+      (detail, index = 0) => {
+        if (index === 0) {
+          // assuming you want to update the first item
+          return {
+            ...detail,
+            ...vehicleDetail,
+            rcFrontImageURL,
+            rcBackImageURL,
+          };
+        }
+        return detail;
+      }
+    );
+
     const updatedAgent = await Agent.findByIdAndUpdate(
       req.params.agentId,
       {
@@ -262,7 +277,6 @@ const editAgentByAdminController = async (req, res, next) => {
         geofenceId,
         agentImageURL,
         workStructure: {
-          managerId: managerId || null,
           ...workStructure,
         },
         bankDetail: {
@@ -275,11 +289,7 @@ const editAgentByAdminController = async (req, res, next) => {
           drivingLicenseFrontImageURL,
           drivingLicenseBackImageURL,
         },
-        vehicleDetail: {
-          ...vehicleDetail,
-          rcFrontImageURL,
-          rcBackImageURL,
-        },
+        vehicleDetail: updatedVehicleDetail,
       },
       { new: true }
     );

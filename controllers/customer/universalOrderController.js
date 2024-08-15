@@ -723,8 +723,10 @@ const addOrUpdateCartItemController = async (req, res, next) => {
       }
     }
 
-    const { discountPrice, variantsWithDiscount } =
-      calculateDiscountedPrice(product);
+    const { discountPrice, variantsWithDiscount } = calculateDiscountedPrice(
+      product,
+      variantTypeId
+    );
 
     let finalPrice = discountPrice;
     if (variantTypeId) {
@@ -771,6 +773,7 @@ const addOrUpdateCartItemController = async (req, res, next) => {
           totalPrice: quantity * finalPrice,
           variantTypeId: variantTypeId || null,
         };
+        console.log("New Item", newItem);
         cart.items.push(newItem);
       }
     }

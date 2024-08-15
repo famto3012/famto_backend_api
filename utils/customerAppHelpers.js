@@ -8,6 +8,8 @@ const ScheduledOrder = require("../models/ScheduledOrder");
 const ScheduledPickAndCustom = require("../models/ScheduledPickAndCustom");
 const CustomerPricing = require("../models/CustomerPricing");
 const CustomerSurge = require("../models/CustomerSurge");
+const Referral = require("../models/Referral");
+const ReferralCode = require("../models/ReferralCode");
 
 // Helper function to sort merchants by sponsorship
 const sortMerchantsBySponsorship = (merchants) => {
@@ -261,7 +263,7 @@ const getDeliveryAndSurgeCharge = async (
   return { deliveryCharges, surgeCharges };
 };
 
-const calculateDiscountedPrice = (product) => {
+const calculateDiscountedPrice = (product, variantId) => {
   const currentDate = new Date();
   const validFrom = new Date(product?.discountId?.validFrom);
   const validTo = new Date(product?.discountId?.validTo);
@@ -269,7 +271,29 @@ const calculateDiscountedPrice = (product) => {
   // Adjusting the validTo date to the end of the day
   validTo?.setHours(23, 59, 59, 999);
 
-  let discountPrice = product.price;
+  let discountPrice;
+
+  if (variantId) {
+    const getVariantPrice = (product, variantTypeId) => {
+      let variantPrice;
+
+      product.variants.forEach((variant) => {
+        variant.variantTypes.forEach((type) => {
+          if (type.id === variantTypeId) {
+            variantPrice = type.price;
+          }
+        });
+      });
+
+      return variantPrice || product.price;
+    };
+
+    let variantTypePrice = getVariantPrice(product, variantId);
+    discountPrice = variantTypePrice;
+  } else {
+    discountPrice = product.price;
+  }
+
   let variantsWithDiscount = product?.variants;
 
   if (
@@ -294,6 +318,7 @@ const calculateDiscountedPrice = (product) => {
 
     // Apply discount to the variants if onAddOn is true
     if (discount.onAddOn) {
+      console.log("here inside addon discount");
       variantsWithDiscount = product.variants.map((variant) => {
         const variantTypesWithDiscount = variant.variantTypes.map(
           (variantType) => {
@@ -328,6 +353,32 @@ const calculateDiscountedPrice = (product) => {
   return { discountPrice, variantsWithDiscount };
 };
 
+const completeReferralDetail = async (newCustomer, code) => {
+  try {
+    const referralFound = await Referral.findOne({ status: true });
+
+    if (referralFound) {
+      const referralType = referralFound.referralType;
+      const referrerFound = await ReferralCode.findOne({ referralCode: code });
+
+      if (referrerFound) {
+        newCustomer.referralDetail = {
+          referrerUserId: referrerFound.customerId,
+          referralType: referralType,
+        };
+
+        await newCustomer.save();
+
+        referrerFound.numOfReferrals += 1;
+
+        await referrerFound.save();
+      }
+    }
+  } catch (err) {
+    throw new Error(err.message);
+  }
+};
+
 module.exports = {
   sortMerchantsBySponsorship,
   getDistanceFromPickupToDelivery,
@@ -338,4 +389,5 @@ module.exports = {
   updateOneDayLoyaltyPointEarning,
   getDeliveryAndSurgeCharge,
   calculateDiscountedPrice,
+  completeReferralDetail,
 };
