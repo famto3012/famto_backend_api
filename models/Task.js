@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const pickupSchema = new mongoose.Schema({
   pickupStatus: {
     type: String,
-    enum: ["Pending", "Accepted", "Started", "Completed"],
+    enum: ["Pending", "Accepted", "Started", "Completed", "Cancelled"],
     default: "Pending",
   },
   pickupLocation: {
@@ -22,7 +22,7 @@ const pickupSchema = new mongoose.Schema({
 const deliverySchema = new mongoose.Schema({
   deliveryStatus: {
     type: String,
-    enum: ["Pending", "Accepted", "Started", "Completed"],
+    enum: ["Pending", "Accepted", "Started", "Completed", "Cancelled"],
     default: "Pending",
   },
   deliveryLocation: {
@@ -53,7 +53,7 @@ const taskSchema = new mongoose.Schema(
     },
     taskStatus: {
       type: String,
-      enum: ["Assigned", "Unassigned", "Completed"],
+      enum: ["Assigned", "Unassigned", "Completed", "Cancelled"],
       default: "Unassigned",
     },
     deliveryMode: {

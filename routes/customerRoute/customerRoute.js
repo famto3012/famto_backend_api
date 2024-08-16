@@ -33,6 +33,8 @@ const {
   getCustomOrderBannersController,
   getAvailableServiceController,
   generateReferralCode,
+  getCurrentOrderDetailcontroller,
+  cancelOrdeAfterOrderCreationController,
 } = require("../../controllers/customer/customerController");
 const {
   getAllBusinessCategoryController,
@@ -52,6 +54,7 @@ const {
   orderPaymentController,
   verifyOnlinePaymentController,
   listRestaurantsController,
+  cancelOrderBeforeCreationController,
 } = require("../../controllers/customer/universalOrderController");
 const {
   addPickUpAddressController,
@@ -59,6 +62,7 @@ const {
   addTipAndApplyPromocodeInPickAndDropController,
   confirmPickAndDropController,
   verifyPickAndDropPaymentController,
+  cancelPickBeforeOrderCreationController,
 } = require("../../controllers/customer/pickAndDropController");
 const {
   addShopController,
@@ -68,6 +72,7 @@ const {
   addDeliveryAddressController,
   addTipAndApplyPromocodeInCustomOrderController,
   confirmCustomOrderController,
+  cancelCustomBeforeOrderCreationController,
 } = require("../../controllers/customer/customOrderController");
 
 const customerRoute = express.Router();
@@ -192,6 +197,12 @@ customerRoute.post(
 );
 
 customerRoute.post(
+  "/cancel-universal-order/:orderId",
+  isAuthenticated,
+  cancelOrderBeforeCreationController
+);
+
+customerRoute.post(
   "/wallet-recharge",
   isAuthenticated,
   addWalletBalanceController
@@ -295,6 +306,12 @@ customerRoute.post(
   verifyPickAndDropPaymentController
 );
 
+customerRoute.post(
+  "/cancel-pick-and-drop-order/:orderId",
+  isAuthenticated,
+  cancelPickBeforeOrderCreationController
+);
+
 // -------------------------------------
 // CUSTOM ORDER
 // -------------------------------------
@@ -338,6 +355,24 @@ customerRoute.post(
   "/confirm-custom-order",
   isAuthenticated,
   confirmCustomOrderController
+);
+
+customerRoute.post(
+  "/cancel-custom-order/:orderId",
+  isAuthenticated,
+  cancelCustomBeforeOrderCreationController
+);
+
+customerRoute.get(
+  "/get-current-order",
+  isAuthenticated,
+  getCurrentOrderDetailcontroller
+);
+
+customerRoute.post(
+  "/cancel-current-order/:orderId",
+  isAuthenticated,
+  cancelOrdeAfterOrderCreationController
 );
 
 // ============================================

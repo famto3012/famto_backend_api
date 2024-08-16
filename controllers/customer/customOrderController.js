@@ -12,6 +12,8 @@ const {
 } = require("../../utils/imageOperation");
 const PromoCode = require("../../models/PromoCode");
 const Order = require("../../models/Order");
+const TemperoryOrder = require("../../models/TemperoryOrders");
+const { razorpayRefund } = require("../../utils/razorpayPayment");
 
 const addShopController = async (req, res, next) => {
   try {
@@ -564,7 +566,12 @@ const confirmCustomOrderController = async (req, res, next) => {
       type: "Debit",
     };
 
-    const newOrder = await Order.create({
+    // Generate a unique order ID
+    const orderId = new mongoose.Types.ObjectId();
+
+    // Store order details temporarily in the database
+    const tempOrder = await TemperoryOrder.create({
+      orderId,
       customerId,
       items: cart.items,
       orderDetail: cart.cartDetail,
@@ -575,42 +582,102 @@ const confirmCustomOrderController = async (req, res, next) => {
       paymentStatus: "Pending",
     });
 
-    customer.transactionDetail.push(customerTransation);
-    customer.walletTransactionDetail.push(walletTransaction);
+    customer.transactionDetail.push(storedOrderData.customerTransation);
+    customer.walletTransactionDetail.push(storedOrderData.walletTransaction);
+
     await customer.save();
+
+    if (!tempOrder) {
+      return next(appError("Error in creating temperory order"));
+    }
 
     // Clear the cart
     await PickAndCustomCart.deleteOne({ customerId });
 
-    const orderResponse = {
-      _id: newOrder._id,
-      customerId: newOrder.customerId,
-      customerName:
-        customer.fullName || newOrder.orderDetail.pickupAddress.fullName,
-      status: newOrder.status,
-      totalAmount: newOrder.totalAmount,
-      paymentMode: newOrder.paymentMode,
-      paymentStatus: newOrder.paymentStatus,
-      items: newOrder.items,
-      deliveryAddress: newOrder.orderDetail.deliveryAddress,
-      billDetail: newOrder.billDetail,
-      orderDetail: {
-        pickupLocation: newOrder.orderDetail.pickupLocation,
-        pickupAddress: newOrder.orderDetail.pickupAddress,
-        deliveryLocation: newOrder.orderDetail.deliveryLocation,
-        deliveryAddress: newOrder.orderDetail.deliveryAddress,
-        deliveryMode: newOrder.orderDetail.deliveryMode,
-        deliveryOption: newOrder.orderDetail.deliveryOption,
-        distance: newOrder.orderDetail.distance,
-      },
-      createdAt: newOrder.createdAt,
-      updatedAt: newOrder.updatedAt,
+    // Return countdown timer to client
+    res.status(200).json({
+      message: "Custom order will be created in 1 minute.",
+      orderId,
+      countdown: 60,
+    });
+
+    // After 60 seconds, create the order if not canceled
+    setTimeout(async () => {
+      const storedOrderData = await TemperoryOrder.findOne({ orderId });
+
+      if (storedOrderData) {
+        const newOrder = await Order.create({
+          customerId: storedOrderData.customerId,
+          items: storedOrderData.items,
+          orderDetail: storedOrderData.orderDetail,
+          billDetail: storedOrderData.billDetail,
+          totalAmount: storedOrderData.totalAmount,
+          status: storedOrderData.status,
+          paymentMode: storedOrderData.paymentMode,
+          paymentStatus: storedOrderData.paymentStatus,
+        });
+
+        if (!newOrder) {
+          return next(appError("Error in creating order"));
+        }
+
+        // Remove the temporary order data from the database
+        await TemperoryOrder.deleteOne({ orderId });
+
+        // Optionally, notify the user about successful order creation
+      }
+    }, 60000);
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Cancel Order Controller
+const cancelCustomBeforeOrderCreationController = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+
+    const orderFound = await TemperoryOrder.findOne({ orderId });
+
+    const customerFound = await Customer.findById(orderFound.customerId);
+
+    let updatedTransactionDetail = {
+      transactionType: "Refund",
+      madeon: new Date(),
+      type: "Credit",
     };
 
-    res.status(200).json({
-      message: "Custom order created successfully",
-      data: orderResponse,
-    });
+    if (orderFound) {
+      if (orderFound.paymentMode === "Famto-cash") {
+        const orderAmount = orderFound.billDetail.grandTotal;
+        if (orderFound.orderDetail.deliveryOption === "On-demand") {
+          customerFound.customerDetails.walletBalance += orderAmount;
+          updatedTransactionDetail.transactionAmount = orderAmount;
+        }
+
+        // Remove the temporary order data from the database
+        await TemperoryOrder.deleteOne({ orderId });
+
+        customerFound.transactionDetail.push(updatedTransactionDetail);
+
+        await customerFound.save();
+
+        res.status(200).json({
+          message: "Order cancelled and amount refunded to wallet",
+        });
+        return;
+      } else if (orderFound.paymentMode === "Cash-on-delivery") {
+        // Remove the temporary order data from the database
+        await TemperoryOrder.deleteOne({ orderId });
+
+        res.status(200).json({ message: "Order cancelled" });
+        return;
+      }
+    } else {
+      res.status(400).json({
+        message: "Order creation already processed or not found",
+      });
+    }
   } catch (err) {
     next(appError(err.message));
   }
@@ -624,4 +691,5 @@ module.exports = {
   addDeliveryAddressController,
   addTipAndApplyPromocodeInCustomOrderController,
   confirmCustomOrderController,
+  cancelCustomBeforeOrderCreationController,
 };
