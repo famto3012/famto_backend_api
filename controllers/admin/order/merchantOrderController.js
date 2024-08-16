@@ -187,7 +187,6 @@ const getAllOrdersOfMerchantController = async (req, res, next) => {
   }
 };
 
-
 // const getAllScheduledOrdersOfMerchantController = async (req, res, next) => {
 //   try {
 //     // Get page and limit from query parameters
@@ -343,7 +342,6 @@ const getAllScheduledOrdersOfMerchantController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
-
 
 const confirmOrderController = async (req, res, next) => {
   try {
