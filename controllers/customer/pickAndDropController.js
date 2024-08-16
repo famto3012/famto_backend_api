@@ -10,6 +10,7 @@ const PromoCode = require("../../models/PromoCode");
 const {
   createRazorpayOrderId,
   verifyPayment,
+  razorpayRefund,
 } = require("../../utils/razorpayPayment");
 const Order = require("../../models/Order");
 const Agent = require("../../models/Agent");
@@ -25,6 +26,7 @@ const {
   deleteFromFirebase,
   uploadToFirebase,
 } = require("../../utils/imageOperation");
+const TemperoryOrder = require("../../models/TemperoryOrders");
 
 const addPickUpAddressController = async (req, res, next) => {
   try {
@@ -473,8 +475,6 @@ const confirmPickAndDropController = async (req, res, next) => {
   try {
     const customerId = req.userAuth;
 
-    console.log(customerId);
-
     const cartFound = await PickAndCustomCart.findOne({ customerId });
 
     if (!cartFound) {
@@ -586,7 +586,12 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
       return;
     }
 
-    newOrder = await Order.create({
+    // Generate a unique order ID
+    const orderId = new mongoose.Types.ObjectId();
+
+    // Store order details temporarily in the database
+    const tempOrder = await TemperoryOrder.create({
+      orderId,
       customerId,
       items: cart.items,
       orderDetail: cart.cartDetail,
@@ -598,42 +603,124 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
       paymentId: paymentDetails.razorpay_payment_id,
     });
 
-    // Clear the cart
-    await PickAndCustomCart.deleteOne({ customerId });
     customer.transactionDetail.push(customerTransation);
     await customer.save();
 
-    const orderResponse = {
-      _id: newOrder._id,
-      customerId: newOrder.customerId,
-      customerName:
-        customer.fullName || newOrder.orderDetail.pickupAddress.fullName,
-      status: newOrder.status,
-      totalAmount: newOrder.totalAmount,
-      paymentMode: newOrder.paymentMode,
-      paymentStatus: newOrder.paymentStatus,
-      items: newOrder.items,
-      deliveryAddress: newOrder.orderDetail.deliveryAddress,
-      billDetail: newOrder.billDetail,
-      orderDetail: {
-        pickupLocation: newOrder.orderDetail.pickupLocation,
-        pickupAddress: newOrder.orderDetail.pickupAddress,
-        deliveryLocation: newOrder.orderDetail.deliveryLocation,
-        deliveryAddress: newOrder.orderDetail.deliveryAddress,
-        deliveryMode: newOrder.orderDetail.deliveryMode,
-        deliveryOption: newOrder.orderDetail.deliveryOption,
-        instructionInDelivery: newOrder.orderDetail.instructionInDelivery,
-        instructionInPickup: newOrder.orderDetail.instructionInPickup,
-        distance: newOrder.orderDetail.distance,
-      },
-      createdAt: newOrder.createdAt,
-      updatedAt: newOrder.updatedAt,
+    // Clear the cart
+    await PickAndCustomCart.deleteOne({ customerId });
+
+    if (!tempOrder) {
+      return next(appError("Error in creating temperory order"));
+    }
+
+    // Return countdown timer to client
+    res.status(200).json({
+      message: "Custom order will be created in 1 minute.",
+      orderId,
+      countdown: 60,
+    });
+
+    setTimeout(async () => {
+      const storedOrderData = await TemperoryOrder.findOne({ orderId });
+
+      if (storedOrderData) {
+        const newOrder = await Order.create({
+          customerId: storedOrderData.customerId,
+          items: storedOrderData.items,
+          orderDetail: storedOrderData.cartDetail,
+          billDetail: storedOrderData.orderBill,
+          totalAmount: storedOrderData.orderAmount,
+          status: "Pending",
+          paymentMode: "Online-payment",
+          paymentStatus: "Completed",
+          paymentId: storedOrderData.paymentId,
+        });
+
+        if (!newOrder) {
+          return next(appError("Error in creating order"));
+        }
+
+        // Remove the temporary order data from the database
+        await TemperoryOrder.deleteOne({ orderId });
+      }
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const cancelPickBeforeOrderCreationController = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+
+    const orderFound = await TemperoryOrder.findOne({ orderId });
+
+    const customerFound = await Customer.findById(orderFound.customerId);
+
+    let updatedTransactionDetail = {
+      transactionType: "Refund",
+      madeon: new Date(),
+      type: "Credit",
     };
 
-    res.status(200).json({
-      message: "Order created successfully",
-      data: orderResponse,
-    });
+    if (orderFound) {
+      if (orderFound.paymentMode === "Famto-cash") {
+        const orderAmount = orderFound.billDetail.grandTotal;
+        if (orderFound.orderDetail.deliveryOption === "On-demand") {
+          customerFound.customerDetails.walletBalance += orderAmount;
+          updatedTransactionDetail.transactionAmount = orderAmount;
+        }
+
+        // Remove the temporary order data from the database
+        await TemperoryOrder.deleteOne({ orderId });
+
+        customerFound.transactionDetail.push(updatedTransactionDetail);
+
+        await customerFound.save();
+
+        res.status(200).json({
+          message: "Order cancelled and amount refunded to wallet",
+        });
+        return;
+      } else if (orderFound.paymentMode === "Cash-on-delivery") {
+        // Remove the temporary order data from the database
+        await TemperoryOrder.deleteOne({ orderId });
+
+        res.status(200).json({ message: "Order cancelled" });
+        return;
+      } else if (orderFound.paymentMode === "Online-payment") {
+        const paymentId = orderFound.paymentId;
+
+        let refundAmount;
+        if (orderFound.orderDetail.deliveryOption === "On-demand") {
+          refundAmount = orderFound.billDetail.grandTotal;
+          updatedTransactionDetail.transactionAmount = refundAmount;
+        } else if (orderFound.orderDetail.deliveryOption === "Scheduled") {
+          refundAmount =
+            orderFound.billDetail.grandTotal / orderFound.orderDetail.numOfDays;
+          updatedTransactionDetail.transactionAmount = refundAmount;
+        }
+
+        const refundResponse = await razorpayRefund(paymentId, refundAmount);
+
+        if (!refundResponse.success) {
+          return next(appError("Refund failed: " + refundResponse.error, 500));
+        }
+
+        customerFound.transactionDetail.push(updatedTransactionDetail);
+
+        await customerFound.save();
+
+        res
+          .status(200)
+          .json({ message: "Order cancelled and amount refunded" });
+        return;
+      }
+    } else {
+      res.status(400).json({
+        message: "Order creation already processed or not found",
+      });
+    }
   } catch (err) {
     next(appError(err.message));
   }
@@ -645,4 +732,5 @@ module.exports = {
   addTipAndApplyPromocodeInPickAndDropController,
   confirmPickAndDropController,
   verifyPickAndDropPaymentController,
+  cancelPickBeforeOrderCreationController,
 };

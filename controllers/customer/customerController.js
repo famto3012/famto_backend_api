@@ -30,6 +30,8 @@ const CustomOrderBanner = require("../../models/CustomOrderBanner");
 const Banner = require("../../models/Banner");
 const ServiceCategory = require("../../models/ServiceCategory");
 const ReferralCode = require("../../models/ReferralCode");
+const { formatToHours } = require("../../utils/agentAppHelpers");
+const Task = require("../../models/Task");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -1052,6 +1054,84 @@ const generateReferralCode = async (req, res, next) => {
   }
 };
 
+const getCurrentOrderDetailcontroller = async (req, res, next) => {
+  try {
+    const customerId = req.userAuth;
+
+    const orderFound = await Order.findOne({
+      customerId,
+      status: "On-going",
+    })
+      .populate("agentId")
+      .populate("merchantId");
+
+    const timeDiff =
+      new Date(orderFound.orderDetail.deliveryTime) -
+      new Date(orderFound.createdAt);
+
+    const formattedResponse = {
+      _id: orderFound._id,
+      agentId: orderFound.agentId._id,
+      agentName: orderFound.agentId.fullName,
+      agentLocation: orderFound.agentId.location,
+      agentImageURL: orderFound.agentId.agentImageURL,
+      agentPhone: orderFound.agentId.phoneNumber,
+      merchantLocation:
+        orderFound?.merchantId?.merchantDetail?.location || null,
+      deliveryTime: formatTime(orderFound.orderDetail.deliveryTime),
+      billDetail: orderFound.billDetail,
+      orderDetail: orderFound.orderDetail,
+      ETA: formatToHours(timeDiff),
+    };
+
+    res.status(200).json({
+      messsage: "Ongoing order",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const cancelOrdeAfterOrderCreationController = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const customerId = req.userAuth;
+
+    const orderFound = await Order.findOne({
+      _id: orderId,
+      customerId,
+    });
+
+    if (!orderFound) {
+      return next(appError("Order not found", 404));
+    }
+
+    if (orderFOund.status === "Completed") {
+      return next(appError("Order already completed"));
+    } else {
+      orderFound.status = "Cancelled";
+      await orderFound.save();
+    }
+
+    const taskFound = await Task.findOne({ orderId });
+
+    if (taskFound) {
+      taskFound.taskStatus = "Cancelled";
+      taskFound.pickupDetail.pickupStatus = "Cancelled";
+      taskFound.deliveryDetail.deliveryStatus = "Cancelled";
+
+      await taskFound.save();
+    }
+
+    res.status(200).json({
+      messag: "Order cancelled successfully",
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerAndLoginController,
   getCustomerProfileController,
@@ -1077,4 +1157,6 @@ module.exports = {
   getCustomOrderBannersController,
   getAvailableServiceController,
   generateReferralCode,
+  getCurrentOrderDetailcontroller,
+  cancelOrdeAfterOrderCreationController,
 };

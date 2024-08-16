@@ -20,6 +20,7 @@ const PromoCode = require("../../models/PromoCode");
 const {
   createRazorpayOrderId,
   verifyPayment,
+  razorpayRefund,
 } = require("../../utils/razorpayPayment");
 const Order = require("../../models/Order");
 const ScheduledOrder = require("../../models/ScheduledOrder");
@@ -29,6 +30,7 @@ const {
   deleteFromFirebase,
   uploadToFirebase,
 } = require("../../utils/imageOperation");
+const TemperoryOrder = require("../../models/TemperoryOrders");
 
 // Get all available business categories according to the order
 const getAllBusinessCategoryController = async (req, res, next) => {
@@ -1529,6 +1531,10 @@ const orderPaymentController = async (req, res, next) => {
       customer.customerDetails.walletBalance = Number(
         customer.customerDetails.walletBalance.toFixed(2)
       );
+
+      walletTransaction.orderId = newOrder._id;
+      customer.walletTransactionDetail.push(walletTransaction);
+      customer.transactionDetail.push(customerTransation);
       await customer.save();
 
       if (cart.cartDetail.deliveryOption === "Scheduled") {
@@ -1558,8 +1564,12 @@ const orderPaymentController = async (req, res, next) => {
         });
         return;
       } else {
-        // Create the order
-        newOrder = await Order.create({
+        // Generate a unique order ID
+        const orderId = new mongoose.Types.ObjectId();
+
+        // Store order details temporarily in the database
+        const tempOrder = await TemperoryOrder.create({
+          orderId,
           customerId,
           merchantId: cart.merchantId,
           items: formattedItems,
@@ -1576,14 +1586,58 @@ const orderPaymentController = async (req, res, next) => {
 
         // Clear the cart
         await CustomerCart.deleteOne({ customerId });
+
+        if (!tempOrder) {
+          return next(appError("Error in creating temperory order"));
+        }
+
+        // Return countdown timer to client
+        res.status(200).json({
+          message: "Custom order will be created in 1 minute.",
+          orderId,
+          countdown: 60,
+        });
+
+        // After 60 seconds, create the order if not canceled
+        setTimeout(async () => {
+          const storedOrderData = await TemperoryOrder.findOne({ orderId });
+
+          if (storedOrderData) {
+            const newOrder = await Order.create({
+              customerId: storedOrderData.customerId,
+              items: storedOrderData.items,
+              orderDetail: storedOrderData.orderDetail,
+              billDetail: storedOrderData.billDetail,
+              totalAmount: storedOrderData.totalAmount,
+              status: storedOrderData.status,
+              paymentMode: storedOrderData.paymentMode,
+              paymentStatus: storedOrderData.paymentStatus,
+            });
+
+            if (!newOrder) {
+              return next(appError("Error in creating order"));
+            }
+
+            // Remove the temporary order data from the database
+            await TemperoryOrder.deleteOne({ orderId });
+
+            //! Optionally, notify the user about successful order creation
+          }
+        }, 60000);
+      }
+    } else if (paymentMode === "Cash-on-delivery") {
+      if (cart.cartDetail.deliveryOption === "Scheduled") {
+        return res.status(400).json({
+          message: "Scheduled orders cannot be paid through Cash on delivery",
+        });
       }
 
-      walletTransaction.orderId = newOrder._id;
-      customer.walletTransactionDetail.push(walletTransaction);
-      customer.transactionDetail.push(customerTransation);
-      await customer.save();
-    } else if (paymentMode === "Cash-on-delivery") {
-      newOrder = await Order.create({
+      // Generate a unique order ID
+      const orderId = new mongoose.Types.ObjectId();
+
+      // Store order details temporarily in the database
+      const tempOrder = await TemperoryOrder.create({
+        orderId,
         customerId,
         merchantId: cart.merchantId,
         items: formattedItems,
@@ -1601,8 +1655,47 @@ const orderPaymentController = async (req, res, next) => {
       customer.transactionDetail.push(customerTransation);
       await customer.save();
 
+      if (!tempOrder) {
+        return next(appError("Error in creating temperory order"));
+      }
+
       // Clear the cart
       await CustomerCart.deleteOne({ customerId });
+
+      // Return countdown timer to client
+      res.status(200).json({
+        message: "Custom order will be created in 1 minute.",
+        orderId,
+        countdown: 60,
+      });
+
+      // After 60 seconds, create the order if not canceled
+      setTimeout(async () => {
+        const storedOrderData = await TemperoryOrder.findOne({ orderId });
+
+        if (storedOrderData) {
+          const newOrder = await Order.create({
+            customerId: storedOrderData.customerId,
+            merchantId: storedOrderData.merchantId,
+            items: storedOrderData.items,
+            orderDetail: storedOrderData.orderDetail,
+            billDetail: storedOrderData.billDetail,
+            totalAmount: storedOrderData.totalAmount,
+            status: storedOrderData.status,
+            paymentMode: storedOrderData.paymentMode,
+            paymentStatus: storedOrderData.paymentStatus,
+          });
+
+          if (!newOrder) {
+            return next(appError("Error in creating order"));
+          }
+
+          // Remove the temporary order data from the database
+          await TemperoryOrder.deleteOne({ orderId });
+
+          // Optionally, notify the user about successful order creation
+        }
+      }, 60000);
     } else if (paymentMode === "Online-payment") {
       const { success, orderId, error } = await createRazorpayOrderId(
         orderAmount
@@ -1620,74 +1713,74 @@ const orderPaymentController = async (req, res, next) => {
       return next(appError("Invalid payment mode", 400));
     }
 
-    if (deliveryMode === "Home Delivery") {
-      const orderResponse = {
-        _id: newOrder._id,
-        customerId: newOrder.customerId,
-        customerName:
-          customer.fullName || newOrder.orderDetail.deliveryAddress.fullName,
-        merchantId: newOrder.merchantId,
-        merchantName: merchant.merchantDetail.merchantName,
-        status: newOrder.status,
-        totalAmount: newOrder.totalAmount,
-        paymentMode: newOrder.paymentMode,
-        paymentStatus: newOrder.paymentStatus,
-        items: newOrder.items,
-        deliveryAddress: newOrder.orderDetail.deliveryAddress,
-        billDetail: newOrder.billDetail,
-        orderDetail: {
-          pickupLocation: merchant.merchantDetail.location,
-          deliveryLocation: cart.cartDetail.deliveryLocation,
-          deliveryMode: cart.cartDetail.deliveryMode,
-          deliveryOption: cart.cartDetail.deliveryOption,
-          instructionToMerchant: cart.cartDetail.instructionToMerchant,
-          instructionToDeliveryAgent:
-            cart.cartDetail.instructionToDeliveryAgent,
-          distance: cart.cartDetail.distance,
-        },
-        createdAt: newOrder.createdAt,
-        updatedAt: newOrder.updatedAt,
-      };
+    // if (deliveryMode === "Home Delivery") {
+    //   const orderResponse = {
+    //     _id: newOrder._id,
+    //     customerId: newOrder.customerId,
+    //     customerName:
+    //       customer.fullName || newOrder.orderDetail.deliveryAddress.fullName,
+    //     merchantId: newOrder.merchantId,
+    //     merchantName: merchant.merchantDetail.merchantName,
+    //     status: newOrder.status,
+    //     totalAmount: newOrder.totalAmount,
+    //     paymentMode: newOrder.paymentMode,
+    //     paymentStatus: newOrder.paymentStatus,
+    //     items: newOrder.items,
+    //     deliveryAddress: newOrder.orderDetail.deliveryAddress,
+    //     billDetail: newOrder.billDetail,
+    //     orderDetail: {
+    //       pickupLocation: merchant.merchantDetail.location,
+    //       deliveryLocation: cart.cartDetail.deliveryLocation,
+    //       deliveryMode: cart.cartDetail.deliveryMode,
+    //       deliveryOption: cart.cartDetail.deliveryOption,
+    //       instructionToMerchant: cart.cartDetail.instructionToMerchant,
+    //       instructionToDeliveryAgent:
+    //         cart.cartDetail.instructionToDeliveryAgent,
+    //       distance: cart.cartDetail.distance,
+    //     },
+    //     createdAt: newOrder.createdAt,
+    //     updatedAt: newOrder.updatedAt,
+    //   };
 
-      res.status(200).json({
-        message: "Order created successfully",
-        data: orderResponse,
-      });
-    } else {
-      const orderResponse = {
-        _id: newOrder._id,
-        customerId: newOrder.customerId,
-        customerName: customer.fullName || deliveryAddress.fullName,
-        merchantId: newOrder.merchantId,
-        merchantName: merchant.merchantDetail.merchantName,
-        status: newOrder.status,
-        totalAmount: newOrder.totalAmount,
-        paymentMode: newOrder.paymentMode,
-        paymentStatus: newOrder.paymentStatus,
-        items: newOrder.items,
-        pickupLocation: {
-          merchantName: merchant.merchantDetail.merchantName,
-          location: merchant.merchantDetail.displayAddress,
-        },
-        billDetail: newOrder.billDetail,
-        orderDetail: {
-          pickupLocation: merchant.merchantDetail.location,
-          deliveryMode: cart.cartDetail.deliveryMode,
-          deliveryOption: cart.cartDetail.deliveryOption,
-          instructionToMerchant: cart.cartDetail.instructionToMerchant,
-          instructionToDeliveryAgent:
-            cart.cartDetail.instructionToDeliveryAgent,
-          distance: cart.cartDetail.distance,
-        },
-        createdAt: newOrder.createdAt,
-        updatedAt: newOrder.updatedAt,
-      };
+    //   res.status(200).json({
+    //     message: "Order created successfully",
+    //     data: orderResponse,
+    //   });
+    // } else {
+    //   const orderResponse = {
+    //     _id: newOrder._id,
+    //     customerId: newOrder.customerId,
+    //     customerName: customer.fullName || deliveryAddress.fullName,
+    //     merchantId: newOrder.merchantId,
+    //     merchantName: merchant.merchantDetail.merchantName,
+    //     status: newOrder.status,
+    //     totalAmount: newOrder.totalAmount,
+    //     paymentMode: newOrder.paymentMode,
+    //     paymentStatus: newOrder.paymentStatus,
+    //     items: newOrder.items,
+    //     pickupLocation: {
+    //       merchantName: merchant.merchantDetail.merchantName,
+    //       location: merchant.merchantDetail.displayAddress,
+    //     },
+    //     billDetail: newOrder.billDetail,
+    //     orderDetail: {
+    //       pickupLocation: merchant.merchantDetail.location,
+    //       deliveryMode: cart.cartDetail.deliveryMode,
+    //       deliveryOption: cart.cartDetail.deliveryOption,
+    //       instructionToMerchant: cart.cartDetail.instructionToMerchant,
+    //       instructionToDeliveryAgent:
+    //         cart.cartDetail.instructionToDeliveryAgent,
+    //       distance: cart.cartDetail.distance,
+    //     },
+    //     createdAt: newOrder.createdAt,
+    //     updatedAt: newOrder.updatedAt,
+    //   };
 
-      res.status(200).json({
-        message: "Order created successfully",
-        data: orderResponse,
-      });
-    }
+    //   res.status(200).json({
+    //     message: "Order created successfully",
+    //     data: orderResponse,
+    //   });
+    // }
   } catch (err) {
     next(appError(err.message));
   }
@@ -1854,8 +1947,12 @@ const verifyOnlinePaymentController = async (req, res, next) => {
       });
       return;
     } else {
-      // Create the order
-      newOrder = await Order.create({
+      // Generate a unique order ID
+      const orderId = new mongoose.Types.ObjectId();
+
+      // Store order details temporarily in the database
+      const tempOrder = await TemperoryOrder.create({
+        orderId,
         customerId,
         merchantId: cart.merchantId,
         items: formattedItems,
@@ -1871,78 +1968,195 @@ const verifyOnlinePaymentController = async (req, res, next) => {
         paymentId: paymentDetails.razorpay_payment_id,
       });
 
-      // Clear the cart
-      await CustomerCart.deleteOne({ customerId });
       customer.transactionDetail.push(customerTransation);
       await customer.save();
 
-      if (deliveryMode === "Home Delivery") {
-        const orderResponse = {
-          _id: newOrder._id,
-          customerId: newOrder.customerId,
-          customerName: customer.fullName || deliveryAddress.fullName,
-          merchantId: newOrder.merchantId,
-          merchantName: merchant.merchantDetail.merchantName,
-          status: newOrder.status,
-          totalAmount: newOrder.totalAmount,
-          paymentMode: newOrder.paymentMode,
-          paymentStatus: newOrder.paymentStatus,
-          items: newOrder.items,
-          deliveryAddress: newOrder.orderDetail.deliveryAddress,
-          billDetail: newOrder.billDetail,
-          orderDetail: {
-            pickupLocation: merchant.merchantDetail.location,
-            deliveryLocation: cart.cartDetail.deliveryLocation,
-            deliveryMode: cart.cartDetail.deliveryMode,
-            deliveryOption: cart.cartDetail.deliveryOption,
-            instructionToMerchant: cart.cartDetail.instructionToMerchant,
-            instructionToDeliveryAgent:
-              cart.cartDetail.instructionToDeliveryAgent,
-            distance: cart.cartDetail.distance,
-          },
-          createdAt: newOrder.createdAt,
-          updatedAt: newOrder.updatedAt,
-        };
-
-        res.status(200).json({
-          message: "Order created successfully",
-          data: orderResponse,
-        });
-      } else {
-        const orderResponse = {
-          _id: newOrder._id,
-          customerId: newOrder.customerId,
-          customerName: customer.fullName || deliveryAddress.fullName,
-          merchantId: newOrder.merchantId,
-          merchantName: merchant.merchantDetail.merchantName,
-          status: newOrder.status,
-          totalAmount: newOrder.totalAmount,
-          paymentMode: newOrder.paymentMode,
-          paymentStatus: newOrder.paymentStatus,
-          items: newOrder.items,
-          pickupLocation: {
-            merchantName: merchant.merchantDetail.merchantName,
-            location: merchant.merchantDetail.displayAddress,
-          },
-          billDetail: newOrder.billDetail,
-          orderDetail: {
-            pickupLocation: merchant.merchantDetail.location,
-            deliveryMode: cart.cartDetail.deliveryMode,
-            deliveryOption: cart.cartDetail.deliveryOption,
-            instructionToMerchant: cart.cartDetail.instructionToMerchant,
-            instructionToDeliveryAgent:
-              cart.cartDetail.instructionToDeliveryAgent,
-            distance: cart.cartDetail.distance,
-          },
-          createdAt: newOrder.createdAt,
-          updatedAt: newOrder.updatedAt,
-        };
-
-        res.status(200).json({
-          message: "Order created successfully",
-          data: orderResponse,
-        });
+      if (!tempOrder) {
+        return next(appError("Error in creating temperory order"));
       }
+
+      await CustomerCart.deleteOne({ customerId });
+
+      // Return countdown timer to client
+      res.status(200).json({
+        message: "Custom order will be created in 1 minute.",
+        orderId,
+        countdown: 60,
+      });
+
+      // After 60 seconds, create the order if not canceled
+      setTimeout(async () => {
+        const storedOrderData = await TemperoryOrder.findOne({ orderId });
+
+        if (storedOrderData) {
+          const newOrder = await Order.create({
+            customerId: storedOrderData.customerId,
+            items: storedOrderData.items,
+            orderDetail: storedOrderData.orderDetail,
+            billDetail: storedOrderData.billDetail,
+            totalAmount: storedOrderData.totalAmount,
+            status: storedOrderData.status,
+            paymentMode: storedOrderData.paymentMode,
+            paymentStatus: storedOrderData.paymentStatus,
+          });
+
+          if (!newOrder) {
+            return next(appError("Error in creating order"));
+          }
+
+          // Remove the temporary order data from the database
+          await TemperoryOrder.deleteOne({ orderId });
+
+          //! Optionally, notify the user about successful order creation
+        }
+      }, 60000);
+
+      // Clear the cart
+
+      // if (deliveryMode === "Home Delivery") {
+      //   const orderResponse = {
+      //     _id: newOrder._id,
+      //     customerId: newOrder.customerId,
+      //     customerName: customer.fullName || deliveryAddress.fullName,
+      //     merchantId: newOrder.merchantId,
+      //     merchantName: merchant.merchantDetail.merchantName,
+      //     status: newOrder.status,
+      //     totalAmount: newOrder.totalAmount,
+      //     paymentMode: newOrder.paymentMode,
+      //     paymentStatus: newOrder.paymentStatus,
+      //     items: newOrder.items,
+      //     deliveryAddress: newOrder.orderDetail.deliveryAddress,
+      //     billDetail: newOrder.billDetail,
+      //     orderDetail: {
+      //       pickupLocation: merchant.merchantDetail.location,
+      //       deliveryLocation: cart.cartDetail.deliveryLocation,
+      //       deliveryMode: cart.cartDetail.deliveryMode,
+      //       deliveryOption: cart.cartDetail.deliveryOption,
+      //       instructionToMerchant: cart.cartDetail.instructionToMerchant,
+      //       instructionToDeliveryAgent:
+      //         cart.cartDetail.instructionToDeliveryAgent,
+      //       distance: cart.cartDetail.distance,
+      //     },
+      //     createdAt: newOrder.createdAt,
+      //     updatedAt: newOrder.updatedAt,
+      //   };
+
+      //   res.status(200).json({
+      //     message: "Order created successfully",
+      //     data: orderResponse,
+      //   });
+      // } else {
+      //   const orderResponse = {
+      //     _id: newOrder._id,
+      //     customerId: newOrder.customerId,
+      //     customerName: customer.fullName || deliveryAddress.fullName,
+      //     merchantId: newOrder.merchantId,
+      //     merchantName: merchant.merchantDetail.merchantName,
+      //     status: newOrder.status,
+      //     totalAmount: newOrder.totalAmount,
+      //     paymentMode: newOrder.paymentMode,
+      //     paymentStatus: newOrder.paymentStatus,
+      //     items: newOrder.items,
+      //     pickupLocation: {
+      //       merchantName: merchant.merchantDetail.merchantName,
+      //       location: merchant.merchantDetail.displayAddress,
+      //     },
+      //     billDetail: newOrder.billDetail,
+      //     orderDetail: {
+      //       pickupLocation: merchant.merchantDetail.location,
+      //       deliveryMode: cart.cartDetail.deliveryMode,
+      //       deliveryOption: cart.cartDetail.deliveryOption,
+      //       instructionToMerchant: cart.cartDetail.instructionToMerchant,
+      //       instructionToDeliveryAgent:
+      //         cart.cartDetail.instructionToDeliveryAgent,
+      //       distance: cart.cartDetail.distance,
+      //     },
+      //     createdAt: newOrder.createdAt,
+      //     updatedAt: newOrder.updatedAt,
+      //   };
+
+      //   res.status(200).json({
+      //     message: "Order created successfully",
+      //     data: orderResponse,
+      //   });
+      // }
+    }
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const cancelOrderBeforeCreationController = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+
+    const orderFound = await TemperoryOrder.findOne({ orderId });
+
+    const customerFound = await Customer.findById(orderFound.customerId);
+
+    let updatedTransactionDetail = {
+      transactionType: "Refund",
+      madeon: new Date(),
+      type: "Credit",
+    };
+
+    if (orderFound) {
+      if (orderFound.paymentMode === "Famto-cash") {
+        const orderAmount = orderFound.billDetail.grandTotal;
+        if (orderFound.orderDetail.deliveryOption === "On-demand") {
+          customerFound.customerDetails.walletBalance += orderAmount;
+          updatedTransactionDetail.transactionAmount = orderAmount;
+        }
+
+        // Remove the temporary order data from the database
+        await TemperoryOrder.deleteOne({ orderId });
+
+        customerFound.transactionDetail.push(updatedTransactionDetail);
+
+        await customerFound.save();
+
+        res.status(200).json({
+          message: "Order cancelled and amount refunded to wallet",
+        });
+        return;
+      } else if (orderFound.paymentMode === "Cash-on-delivery") {
+        // Remove the temporary order data from the database
+        await TemperoryOrder.deleteOne({ orderId });
+
+        res.status(200).json({ message: "Order cancelled" });
+        return;
+      } else if (orderFound.paymentMode === "Online-payment") {
+        const paymentId = orderFound.paymentId;
+
+        let refundAmount;
+        if (orderFound.orderDetail.deliveryOption === "On-demand") {
+          refundAmount = orderFound.billDetail.grandTotal;
+          updatedTransactionDetail.transactionAmount = refundAmount;
+        } else if (orderFound.orderDetail.deliveryOption === "Scheduled") {
+          refundAmount =
+            orderFound.billDetail.grandTotal / orderFound.orderDetail.numOfDays;
+          updatedTransactionDetail.transactionAmount = refundAmount;
+        }
+
+        const refundResponse = await razorpayRefund(paymentId, refundAmount);
+
+        if (!refundResponse.success) {
+          return next(appError("Refund failed: " + refundResponse.error, 500));
+        }
+
+        customerFound.transactionDetail.push(updatedTransactionDetail);
+
+        await customerFound.save();
+
+        res.status(200).json({
+          message: "Order cancelled and amount refunded",
+        });
+        return;
+      }
+    } else {
+      res.status(400).json({
+        message: "Order creation already processed or not found",
+      });
     }
   } catch (err) {
     next(appError(err.message));
@@ -1966,4 +2180,5 @@ module.exports = {
   applyPromocodeController,
   orderPaymentController,
   verifyOnlinePaymentController,
+  cancelOrderBeforeCreationController,
 };
