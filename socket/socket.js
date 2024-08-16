@@ -199,7 +199,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173", "http://localhost:5174"], // Replace with the correct URL of your React app
+    origin: ["http://localhost:5173", "http://localhost:5174", "https://famto-admin-panel-react.vercel.app", "*"], // Replace with the correct URL of your React app
     methods: ["GET", "POST"],
     credentials: true,
   },
