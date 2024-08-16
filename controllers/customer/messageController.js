@@ -1,6 +1,11 @@
 const Conversation = require("../../models/Conversation");
 const Message = require("../../models/Message");
-const { getRecipientSocketId, io, sendPushNotificationToUser, userSocketMap } = require("../../socket/socket");
+const {
+  getRecipientSocketId,
+  io,
+  sendPushNotificationToUser,
+  userSocketMap,
+} = require("../../socket/socket");
 const { uploadToFirebase } = require("../../utils/imageOperation");
 
 const sendMessage = async (req, res) => {
@@ -8,10 +13,10 @@ const sendMessage = async (req, res) => {
     const { recipientId, message } = req.body;
     const senderId = req.userAuth;
 
-    let img = ""
-    if ( req.file ) {
-      const uploadedResponse = await uploadToFirebase( req.file , "chatImages");
-      img  = uploadedResponse;
+    let img = "";
+    if (req.file) {
+      const uploadedResponse = await uploadToFirebase(req.file, "chatImages");
+      img = uploadedResponse;
     }
 
     let conversation = await Conversation.findOne({
@@ -28,13 +33,12 @@ const sendMessage = async (req, res) => {
       });
       await conversation.save();
     }
-   
 
     const newMessage = new Message({
       conversationId: conversation._id,
       sender: senderId,
       text: message,
-      img:  img  || "",
+      img: img || "",
     });
 
     await Promise.all([
@@ -53,9 +57,9 @@ const sendMessage = async (req, res) => {
       const data = {
         title: "New message",
         body: newMessage.text,
-        image: newMessage.img
-      }
-      const fcmToken = userSocketMap[recipientId]?.fcmToken
+        image: newMessage.img,
+      };
+      const fcmToken = userSocketMap[recipientId]?.fcmToken;
       sendPushNotificationToUser(fcmToken, data);
     }
 

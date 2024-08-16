@@ -36,6 +36,8 @@ const {
   getCheckoutDetailController,
   getCompleteOrderMessageController,
   deleteAgentProfileController,
+  generateRazorpayQRController,
+  verifyQrPaymentController,
 } = require("../../controllers/agent/agentController");
 const { upload } = require("../../utils/imageOperation");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
@@ -245,7 +247,7 @@ agentRoute.post(
   depositeCashToFamtoController
 );
 
-agentRoute.get(
+agentRoute.post(
   "/verify-cash-deposite",
   isAuthenticated,
   verifyDepositController
@@ -274,5 +276,8 @@ agentRoute.get(
   isAuthenticated,
   getCompleteOrderMessageController
 );
+
+agentRoute.post("/generate-qr", generateRazorpayQRController);
+agentRoute.post("/verify-qr", verifyQrPaymentController);
 
 module.exports = agentRoute;

@@ -338,14 +338,12 @@ const addAlertNotificationController = async (req, res, next) => {
 const sendNotificationController = async (req, res, next) => {
   const { userId, eventName, data } = req.body;
   try {
-    const merchant = await Merchant.findById(userId)
-    const customer = await Customer.findById(userId)
-    await sendNotification(userId, eventName, data)  
-    if(merchant){
-
-    }else if(customer){
-
-    }else{
+    const merchant = await Merchant.findById(userId);
+    const customer = await Customer.findById(userId);
+    await sendNotification(userId, eventName, data);
+    if (merchant) {
+    } else if (customer) {
+    } else {
       await AgentNotificationLogs.create({
         orderId: order.id,
         agentId: userId,

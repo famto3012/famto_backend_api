@@ -437,7 +437,6 @@ const getAllAgentsController = async (req, res, next) => {
   }
 };
 
-
 const searchAgentByNameController = async (req, res, next) => {
   try {
     const { query } = req.query;
@@ -787,7 +786,6 @@ const getDeliveryAgentPayoutController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
-
 
 const searchAgentInPayoutController = async (req, res, next) => {
   try {

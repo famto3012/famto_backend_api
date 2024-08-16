@@ -42,50 +42,49 @@ const addAlertNotificationController = async (req, res, next) => {
       socket: {
         title: title,
         body: description,
-        image: imageUrl
+        image: imageUrl,
       },
       fcm: {
         title: title,
         body: description,
-        image: imageUrl
+        image: imageUrl,
       },
     };
 
     if (userType === "merchant") {
       alertNotificationData.merchantId = id;
-      alertNotificationData.merchant = true
+      alertNotificationData.merchant = true;
 
       await MerchantNotificationLogs.create({
         merchantId: id,
         title,
         description,
         imageUrl,
-      })
+      });
 
-      sendNotification(id, "alertNotification", data)
-
+      sendNotification(id, "alertNotification", data);
     } else if (userType === "agent") {
       alertNotificationData.agentId = id;
-      alertNotificationData.agent = true
+      alertNotificationData.agent = true;
       await AgentAnnouncementLogs.create({
         agentId: id,
         title,
         description,
         imageUrl,
-      })
+      });
 
-      sendNotification(id, "alertNotification", data)
+      sendNotification(id, "alertNotification", data);
     } else if (userType === "customer") {
       alertNotificationData.customerId = id;
-      alertNotificationData.customer = true
+      alertNotificationData.customer = true;
       await CustomerNotificationLogs.create({
         customerId: id,
         title,
         description,
         imageUrl,
-      })
+      });
 
-      sendNotification(id, "alertNotification", data)
+      sendNotification(id, "alertNotification", data);
     } else {
       return next(
         appError(
@@ -104,7 +103,7 @@ const addAlertNotificationController = async (req, res, next) => {
       title,
       description,
       imageUrl,
-    })
+    });
 
     res.status(201).json({
       message: "Alert notification added successfully!",
@@ -133,7 +132,7 @@ const deleteAlertNotificationController = async (req, res, next) => {
 
     res.status(200).json({
       message: "Alert notification deleted successfully!",
-    });                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+    });
   } catch (err) {
     next(appError(err.message));
   }

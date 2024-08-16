@@ -184,7 +184,6 @@ const getAllOrdersForAdminController = async (req, res, next) => {
   }
 };
 
-
 // const getAllScheduledOrdersForAdminController = async (req, res, next) => {
 //   try {
 //     // Get page and limit from query parameters
@@ -294,7 +293,8 @@ const getAllScheduledOrdersForAdminController = async (req, res, next) => {
       })
       .lean(); // Convert MongoDB documents to plain JavaScript objects
 
-    const customOrders = await scheduledPickAndCustom.find({})
+    const customOrders = await scheduledPickAndCustom
+      .find({})
       .populate({
         path: "customerId",
         select: "fullName",
@@ -338,7 +338,6 @@ const getAllScheduledOrdersForAdminController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
-
 
 const confirmOrderByAdminContrroller = async (req, res, next) => {
   try {

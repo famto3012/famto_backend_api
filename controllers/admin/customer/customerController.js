@@ -5,7 +5,6 @@ const Order = require("../../../models/Order");
 const appError = require("../../../utils/appError");
 const { formatDate, formatTime } = require("../../../utils/formatters");
 
-
 const getAllCustomersController = async (req, res, next) => {
   try {
     // Get page and limit from query parameters with default values
