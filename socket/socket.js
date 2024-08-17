@@ -270,7 +270,7 @@ function sendPushNotificationToUser(fcmToken, message, user) {
 
       console.log("Log Data:", logData);
       console.log("User Value:", user);
-     // console.log("Role Value:", role);
+      // console.log("Role Value:", role);
 
       if (user === "Customer") {
         try {
@@ -291,41 +291,41 @@ function sendPushNotificationToUser(fcmToken, message, user) {
         }
       } else if (user === "Merchant") {
         try {
-        // Create MerchantNotificationLog
-        await MerchantNotificationLogs.create({
-          ...logData,
-          merchantId: message.merchantId,
-        });
+          // Create MerchantNotificationLog
+          await MerchantNotificationLogs.create({
+            ...logData,
+            merchantId: message.merchantId,
+          });
 
-        // If the role is admin, create an AdminNotificationLog too
-        // if (role === "Admin") {
-        //   await AdminNotificationLogs.create(logData);
-        // }
-      } catch (err) {
-        console.log(`Error in creating logs: ${err}`);
-      }
+          // If the role is admin, create an AdminNotificationLog too
+          // if (role === "Admin") {
+          //   await AdminNotificationLogs.create(logData);
+          // }
+        } catch (err) {
+          console.log(`Error in creating logs: ${err}`);
+        }
       } else if (user === "Agent") {
         try {
-        // Create AgentNotificationLog
-        await AgentNotificationLogs.create({
-          ...logData,
-          agentId: message.agentId,
-          pickupDetail: message.pickupDetail,
-          deliveryDetail: message.deliveryDetail,
-          orderType: message.orderType,
-        });
+          // Create AgentNotificationLog
+          await AgentNotificationLogs.create({
+            ...logData,
+            agentId: message.agentId,
+            pickupDetail: message.pickupDetail,
+            deliveryDetail: message.deliveryDetail,
+            orderType: message.orderType,
+          });
 
-        // If the role is admin, create an AdminNotificationLog too
-        // if (role === "Admin") {
-        //   await AdminNotificationLogs.create(logData);
-        // }
-      } catch (err) {
-        console.log(`Error in creating logs: ${err}`);
-      }
-      }else if (user === "Admin"){
-        try{
+          // If the role is admin, create an AdminNotificationLog too
+          // if (role === "Admin") {
+          //   await AdminNotificationLogs.create(logData);
+          // }
+        } catch (err) {
+          console.log(`Error in creating logs: ${err}`);
+        }
+      } else if (user === "Admin") {
+        try {
           await AdminNotificationLogs.create(logData);
-        }catch(err){
+        } catch (err) {
           console.log(`Error in creating logs: ${err}`);
         }
       }
@@ -341,7 +341,7 @@ function sendNotification(userId, eventName, data, user) {
   const fcmToken = userSocketMap[userId]?.fcmToken;
   console.log(socketId);
   console.log("User Value (Inside):", user);
- // console.log("Role Value (Inside):", role);
+  // console.log("Role Value (Inside):", role);
   console.log("Event Value (Inside):", eventName);
   if (socketId && fcmToken) {
     io.to(socketId).emit(eventName, data.socket);
@@ -431,13 +431,20 @@ io.on("connection", async (socket) => {
   // console.log(userSocketMap);
 
   // Order accepted by agent socket
-  socket.on("agentAcceptedOrder", async (data) => {
-    const task = await Task.find({ orderId: data.orderId });
+  socket.on("agentOrderAccepted", async (data) => {
+    const agent = await Agent.findById(data.agentId);
+
+    if (agent.status === "Inactive") {
+      throw new Error("Agent should be online to accept new order");
+    }
+
+    const task = await Task.find({ orderId: data.orderId }).populate("orderId");
 
     const agentNotification = await AgentNotificationLogs.findOne({
       orderId: data.orderId,
       agentId: data.agentId,
     });
+
     if (agentNotification) {
       agentNotification.status = "Accepted";
       await agentNotification.save();
@@ -450,14 +457,15 @@ io.on("connection", async (socket) => {
       "orderDetail.agentAcceptedAt": new Date(),
     });
 
-    const agent = await Agent.findByIdAndUpdate(data.agentId, {
-      status: "Busy",
-    });
-
-    // if (task[0].taskStatus === "Assigned") {
-    //    appError("Task already assigned");
-    // }
-    if (task[0].taskStatus === "Unassigned") {
+    if (task[0].taskStatus === "Unassigned" && agent.status === "Free") {
+      await Task.findByIdAndUpdate(task[0]._id, {
+        agentId: data.agentId,
+        taskStatus: "Assigned",
+        startTime: new Date(),
+        "deliveryDetail.deliveryStatus": "Accepted",
+        "pickupDetail.pickupStatus": "Started",
+      });
+    } else {
       await Task.findByIdAndUpdate(task[0]._id, {
         agentId: data.agentId,
         taskStatus: "Assigned",
@@ -466,14 +474,46 @@ io.on("connection", async (socket) => {
       });
     }
 
+    agent.status = "Busy";
+
+    await agent.save();
+
     // Send notification to user
     const dataForCustomer = {
       socket: {
         agentName: agent.fullName,
         agentImgURL: agent.agentImageURL,
+        customerId: task.orderId.customerId,
+      },
+      fcm: {
+        title: "Agent assigned",
+        body: `${agent.fullName} is your delivery partner`,
       },
     };
-    sendNotification(task.customerId, "agentAcceptedOrder", dataForCustomer);
+
+    const parameter = {
+      eventName: "agentOrderAccepted",
+      user: "Customer",
+      role1: "Admin",
+      role2: "Merchant",
+    };
+
+    sendNotification(
+      task.customerId,
+      parameter.eventName,
+      dataForCustomer,
+      parameter.user
+    );
+
+    sendSocketData(process.env.ADMIN_ID, parameter.eventName, parameter.role1);
+
+    if (task?.orderId?.merchantId) {
+      sendSocketData(
+        task?.orderId?.merchantId,
+        parameter.eventName,
+        parameter.role2
+      );
+    }
   });
 
   // User location update socket

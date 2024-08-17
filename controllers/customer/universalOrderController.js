@@ -1585,8 +1585,9 @@ const orderPaymentController = async (req, res, next) => {
           const storedOrderData = await TemperoryOrder.findOne({ orderId });
 
           if (storedOrderData) {
-            const newOrder = await Order.create({
+            let newOrder = await Order.create({
               customerId: storedOrderData.customerId,
+              merchantId: newOrder.merchantId,
               items: storedOrderData.items,
               orderDetail: storedOrderData.orderDetail,
               billDetail: storedOrderData.billDetail,
@@ -1600,10 +1601,85 @@ const orderPaymentController = async (req, res, next) => {
               return next(appError("Error in creating order"));
             }
 
+            newOrder = await newOrder.populate("merchantId");
+
             // Remove the temporary order data from the database
             await TemperoryOrder.deleteOne({ orderId });
 
             //! Optionally, notify the user about successful order creation
+            //? Notify the USER and ADMIN about successful order creation
+            const customerData = {
+              socket: {
+                orderId: newOrder._id,
+                orderDetail: newOrder.orderDetail,
+                billDetail: newOrder.billDetail,
+              },
+              fcm: {
+                title: "Order created",
+                body: "Your order was created successfully",
+                image: "",
+                orderId: newOrder._id,
+                customerId: newOrder.customerId,
+              },
+            };
+
+            const adminData = {
+              socket: {
+                _id: newOrder._id,
+                orderStatus: newOrder.status,
+                merchantName: newOrder.merchantId.merchantDetail.merchantName,
+                customerName:
+                  newOrder?.orderDetail?.deliveryAddress?.fullName ||
+                  newOrder?.customerId?.fullName ||
+                  "-",
+                deliveryMode: newOrder?.orderDetail?.deliveryMode,
+                orderDate: formatDate(newOrder.createdAt),
+                orderTime: formatTime(newOrder.createdAt),
+                deliveryDate: newOrder?.orderDetail?.deliveryTime
+                  ? formatDate(newOrder.orderDetail.deliveryTime)
+                  : "-",
+                deliveryTime: newOrder?.orderDetail?.deliveryTime
+                  ? formatTime(newOrder.orderDetail.deliveryTime)
+                  : "-",
+                paymentMethod: newOrder.paymentMode,
+                deliveryOption: newOrder.orderDetail.deliveryOption,
+                amount: newOrder.billDetail.grandTotal,
+              },
+              fcm: {
+                title: "New Order",
+                body: "Your have a new pending order",
+                image: "",
+                orderId: newOrder._id,
+              },
+            };
+
+            const parameter = {
+              eventName: "newOrderCreated",
+              user: "Customer",
+              role1: "Admin",
+              role2: "Merchant",
+            };
+
+            sendNotification(
+              newOrder.customerId,
+              parameter.eventName,
+              customerData,
+              parameter.user
+            );
+
+            sendNotification(
+              process.env.ADMIN_ID,
+              parameter.eventName,
+              adminData,
+              parameter.role1
+            );
+
+            sendNotification(
+              newOrder.merchantId,
+              parameter.eventName,
+              adminData,
+              parameter.role2
+            );
           }
         }, 60000);
       }
@@ -1672,10 +1748,84 @@ const orderPaymentController = async (req, res, next) => {
             return next(appError("Error in creating order"));
           }
 
+          newOrder = await newOrder.populate("merchantId");
+
           // Remove the temporary order data from the database
           await TemperoryOrder.deleteOne({ orderId });
 
-          // Optionally, notify the user about successful order creation
+          //? Notify the USER and ADMIN about successful order creation
+          const customerData = {
+            socket: {
+              orderId: newOrder._id,
+              orderDetail: newOrder.orderDetail,
+              billDetail: newOrder.billDetail,
+            },
+            fcm: {
+              title: "Order created",
+              body: "Your order was created successfully",
+              image: "",
+              orderId: newOrder._id,
+              customerId: newOrder.customerId,
+            },
+          };
+
+          const adminData = {
+            socket: {
+              _id: newOrder._id,
+              orderStatus: newOrder.status,
+              merchantName: newOrder.merchantId.merchantDetail.merchantName,
+              customerName:
+                newOrder?.orderDetail?.deliveryAddress?.fullName ||
+                newOrder?.customerId?.fullName ||
+                "-",
+              deliveryMode: newOrder?.orderDetail?.deliveryMode,
+              orderDate: formatDate(newOrder.createdAt),
+              orderTime: formatTime(newOrder.createdAt),
+              deliveryDate: newOrder?.orderDetail?.deliveryTime
+                ? formatDate(newOrder.orderDetail.deliveryTime)
+                : "-",
+              deliveryTime: newOrder?.orderDetail?.deliveryTime
+                ? formatTime(newOrder.orderDetail.deliveryTime)
+                : "-",
+              paymentMethod: newOrder.paymentMode,
+              deliveryOption: newOrder.orderDetail.deliveryOption,
+              amount: newOrder.billDetail.grandTotal,
+            },
+            fcm: {
+              title: "New Order",
+              body: "Your have a new pending order",
+              image: "",
+              orderId: newOrder._id,
+            },
+          };
+
+          const parameter = {
+            eventName: "newOrderCreated",
+            user: "Customer",
+            role1: "Admin",
+            role2: "Merchant",
+          };
+
+          sendNotification(
+            newOrder.customerId,
+            parameter.eventName,
+            customerData,
+            parameter.user
+          );
+
+          sendNotification(
+            process.env.ADMIN_ID,
+            parameter.eventName,
+            adminData,
+            parameter.role1
+          );
+
+          sendNotification(
+            newOrder.merchantId,
+            parameter.eventName,
+            adminData,
+            parameter.role2
+          );
         }
       }, 60000);
     } else if (paymentMode === "Online-payment") {
@@ -1986,10 +2136,84 @@ const verifyOnlinePaymentController = async (req, res, next) => {
             return next(appError("Error in creating order"));
           }
 
+          newOrder = await newOrder.populate("merchantId");
+
           // Remove the temporary order data from the database
           await TemperoryOrder.deleteOne({ orderId });
 
-          //! Optionally, notify the user about successful order creation
+          //? Notify the USER and ADMIN about successful order creation
+          const customerData = {
+            socket: {
+              orderId: newOrder._id,
+              orderDetail: newOrder.orderDetail,
+              billDetail: newOrder.billDetail,
+            },
+            fcm: {
+              title: "Order created",
+              body: "Your order was created successfully",
+              image: "",
+              orderId: newOrder._id,
+              customerId: newOrder.customerId,
+            },
+          };
+
+          const adminData = {
+            socket: {
+              _id: newOrder._id,
+              orderStatus: newOrder.status,
+              merchantName: newOrder.merchantId.merchantDetail.merchantName,
+              customerName:
+                newOrder?.orderDetail?.deliveryAddress?.fullName ||
+                newOrder?.customerId?.fullName ||
+                "-",
+              deliveryMode: newOrder?.orderDetail?.deliveryMode,
+              orderDate: formatDate(newOrder.createdAt),
+              orderTime: formatTime(newOrder.createdAt),
+              deliveryDate: newOrder?.orderDetail?.deliveryTime
+                ? formatDate(newOrder.orderDetail.deliveryTime)
+                : "-",
+              deliveryTime: newOrder?.orderDetail?.deliveryTime
+                ? formatTime(newOrder.orderDetail.deliveryTime)
+                : "-",
+              paymentMethod: newOrder.paymentMode,
+              deliveryOption: newOrder.orderDetail.deliveryOption,
+              amount: newOrder.billDetail.grandTotal,
+            },
+            fcm: {
+              title: "New Order",
+              body: "Your have a new pending order",
+              image: "",
+              orderId: newOrder._id,
+            },
+          };
+
+          const parameter = {
+            eventName: "newOrderCreated",
+            user: "Customer",
+            role1: "Admin",
+            role2: "Merchant",
+          };
+
+          sendNotification(
+            newOrder.customerId,
+            parameter.eventName,
+            customerData,
+            parameter.user
+          );
+
+          sendNotification(
+            process.env.ADMIN_ID,
+            parameter.eventName,
+            adminData,
+            parameter.role1
+          );
+
+          sendNotification(
+            newOrder.merchantId,
+            parameter.eventName,
+            adminData,
+            parameter.role2
+          );
         }
       }, 60000);
 

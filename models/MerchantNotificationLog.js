@@ -10,7 +10,6 @@ const MerchantNotificationLogSchema = new mongoose.Schema(
     merchantId: {
       type: String,
       ref: "Merchant",
-      required: true,
     },
     imageUrl: {
       type: String,

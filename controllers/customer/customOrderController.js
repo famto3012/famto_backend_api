@@ -16,6 +16,7 @@ const TemperoryOrder = require("../../models/TemperoryOrders");
 const { razorpayRefund } = require("../../utils/razorpayPayment");
 const { sendNotification } = require("../../socket/socket");
 const { formatDate, formatTime } = require("../../utils/formatters");
+const { listenerCount } = require("../../models/Merchant");
 
 const addShopController = async (req, res, next) => {
   try {
@@ -672,15 +673,6 @@ const confirmCustomOrderController = async (req, res, next) => {
           },
         };
 
-        console.log("===========================");
-        console.log("===========================");
-        console.log(customerData);
-        console.log("===========================");
-        console.log("===========================");
-        console.log(adminData);
-        console.log("===========================");
-        console.log("===========================");
-
         const parameter = {
           eventName: "newOrderCreated",
           user: "Customer",
@@ -691,13 +683,14 @@ const confirmCustomOrderController = async (req, res, next) => {
           newOrder.customerId,
           parameter.eventName,
           customerData,
-          parameter.user,
+          parameter.user
         );
+
         sendNotification(
-          "666987bd66e252f1c3c4774e",
+          process.env.ADMIN_ID,
           parameter.eventName,
           adminData,
-          parameter.role,
+          parameter.role
         );
       }
     }, 60000);
