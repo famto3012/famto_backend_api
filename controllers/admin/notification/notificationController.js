@@ -342,7 +342,9 @@ const sendNotificationController = async (req, res, next) => {
     const customer = await Customer.findById(userId);
     await sendNotification(userId, eventName, data);
     if (merchant) {
+
     } else if (customer) {
+      
     } else {
       await AgentNotificationLogs.create({
         orderId: order.id,
