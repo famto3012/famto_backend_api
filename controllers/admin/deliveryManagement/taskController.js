@@ -14,7 +14,7 @@ const appError = require("../../../utils/appError");
 const {
   getDistanceFromPickupToDelivery,
 } = require("../../../utils/customerAppHelpers");
-const AgentNotificationLogs = require("../../../models/AgentNotificationLog");
+// const AgentNotificationLogs = require("../../../models/AgentNotificationLog");
 
 const getTaskFilterController = async (req, res, next) => {
   try {
