@@ -32,6 +32,7 @@ const {
   verifyPayment,
 } = require("../../utils/razorpayPayment");
 const Referral = require("../../models/Referral");
+const { sendSocketData } = require("../../socket/socket");
 const Razorpay = require("razorpay");
 
 const razorpay = new Razorpay({
@@ -590,9 +591,12 @@ const toggleOnlineController = async (req, res, next) => {
       };
     }
 
-    if (currentAgent.status === "Free") {
+    if (currentAgent.status === "Free" || currentAgent.status === "Busy") {
       currentAgent.status = "Inactive";
-
+      const data = {
+        status: "Inactive",
+      }
+      sendSocketData(currentAgent._id, "updatedAgentStatusToggle", data)
       // Set the end time when the agent goes offline
       currentAgent.loginEndTime = new Date();
       if (currentAgent.loginStartTime) {
@@ -603,7 +607,10 @@ const toggleOnlineController = async (req, res, next) => {
       currentAgent.loginStartTime = null;
     } else {
       currentAgent.status = "Free";
-
+      const data = {
+        status: "Free",
+      }
+      sendSocketData(currentAgent._id, "updatedAgentStatusToggle", data)
       // Set the start time when the agent goes online
       currentAgent.loginStartTime = new Date();
     }
