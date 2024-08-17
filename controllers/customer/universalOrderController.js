@@ -4,7 +4,6 @@ const Customer = require("../../models/Customer");
 const Product = require("../../models/Product");
 const { validationResult } = require("express-validator");
 const BusinessCategory = require("../../models/BusinessCategory");
-const Geofence = require("../../models/Geofence");
 const Merchant = require("../../models/Merchant");
 const Category = require("../../models/Category");
 const {
@@ -31,6 +30,7 @@ const {
   uploadToFirebase,
 } = require("../../utils/imageOperation");
 const TemperoryOrder = require("../../models/TemperoryOrders");
+const geoLocation = require("../../utils/getGeoLocation");
 
 // Get all available business categories according to the order
 const getAllBusinessCategoryController = async (req, res, next) => {
@@ -77,13 +77,13 @@ const homeSearchController = async (req, res, next) => {
         { searchTags: { $in: [query] } },
       ],
     })
-      .select("productName productImageURL type")
+      .select("productName productImageURL type, price")
       .exec();
 
     // Search in Merchant by merchantName
     const merchants = await Merchant.find({
       "merchantDetail.merchantName": { $regex: query, $options: "i" },
-      "sponsorshipDetail.0": { $exists: true },
+      "merchantDetail.pricing.0": { $exists: true },
     })
       .select(
         "merchantDetail.merchantName merchantDetail.merchantImageURL merchantDetail.displayAddress"
@@ -124,42 +124,22 @@ const listRestaurantsController = async (req, res, next) => {
         .exec();
     }
 
-    console.log(req.body);
-
-    // Fetch all geofences from the database
-    const geofences = await Geofence.find({}).exec();
-
-    // Check if the customer's location is within any geofence
     const customerLocation = [latitude, longitude]; // [latitude, longitude]
 
-    let foundGeofence = null;
-    for (const geofence of geofences) {
-      const polygon = turf.polygon([
-        geofence.coordinates.map((coord) => [coord[1], coord[0]]),
-      ]); // Note: Turf uses [longitude, latitude]
-      const point = turf.point([longitude, latitude]); // Note: Turf uses [longitude, latitude]
-      if (turf.booleanPointInPolygon(point, polygon)) {
-        foundGeofence = geofence;
-        break;
-      }
-    }
+    const foundGeofence = await geoLocation(latitude, longitude, next);
 
     if (!foundGeofence) {
       return next(appError("Geofence not found", 404));
     }
 
-    console.log(foundGeofence);
-
     // Query merchants based on geofence and other conditions
     const merchants = await Merchant.find({
       "merchantDetail.geofenceId": foundGeofence._id,
       "merchantDetail.businessCategoryId": businessCategoryId,
-      // "sponsorshipDetail.0": { $exists: true },
+      "merchantDetail.pricing.0": { $exists: true },
       isBlocked: false,
       isApproved: "Approved",
     }).exec();
-
-    console.log(merchants);
 
     // Filter merchants based on serving radius
     const filteredMerchants = merchants?.filter((merchant) => {
@@ -353,7 +333,8 @@ const getMerchantWithCategoriesAndProductsController = async (
         deliveryTime: merchantFound.merchantDetail?.deliveryTime || "-",
         description: merchantFound.merchantDetail?.description || "-",
         displayAddress: merchantFound.merchantDetail?.displayAddress || "-",
-        merchantImageURL: merchantFound.merchantDetail.merchantImageURL,
+        merchantImageURL:
+          merchantFound?.merchantDetail?.merchantImageURL || "-",
       },
       categories: categoriesWithProducts,
     };
@@ -376,6 +357,7 @@ const filterMerchantController = async (req, res, next) => {
     let filterCriteria = {
       isBlocked: false,
       isApproved: "Approved",
+      "merchantDetail.pricing.0": { $exists: true },
     };
 
     if (filterType === "Veg") {

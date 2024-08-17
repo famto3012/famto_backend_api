@@ -1693,7 +1693,6 @@ module.exports = {
   updateCustomOrderStatusController,
   getCheckoutDetailController,
   getCompleteOrderMessageController,
-
   generateRazorpayQRController,
   verifyQrPaymentController,
 };

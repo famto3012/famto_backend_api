@@ -258,6 +258,10 @@ const shopUpdatesSchema = mongoose.Schema({
 });
 
 const detailAddedByAgentSchema = mongoose.Schema({
+  agentEarning: {
+    type: Number,
+    default: null,
+  },
   notes: {
     type: String,
     default: null,
@@ -319,6 +323,14 @@ const orderSchema = mongoose.Schema(
       required: true,
       enum: ["Pending", "Completed", "Failed"],
       default: "Pending",
+    },
+    cancellationReason: {
+      type: String,
+      default: null,
+    },
+    cancellationDescription: {
+      type: String,
+      default: null,
     },
     orderRating: orderRatingSchema,
     commissionDetail: commissionDetailSchema,
