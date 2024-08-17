@@ -24,9 +24,13 @@ const geoLocation = async (latitude, longitude, next) => {
 
       if (booleanPointInPolygon(userPoint, geoPolygon)) {
         const currentArea = area(geoPolygon);
-        // Check if the current geofence has a larger area than the largest one found so far
+        // If a larger area is found, update the largestGeofence
         if (currentArea > largestArea) {
           largestArea = currentArea;
+          largestGeofence = geofences[i];
+        }
+        // If the area is the same as the largestArea, keep the first one found
+        else if (currentArea === largestArea && !largestGeofence) {
           largestGeofence = geofences[i];
         }
       }

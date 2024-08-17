@@ -70,6 +70,7 @@ const {
 } = require("./controllers/Token/tokenOperation.js");
 const messageRoute = require("./routes/customerRoute/messageRoute.js");
 const deleteExpiredConversationsAndMessages = require("./utils/deleteChatDataHelper.js");
+const scheduledPickAndCustom = require("./models/ScheduledPickAndCustom.js");
 
 // const app = express();
 
@@ -185,7 +186,7 @@ cron.schedule("* * * * *", async () => {
   }
 
   // Pick and Drop order
-  const pickAndDropScheduledOrders = await scheduledPickAndDrop.find({
+  const pickAndDropScheduledOrders = await scheduledPickAndCustom.find({
     status: "Pending",
     $and: [
       { startDate: { $lte: now } },
@@ -214,10 +215,9 @@ cron.schedule("* * * * *", async () => {
   }
 });
 
-
-cron.schedule("53 12 * * *", async () => {
+cron.schedule("24 14 * * *", async () => {
   await generateMapplsAuthToken();
-  await moveAppDetailToHistoryAndResetForAllAgents();
+  // await moveAppDetailToHistoryAndResetForAllAgents();
   // await updateOneDayLoyaltyPointEarning();
   // await resetAllAgentTaskHelper();
 });
