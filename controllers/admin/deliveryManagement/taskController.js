@@ -75,17 +75,35 @@ const assignAgentToTaskController = async (req, res, next) => {
     const merchant = await Merchant.findById(order.merchantId);
     const customer = await Customer.findById(order.customerId);
     let deliveryAddress = order.orderDetail.deliveryAddress;
-    // const data = {
-    //   socket: {
-    //     orderId: order.id,
-    //     merchantName: order.orderDetail.pickupAddress.fullName,
-    //     pickAddress: order.orderDetail.pickupAddress,
-    //     customerName: deliveryAddress.fullName,
-    //     customerAddress: deliveryAddress,
-    //   },
-    //   fcm: `New order for merchant with orderId ${task.orderId}`,
-    // };
-    // sendNotification(agentId, "newOrder", data);
+    const data = {
+      socket: {
+        orderId: order.id,
+        merchantName: order.orderDetail.pickupAddress.fullName,
+        pickAddress: order.orderDetail.pickupAddress,
+        customerName: deliveryAddress.fullName,
+        customerAddress: deliveryAddress,
+      },
+      fcm: {
+        title: "New Order",
+        body: "You have a new order to pickup",
+        image: "",
+        orderId: order.id,
+        agentId,
+        pickupDetail: {
+          name: order.orderDetail.pickupAddress.fullName,
+          address: order.orderDetail.pickupAddress,
+        },
+        deliveryDetail: {
+          name: deliveryAddress.fullName,
+          address: deliveryAddress,
+        },
+        orderType: order.orderDetail.deliveryOption,
+      },
+    };
+
+    const parameter = { user: "Agent", eventName: "newOrder" };
+
+    sendNotification(agentId, parameter.eventName, data, parameter.user);
     // const pickupDetail = {
     //   name: order.orderDetail.pickupAddress.fullName,
     //   address: order.orderDetail.pickupAddress,

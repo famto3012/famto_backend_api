@@ -1107,7 +1107,7 @@ const cancelOrdeAfterOrderCreationController = async (req, res, next) => {
       return next(appError("Order not found", 404));
     }
 
-    if (orderFOund.status === "Completed") {
+    if (orderFound.status === "Completed") {
       return next(appError("Order already completed"));
     } else {
       orderFound.status = "Cancelled";

@@ -4,14 +4,13 @@ const mongoose = require("mongoose");
 const DetailSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: true,
   },
   address: {
     fullName: String,
     phoneNumber: String,
     flat: String,
     area: String,
-    landmark: { type: String, default: null },
+    landmark: String,
   },
 });
 
@@ -29,7 +28,6 @@ const AgentNotificationLogSchema = new mongoose.Schema(
     },
     pickupDetail: {
       type: DetailSchema,
-      required: true,
     },
     deliveryDetail: {
       type: DetailSchema,
