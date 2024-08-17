@@ -75,42 +75,42 @@ const assignAgentToTaskController = async (req, res, next) => {
     const merchant = await Merchant.findById(order.merchantId);
     const customer = await Customer.findById(order.customerId);
     let deliveryAddress = order.orderDetail.deliveryAddress;
-    const data = {
-      socket: {
-        orderId: order.id,
-        merchantName: order.orderDetail.pickupAddress.fullName,
-        pickAddress: order.orderDetail.pickupAddress,
-        customerName: deliveryAddress.fullName,
-        customerAddress: deliveryAddress,
-      },
-      fcm: `New order for merchant with orderId ${task.orderId}`,
-    };
-    sendNotification(agentId, "newOrder", data);
-    const pickupDetail = {
-      name: order.orderDetail.pickupAddress.fullName,
-      address: order.orderDetail.pickupAddress,
-    };
-    const deliveryDetail = {
-      name: deliveryAddress.fullName,
-      address: deliveryAddress,
-    };
-    const agentNotification = await AgentNotificationLogs.findOne({
-      orderId: order.id,
-      agentId: agentId,
-    });
-    if (agentNotification) {
-      res.status(200).json({
-        message: "Notification already send to the agent",
-      });
-    } else {
-      await AgentNotificationLogs.create({
-        orderId: order.id,
-        agentId: agentId,
-        pickupDetail,
-        deliveryDetail,
-        orderType: order.orderDetail.deliveryMode,
-      });
-    }
+    // const data = {
+    //   socket: {
+    //     orderId: order.id,
+    //     merchantName: order.orderDetail.pickupAddress.fullName,
+    //     pickAddress: order.orderDetail.pickupAddress,
+    //     customerName: deliveryAddress.fullName,
+    //     customerAddress: deliveryAddress,
+    //   },
+    //   fcm: `New order for merchant with orderId ${task.orderId}`,
+    // };
+    // sendNotification(agentId, "newOrder", data);
+    // const pickupDetail = {
+    //   name: order.orderDetail.pickupAddress.fullName,
+    //   address: order.orderDetail.pickupAddress,
+    // };
+    // const deliveryDetail = {
+    //   name: deliveryAddress.fullName,
+    //   address: deliveryAddress,
+    // };
+    // const agentNotification = await AgentNotificationLogs.findOne({
+    //   orderId: order.id,
+    //   agentId: agentId,
+    // });
+    // if (agentNotification) {
+    //   res.status(200).json({
+    //     message: "Notification already send to the agent",
+    //   });
+    // } else {
+    //   await AgentNotificationLogs.create({
+    //     orderId: order.id,
+    //     agentId: agentId,
+    //     pickupDetail,
+    //     deliveryDetail,
+    //     orderType: order.orderDetail.deliveryMode,
+    //   });
+    // }
 
     res.status(200).json({
       message: "Notification send to the agent",

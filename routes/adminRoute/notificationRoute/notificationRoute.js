@@ -27,9 +27,9 @@ const {
   getAlertNotificationsByUserTypeController,
   searchAlertNotificationsByTitleController,
 } = require("../../../controllers/admin/notification/alertNotification/alertNotificationController");
-const {
-  sendNotificationController,
-} = require("../../../controllers/admin/notification/notificationController");
+// const {
+//   sendNotificationController,
+// } = require("../../../controllers/admin/notification/notificationController");
 const {
   getAdminNotificationLogController,
   getMerchantNotificationLogController,
