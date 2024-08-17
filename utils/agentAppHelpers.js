@@ -184,8 +184,17 @@ const calculateAgentEarnings = async (agent, order) => {
   });
   if (!agentPricing) throw new Error("Agent pricing not found");
 
-  const orderSalary =
+  let orderSalary =
     order.orderDetail.distance * agentPricing.baseDistanceFarePerKM;
+
+  if (order.orderDetail.distance <= agentPricing.baseDistance) {
+    return parseFloat(baseFare);
+  } else {
+    return parseFloat(
+      baseFare + (distance - baseDistance) * fareAfterBaseDistance
+    );
+  }
+
   let totalPurchaseFare = 0;
 
   if (order.orderDetail === "Custom Order") {

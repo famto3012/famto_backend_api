@@ -595,8 +595,8 @@ const toggleOnlineController = async (req, res, next) => {
       currentAgent.status = "Inactive";
       const data = {
         status: "Inactive",
-      }
-      sendSocketData(currentAgent._id, "updatedAgentStatusToggle", data)
+      };
+      sendSocketData(currentAgent._id, "updatedAgentStatusToggle", data);
       // Set the end time when the agent goes offline
       currentAgent.loginEndTime = new Date();
       if (currentAgent.loginStartTime) {
@@ -609,8 +609,8 @@ const toggleOnlineController = async (req, res, next) => {
       currentAgent.status = "Free";
       const data = {
         status: "Free",
-      }
-      sendSocketData(currentAgent._id, "updatedAgentStatusToggle", data)
+      };
+      sendSocketData(currentAgent._id, "updatedAgentStatusToggle", data);
       // Set the start time when the agent goes online
       currentAgent.loginStartTime = new Date();
     }
