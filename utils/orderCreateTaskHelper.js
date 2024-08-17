@@ -119,13 +119,13 @@ const notifyAgents = async (order, priorityType, io) => {
           message: "Notification already send to the agent",
         });
       } else {
-        await AgentNotificationLogs.create({
-          orderId: order.id,
-          agentId: agent.id,
-          pickupDetail,
-          deliveryDetail,
-          orderType: order.orderDetail.deliveryMode,
-        });
+        // await AgentNotificationLogs.create({
+        //   orderId: order.id,
+        //   agentId: agent.id,
+        //   pickupDetail,
+        //   deliveryDetail,
+        //   orderType: order.orderDetail.deliveryMode,
+        // });
       }
     }
   } catch (err) {
@@ -188,13 +188,13 @@ const notifyNearestAgents = async (order, priorityType, maxRadius, io) => {
           message: "Notification already send to the agent",
         });
       } else {
-        await AgentNotificationLogs.create({
-          orderId: order.id,
-          agentId: agent.id,
-          pickupDetail,
-          deliveryDetail,
-          orderType: order.orderDetail.deliveryMode,
-        });
+        // await AgentNotificationLogs.create({
+        //   orderId: order.id,
+        //   agentId: agent.id,
+        //   pickupDetail,
+        //   deliveryDetail,
+        //   orderType: order.orderDetail.deliveryMode,
+        // });
       }
     }
   } catch (err) {

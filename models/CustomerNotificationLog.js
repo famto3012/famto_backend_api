@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const CustomerNotificationLogSchema = new mongoose.Schema(
   {
     customerId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "Customer",
       required: true,
     },

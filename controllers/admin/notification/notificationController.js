@@ -10,7 +10,7 @@ const { sendNotification } = require("../../../socket/socket");
 const Merchant = require("../../../models/Merchant");
 const Customer = require("../../../models/Customer");
 const Agent = require("../../../models/Agent");
-const AgentNotificationLogs = require("../../../models/AgentNotificationLog");
+// const AgentNotificationLogs = require("../../../models/AgentNotificationLog");
 
 const addNotificationSettingController = async (req, res, next) => {
   const errors = validationResult(req);
@@ -335,36 +335,34 @@ const addAlertNotificationController = async (req, res, next) => {
   }
 };
 
-const sendNotificationController = async (req, res, next) => {
-  const { userId, eventName, data } = req.body;
-  try {
-    const merchant = await Merchant.findById(userId);
-    const customer = await Customer.findById(userId);
-    await sendNotification(userId, eventName, data);
-    if (merchant) {
-
-    } else if (customer) {
-      
-    } else {
-      await AgentNotificationLogs.create({
-        orderId: order.id,
-        agentId: userId,
-        pickupDetail: {
-          name: order.orderDetail.pickupAddress.fullName,
-          address: order.orderDetail.pickupAddress,
-        },
-        deliveryDetail: {
-          name: deliveryAddress.fullName,
-          address: deliveryAddress,
-        },
-        orderType: order.orderDetail.deliveryMode,
-      });
-    }
-    res.status(200).send({ message: "Notification sent successfully" });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
+// const sendNotificationController = async (req, res, next) => {
+//   const { userId, eventName, data } = req.body;
+//   try {
+//     const merchant = await Merchant.findById(userId);
+//     const customer = await Customer.findById(userId);
+//     await sendNotification(userId, eventName, data);
+//     if (merchant) {
+//     } else if (customer) {
+//     } else {
+//       await AgentNotificationLogs.create({
+//         orderId: order.id,
+//         agentId: userId,
+//         pickupDetail: {
+//           name: order.orderDetail.pickupAddress.fullName,
+//           address: order.orderDetail.pickupAddress,
+//         },
+//         deliveryDetail: {
+//           name: deliveryAddress.fullName,
+//           address: deliveryAddress,
+//         },
+//         orderType: order.orderDetail.deliveryMode,
+//       });
+//     }
+//     res.status(200).send({ message: "Notification sent successfully" });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
 
 module.exports = {
   addNotificationSettingController,

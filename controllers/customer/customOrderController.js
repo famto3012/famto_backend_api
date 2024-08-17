@@ -14,6 +14,8 @@ const PromoCode = require("../../models/PromoCode");
 const Order = require("../../models/Order");
 const TemperoryOrder = require("../../models/TemperoryOrders");
 const { razorpayRefund } = require("../../utils/razorpayPayment");
+const { sendNotification } = require("../../socket/socket");
+const { formatDate, formatTime } = require("../../utils/formatters");
 
 const addShopController = async (req, res, next) => {
   try {
@@ -582,8 +584,8 @@ const confirmCustomOrderController = async (req, res, next) => {
       paymentStatus: "Pending",
     });
 
-    customer.transactionDetail.push(storedOrderData.customerTransation);
-    customer.walletTransactionDetail.push(storedOrderData.walletTransaction);
+    customer.transactionDetail.push(customerTransation);
+    customer.walletTransactionDetail.push(walletTransaction);
 
     await customer.save();
 
@@ -624,7 +626,79 @@ const confirmCustomOrderController = async (req, res, next) => {
         // Remove the temporary order data from the database
         await TemperoryOrder.deleteOne({ orderId });
 
-        // Optionally, notify the user about successful order creation
+        //? Notify the USER and ADMIN about successful order creation
+        const customerData = {
+          socket: {
+            orderId: newOrder._id,
+            orderDetail: newOrder.orderDetail,
+            billDetail: newOrder.billDetail,
+          },
+          fcm: {
+            title: "Order created",
+            body: "Your order was created successfully",
+            image: "",
+            orderId: newOrder._id,
+            customerId: newOrder.customerId,
+          },
+        };
+
+        const adminData = {
+          socket: {
+            _id: newOrder._id,
+            orderStatus: newOrder.status,
+            merchantName: "-",
+            customerName:
+              newOrder?.orderDetail?.deliveryAddress?.fullName ||
+              newOrder?.customerId?.fullName ||
+              "-",
+            deliveryMode: newOrder?.orderDetail?.deliveryMode,
+            orderDate: formatDate(newOrder.createdAt),
+            orderTime: formatTime(newOrder.createdAt),
+            deliveryDate: newOrder?.orderDetail?.deliveryTime
+              ? formatDate(newOrder.orderDetail.deliveryTime)
+              : "-",
+            deliveryTime: newOrder?.orderDetail?.deliveryTime
+              ? formatTime(newOrder.orderDetail.deliveryTime)
+              : "-",
+            paymentMethod: newOrder.paymentMode,
+            deliveryOption: newOrder.orderDetail.deliveryOption,
+            amount: newOrder.billDetail.grandTotal,
+          },
+          fcm: {
+            title: "New Order",
+            body: "Your have a new pending order",
+            image: "",
+            orderId: newOrder._id,
+          },
+        };
+
+        console.log("===========================");
+        console.log("===========================");
+        console.log(customerData);
+        console.log("===========================");
+        console.log("===========================");
+        console.log(adminData);
+        console.log("===========================");
+        console.log("===========================");
+
+        const parameter = {
+          eventName: "newOrderCreated",
+          user: "Customer",
+          role: "Admin",
+        };
+
+        sendNotification(
+          newOrder.customerId,
+          parameter.eventName,
+          customerData,
+          parameter.user,
+          parameter.role
+        );
+        sendNotification(
+          "666987bd66e252f1c3c4774e",
+          parameter.eventName,
+          adminData
+        );
       }
     }, 60000);
   } catch (err) {

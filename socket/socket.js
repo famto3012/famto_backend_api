@@ -236,7 +236,7 @@ const userSocketMap = {};
 //     .then((response) => {
 //       console.log("Successfully sent message:", response);
 //       if(role === "Admin"){
-        
+
 //       }
 
 //     })
@@ -259,28 +259,37 @@ function sendPushNotificationToUser(fcmToken, message, user, role) {
     .send(mes)
     .then(async (response) => {
       console.log("Successfully sent message:", response);
-      
+
       // Define the notification log data
       const logData = {
         imageUrl: message.image,
         title: message.title,
         description: message.body,
-        ...(user !== 'Customer' && { orderId: message.orderId }), // For agents, include orderId
+        ...(user !== "Customer" && { orderId: message.orderId }), // For agents, include orderId
       };
 
-      if (user === 'Customer') {
-        // Create CustomerNotificationLog
-        await CustomerNotificationLogs.create({
-          ...logData,
-          customerId: message.customerId,
-        });
+      console.log("Log Data:", logData);
+      console.log("User Value:", user);
+      console.log("Role Value:", role);
 
-        // If the role is admin, create an AdminNotificationLog too
-        if (role === 'Admin') {
-          await AdminNotificationLogs.create(logData);
+      if (user === "Customer") {
+        try {
+          console.log("Inside customer");
+          // Create CustomerNotificationLog
+          await CustomerNotificationLogs.create({
+            ...logData,
+            customerId: message.customerId,
+          });
+
+          // If the role is admin, create an AdminNotificationLog too
+          if (role === "Admin") {
+            console.log("Inside Admin");
+            await AdminNotificationLogs.create(logData);
+          }
+        } catch (err) {
+          console.log(`Error in creating logs: ${err}`);
         }
-
-      } else if (user === 'Merchant') {
+      } else if (user === "Merchant") {
         // Create MerchantNotificationLog
         await MerchantNotificationLogs.create({
           ...logData,
@@ -288,11 +297,10 @@ function sendPushNotificationToUser(fcmToken, message, user, role) {
         });
 
         // If the role is admin, create an AdminNotificationLog too
-        if (role === 'Admin') {
+        if (role === "Admin") {
           await AdminNotificationLogs.create(logData);
         }
-
-      } else if (user === 'Agent') {
+      } else if (user === "Agent") {
         // Create AgentNotificationLog
         await AgentNotificationLogs.create({
           ...logData,
@@ -303,11 +311,10 @@ function sendPushNotificationToUser(fcmToken, message, user, role) {
         });
 
         // If the role is admin, create an AdminNotificationLog too
-        if (role === 'Admin') {
+        if (role === "Admin") {
           await AdminNotificationLogs.create(logData);
         }
       }
-
     })
     .catch((error) => {
       console.log("Error sending message:", error);
@@ -319,6 +326,9 @@ function sendNotification(userId, eventName, data, user, role) {
   const socketId = userSocketMap[userId]?.socketId;
   const fcmToken = userSocketMap[userId]?.fcmToken;
   console.log(socketId);
+  console.log("User Value (Inside):", user);
+  console.log("Role Value (Inside):", role);
+  console.log("Event Value (Inside):", eventName);
   if (socketId && fcmToken) {
     io.to(socketId).emit(eventName, data.socket);
     sendPushNotificationToUser(fcmToken, data.fcm, user, role);
