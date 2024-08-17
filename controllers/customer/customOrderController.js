@@ -665,7 +665,7 @@ const confirmCustomOrderController = async (req, res, next) => {
             amount: newOrder.billDetail.grandTotal,
           },
           fcm: {
-            title: "New Order",
+            title: "New Order Admin",
             body: "Your have a new pending order",
             image: "",
             orderId: newOrder._id,
@@ -692,12 +692,12 @@ const confirmCustomOrderController = async (req, res, next) => {
           parameter.eventName,
           customerData,
           parameter.user,
-          parameter.role
         );
         sendNotification(
           "666987bd66e252f1c3c4774e",
           parameter.eventName,
-          adminData
+          adminData,
+          parameter.role,
         );
       }
     }, 60000);
