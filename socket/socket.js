@@ -174,6 +174,9 @@ const appError = require("../utils/appError");
 const AgentNotificationLogs = require("../models/AgentNotificationLog");
 const Message = require("../models/Message");
 const Conversation = require("../models/Conversation");
+const CustomerNotificationLogs = require("../models/CustomerNotificationLog");
+const AdminNotificationLogs = require("../models/AdminNotificationLog");
+const MerchantNotificationLogs = require("../models/MerchantNotificationLog");
 
 // const serviceAccount = require("./path/to/serviceAccountKey.json");
 
@@ -217,8 +220,32 @@ const io = socketio(server, {
 const userSocketMap = {};
 
 // Function to send push notification via FCM
-function sendPushNotificationToUser(fcmToken, message) {
-  // console.log(message);
+// function sendPushNotificationToUser(fcmToken, message, user, role) {
+//   // console.log(message);
+//   const mes = {
+//     notification: {
+//       title: message.title,
+//       body: message.body,
+//       image: message.image,
+//     },
+//     token: fcmToken,
+//   };
+
+//   getMessaging()
+//     .send(mes)
+//     .then((response) => {
+//       console.log("Successfully sent message:", response);
+//       if(role === "Admin"){
+        
+//       }
+
+//     })
+//     .catch((error) => {
+//       console.log("Error sending message:", error);
+//     });
+// }
+
+function sendPushNotificationToUser(fcmToken, message, user, role) {
   const mes = {
     notification: {
       title: message.title,
@@ -230,8 +257,57 @@ function sendPushNotificationToUser(fcmToken, message) {
 
   getMessaging()
     .send(mes)
-    .then((response) => {
+    .then(async (response) => {
       console.log("Successfully sent message:", response);
+      
+      // Define the notification log data
+      const logData = {
+        imageUrl: message.image,
+        title: message.title,
+        description: message.body,
+        ...(user !== 'Customer' && { orderId: message.orderId }), // For agents, include orderId
+      };
+
+      if (user === 'Customer') {
+        // Create CustomerNotificationLog
+        await CustomerNotificationLogs.create({
+          ...logData,
+          customerId: message.customerId,
+        });
+
+        // If the role is admin, create an AdminNotificationLog too
+        if (role === 'Admin') {
+          await AdminNotificationLogs.create(logData);
+        }
+
+      } else if (user === 'Merchant') {
+        // Create MerchantNotificationLog
+        await MerchantNotificationLogs.create({
+          ...logData,
+          merchantId: message.merchantId,
+        });
+
+        // If the role is admin, create an AdminNotificationLog too
+        if (role === 'Admin') {
+          await AdminNotificationLogs.create(logData);
+        }
+
+      } else if (user === 'Agent') {
+        // Create AgentNotificationLog
+        await AgentNotificationLogs.create({
+          ...logData,
+          agentId: message.agentId,
+          pickupDetail: message.pickupDetail,
+          deliveryDetail: message.deliveryDetail,
+          orderType: message.orderType,
+        });
+
+        // If the role is admin, create an AdminNotificationLog too
+        if (role === 'Admin') {
+          await AdminNotificationLogs.create(logData);
+        }
+      }
+
     })
     .catch((error) => {
       console.log("Error sending message:", error);
@@ -239,17 +315,17 @@ function sendPushNotificationToUser(fcmToken, message) {
 }
 
 // Function to send notification to user (using Socket.IO if available, else FCM)
-function sendNotification(userId, eventName, data) {
+function sendNotification(userId, eventName, data, user, role) {
   const socketId = userSocketMap[userId]?.socketId;
   const fcmToken = userSocketMap[userId]?.fcmToken;
   console.log(socketId);
   if (socketId && fcmToken) {
     io.to(socketId).emit(eventName, data.socket);
-    sendPushNotificationToUser(fcmToken, data.fcm);
+    sendPushNotificationToUser(fcmToken, data.fcm, user, role);
   } else if (socketId) {
     io.to(socketId).emit(eventName, data.socket);
   } else if (fcmToken) {
-    sendPushNotificationToUser(fcmToken, data.fcm);
+    sendPushNotificationToUser(fcmToken, data.fcm, user, role);
   } else {
     console.error(`No socketId or fcmToken found for userId: ${userId}`);
   }
