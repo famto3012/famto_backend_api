@@ -199,7 +199,12 @@ const app = express();
 const server = http.createServer(app);
 const io = socketio(server, {
   cors: {
-    origin: ["http://localhost:5173", "http://localhost:5174", "https://famto-admin-panel-react.vercel.app", "*"], // Replace with the correct URL of your React app
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "https://famto-admin-panel-react.vercel.app",
+      "*",
+    ], // Replace with the correct URL of your React app
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -247,6 +252,13 @@ function sendNotification(userId, eventName, data) {
     sendPushNotificationToUser(fcmToken, data.fcm);
   } else {
     console.error(`No socketId or fcmToken found for userId: ${userId}`);
+  }
+}
+
+function sendSocketData(userId, eventName, data) {
+  const socketId = userSocketMap[userId]?.socketId;
+  if (socketId) {
+    io.to(socketId).emit(eventName, data);
   }
 }
 
@@ -319,7 +331,7 @@ io.on("connection", async (socket) => {
   // console.log(userSocketMap);
 
   // Order accepted by agent socket
-  socket.on("Accepted", async (data) => {
+  socket.on("agentAcceptedOrder", async (data) => {
     const task = await Task.find({ orderId: data.orderId });
 
     const agentNotification = await AgentNotificationLogs.findOne({
@@ -338,13 +350,14 @@ io.on("connection", async (socket) => {
       "orderDetail.agentAcceptedAt": new Date(),
     });
 
-    await Agent.findByIdAndUpdate(data.agentId, {
+    const agent = await Agent.findByIdAndUpdate(data.agentId, {
       status: "Busy",
     });
 
-    if (task[0].taskStatus === "Assigned") {
-      appError("Task already assigned");
-    } else {
+    // if (task[0].taskStatus === "Assigned") {
+    //    appError("Task already assigned");
+    // }
+    if (task[0].taskStatus === "Unassigned") {
       await Task.findByIdAndUpdate(task[0]._id, {
         agentId: data.agentId,
         taskStatus: "Assigned",
@@ -354,7 +367,13 @@ io.on("connection", async (socket) => {
     }
 
     // Send notification to user
-    sendNotification(task.customerId, "Accepted", data);
+    const dataForCustomer = {
+      socket: {
+        agentName: agent.fullName,
+        agentImgURL: agent.agentImageURL,
+      },
+    };
+    sendNotification(task.customerId, "agentAcceptedOrder", dataForCustomer);
   });
 
   // User location update socket
@@ -378,19 +397,26 @@ io.on("connection", async (socket) => {
     }
   });
 
+  socket.on("agentLocationUpdateForUser", async (data) => {
+    const agent = await Agent.findOne({ _id: data.agentId });
+    if (agent) {
+      sendSocketData(data.userId, "agentCurrentLocation", agent.location);
+    }
+  });
+
   // Order rejected socket
-  socket.on("Rejected", () => {
+  socket.on("agentRejected", () => {
     console.log("Task rejected");
 
     // Send notification to user
-    sendNotification(userId, "Rejected", {});
+    // sendNotification(userId, "Rejected", {});
   });
 
   // Agent reached drop location socket
   socket.on("reachedDropLocation", async () => {
-    const agent = await Agent.findById(userId);
+    const agent = await Agent.findById(data.userId);
     if (agent) {
-      const task = await Task.find({ agentId: userId });
+      const task = await Task.find({ agentId: data.userId });
       // console.log("Task", task);
       const order = await Order.findById(task[0].orderId);
       // console.log("Order", order);
@@ -433,7 +459,7 @@ io.on("connection", async (socket) => {
             },
             fcm: `Agent ${agent.fullName} has reached your location for order ${task.orderId}`,
           };
-          sendNotification(agent.id, "agentReached", data);
+          sendNotification(order.customerId, "agentReachedDropLocation", data);
         } else {
           // const data = {
           //   message: "Not reached delivery location",
@@ -507,6 +533,14 @@ io.on("connection", async (socket) => {
     }
   });
 
+  // socket.on("updateAgentStatusToggle", async ({ agentId, status }) => {
+  //   try {
+  //     await Agent.findByIdAndUpdate(agentId, {});
+  //   } catch (err) {
+  //     console.log(err);
+  //   }
+  // });
+
   // User disconnected socket
   socket.on("disconnect", () => {
     // console.log("user disconnected", socket.id);
@@ -527,4 +561,5 @@ module.exports = {
   userSocketMap,
   populateUserSocketMap,
   sendPushNotificationToUser,
+  sendSocketData,
 };
