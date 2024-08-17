@@ -89,12 +89,15 @@ const assignAgentToTaskController = async (req, res, next) => {
     const pickupDetail = {
       name: order.orderDetail.pickupAddress.fullName,
       address: order.orderDetail.pickupAddress,
-    }
+    };
     const deliveryDetail = {
       name: deliveryAddress.fullName,
       address: deliveryAddress,
-    }
-    const agentNotification = await AgentNotificationLogs.findOne({ orderId: order.id, agentId: agentId });
+    };
+    const agentNotification = await AgentNotificationLogs.findOne({
+      orderId: order.id,
+      agentId: agentId,
+    });
     if (agentNotification) {
       res.status(200).json({
         message: "Notification already send to the agent",
@@ -108,7 +111,7 @@ const assignAgentToTaskController = async (req, res, next) => {
         orderType: order.orderDetail.deliveryMode,
       });
     }
-   
+
     res.status(200).json({
       message: "Notification send to the agent",
     });

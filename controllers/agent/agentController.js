@@ -33,6 +33,12 @@ const {
 } = require("../../utils/razorpayPayment");
 const Referral = require("../../models/Referral");
 const { sendSocketData } = require("../../socket/socket");
+const Razorpay = require("razorpay");
+
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
 
 //Function for getting agent's manager from geofence
 const getManager = async (geofenceId) => {
@@ -1572,6 +1578,7 @@ const updateCustomOrderStatusController = async (req, res, next) => {
   }
 };
 
+// Get agent earinig for the delivery
 const getCompleteOrderMessageController = async (req, res, next) => {
   try {
     const { orderId } = req.params;
@@ -1582,6 +1589,68 @@ const getCompleteOrderMessageController = async (req, res, next) => {
       message: "Order amount",
       data: orderFound.billDetail.grandTotal,
     });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const generateRazorpayQRController = async (req, res, next) => {
+  const { amount } = req.body;
+  console.log("Amount received:", amount);
+
+  try {
+    const qrCode = await razorpay.qrCode.create({
+      type: "upi_qr",
+      name: "Dynamic QR Code",
+      usage: "single_use",
+      fixed_amount: true,
+      payment_amount: amount,
+      description: "Payment for Order #12345",
+    });
+
+    console.log("QR Code generated:", qrCode);
+    res.json({
+      id: qrCode.id,
+      short_url: qrCode.short_url,
+      qr_code_url: qrCode.qr_code_url,
+      image_url: qrCode.image_url,
+      message: "QR Code generated successfully",
+    });
+  } catch (error) {
+    console.error("Error generating QR code:", error);
+    res.status(500).json({ error: error });
+  }
+};
+
+const verifyQrPaymentController = async (req, res, next) => {
+  try {
+    const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+
+    const receivedSignature = req.headers["x-razorpay-signature"];
+
+    const generatedSignature = crypto
+      .createHmac("sha256", WEBHOOK_SECRET)
+      .update(JSON.stringify(req.body))
+      .digest("hex");
+
+    if (receivedSignature === generatedSignature) {
+      console.log("Webhook verified successfully");
+
+      const paymentData = req.body.payload.payment.entity;
+
+      console.log("Payment Captured:");
+      console.log("Payment ID:", paymentData.id);
+      console.log("Amount:", paymentData.amount);
+      console.log("Currency:", paymentData.currency);
+
+      // You can now store the payment ID or take further action
+      // e.g., update the order status in your database
+
+      res.status(200).send("Webhook received and verified");
+    } else {
+      console.log("Webhook verification failed");
+      res.status(400).send("Invalid signature");
+    }
   } catch (err) {
     next(appError(err.message));
   }
@@ -1624,4 +1693,7 @@ module.exports = {
   updateCustomOrderStatusController,
   getCheckoutDetailController,
   getCompleteOrderMessageController,
+
+  generateRazorpayQRController,
+  verifyQrPaymentController,
 };

@@ -1,4 +1,4 @@
-const { body, check } = require("express-validator");
+const { body } = require("express-validator");
 
 const customerAuthenticateValidations = [
   body().custom((value, { req }) => {
@@ -20,7 +20,7 @@ const customerAuthenticateValidations = [
   body("phoneNumber")
     .if((value, { req }) => req.body.phoneNumber) // Only run this validator if phone number is provided
     .trim()
-    .matches(/^[0-9]{10}$/)
+    .isMobilePhone("en-IN")
     .withMessage("Invalid phone number format"),
 ];
 
