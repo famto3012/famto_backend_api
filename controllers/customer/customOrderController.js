@@ -619,8 +619,8 @@ const confirmCustomOrderController = async (req, res, next) => {
           paymentMode: storedOrderData.paymentMode,
           paymentStatus: storedOrderData.paymentStatus,
           "orderDetailStepper.created": {
-            by: "Admin",
-            userId: process.env.ADMIN_ID,
+            by: storedOrder.orderDetail.deliveryAddress.fullName,
+            userId: storedOrderData.customerId,
             date: new Date(),
           },
         });
@@ -670,7 +670,7 @@ const confirmCustomOrderController = async (req, res, next) => {
             paymentMethod: newOrder.paymentMode,
             deliveryOption: newOrder.orderDetail.deliveryOption,
             amount: newOrder.billDetail.grandTotal,
-            orderDetailStepper: newOrder.orderDetailStepper.created
+            orderDetailStepper: newOrder.orderDetailStepper.created,
           },
           fcm: {
             title: "New Order Admin",

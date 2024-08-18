@@ -1,6 +1,5 @@
 const AgentPricing = require("../models/AgentPricing");
 const Customer = require("../models/Customer");
-const Order = require("../models/Order");
 const Referral = require("../models/Referral");
 
 const formatToHours = (milliseconds) => {
@@ -23,10 +22,11 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
     const Agent = require("../models/Agent");
     const agents = await Agent.find({ isApproved: "Approved" });
 
+    // TODO: Check the criteria for getting the guranteed daily wage
     for (const agent of agents) {
       // Calculate the login duration
       const currentTime = new Date();
-      const loginDuration = currentTime - new Date(agent.loginStartTime); // in milliseconds
+      const loginDuration = currentTime - new Date(agent?.loginStartTime); // in milliseconds
 
       // Update the agent's login duration
       agent.appDetail.loginDuration += loginDuration;
@@ -57,23 +57,6 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
   } catch (err) {
     console.log(
       `Error moving appDetail to history for all agents: ${err.message}`
-    );
-  }
-};
-
-const calculateSalaryChargeForAgent = (
-  distance,
-  baseFare,
-  baseDistanceFare,
-  extraFarePerDay,
-  baseDistanceFarePerKM,
-  purchaseFarePerHour
-) => {
-  if (distance <= baseDistance) {
-    return parseFloat(baseFare);
-  } else {
-    return parseFloat(
-      baseFare + (distance - baseDistance) * fareAfterBaseDistance
     );
   }
 };
@@ -188,13 +171,13 @@ const calculateAgentEarnings = async (agent, order) => {
   let orderSalary =
     order.orderDetail.distance * agentPricing.baseDistanceFarePerKM;
 
-  if (order.orderDetail.distance <= agentPricing.baseDistance) {
-    return parseFloat(baseFare);
-  } else {
-    return parseFloat(
-      baseFare + (distance - baseDistance) * fareAfterBaseDistance
-    );
-  }
+  // if (order.orderDetail.distance <= agentPricing.baseDistance) {
+  //   return parseFloat(baseFare);
+  // } else {
+  //   return parseFloat(
+  //     baseFare + (distance - baseDistance) * fareAfterBaseDistance
+  //   );
+  // }
 
   let totalPurchaseFare = 0;
 
@@ -258,7 +241,6 @@ const updateAgentDetails = async (agent, order, calculatedSalary) => {
 module.exports = {
   formatToHours,
   moveAppDetailToHistoryAndResetForAllAgents,
-  calculateSalaryChargeForAgent,
   updateLoyaltyPoints,
   processReferralRewards,
   calculateAgentEarnings,

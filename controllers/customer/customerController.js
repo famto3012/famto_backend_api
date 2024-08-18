@@ -1103,6 +1103,12 @@ const cancelOrdeAfterOrderCreationController = async (req, res, next) => {
       customerId,
     });
 
+    const customerFound = await Customer.findById(customerId);
+
+    if (!customerFound) {
+      return next(appError("Customer not found", 404));
+    }
+
     if (!orderFound) {
       return next(appError("Order not found", 404));
     }
@@ -1110,6 +1116,17 @@ const cancelOrdeAfterOrderCreationController = async (req, res, next) => {
     if (orderFound.status === "Completed") {
       return next(appError("Order already completed"));
     } else {
+      const stepperData = {
+        by: `${
+          customerFound.fullName ||
+          orderFound.orderDetail.deliveryAddress.fullName ||
+          "-"
+        } (Customer)`,
+        userId: customerId,
+        date: new Date(),
+      };
+
+      orderFound.orderDetailStepper.cancelled = stepperData;
       orderFound.status = "Cancelled";
       await orderFound.save();
     }
@@ -1123,6 +1140,67 @@ const cancelOrdeAfterOrderCreationController = async (req, res, next) => {
 
       await taskFound.save();
     }
+
+    //? Notify the CUSTOMER, ADMIN, MERCHANT, AGENT about successful order cancellation
+    const customerData = {
+      socket: {
+        orderId: orderFound._id,
+        title: "Order cancelled",
+        body: "Your order has been cancelled",
+        orderId: orderFound._id,
+        customerId: orderFound.customerId,
+      },
+      fcm: {
+        title: "Order cancelled",
+        body: "Your order has been cancelled",
+        orderId: orderFound._id,
+        customerId: orderFound.customerId,
+      },
+    };
+
+    const merchantData = {
+      socket: {
+        orderId: orderFound._id,
+        title: "Order cancelled",
+        body: `OrderId #${orderFound._id} has been cancelled by the customer`,
+        orderId: orderFound._id,
+        merchantId: orderFound.merchantId,
+      },
+      fcm: {
+        title: "Order cancelled",
+        body: `OrderId #${orderFound._id} has been cancelled by the customer`,
+        orderId: orderFound._id,
+        merchantId: orderFound.merchantId,
+      },
+    };
+
+    const adminData = {
+      socket: {
+        orderId: orderFound._id,
+        title: "Order cancelled",
+        body: `OrderId #${orderFound._id} has been cancelled by the customer`,
+        orderId: orderFound._id,
+      },
+      fcm: {
+        title: "Order cancelled",
+        body: `OrderId #${orderFound._id} has been cancelled by the customer`,
+        orderId: orderFound._id,
+      },
+    };
+
+    const agentData = {
+      socket: {
+        orderId: orderFound._id,
+        title: "Order cancelled",
+        body: `OrderId #${orderFound._id} has been cancelled by the customer`,
+        orderId: orderFound._id,
+      },
+      fcm: {
+        title: "Order cancelled",
+        body: `OrderId #${orderFound._id} has been cancelled by the customer`,
+        orderId: orderFound._id,
+      },
+    };
 
     res.status(200).json({
       messag: "Order cancelled successfully",

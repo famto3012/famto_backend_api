@@ -226,13 +226,6 @@ const confirmOrderController = async (req, res, next) => {
       if (!task) {
         return next(appError("Task not created"));
       }
-      const stepperDetail = {
-        by: "Admin",
-        userId: process.env.ADMIN_ID,
-        date: new Date(),
-      }
-      orderFound.orderDetailStepper.assigned = stepperDetail
-      await orderFound.save();
 
       orderFound = await orderFound.populate("merchantId");
 
@@ -272,7 +265,7 @@ const confirmOrderController = async (req, res, next) => {
           paymentMethod: orderFound.paymentMode,
           deliveryOption: orderFound.orderDetail.deliveryOption,
           amount: orderFound.billDetail.grandTotal,
-          "orderDetailStepper.assigned" : stepperDetail
+          "orderDetailStepper.assigned": stepperDetail,
         },
         fcm: {
           title: "Order accepted",
@@ -367,6 +360,7 @@ const rejectOrderController = async (req, res, next) => {
 
       orderFound.status = "Cancelled";
       customerFound.transactionDetail.push(updatedTransactionDetail);
+      orderFound.orderDetailStepper.cancelled = stepperData;
 
       await customerFound.save();
       await orderFound.save();
@@ -453,6 +447,7 @@ const rejectOrderController = async (req, res, next) => {
       return;
     } else if (orderFound.paymentMode === "Cash-on-delivery") {
       orderFound.status === "Cancelled";
+      orderFound.orderDetailStepper.cancelled = stepperData;
 
       await orderFound.save();
 
@@ -555,6 +550,7 @@ const rejectOrderController = async (req, res, next) => {
 
       orderFound.status = "Cancelled";
       orderFound.refundId = refundResponse.refundId;
+      orderFound.orderDetailStepper.cancelled = stepperData;
       customerFound.transactionDetail.push(updatedTransactionDetail);
 
       await orderFound.save();

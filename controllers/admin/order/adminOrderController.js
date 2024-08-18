@@ -208,13 +208,6 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
     if (!task) {
       return next(appError("Task not created"));
     }
-    const stepperDetail = {
-      by: "Admin",
-      userId: process.env.ADMIN_ID,
-      date: new Date(),
-    };
-    orderFound.orderDetailStepper.assigned = stepperDetail;
-    await orderFound.save();
 
     orderFound = await orderFound.populate("merchantId");
 
@@ -315,6 +308,18 @@ const rejectOrderByAdminController = async (req, res, next) => {
       return next(appError("Customer not found", 404));
     }
 
+    let updatedTransactionDetail = {
+      transactionType: "Refund",
+      madeon: new Date(),
+      type: "Credit",
+    };
+
+    const stepperData = {
+      by: "Admin",
+      userId: process.env.Admin_ID,
+      date: new Date(),
+    };
+
     if (orderFound.paymentMode === "Famto-cash") {
       const orderAmount = orderFound.totalAmount;
       if (orderFound.orderDetail.deliveryOption === "On-demand") {
@@ -326,6 +331,8 @@ const rejectOrderByAdminController = async (req, res, next) => {
       }
 
       orderFound.status = "Cancelled";
+      orderFound.orderDetailStepper.cancelled = stepperData;
+      customerFound.transactionDetail.push(updatedTransactionDetail);
       await customerFound.save();
       await orderFound.save();
 
@@ -411,6 +418,7 @@ const rejectOrderByAdminController = async (req, res, next) => {
       return;
     } else if (orderFound.paymentMode === "Cash-on-delivery") {
       orderFound.status === "Cancelled";
+      orderFound.orderDetailStepper.cancelled = stepperData;
 
       await customerFound.save();
 
@@ -511,8 +519,11 @@ const rejectOrderByAdminController = async (req, res, next) => {
 
       orderFound.status = "Cancelled";
       orderFound.refundId = refundResponse.refundId;
+      orderFound.orderDetailStepper.cancelled = stepperData;
+      customerFound.transactionDetail.push(updatedTransactionDetail);
 
       await orderFound.save();
+      await customerFound.save();
 
       orderFound = await orderFound.populate("merchantId");
 
