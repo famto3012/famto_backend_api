@@ -1,28 +1,120 @@
 const Merchant = require("../models/Merchant");
+const MerchantNotificationLogs = require("../models/MerchantNotificationLog");
+
+// const deleteExpiredSponsorshipPlans = async () => {
+//   const now = new Date();
+
+//   try {
+//     // Find all merchants with expired sponsorship plans
+//     const merchants = await Merchant.find({
+//       "sponsorshipDetail.endDate": { $lte: now },
+//     });
+
+//     // Use for...of loop to handle asynchronous operations correctly
+//     for (const merchant of merchants) {
+//       // Remove expired plans
+//       await Merchant.updateOne(
+//         { _id: merchant._id },
+//         {
+//           $pull: {
+//             sponsorshipDetail: { endDate: { $lte: now } },
+//           },
+//         }
+//       );
+//     }
+
+//     console.log("Expired sponsorship plans deleted successfully");
+//   } catch (err) {
+//     console.error(`Error deleting expired sponsorship plans: ${err}`);
+//   }
+// };
 
 const deleteExpiredSponsorshipPlans = async () => {
   const now = new Date();
+  const today = new Date(now.setHours(0, 0, 0, 0)); // Current date set to midnight
+  const threeDaysFromNow = new Date(today);
+  threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+  const user = "Merchant"
 
   try {
-    // Find all merchants with expired sponsorship plans
+    // Find all merchants with sponsorship plans expiring within the next 3 days
     const merchants = await Merchant.find({
-      "sponsorshipDetail.endDate": { $lte: now },
+      "sponsorshipDetail.endDate": { $lte: threeDaysFromNow },
     });
 
-    // Use for...of loop to handle asynchronous operations correctly
     for (const merchant of merchants) {
-      // Remove expired plans
-      await Merchant.updateOne(
-        { _id: merchant._id },
-        {
-          $pull: {
-            sponsorshipDetail: { endDate: { $lte: now } },
-          },
+      for (const sponsorship of merchant.sponsorshipDetail) {
+        const daysUntilExpiration = Math.ceil(
+          (sponsorship.endDate - now) / (1000 * 60 * 60 * 24)
+        );
+
+        const description = `Your sponsorship plan will expire in ${daysUntilExpiration} days. Renew now to avoid disconnection.`;
+
+        // Check if a notification has already been sent today
+        const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+        const endOfDay = new Date(now.setHours(23, 59, 59, 999));
+
+        const notificationExists = await MerchantNotificationLogs.findOne({
+          merchantId: merchant._id,
+          description,
+          createdAt: { $gte: startOfDay, $lt: endOfDay },
+        });
+
+        if (
+          !notificationExists &&
+          now >= sponsorship.endDate - 3 * 24 * 60 * 60 * 1000 && // 3 days before expiration
+          now < sponsorship.endDate
+        ) {
+          // Send notification about plan expiration
+          const data = {
+            socket: {
+              title: "Sponsorship Plan Expiration",
+              description,
+            },
+            fcm: {
+              title: "Sponsorship Plan Expiration",
+              body: description,
+              image: "",
+              merchantId: merchant._id,
+            },
+          };
+
+          const eventName = "sponsorshipPlanEnd";
+          sendNotification(merchant._id, eventName, data, user);
+
         }
-      );
+
+        // Remove expired plans
+        if (now >= sponsorship.endDate) {
+          await Merchant.updateOne(
+            { _id: merchant._id },
+            {
+              $pull: {
+                sponsorshipDetail: { _id: sponsorship._id },
+              },
+            }
+          );
+
+          const data = {
+            socket: {
+              title: "Sponsorship Plan Expired",
+              description: "Your sponsorship plan has expired.",
+            },
+            fcm: {
+              title: "Sponsorship Plan Expired",
+              body: "Your sponsorship plan has expired.",
+              image: "",
+              merchantId: merchant._id,
+            },
+          };
+
+          const eventName = "sponsorshipPlanExpired";
+          sendNotification(merchant._id, eventName, data, user);
+        }
+      }
     }
 
-    console.log("Expired sponsorship plans deleted successfully");
+    console.log("Expired sponsorship plans processed successfully");
   } catch (err) {
     console.error(`Error deleting expired sponsorship plans: ${err}`);
   }

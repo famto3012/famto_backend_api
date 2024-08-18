@@ -354,7 +354,7 @@ function sendNotification(userId, eventName, data, user) {
     console.error(`No socketId or fcmToken found for userId: ${userId}`);
   }
 }
-
+  
 function sendSocketData(userId, eventName, data) {
   const socketId = userSocketMap[userId]?.socketId;
   if (socketId) {
