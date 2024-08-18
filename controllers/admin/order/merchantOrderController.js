@@ -226,7 +226,12 @@ const confirmOrderController = async (req, res, next) => {
       if (!task) {
         return next(appError("Task not created"));
       }
-
+      const stepperDetail = {
+        by: "Admin",
+        userId: process.env.ADMIN_ID,
+        date: new Date(),
+      }
+      orderFound.orderDetailStepper.assigned = stepperDetail
       await orderFound.save();
 
       orderFound = await orderFound.populate("merchantId");
@@ -267,9 +272,10 @@ const confirmOrderController = async (req, res, next) => {
           paymentMethod: orderFound.paymentMode,
           deliveryOption: orderFound.orderDetail.deliveryOption,
           amount: orderFound.billDetail.grandTotal,
+          "orderDetailStepper.assigned" : stepperDetail
         },
         fcm: {
-          title: "Order acccepted",
+          title: "Order accepted",
           body: "Order accepted by merchant",
           orderId: orderFound._id,
           merchantId: orderFound.merchantId._id,

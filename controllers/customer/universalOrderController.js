@@ -1595,6 +1595,11 @@ const orderPaymentController = async (req, res, next) => {
               status: storedOrderData.status,
               paymentMode: storedOrderData.paymentMode,
               paymentStatus: storedOrderData.paymentStatus,
+              "orderDetailStepper.created": {
+                by: "Admin",
+                userId: process.env.ADMIN_ID,
+                date: new Date(),
+              },
             });
 
             if (!newOrder) {
@@ -1613,6 +1618,7 @@ const orderPaymentController = async (req, res, next) => {
                 orderId: newOrder._id,
                 orderDetail: newOrder.orderDetail,
                 billDetail: newOrder.billDetail,
+                orderDetailStepper: newOrder.orderDetailStepper.created,
               },
               fcm: {
                 title: "Order created",
@@ -1644,6 +1650,7 @@ const orderPaymentController = async (req, res, next) => {
                 paymentMethod: newOrder.paymentMode,
                 deliveryOption: newOrder.orderDetail.deliveryOption,
                 amount: newOrder.billDetail.grandTotal,
+                orderDetailStepper: newOrder.orderDetailStepper.created,
               },
               fcm: {
                 title: "New Order",
@@ -1742,6 +1749,11 @@ const orderPaymentController = async (req, res, next) => {
             status: storedOrderData.status,
             paymentMode: storedOrderData.paymentMode,
             paymentStatus: storedOrderData.paymentStatus,
+            "orderDetailStepper.created": {
+              by: "Admin",
+              userId: process.env.ADMIN_ID,
+              date: new Date(),
+            },
           });
 
           if (!newOrder) {
@@ -1759,6 +1771,7 @@ const orderPaymentController = async (req, res, next) => {
               orderId: newOrder._id,
               orderDetail: newOrder.orderDetail,
               billDetail: newOrder.billDetail,
+              orderDetailStepper: newOrder.orderDetailStepper.created,
             },
             fcm: {
               title: "Order created",
@@ -1790,6 +1803,7 @@ const orderPaymentController = async (req, res, next) => {
               paymentMethod: newOrder.paymentMode,
               deliveryOption: newOrder.orderDetail.deliveryOption,
               amount: newOrder.billDetail.grandTotal,
+              orderDetailStepper: newOrder.orderDetailStepper.created,
             },
             fcm: {
               title: "New Order",
@@ -2130,6 +2144,11 @@ const verifyOnlinePaymentController = async (req, res, next) => {
             status: storedOrderData.status,
             paymentMode: storedOrderData.paymentMode,
             paymentStatus: storedOrderData.paymentStatus,
+            "orderDetailStepper.created": {
+              by: "Admin",
+              userId: process.env.ADMIN_ID,
+              date: new Date(),
+            },
           });
 
           if (!newOrder) {
@@ -2147,6 +2166,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
               orderId: newOrder._id,
               orderDetail: newOrder.orderDetail,
               billDetail: newOrder.billDetail,
+              orderDetailStepper: newOrder.orderDetailStepper.created,
             },
             fcm: {
               title: "Order created",
@@ -2178,6 +2198,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
               paymentMethod: newOrder.paymentMode,
               deliveryOption: newOrder.orderDetail.deliveryOption,
               amount: newOrder.billDetail.grandTotal,
+              orderDetailStepper: newOrder.orderDetailStepper.created,
             },
             fcm: {
               title: "New Order",
