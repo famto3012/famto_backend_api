@@ -1,5 +1,6 @@
 const AgentPricing = require("../models/AgentPricing");
 const Customer = require("../models/Customer");
+const Order = require("../models/Order");
 const Referral = require("../models/Referral");
 
 const formatToHours = (milliseconds) => {
@@ -226,7 +227,7 @@ const updateOrderDetails = (order) => {
   order.orderDetail.delayedBy = delayedBy;
 };
 
-const updateAgentDetails = (agent, order, calculatedSalary) => {
+const updateAgentDetails = async (agent, order, calculatedSalary) => {
   agent.appDetail.orders += 1;
   agent.appDetail.totalEarning += parseFloat(calculatedSalary);
   agent.appDetail.totalDistance += order.orderDetail.distance;
@@ -238,6 +239,20 @@ const updateAgentDetails = (agent, order, calculatedSalary) => {
     completedOn: new Date(),
     grandTotal: order?.billDetail?.grandTotal,
   });
+
+  const agentTasks = await Task.find({
+    taskStatus: "Assigned",
+    agentId: agent._id,
+  }).sort({
+    createdAt: 1,
+  });
+
+  if (agentTasks.length > 0) {
+    agentTasks[0].pickupDetail.pickupStatus = "Started";
+    agentTasks[0].startTime = new Date();
+
+    await agentTasks.save();
+  }
 };
 
 module.exports = {

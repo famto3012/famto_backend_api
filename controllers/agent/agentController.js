@@ -1289,7 +1289,7 @@ const completeOrderController = async (req, res, next) => {
     updateOrderDetails(orderFound);
 
     // Update agent details
-    updateAgentDetails(agentFound, orderFound, calculatedSalary);
+    await updateAgentDetails(agentFound, orderFound, calculatedSalary);
 
     await Promise.all([
       orderFound.save(),

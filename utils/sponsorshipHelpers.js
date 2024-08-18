@@ -34,7 +34,7 @@ const deleteExpiredSponsorshipPlans = async () => {
   const today = new Date(now.setHours(0, 0, 0, 0)); // Current date set to midnight
   const threeDaysFromNow = new Date(today);
   threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
-  const user = "Merchant"
+  const user = "Merchant";
 
   try {
     // Find all merchants with sponsorship plans expiring within the next 3 days
@@ -81,7 +81,6 @@ const deleteExpiredSponsorshipPlans = async () => {
 
           const eventName = "sponsorshipPlanEnd";
           sendNotification(merchant._id, eventName, data, user);
-
         }
 
         // Remove expired plans
