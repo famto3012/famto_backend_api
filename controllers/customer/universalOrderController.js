@@ -1596,8 +1596,8 @@ const orderPaymentController = async (req, res, next) => {
               paymentMode: storedOrderData.paymentMode,
               paymentStatus: storedOrderData.paymentStatus,
               "orderDetailStepper.created": {
-                by: "Admin",
-                userId: process.env.ADMIN_ID,
+                by: storedOrder.orderDetail.deliveryAddress.fullName,
+                userId: storedOrderData.customerId,
                 date: new Date(),
               },
             });
@@ -1750,8 +1750,8 @@ const orderPaymentController = async (req, res, next) => {
             paymentMode: storedOrderData.paymentMode,
             paymentStatus: storedOrderData.paymentStatus,
             "orderDetailStepper.created": {
-              by: "Admin",
-              userId: process.env.ADMIN_ID,
+              by: storedOrder.orderDetail.deliveryAddress.fullName,
+              userId: storedOrderData.customerId,
               date: new Date(),
             },
           });
@@ -2145,8 +2145,8 @@ const verifyOnlinePaymentController = async (req, res, next) => {
             paymentMode: storedOrderData.paymentMode,
             paymentStatus: storedOrderData.paymentStatus,
             "orderDetailStepper.created": {
-              by: "Admin",
-              userId: process.env.ADMIN_ID,
+              by: storedOrder.orderDetail.deliveryAddress.fullName,
+              userId: storedOrderData.customerId,
               date: new Date(),
             },
           });

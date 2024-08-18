@@ -5,17 +5,10 @@ const AutoAllocation = require("../models/AutoAllocation");
 const Order = require("../models/Order");
 const Agent = require("../models/Agent");
 const AgentPricing = require("../models/AgentPricing");
-const Customer = require("../models/Customer");
 const Merchant = require("../models/Merchant");
-const {
-  getRecipientSocketId,
-  io,
-  getRecipientFcmToken,
-  sendNotification,
-} = require("../socket/socket");
+const { io, sendNotification } = require("../socket/socket");
 const BusinessCategory = require("../models/BusinessCategory");
 const FcmToken = require("../models/fcmToken");
-const AgentNotificationLogs = require("../models/AgentNotificationLog");
 
 const orderCreateTaskHelper = async (orderId) => {
   try {
@@ -64,34 +57,24 @@ const orderCreateTaskHelper = async (orderId) => {
 
     return true;
   } catch (err) {
-    appError(err.message);
+    throw new Error(`Error in creating order task: ${err}`);
   }
 };
 
-const notifyAgents = async (order, priorityType, io) => {
+const notifyAgents = async (order, priorityType) => {
   try {
     let agents;
+
     if (priorityType === "Default") {
       agents = await fetchAgents(order.merchantId);
     } else {
       agents = await fetchMonthlySalaryAgents(order.merchantId);
     }
-    console.log("Agents", agents);
-    const merchant = await Merchant.findById(order.merchantId);
-    console.log("Merchant", merchant);
-    const customer = await Customer.findById(order.customerId);
-    console.log("Customer", customer);
+
     let deliveryAddress = order.orderDetail.deliveryAddress;
-    console.log(deliveryAddress);
+
     console.log("Agents array length:", agents.length);
     for (const agent of agents) {
-      console.log("Inside loop");
-      console.log("AgentId", agent.id);
-      const userToken = await FcmToken.find({ userId: agent.id });
-      const fcmToken = userToken[0].token;
-      console.log("FCM TOKEN", fcmToken);
-      const socketId = await getRecipientSocketId(agent.id);
-      console.log("SocketId", socketId);
       const data = {
         socket: {
           orderId: order.id,
@@ -121,40 +104,16 @@ const notifyAgents = async (order, priorityType, io) => {
       const parameter = { user: "Agent", eventName: "newOrder" };
 
       sendNotification(agent.id, parameter.eventName, data, parameter.user);
-      // const agentNotification = await AgentNotificationLogs.findOne({
-      //   orderId: order.id,
-      //   agentId: agent.id,
-      // });
-      // const pickupDetail = {
-      //   name: order.orderDetail.pickupAddress.fullName,
-      //   address: order.orderDetail.pickupAddress,
-      // };
-      // const deliveryDetail = {
-      //   name: deliveryAddress.fullName,
-      //   address: deliveryAddress,
-      // };
-      // if (agentNotification) {
-      //   res.status(200).json({
-      //     message: "Notification already send to the agent",
-      //   });
-      // } else {
-      //   // await AgentNotificationLogs.create({
-      //   //   orderId: order.id,
-      //   //   agentId: agent.id,
-      //   //   pickupDetail,
-      //   //   deliveryDetail,
-      //   //   orderType: order.orderDetail.deliveryMode,
-      //   // });
-      // }
     }
   } catch (err) {
-    appError(err.message);
+    throw new Error(`Error in notifying agents: ${err}`);
   }
 };
 
 const notifyNearestAgents = async (order, priorityType, maxRadius, io) => {
   try {
     let agents;
+
     if (priorityType === "Default") {
       agents = await fetchNearestAgents();
     } else {
@@ -163,22 +122,12 @@ const notifyNearestAgents = async (order, priorityType, maxRadius, io) => {
         order.merchantId
       );
     }
-    console.log("Agents", agents);
-    const merchant = await Merchant.findById(order.merchantId);
-    console.log("Merchant", merchant);
-    const customer = await Customer.findById(order.customerId);
-    console.log("Customer", customer);
+
     let deliveryAddress = order.orderDetail.deliveryAddress;
-    console.log(deliveryAddress);
-    console.log("Agents array length:", agents.length);
+
     for (const agent of agents) {
-      console.log("Inside loop");
-      console.log("AgentId", agent.id);
       const userToken = await FcmToken.find({ userId: agent.id });
-      const fcmToken = userToken[0].token;
-      console.log("FCM TOKEN", fcmToken);
-      const socketId = await getRecipientSocketId(agent.id);
-      console.log("SocketId", socketId);
+
       const data = {
         socket: {
           orderId: order.id,
@@ -208,31 +157,6 @@ const notifyNearestAgents = async (order, priorityType, maxRadius, io) => {
       const parameter = { user: "Agent", eventName: "newOrder" };
 
       sendNotification(agent.id, parameter.eventName, data, parameter.user);
-      // const agentNotification = await AgentNotificationLogs.findOne({
-      //   orderId: order.id,
-      //   agentId: agent.id,
-      // });
-      // const pickupDetail = {
-      //   name: order.orderDetail.pickupAddress.fullName,
-      //   address: order.orderDetail.pickupAddress,
-      // };
-      // const deliveryDetail = {
-      //   name: deliveryAddress.fullName,
-      //   address: deliveryAddress,
-      // };
-      // if (agentNotification) {
-      //   res.status(200).json({
-      //     message: "Notification already send to the agent",
-      //   });
-      // } else {
-      //   // await AgentNotificationLogs.create({
-      //   //   orderId: order.id,
-      //   //   agentId: agent.id,
-      //   //   pickupDetail,
-      //   //   deliveryDetail,
-      //   //   orderType: order.orderDetail.deliveryMode,
-      //   // });
-      // }
     }
   } catch (err) {
     appError(err.message);
@@ -243,16 +167,19 @@ const fetchMonthlySalaryAgents = async (merchantId) => {
   try {
     let merchant;
     let merchantBusinessCategory;
+
     if (merchantId) {
       merchant = await Merchant.findById(merchantId);
       merchantBusinessCategory = await BusinessCategory.findById(
         merchant.merchantDetail.businessCategoryId
       );
     }
+
     // Find the AgentPricing document where ruleName is "Monthly"
     const monthlySalaryPricing = await AgentPricing.findOne({
       ruleName: "Monthly-salaried",
     });
+
     //  console.log(monthlySalaryPricing._id)
     if (!monthlySalaryPricing) {
       throw new Error(`No pricing rule found for ruleName: "Monthly"`);
@@ -281,22 +208,17 @@ const fetchMonthlySalaryAgents = async (merchantId) => {
     }
 
     // Fetch all agents and filter those with the monthly salary structure ID
-
     const monthlySalaryAgents = agents.filter((agent) => {
       const agentSalaryStructureId =
         agent.workStructure.salaryStructureId.toString();
       const pricingId = monthlySalaryPricing._id.toString();
-      // console.log(`Agent Salary Structure ID: ${agentSalaryStructureId}`);
-      // console.log(`Monthly Salary Pricing ID for Comparison: ${pricingId}`);
+
       return agentSalaryStructureId === pricingId;
     });
 
-    // console.log('Filtered Monthly Salary Agents:', monthlySalaryAgents);
-
     return monthlySalaryAgents;
   } catch (error) {
-    console.error("Error fetching monthly salary agents:", error.message);
-    throw error;
+    throw new Error(`Error fetching monthly salary agents: ${err}`);
   }
 };
 
@@ -321,6 +243,7 @@ const fetchNearestMonthlySalaryAgents = async (radius, merchantId) => {
         merchant.merchantDetail.businessCategoryId
       );
     }
+
     let agents;
     if (merchant) {
       if (
@@ -342,7 +265,7 @@ const fetchNearestMonthlySalaryAgents = async (radius, merchantId) => {
         isApproved: "Approved",
       });
     }
-    console.log("Agents before distance filter", agents);
+
     const filteredAgents = agents.filter((agent) => {
       const maxRadius = radius;
       if (maxRadius > 0) {
@@ -359,35 +282,31 @@ const fetchNearestMonthlySalaryAgents = async (radius, merchantId) => {
       return true;
     });
 
-    console.log("Agents after distance filter", filteredAgents);
-
     const monthlySalaryAgents = filteredAgents.filter((agent) => {
       const agentSalaryStructureId =
         agent.workStructure.salaryStructureId.toString();
       const pricingId = monthlySalaryPricing._id.toString();
-      // console.log(`Agent Salary Structure ID: ${agentSalaryStructureId}`);
-      // console.log(`Monthly Salary Pricing ID for Comparison: ${pricingId}`);
+
       return agentSalaryStructureId === pricingId;
     });
 
-    // console.log('Filtered Monthly Salary Agents:', monthlySalaryAgents);
-
     return monthlySalaryAgents;
   } catch (error) {
-    console.error("Error fetching monthly salary agents:", error.message);
-    throw error;
+    throw new Error(`Error fetching monthly salary agents: ${err}`);
   }
 };
 
 const fetchAgents = async (merchantId) => {
   let merchant;
   let merchantBusinessCategory;
+
   if (merchantId) {
     merchant = await Merchant.findById(merchantId);
     merchantBusinessCategory = await BusinessCategory.findById(
       merchant.merchantDetail.businessCategoryId
     );
   }
+
   let agents;
   if (merchant) {
     if (
@@ -415,12 +334,14 @@ const fetchAgents = async (merchantId) => {
 const fetchNearestAgents = async (merchantId) => {
   let merchant;
   let merchantBusinessCategory;
+
   if (merchantId) {
     merchant = await Merchant.findById(merchantId);
     merchantBusinessCategory = await BusinessCategory.findById(
       merchant.merchantDetail.businessCategoryId
     );
   }
+
   let agents;
   if (merchant) {
     if (
@@ -445,6 +366,7 @@ const fetchNearestAgents = async (merchantId) => {
 
   const filteredAgents = agents.filter((agent) => {
     const maxRadius = radius;
+
     if (maxRadius > 0) {
       const merchantLocation = merchant.merchantDetail.location;
       const agentLocation = agent.location;
@@ -458,6 +380,7 @@ const fetchNearestAgents = async (merchantId) => {
     }
     return true;
   });
+
   return filteredAgents;
 };
 

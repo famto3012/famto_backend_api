@@ -32,7 +32,7 @@ const {
   verifyPayment,
 } = require("../../utils/razorpayPayment");
 const Referral = require("../../models/Referral");
-const { sendSocketData } = require("../../socket/socket");
+const { sendSocketData, sendNotification } = require("../../socket/socket");
 const Razorpay = require("razorpay");
 
 const razorpay = new Razorpay({
@@ -594,23 +594,30 @@ const toggleOnlineController = async (req, res, next) => {
     if (currentAgent.status === "Free" || currentAgent.status === "Busy") {
       currentAgent.status = "Inactive";
       const data = {
-        status: "Inactive",
+        status: "Offline",
       };
+
       sendSocketData(currentAgent._id, "updatedAgentStatusToggle", data);
+
       // Set the end time when the agent goes offline
       currentAgent.loginEndTime = new Date();
+
       if (currentAgent.loginStartTime) {
         const loginDuration =
           new Date() - new Date(currentAgent.loginStartTime); // in milliseconds
         currentAgent.appDetail.loginDuration += loginDuration;
       }
+
       currentAgent.loginStartTime = null;
     } else {
       currentAgent.status = "Free";
+
       const data = {
-        status: "Free",
+        status: "Online",
       };
+
       sendSocketData(currentAgent._id, "updatedAgentStatusToggle", data);
+
       // Set the start time when the agent goes online
       currentAgent.loginStartTime = new Date();
     }
@@ -1107,9 +1114,10 @@ const addOrderDetailsController = async (req, res, next) => {
     const { notes } = req.body;
 
     const orderFound = await Order.findById(orderId);
+    const agentFound = await Agent.findById(orderId.agentId);
 
-    if (!orderFound) {
-      return next(appError("Order not found", 404));
+    if (!orderFound || !agentFound) {
+      return next(appError("Order or Agent not found", 404));
     }
 
     let signatureImageURL = "";
@@ -1122,13 +1130,11 @@ const addOrderDetailsController = async (req, res, next) => {
           signatureImage,
           "OrderDetailImages"
         );
-        console.log("Uploaded signatureImageURL:", signatureImageURL);
       }
 
       if (req.files.image) {
         const image = req.files.image[0];
         imageURL = await uploadToFirebase(image, "OrderDetailImages");
-        console.log("Uploaded imageURL:", imageURL);
       }
     }
 
@@ -1152,6 +1158,38 @@ const addOrderDetailsController = async (req, res, next) => {
 
     // Save the updated order
     await orderFound.save();
+
+    const stepperDetail = {
+      by: agentFound.fullName,
+      userId: agentFound._id,
+      date: new Date(),
+      detailURL: notes || signatureImageURL || imageURL,
+    };
+
+    // Send notification to Customer and Admin
+    const data = {
+      socket: stepperDetail,
+    };
+
+    const parameters = {
+      eventName: "agentOrderDetailUpdated",
+      user: "Customer",
+      role: "Admin",
+    };
+
+    sendSocketData(
+      orderFound.customerId,
+      parameters.eventName,
+      data,
+      parameters.user
+    );
+
+    sendSocketData(
+      process.env.ADMIN_ID,
+      parameters.eventName,
+      data,
+      parameters.role
+    );
 
     res.status(200).json({
       message: "Order details updated successfully",
@@ -1247,7 +1285,7 @@ const confirmCashReceivedController = async (req, res, next) => {
 // Complete order after confirming the cash
 const completeOrderController = async (req, res, next) => {
   try {
-    const { orderId } = req.body;
+    const { orderId, taskId } = req.body;
     const agentId = req.userAuth;
 
     const [agentFound, orderFound] = await Promise.all([
@@ -1296,6 +1334,77 @@ const completeOrderController = async (req, res, next) => {
       customerFound.save(),
       agentFound.save(),
     ]);
+
+    const stepperDetail = {
+      by: agentFound.fullName,
+      date: new Date(),
+    };
+
+    orderFound.orderStepperDetil.completed = stepperDetail;
+
+    await orderFound.save();
+
+    const parameters = {
+      eventName: "orderCompleted",
+      user: "Customer",
+      role: "Admin",
+      role1: "Merchant",
+    };
+
+    const agent = await Agent.findByIdAndUpdate(agentId, {
+      $inc: { taskCompleted: 1 },
+      "appDetail.orders": { $inc: 1 },
+    });
+
+    await agent.save();
+
+    const agentData = {
+      socket: {
+        appDetail: agent.appDetail,
+      },
+    };
+
+    // TODO: complete the appDetail info in socket
+
+    sendSocketData(agent._id);
+
+    const data = {
+      socket: {
+        stepperDetail,
+        title: "Order Completed",
+        body: `Your order ID #${orderFound._id} has been completed successfully`,
+      },
+      fcm: {
+        title: "Order Completed",
+        body: `Your order ID #${orderFound._id} has been completed successfully`,
+        orderId: orderFound._id,
+        customerId: customerFound._id,
+        merchantId: orderFound?.merchantId,
+      },
+    };
+
+    sendNotification(
+      customerFound._id,
+      parameters.eventName,
+      data,
+      parameters.user
+    );
+
+    sendNotification(
+      process.env.ADMIN_ID,
+      parameters.eventName,
+      data,
+      parameters.role
+    );
+
+    if (orderFound.merchantId) {
+      sendNotification(
+        orderFound?.merchantId,
+        parameters.eventName,
+        data,
+        parameters.role1
+      );
+    }
 
     res.status(200).json({
       message: "Order completed successfully",
