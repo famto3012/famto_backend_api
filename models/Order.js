@@ -277,6 +277,24 @@ const detailAddedByAgentSchema = mongoose.Schema({
   shopUpdates: [shopUpdatesSchema],
 });
 
+const stepperSchema = mongoose.Schema({
+  by: { type: String, default: null },
+  userId: { type: String, default: null },
+  date: { type: Date, default: null },
+});
+
+const orderDetailStepperSchema = mongoose.Schema({
+  created: stepperSchema,
+  assigned: stepperSchema,
+  accepted: stepperSchema,
+  started: stepperSchema,
+  reachedPickupLocation: stepperSchema,
+  noteAdded: stepperSchema,
+  signatureAdded: stepperSchema,
+  imageAdded: stepperSchema,
+  completed: stepperSchema,
+});
+
 const orderSchema = mongoose.Schema(
   {
     _id: {
@@ -335,6 +353,7 @@ const orderSchema = mongoose.Schema(
     orderRating: orderRatingSchema,
     commissionDetail: commissionDetailSchema,
     detailAddedByAgent: detailAddedByAgentSchema,
+    orderDetailStepper: orderDetailStepperSchema,
   },
   {
     timestamps: true,
