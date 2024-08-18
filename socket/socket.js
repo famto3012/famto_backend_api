@@ -593,7 +593,7 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // TODO: Complete socket connnection
+  // TODO: Complete socket connection
   socket.on("agentPickupStarted", async (data) => {
     try {
       const { orderId } = data;

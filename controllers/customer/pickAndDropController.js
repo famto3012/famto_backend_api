@@ -637,6 +637,11 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
           paymentMode: "Online-payment",
           paymentStatus: "Completed",
           paymentId: storedOrderData.paymentId,
+          "orderDetailStepper.created": {
+            by: "Admin",
+            userId: process.env.ADMIN_ID,
+            date: new Date(),
+          },
         });
 
         if (!newOrder) {
@@ -652,6 +657,7 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
             orderId: newOrder._id,
             orderDetail: newOrder.orderDetail,
             billDetail: newOrder.billDetail,
+            orderDetailStepper: newOrder.orderDetailStepper.created,
           },
           fcm: {
             title: "Order created",
@@ -683,6 +689,7 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
             paymentMethod: newOrder.paymentMode,
             deliveryOption: newOrder.orderDetail.deliveryOption,
             amount: newOrder.billDetail.grandTotal,
+            orderDetailStepper: newOrder.orderDetailStepper.created,
           },
           fcm: {
             title: "New Order Admin",

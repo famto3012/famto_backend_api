@@ -293,6 +293,7 @@ const orderDetailStepperSchema = mongoose.Schema({
   signatureAdded: stepperSchema,
   imageAdded: stepperSchema,
   completed: stepperSchema,
+  cancelled: stepperSchema,
 });
 
 const orderSchema = mongoose.Schema(
