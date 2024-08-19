@@ -56,7 +56,7 @@ const io = socketio(server, {
 
 const userSocketMap = {};
 
-function sendPushNotificationToUser(fcmToken, message, user) {
+const sendPushNotificationToUser = (fcmToken, message, user) => {
   const mes = {
     notification: {
       title: message.title,
@@ -71,53 +71,25 @@ function sendPushNotificationToUser(fcmToken, message, user) {
     .then(async (response) => {
       console.log("Successfully sent message:", response);
 
-      // Define the notification log data
       const logData = {
         imageUrl: message.image,
         title: message.title,
         description: message.body,
-        ...(user !== "Customer" && { orderId: message.orderId }), // For agents, include orderId
+        ...(user !== "Customer" && { orderId: message.orderId }),
       };
 
-      console.log("Log Data:", logData);
-      console.log("User Value:", user);
-      // console.log("Role Value:", role);
-
-      if (user === "Customer") {
-        try {
-          console.log("Inside customer");
-          // Create CustomerNotificationLog
+      try {
+        if (user === "Customer") {
           await CustomerNotificationLogs.create({
             ...logData,
             customerId: message.customerId,
           });
-
-          // If the role is admin, create an AdminNotificationLog too
-          // if (role === "Admin") {
-          //   console.log("Inside Admin");
-          //   await AdminNotificationLogs.create(logData);
-          // }
-        } catch (err) {
-          console.log(`Error in creating logs: ${err}`);
-        }
-      } else if (user === "Merchant") {
-        try {
-          // Create MerchantNotificationLog
+        } else if (user === "Merchant") {
           await MerchantNotificationLogs.create({
             ...logData,
             merchantId: message.merchantId,
           });
-
-          // If the role is admin, create an AdminNotificationLog too
-          // if (role === "Admin") {
-          //   await AdminNotificationLogs.create(logData);
-          // }
-        } catch (err) {
-          console.log(`Error in creating logs: ${err}`);
-        }
-      } else if (user === "Agent") {
-        try {
-          // Create AgentNotificationLog
+        } else if (user === "Agent") {
           await AgentNotificationLogs.create({
             ...logData,
             agentId: message.agentId,
@@ -125,55 +97,44 @@ function sendPushNotificationToUser(fcmToken, message, user) {
             deliveryDetail: message.deliveryDetail,
             orderType: message.orderType,
           });
-
-          // If the role is admin, create an AdminNotificationLog too
-          // if (role === "Admin") {
-          //   await AdminNotificationLogs.create(logData);
-          // }
-        } catch (err) {
-          console.log(`Error in creating logs: ${err}`);
-        }
-      } else if (user === "Admin") {
-        try {
+        } else if (user === "Admin") {
           await AdminNotificationLogs.create(logData);
-        } catch (err) {
-          console.log(`Error in creating logs: ${err}`);
         }
+      } catch (err) {
+        console.error(`Error in creating logs: ${err}`);
       }
     })
     .catch((error) => {
-      console.log("Error sending message:", error);
+      console.error("Error sending message:", error);
     });
-}
+};
 
 // Function to send notification to user (using Socket.IO if available, else FCM)
-function sendNotification(userId, eventName, data, user) {
-  const socketId = userSocketMap[userId]?.socketId;
-  const fcmToken = userSocketMap[userId]?.fcmToken;
-  console.log(socketId);
-  console.log("User Value (Inside):", user);
-  // console.log("Role Value (Inside):", role);
-  console.log("Event Value (Inside):", eventName);
-  if (socketId && fcmToken) {
+const sendNotification = (userId, eventName, data, user) => {
+  const { socketId, fcmToken } = userSocketMap[userId] || {};
+
+  if (socketId) {
     io.to(socketId).emit(eventName, data.socket);
+  }
+
+  if (fcmToken) {
     sendPushNotificationToUser(fcmToken, data.fcm, user);
-  } else if (socketId) {
-    io.to(socketId).emit(eventName, data.socket);
-  } else if (fcmToken) {
-    sendPushNotificationToUser(fcmToken, data.fcm, user);
-  } else {
+  }
+
+  if (!socketId && !fcmToken) {
     console.error(`No socketId or fcmToken found for userId: ${userId}`);
   }
-}
+};
 
-function sendSocketData(userId, eventName, data) {
+const sendSocketData = (userId, eventName, data) => {
   const socketId = userSocketMap[userId]?.socketId;
+
   if (socketId) {
     io.to(socketId).emit(eventName, data);
   }
-}
+};
 
-async function populateUserSocketMap() {
+const populateUserSocketMap = async () => {
   try {
     const tokens = await FcmToken.find({});
     tokens.forEach((token) => {
@@ -183,11 +144,10 @@ async function populateUserSocketMap() {
         userSocketMap[token.userId] = { socketId: null, fcmToken: token.token };
       }
     });
-    //  console.log("User Socket Map populated with FCM tokens:", userSocketMap); //TODO: Uncomment
   } catch (error) {
     console.error("Error populating User Socket Map:", error);
   }
-}
+};
 
 const getRecipientSocketId = (recipientId) => {
   return userSocketMap[recipientId].socketId;
@@ -679,44 +639,7 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // // Agent delivery completed
-  // socket.on("deliveryCompleted", async (data) => {
-  //   const { taskId, agentId } = data;
-
-  //   const agent = await Agent.findByIdAndUpdate(agentId, {
-  //     status: "Free",
-  //     $inc: { taskCompleted: 1 },
-  //   });
-
-  //   if (agent) {
-  //     const task = await Task.findOne({ _id: taskId, agentId });
-
-  //     const order = await Order.findByIdAndUpdate(task.orderId, {
-  //       status: "Completed",
-  //     });
-
-  //     const parameters = {
-  //       eventName: "deliveryCompleted",
-  //       user: "Customer",
-  //     };
-
-  //     const data = {
-  //       fcm: {
-  //         title: "Order Completed",
-  //         body: `Your order ID #${order._id} has been completed successfully`,
-  //       },
-  //     };
-
-  //     // Send notification to user
-  //     sendNotification(
-  //       task.customerId,
-  //       parameters.eventName,
-  //       data,
-  //       parameters.user
-  //     );
-  //   }
-  // });
-
+  // MArk message as seen in customer agent message chat
   socket.on("markMessagesAsSeen", async ({ conversationId, userId }) => {
     try {
       await Message.updateMany(
