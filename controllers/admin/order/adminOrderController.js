@@ -40,6 +40,7 @@ const PickAndCustomCart = require("../../../models/PickAndCustomCart");
 const scheduledPickAndCustom = require("../../../models/ScheduledPickAndCustom");
 const { formatToHours } = require("../../../utils/agentAppHelpers");
 const geoLocation = require("../../../utils/getGeoLocation");
+const { sendNotification } = require("../../../socket/socket");
 
 const getAllOrdersForAdminController = async (req, res, next) => {
   try {
@@ -247,7 +248,7 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
         paymentMethod: orderFound.paymentMode,
         deliveryOption: orderFound.orderDetail.deliveryOption,
         amount: orderFound.billDetail.grandTotal,
-        orderDetailStepper: { assigned: stepperDetail },
+        // orderDetailStepper: { assigned: stepperDetail },
       },
       fcm: {
         title: "Order accepted",

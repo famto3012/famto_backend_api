@@ -210,8 +210,17 @@ const updateOrderDetails = (order) => {
   order.orderDetail.delayedBy = delayedBy;
 };
 
-const updateAgentDetails = async (agent, order, calculatedSalary) => {
-  agent.appDetail.orders += 1;
+const updateAgentDetails = async (
+  agent,
+  order,
+  calculatedSalary,
+  isOrderCompleted
+) => {
+  if (isOrderCompleted) {
+    agent.appDetail.orders += 1;
+  } else {
+    agent.appDetail.cancelledOrders += 1;
+  }
   agent.appDetail.totalEarning += parseFloat(calculatedSalary);
   agent.appDetail.totalDistance += order.orderDetail.distance;
 

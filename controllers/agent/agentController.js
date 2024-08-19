@@ -22,7 +22,6 @@ const {
 const { formatDate, formatTime } = require("../../utils/formatters");
 const Task = require("../../models/Task");
 const LoyaltyPoint = require("../../models/LoyaltyPoint");
-const AgentPricing = require("../../models/AgentPricing");
 const {
   getDistanceFromPickupToDelivery,
   getDeliveryAndSurgeCharge,
@@ -30,15 +29,15 @@ const {
 const {
   createRazorpayOrderId,
   verifyPayment,
+  createRazorpayQrCode,
 } = require("../../utils/razorpayPayment");
-const Referral = require("../../models/Referral");
 const { sendSocketData, sendNotification } = require("../../socket/socket");
 const Razorpay = require("razorpay");
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+// const razorpay = new Razorpay({
+//   key_id: process.env.RAZORPAY_KEY_ID,
+//   key_secret: process.env.RAZORPAY_KEY_SECRET,
+// });
 
 //Function for getting agent's manager from geofence
 const getManager = async (geofenceId) => {
@@ -256,7 +255,7 @@ const deleteAgentProfileController = async (req, res, next) => {
 
     await Agent.findByIdAndDelete(agentId);
 
-    res.status(200).josn({ message: "Agent profile deleted successfully" });
+    res.status(200).json({ message: "Agent profile deleted successfully" });
   } catch (err) {
     next(appError(err.message));
   }
@@ -1285,7 +1284,7 @@ const confirmCashReceivedController = async (req, res, next) => {
 // Complete order after confirming the cash
 const completeOrderController = async (req, res, next) => {
   try {
-    const { orderId, taskId } = req.body;
+    const { orderId } = req.body;
     const agentId = req.userAuth;
 
     const [agentFound, orderFound] = await Promise.all([
@@ -1327,7 +1326,7 @@ const completeOrderController = async (req, res, next) => {
     updateOrderDetails(orderFound);
 
     // Update agent details
-    await updateAgentDetails(agentFound, orderFound, calculatedSalary);
+    await updateAgentDetails(agentFound, orderFound, calculatedSalary, true);
 
     await Promise.all([
       orderFound.save(),
@@ -1623,28 +1622,27 @@ const updateCustomOrderStatusController = async (req, res, next) => {
       return next(appError("Agent access denied (Different agent)"));
     }
 
-    const location = [latitude, longitude];
+    const agentLocation = [latitude, longitude];
 
     let updatedData = {
-      location,
+      agentLocation,
       status,
       description,
     };
 
-    // Initialize detailsAddedByAgents if it does not exist
-    if (!orderFound.detailAddedByAgent) {
-      orderFound.detailAddedByAgent = { shopUpdates: [] };
-    }
-
-    // Initialize shopUpdates if it does not exist
-    const shopUpdates = orderFound?.detailAddedByAgent?.shopUpdates || [];
-
     let oldDistance = orderFound.orderDetail?.distance || 0;
+
+    const lastLocation =
+      orderFound.detailAddedByAgent.shopUpdates.length > 0
+        ? orderFound.detailAddedByAgent.shopUpdates[
+            orderFound.detailAddedByAgent.shopUpdates.length - 1
+          ].location
+        : null;
 
     // Ensure getDistanceFromPickupToDelivery returns a number
     const { distanceInKM } = await getDistanceFromPickupToDelivery(
-      location,
-      orderFound.orderDetail.deliveryLocation
+      agentLocation,
+      lastLocation
     );
 
     const newDistance = parseFloat(distanceInKM);
@@ -1672,7 +1670,10 @@ const updateCustomOrderStatusController = async (req, res, next) => {
       !orderFound.orderDetail.pickupLocation &&
       (shopUpdates.length === 0 || shopUpdates === null)
     ) {
-      orderFound.orderDetail.pickupLocation = location;
+      orderFound.orderDetail.pickupLocation =
+        orderFound.detailAddedByAgent.shopUpdates[
+          orderFound.detailAddedByAgent.shopUpdates.length - 1
+        ].location;
     }
 
     orderFound.detailAddedByAgent.shopUpdates.push(updatedData);
@@ -1704,30 +1705,15 @@ const getCompleteOrderMessageController = async (req, res, next) => {
 };
 
 const generateRazorpayQRController = async (req, res, next) => {
-  const { amount } = req.body;
-  console.log("Amount received:", amount);
-
   try {
-    const qrCode = await razorpay.qrCode.create({
-      type: "upi_qr",
-      name: "Dynamic QR Code",
-      usage: "single_use",
-      fixed_amount: true,
-      payment_amount: amount,
-      description: "Payment for Order #12345",
-    });
+    const { amount } = req.body;
 
-    console.log("QR Code generated:", qrCode);
-    res.json({
-      id: qrCode.id,
-      short_url: qrCode.short_url,
-      qr_code_url: qrCode.qr_code_url,
-      image_url: qrCode.image_url,
-      message: "QR Code generated successfully",
-    });
-  } catch (error) {
-    console.error("Error generating QR code:", error);
-    res.status(500).json({ error: error });
+    const { qrCode } = await createRazorpayQrCode(amount);
+
+    res.status(200).json({ message: "QR code", data: qrCode });
+  } catch (err) {
+    console.error("Error generating QR code:", JSON.stringify(err, null, 2));
+    next(appError(err.message || "An error occurred", 500));
   }
 };
 

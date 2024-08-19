@@ -619,7 +619,7 @@ const confirmCustomOrderController = async (req, res, next) => {
           paymentMode: storedOrderData.paymentMode,
           paymentStatus: storedOrderData.paymentStatus,
           "orderDetailStepper.created": {
-            by: storedOrder.orderDetail.deliveryAddress.fullName,
+            by: storedOrderData.orderDetail.deliveryAddress.fullName,
             userId: storedOrderData.customerId,
             date: new Date(),
           },

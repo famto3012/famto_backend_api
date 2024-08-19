@@ -23,7 +23,11 @@ const {
 } = require("../../utils/razorpayPayment");
 const Order = require("../../models/Order");
 const ScheduledOrder = require("../../models/ScheduledOrder");
-const { convertToUTC } = require("../../utils/formatters");
+const {
+  convertToUTC,
+  formatDate,
+  formatTime,
+} = require("../../utils/formatters");
 const SubscriptionLog = require("../../models/SubscriptionLog");
 const {
   deleteFromFirebase,
@@ -31,6 +35,7 @@ const {
 } = require("../../utils/imageOperation");
 const TemperoryOrder = require("../../models/TemperoryOrders");
 const geoLocation = require("../../utils/getGeoLocation");
+const { sendNotification } = require("../../socket/socket");
 
 // Get all available business categories according to the order
 const getAllBusinessCategoryController = async (req, res, next) => {
@@ -1739,7 +1744,7 @@ const orderPaymentController = async (req, res, next) => {
         const storedOrderData = await TemperoryOrder.findOne({ orderId });
 
         if (storedOrderData) {
-          const newOrder = await Order.create({
+          let newOrder = await Order.create({
             customerId: storedOrderData.customerId,
             merchantId: storedOrderData.merchantId,
             items: storedOrderData.items,
@@ -1750,7 +1755,7 @@ const orderPaymentController = async (req, res, next) => {
             paymentMode: storedOrderData.paymentMode,
             paymentStatus: storedOrderData.paymentStatus,
             "orderDetailStepper.created": {
-              by: storedOrder.orderDetail.deliveryAddress.fullName,
+              by: storedOrderData.orderDetail.deliveryAddress.fullName,
               userId: storedOrderData.customerId,
               date: new Date(),
             },
