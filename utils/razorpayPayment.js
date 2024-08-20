@@ -1,5 +1,6 @@
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
+const { default: axios } = require("axios");
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -8,10 +9,8 @@ const razorpay = new Razorpay({
 
 const createRazorpayOrderId = async (amount) => {
   try {
-    console.log("amount", amount);
-
     const options = {
-      amount: Math.round(amount * 100), // amount in paise
+      amount: amount * 100,
       currency: "INR",
       receipt: crypto.randomBytes(10).toString("hex"),
     };
@@ -27,7 +26,6 @@ const createRazorpayOrderId = async (amount) => {
   }
 };
 
-// Function to verify payment
 const verifyPayment = async (paymentDetails) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
     paymentDetails;
@@ -43,12 +41,10 @@ const verifyPayment = async (paymentDetails) => {
 
 const razorpayRefund = async (paymentId, amount) => {
   try {
-    const refundOptions = {
-      payment_id: paymentId,
+    const refund = await razorpay.payments.refund(paymentId, {
       amount: amount * 100,
-    };
-
-    const refund = await razorpay.payments.refund(refundOptions);
+      speed: "normal",
+    });
 
     return { success: true, refundId: refund.id };
   } catch (err) {
@@ -57,4 +53,32 @@ const razorpayRefund = async (paymentId, amount) => {
   }
 };
 
-module.exports = { createRazorpayOrderId, verifyPayment, razorpayRefund };
+const createRazorpayQrCode = async (amount) => {
+  try {
+    const qrCode = await razorpay.qrCode.create({
+      type: "upi_qr",
+      usage: "single_use",
+      fixed_amount: true,
+      payment_amount: amount * 100,
+      description: "Amount to be paid",
+      name: "FAMTO Delivery",
+    });
+
+    console.log("QR Code created:", qrCode);
+    return qrCode;
+  } catch (err) {
+    console.error(
+      "Error creating Razorpay QR code:",
+      JSON.stringify(err, null, 2)
+    );
+
+    throw new Error(err.message || "Failed to create Razorpay QR code");
+  }
+};
+
+module.exports = {
+  createRazorpayOrderId,
+  verifyPayment,
+  razorpayRefund,
+  createRazorpayQrCode,
+};

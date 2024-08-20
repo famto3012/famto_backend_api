@@ -638,7 +638,7 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
           paymentStatus: "Completed",
           paymentId: storedOrderData.paymentId,
           "orderDetailStepper.created": {
-            by: storedOrder.orderDetail.deliveryAddress.fullName,
+            by: storedOrderData.orderDetail.deliveryAddress.fullName,
             userId: storedOrderData.customerId,
             date: new Date(),
           },

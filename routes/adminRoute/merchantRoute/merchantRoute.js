@@ -71,13 +71,17 @@ merchantRoute.put(
 
 // Sponsorship payment
 merchantRoute.post(
-  "/sponsorship-payment",
+  "/sponsorship-payment/:merchantId",
   isAuthenticated,
   sponsorshipPaymentController
 );
 
 // Verify sponsorship payment
-merchantRoute.post("/verify-payment", isAuthenticated, verifyPaymentController);
+merchantRoute.post(
+  "/verify-payment/:merchantId",
+  isAuthenticated,
+  verifyPaymentController
+);
 
 // -------------------------------
 // For Admin

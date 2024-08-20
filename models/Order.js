@@ -282,6 +282,7 @@ const stepperSchema = mongoose.Schema({
   userId: { type: String, default: null },
   date: { type: Date, default: null },
   detailURL: { type: String, default: null },
+  location: { type: [Number], default: null },
 });
 
 const orderDetailStepperSchema = mongoose.Schema({

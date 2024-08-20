@@ -33,6 +33,7 @@ const {
 const Product = require("../../../models/Product");
 const MerchantDiscount = require("../../../models/MerchantDiscount");
 const { formatToHours } = require("../../../utils/agentAppHelpers");
+const { sendNotification } = require("../../../socket/socket");
 
 const getAllOrdersOfMerchantController = async (req, res, next) => {
   try {

@@ -207,6 +207,10 @@ const getDeliveryAndSurgeCharge = async (
 
   let customerPricing;
 
+  console.log(businessCategoryId);
+  console.log(customer.customerDetails.geofenceId);
+  console.log(deliveryMode);
+
   if (deliveryMode === "Home Delivery") {
     customerPricing = await CustomerPricing.findOne({
       deliveryMode,

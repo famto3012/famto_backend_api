@@ -16,6 +16,15 @@ const Conversation = require("../models/Conversation");
 const CustomerNotificationLogs = require("../models/CustomerNotificationLog");
 const AdminNotificationLogs = require("../models/AdminNotificationLog");
 const MerchantNotificationLogs = require("../models/MerchantNotificationLog");
+const {
+  getDistanceFromPickupToDelivery,
+  getDeliveryAndSurgeCharge,
+} = require("../utils/customerAppHelpers");
+const {
+  calculateAgentEarnings,
+  updateOrderDetails,
+  updateAgentDetails,
+} = require("../utils/agentAppHelpers");
 
 const serviceAccount = {
   type: process.env.TYPE,
@@ -380,6 +389,23 @@ io.on("connection", async (socket) => {
         date: new Date(),
       };
 
+      if (orderFound.orderDetail.deliveryMode === "Custom Order") {
+        const data = {
+          location: agentFound.location,
+          status: "Initial location",
+        };
+
+        // Initialize detailsAddedByAgents if it does not exist
+        if (!orderFound.detailAddedByAgent) {
+          orderFound.detailAddedByAgent = { shopUpdates: [] };
+        }
+
+        // Initialize shopUpdates if it does not exist
+        let shopUpdates = orderFound?.detailAddedByAgent?.shopUpdates || [];
+
+        shopUpdates.push(data);
+      }
+
       orderFound.orderDetailStepper.started = stepperDetail;
 
       await orderFound.save();
@@ -639,7 +665,7 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // MArk message as seen in customer agent message chat
+  // Mark message as seen in customer agent message chat
   socket.on("markMessagesAsSeen", async ({ conversationId, userId }) => {
     try {
       await Message.updateMany(
@@ -657,6 +683,156 @@ io.on("connection", async (socket) => {
       console.log(error);
     }
   });
+
+  // Cancel Custom order
+  socket.on(
+    "cancelCustomOrderByAgent",
+    async ({ status, description, taskId, latitude, longitude }) => {
+      try {
+        const taskFound = await Task.findById(taskId);
+        const orderFound = await Order.findById(taskFound.orderId);
+        const agentFound = await Agent.findById(orderFound.agentId);
+
+        if (!taskFound || !orderFound || !agentFound) {
+          throw new Error(`Task / Order / Agent not found`);
+        }
+
+        const data = {
+          location: [latitude, longitude],
+          status,
+          description,
+        };
+
+        let oldDistance = orderFound.orderDetail?.distance || 0;
+
+        const lastLocation =
+          orderFound.detailAddedByAgent.shopUpdates.length > 0
+            ? orderFound.detailAddedByAgent.shopUpdates[
+                orderFound.detailAddedByAgent.shopUpdates.length - 1
+              ].location
+            : null;
+
+        const { distanceInKM } = await getDistanceFromPickupToDelivery(
+          data.location,
+          lastLocation
+        );
+
+        const newDistance = parseFloat(distanceInKM);
+
+        orderFound.orderDetail.distance = oldDistance + newDistance;
+
+        // Calculate delivery charges
+        const { deliveryCharges } = await getDeliveryAndSurgeCharge(
+          orderFound.customerId,
+          orderFound.orderDetail.deliveryMode,
+          distanceInKM
+        );
+
+        let oldDeliveryCharge = orderFound.billDetail?.deliveryCharge || 0;
+        let oldGrandTotal = orderFound.billDetail?.grandTotal || 0;
+
+        orderFound.billDetail.deliveryCharge =
+          oldDeliveryCharge + parseFloat(deliveryCharges);
+
+        orderFound.billDetail.grandTotal =
+          oldGrandTotal + parseFloat(deliveryCharges);
+
+        // Initialize pickupLocation if needed
+        if (
+          !orderFound.orderDetail.pickupLocation &&
+          (shopUpdates.length === 0 || shopUpdates === null)
+        ) {
+          orderFound.orderDetail.pickupLocation =
+            orderFound.detailAddedByAgent.shopUpdates[
+              orderFound.detailAddedByAgent.shopUpdates.length - 1
+            ].location;
+        }
+
+        const currentTime = new Date();
+        let delayedBy = null;
+
+        if (currentTime > new Date(orderFound.orderDetail.deliveryTime)) {
+          delayedBy =
+            currentTime - new Date(orderFound.orderDetail.deliveryTime);
+        }
+
+        orderFound.orderDetail.deliveryTime = currentTime;
+        orderFound.orderDetail.timeTaken =
+          currentTime - new Date(orderFound.orderDetail.agentAcceptedAt);
+        orderFound.orderDetail.delayedBy = delayedBy;
+
+        orderFound.detailAddedByAgent.shopUpdates.push(data);
+        orderFound.status = "Cancelled";
+
+        taskFound.pickupDetail.pickupStatus = "Cancelled";
+        taskFound.deliveryDetail.deliveryStatus = "Cancelled";
+
+        // Calculate earnings for agent
+        const calculatedSalary = await calculateAgentEarnings(
+          agentFound,
+          orderFound
+        );
+
+        // Update agent details
+        await updateAgentDetails(
+          agentFound,
+          orderFound,
+          calculatedSalary,
+          false
+        );
+
+        const stepperDetail = {
+          by: agentFound.fullName,
+          date: new Date(),
+          location: [latitude, longitude],
+        };
+
+        orderFound.orderStepperDetil.cancelled = stepperDetail;
+
+        await Promise.all([
+          orderFound.save(),
+          taskFound.save(),
+          agentFound.save(),
+        ]);
+
+        const parameters = {
+          eventName: "cancelCustomOrderByAgent",
+          user: "Customer",
+          role: "Admin",
+        };
+
+        const notificationData = {
+          socket: {
+            stepperDetail,
+            title: "Order cancelled",
+            body: `Order ID #${orderFound._id} has been cancelled successfully`,
+          },
+          fcm: {
+            title: "Order cancelled",
+            body: `Order ID #${orderFound._id} has been cancelled successfully`,
+            orderId: orderFound._id,
+            customerId: orderFound.customerId,
+          },
+        };
+
+        sendNotification(
+          orderFound.customerId,
+          parameters.eventName,
+          notificationData,
+          parameters.user
+        );
+
+        sendNotification(
+          process.env.ADMIN_ID,
+          parameters.eventName,
+          notificationData,
+          parameters.role
+        );
+      } catch (err) {
+        throw new Error(`Error in cancelling custom order: ${err}`);
+      }
+    }
+  );
 
   // User disconnected socket
   socket.on("disconnect", () => {

@@ -278,6 +278,7 @@ agentRoute.get(
 );
 
 agentRoute.post("/generate-qr", generateRazorpayQRController);
+
 agentRoute.post("/verify-qr", verifyQrPaymentController);
 
 module.exports = agentRoute;
