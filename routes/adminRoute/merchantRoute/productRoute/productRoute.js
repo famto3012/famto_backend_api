@@ -13,6 +13,7 @@ const {
   changeInventoryStatusController,
   getAllProductsByMerchant,
   updateProductOrderController,
+  addProductFromCSVController,
 } = require("../../../../controllers/admin/merchant/product/productController");
 const { upload } = require("../../../../utils/imageOperation");
 const {
@@ -128,6 +129,14 @@ productRoute.delete(
   "/:productId/variants/:variantId/types/:variantTypeId",
   isAdminOrMerchant,
   deleteVariantTypeController
+);
+
+// Upload product Data from CSV
+productRoute.post(
+  "/upload-product-csv",
+  upload.single("productCSV"),
+  isAdminOrMerchant,
+  addProductFromCSVController
 );
 
 module.exports = productRoute;

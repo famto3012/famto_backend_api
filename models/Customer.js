@@ -159,6 +159,11 @@ const walletTransactionDetailSchema = mongoose.Schema(
       type: Date,
       required: true,
     },
+    type: {
+      type: String,
+      enum: ["Credit", "Debit"],
+      required: true,
+    },
   },
   {
     _id: false,

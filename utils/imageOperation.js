@@ -15,6 +15,7 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 1 * 1024 * 1024 }, // 1 MB limit
   fileFilter: (req, file, cb) => {
+    // TODO: Confirm final decision for checking the file  size for input
     if (file.size > 1 * 1024 * 1024) {
       // Check if file size exceeds 1 MB
       cb(new Error("File size exceeds 1 MB"), false);
@@ -31,9 +32,9 @@ const uploadToFirebase = async (file, folderName) => {
 
   const uniqueName = uuidv4();
 
-  const storageRef = ref( 
+  const storageRef = ref(
     storage,
-    `${folderName}/${file.originalname}-${uniqueName}`
+    `${folderName}/${uniqueName}-${file.originalname}`
   );
   await uploadBytes(storageRef, file.buffer);
   const downloadURL = await getDownloadURL(storageRef);

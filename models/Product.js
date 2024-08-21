@@ -84,7 +84,7 @@ const productSchema = mongoose.Schema(
     },
     searchTags: {
       type: [String],
-      required: true,
+      // required: true,
     },
     description: {
       type: String,
@@ -101,7 +101,7 @@ const productSchema = mongoose.Schema(
     },
     productImageURL: {
       type: String,
-      required: true,
+      // required: true
     },
     categoryId: {
       type: mongoose.Schema.Types.ObjectId,

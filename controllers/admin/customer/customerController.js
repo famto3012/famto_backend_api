@@ -201,10 +201,12 @@ const getSingleCustomerController = async (req, res, next) => {
       return next(appError("Customer not found", 404));
     }
 
-    const ordersOfCustomer = await Order.find({ customerId }).populate({
-      path: "merchantId",
-      select: "merchantDetail",
-    });
+    const ordersOfCustomer = await Order.find({ customerId })
+      .populate({
+        path: "merchantId",
+        select: "merchantDetail",
+      })
+      .sort({ createdAt: -1 });
 
     const formattedCustomerOrders = ordersOfCustomer?.map((order) => {
       const merchantDetail = order?.merchantId?.merchantDetail;
@@ -218,7 +220,7 @@ const getSingleCustomerController = async (req, res, next) => {
       return {
         orderId: order._id,
         orderStatus: order.status,
-        merchantName: order?.merchantId?.merchantDetail?.merchantName,
+        merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
         deliveryMode: order?.orderDetail?.deliveryMode,
         orderTime: `${formatDate(order.createdAt)} | ${formatTime(
           order.createdAt
@@ -233,11 +235,19 @@ const getSingleCustomerController = async (req, res, next) => {
       };
     });
 
-    const formattedcustomerTransactions =
-      customerFound?.walletTransactionDetail?.map((transaction) => {
+    // Sort wallet transactions by newest date first
+    const sortedCustomerTransactions =
+      customerFound?.walletTransactionDetail?.sort(
+        (a, b) => new Date(b.date) - new Date(a.date)
+      );
+
+    const formattedcustomerTransactions = sortedCustomerTransactions?.map(
+      (transaction) => {
         return {
           closingBalance: transaction.closingBalance || 0,
-          transactionAmount: transaction.transactionAmount || 0,
+          transactionAmount: `${transaction.transactionAmount} ${
+            transaction.type === "Debit" ? "Dr" : "Cr"
+          }`,
           transactionId: transaction.transactionId || "-",
           orderId: transaction.orderId || "-",
           date:
@@ -245,7 +255,8 @@ const getSingleCustomerController = async (req, res, next) => {
               transaction.date
             )}` || "-",
         };
-      });
+      }
+    );
 
     const formattedCustomer = {
       _id: customerFound._id,
@@ -407,14 +418,45 @@ const addMoneyToWalletController = async (req, res, next) => {
 
     // Ensure walletBalance is a number
     const currentBalance =
-      Number(customerFound.customerDetails.walletBalance) || 0;
-    const amountToAdd = Number(amount);
+      parseFloat(customerFound.customerDetails.walletBalance) || 0;
+    const amountToAdd = parseFloat(amount);
+
+    let walletTransaction = {
+      closingBalance: customerFound?.customerDetails?.walletBalance || 0,
+      transactionAmount: amountToAdd,
+      date: new Date(),
+      type: "Credit",
+    };
+
+    let customerTransation = {
+      madeOn: new Date(),
+      transactionType: "By Admin",
+      transactionAmount: amountToAdd,
+      type: "Credit",
+    };
 
     customerFound.customerDetails.walletBalance = currentBalance + amountToAdd;
+    customerFound.walletTransactionDetail.push(walletTransaction);
+    customerFound.transactionDetail.push(customerTransation);
     await customerFound.save();
+
+    walletTransaction =
+      customerFound?.walletTransactionDetail[
+        customerFound?.walletTransactionDetail.length - 1
+      ];
+
+    const formattedResponse = {
+      closingBalance: walletTransaction.closingBalance,
+      transactionAmount: walletTransaction.transactionAmount,
+      date:
+        `${formatDate(walletTransaction.date)} | ${formatTime(
+          walletTransaction.date
+        )}` || "-",
+    };
 
     res.status(200).json({
       message: `${amount} Rs is added to customer's wallet`,
+      data: formattedResponse,
     });
   } catch (err) {
     next(appError(err.message));
@@ -432,12 +474,43 @@ const deductMoneyFromWalletCOntroller = async (req, res, next) => {
       return next(appError("Customer not found", 404));
     }
 
-    customerFound.customerDetails.walletBalance -= amount;
+    let walletTransaction = {
+      closingBalance: customerFound?.customerDetails?.walletBalance || 0,
+      transactionAmount: parseFloat(amount),
+      date: new Date(),
+      type: "Debit",
+    };
+
+    let customerTransation = {
+      madeOn: new Date(),
+      transactionType: "By Admin",
+      transactionAmount: amount,
+      type: "Debit",
+    };
+
+    customerFound.customerDetails.walletBalance -= parseFloat(amount);
+    customerFound.transactionDetail.push(customerTransation);
+    customerFound.walletTransactionDetail.push(walletTransaction);
     await customerFound.save();
 
-    res
-      .status(200)
-      .json({ message: `${amount} Rs is deducted from customer's wallet` });
+    walletTransaction =
+      customerFound?.walletTransactionDetail[
+        customerFound?.walletTransactionDetail.length - 1
+      ];
+
+    const formattedResponse = {
+      closingBalance: walletTransaction.closingBalance,
+      transactionAmount: walletTransaction.transactionAmount,
+      date:
+        `${formatDate(walletTransaction.date)} | ${formatTime(
+          walletTransaction.date
+        )}` || "-",
+    };
+
+    res.status(200).json({
+      message: `${amount} Rs is deducted from customer's wallet`,
+      data: formattedResponse,
+    });
   } catch (err) {
     next(appError(err.message));
   }

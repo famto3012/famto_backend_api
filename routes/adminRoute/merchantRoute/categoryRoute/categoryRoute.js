@@ -13,6 +13,7 @@ const {
   changeCategoryStatusByAdminController,
   changeCategoryStatusByMerchantController,
   updateCategoryOrderController,
+  addCategoryFromCSVController,
 } = require("../../../../controllers/admin/merchant/category/categoryController");
 const { upload } = require("../../../../utils/imageOperation");
 const isAuthenticated = require("../../../../middlewares/isAuthenticated");
@@ -89,6 +90,15 @@ categoryRoute.put(
   isAuthenticated,
   isAdminOrMerchant,
   updateCategoryOrderController
+);
+
+// Upload categories from CSV by Admin
+categoryRoute.post(
+  "/admin/upload-category-csv",
+  upload.single("categoryCSV"),
+  isAuthenticated,
+  isAdminOrMerchant,
+  addCategoryFromCSVController
 );
 
 // ----------------------------------------------------

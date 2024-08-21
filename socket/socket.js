@@ -180,10 +180,11 @@ io.on("connection", async (socket) => {
         token: fcmToken,
       });
     } else {
-      if (user.token === null || user.token !== fcmToken)
+      if (user.token === null || user.token !== fcmToken) {
         await FcmToken.findByIdAndUpdate(user._id, {
           token: fcmToken,
         });
+      }
     }
   } else {
     console.error("Invalid user or FCM token provided");
@@ -672,10 +673,12 @@ io.on("connection", async (socket) => {
         { conversationId: conversationId, seen: false },
         { $set: { seen: true } }
       );
+
       await Conversation.updateOne(
         { _id: conversationId },
         { $set: { "lastMessage.seen": true } }
       );
+
       io.to(userSocketMap[userId].socketId).emit("messagesSeen", {
         conversationId,
       });
