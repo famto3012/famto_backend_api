@@ -4,6 +4,13 @@ const Customer = require("../../../models/Customer");
 const Order = require("../../../models/Order");
 const appError = require("../../../utils/appError");
 const { formatDate, formatTime } = require("../../../utils/formatters");
+const {
+  uploadToFirebase,
+  deleteFromFirebase,
+} = require("../../../utils/imageOperation");
+const csvParser = require("csv-parser");
+const { Readable } = require("stream");
+const axios = require("axios");
 
 const getAllCustomersController = async (req, res, next) => {
   try {
@@ -516,6 +523,100 @@ const deductMoneyFromWalletCOntroller = async (req, res, next) => {
   }
 };
 
+const addCustomerFromCSVController = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return next(appError("CSV file is required", 400));
+    }
+
+    // Upload the CSV file to Firebase and get the download URL
+    const fileUrl = await uploadToFirebase(req.file, "csv-uploads");
+
+    const customers = [];
+
+    // Download the CSV data from Firebase Storage
+    const response = await axios.get(fileUrl);
+    const csvData = response.data;
+
+    // Create a readable stream from the CSV data
+    const stream = Readable.from(csvData);
+
+    // Parse the CSV data
+    stream
+      .pipe(csvParser())
+      .on("data", (row) => {
+        const isRowEmpty = Object.values(row).every(
+          (value) => value.trim() === ""
+        );
+
+        if (!isRowEmpty) {
+          const customer = {
+            fullName: row["Full name"]?.trim(),
+            email: row.Email?.toLowerCase().trim(),
+            phoneNumber: row["Phone number"]?.trim(),
+          };
+
+          // Validate required fields
+          if (!customer.email && !customer.phoneNumber) {
+            throw new Error("Either email or phoneNumber is required.");
+          }
+
+          customers.push(customer);
+        }
+      })
+      .on("end", async () => {
+        try {
+          const customerPromise = customers.map(async (customerData) => {
+            // Check if the customer already exists
+            const existingCustomer = await Customer.findOne({
+              $or: [
+                { email: customerData.email },
+                { phoneNumber: customerData.phoneNumber },
+              ],
+            });
+
+            if (existingCustomer) {
+              // Prepare the update object
+              const updateData = {};
+
+              // Update only the provided fields
+              if (customerData.fullName)
+                updateData.fullName = customerData.fullName;
+              if (customerData.email) updateData.email = customerData.email;
+              if (customerData.phoneNumber)
+                updateData.phoneNumber = customerData.phoneNumber;
+
+              await Customer.findByIdAndUpdate(
+                existingCustomer._id,
+                { $set: updateData },
+                { new: true }
+              );
+            } else {
+              const customer = new Customer(customerData);
+              return customer.save();
+            }
+          });
+
+          await Promise.all(customerPromise);
+
+          res.status(201).json({
+            message: "Customers added successfully.",
+          });
+        } catch (err) {
+          next(appError(err.message));
+        } finally {
+          // Delete the file from Firebase after processing
+          await deleteFromFirebase(fileUrl);
+        }
+      })
+      .on("error", (error) => {
+        next(appError(error.message));
+      });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 // ---------------------------------
 // For Merchant
 // ---------------------------------
@@ -573,4 +674,5 @@ module.exports = {
   addMoneyToWalletController,
   deductMoneyFromWalletCOntroller,
   getCustomersOfMerchant,
+  addCustomerFromCSVController,
 };

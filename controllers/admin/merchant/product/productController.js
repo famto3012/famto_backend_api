@@ -488,7 +488,7 @@ const addProductFromCSVController = async (req, res, next) => {
     // Upload the CSV file to Firebase and get the download URL
     const fileUrl = await uploadToFirebase(req.file, "csv-uploads");
 
-    const products = [];
+    const productsMap = new Map();
 
     // Download the CSV data from Firebase Storage
     const response = await axios.get(fileUrl);
@@ -506,65 +506,103 @@ const addProductFromCSVController = async (req, res, next) => {
         );
 
         if (!isRowEmpty) {
-          const product = {
-            productName: row.productName,
-            price: row.price,
-            minQuantityToOrder: row.minQuantityToOrder,
-            maxQuantityPerOrder: row.maxQuantityPerOrder,
-            costPrice: row.costPrice,
-            sku: row.sku,
-            preparationTime: row.preparationTime,
-            description: row.description,
-            longDescription: row.longDescription,
-            type: row.type,
-            categoryId: row.categoryId,
-            inventory: row.inventory.toLowerCase(),
-            availableQuantity: row.availableQuantity,
-            alert: row.alert,
+          const productKey = `${row.productName}-${row.categoryId}`;
+
+          // Check if the product is already in the map
+          if (!productsMap.has(productKey)) {
+            productsMap.set(productKey, {
+              productName: row["Product name"]?.trim(),
+              price: parseFloat(row["Price"].trim()),
+              minQuantityToOrder: parseInt(
+                row["Min Quantity To Order"]?.trim()
+              ),
+              maxQuantityPerOrder: parseInt(
+                row["Max Quantity per Order"]?.trim()
+              ),
+              costPrice: parseFloat(row["Cost price"]?.trim()),
+              sku: row["SKU"]?.trim(),
+              preparationTime: row["Preparation time"]?.trim(),
+              description: row["Description"]?.trim(),
+              longDescription: row["Long description"]?.trim(),
+              type: row["Type"]?.trim(),
+              categoryId: row["Category Id"]?.trim(),
+              inventory: row["Inventory"].trim().toLowerCase() === "true",
+              availableQuantity: parseInt(row["Available Quantity"]?.trim()),
+              alert: parseInt(row["Alert"]?.trim()),
+              variants: [],
+            });
+          }
+
+          // Get the existing product
+          const product = productsMap.get(productKey);
+
+          // Add or update the variant for the product
+          const variant = {
+            variantName: row["Variant name"]?.trim(),
+            variantTypes: [
+              {
+                typeName: row["Variant Type name"]?.trim(),
+                price: parseFloat(row["Variant Type price"]?.trim()),
+              },
+            ],
           };
 
-          products.push(product);
+          // Check if the variant already exists
+          const existingVariant = product.variants.find(
+            (v) => v.variantName === variant.variantName
+          );
+
+          if (existingVariant) {
+            // Add new variant types to the existing variant
+            existingVariant.variantTypes.push(...variant.variantTypes);
+          } else {
+            // Add new variant to the product
+            product.variants.push(variant);
+          }
+
+          // Update the map with the modified product
+          productsMap.set(productKey, product);
         }
       })
       .on("end", async () => {
         try {
-          // // Get the last category order
-          // let lastProduct = await Category.findOne().sort({ order: -1 });
-          // let newOrder = lastProduct ? lastProduct.order + 1 : 1;
+          const productPromises = Array.from(productsMap.values()).map(
+            async (productData) => {
+              const existingProduct = await Product.findOne({
+                productName: productData.productName,
+                categoryId: productData.categoryId,
+              });
 
-          const productPromise = products.map(async (productData) => {
-            // Check if the category already exists
-            const existingProduct = await Product.findOne({
-              productName: productData.productName,
-              categoryId: productData.categoryId,
-            });
+              if (existingProduct) {
+                // Replace existing product data with the new data from the CSV
+                await Product.findByIdAndUpdate(
+                  existingProduct._id,
+                  {
+                    ...productData,
+                    order: existingProduct.order,
+                  },
+                  {
+                    new: true,
+                  }
+                );
+              } else {
+                // Get the last product order
+                let lastProduct = await Product.findOne().sort({ order: -1 });
+                let newOrder = lastProduct ? lastProduct.order + 1 : 1;
 
-            if (existingProduct) {
-              // Replace existing product data with the new data from the CSV
-              await Product.findByIdAndUpdate(
-                existingProduct._id,
-                productData,
-                {
-                  new: true,
-                }
-              );
-            } else {
-              // Get the last product order
-              let lastProduct = await Product.findOne().sort({ order: -1 });
-              let newOrder = lastProduct ? lastProduct.order + 1 : 1;
-
-              // Set the order and create the new product
-              productData.order = newOrder++;
-              const product = new Product(productData);
-              await product.save();
+                // Set the order and create the new product
+                productData.order = newOrder++;
+                const product = new Product(productData);
+                await product.save();
+              }
             }
-          });
+          );
 
-          await Promise.all(productPromise);
+          await Promise.all(productPromises);
 
           res.status(201).json({
-            message: "Products added successfully.",
-            data: products,
+            message: "Products added/updated successfully.",
+            data: Array.from(productsMap.values()),
           });
         } catch (err) {
           next(appError(err.message));

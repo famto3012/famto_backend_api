@@ -590,13 +590,15 @@ const toggleOnlineController = async (req, res, next) => {
       };
     }
 
+    const eventName = "updatedAgentStatusToggle";
+
     if (currentAgent.status === "Free" || currentAgent.status === "Busy") {
       currentAgent.status = "Inactive";
       const data = {
         status: "Offline",
       };
 
-      sendSocketData(currentAgent._id, "updatedAgentStatusToggle", data);
+      sendSocketData(currentAgent._id, eventName, data);
 
       // Set the end time when the agent goes offline
       currentAgent.loginEndTime = new Date();
@@ -615,7 +617,7 @@ const toggleOnlineController = async (req, res, next) => {
         status: "Online",
       };
 
-      sendSocketData(currentAgent._id, "updatedAgentStatusToggle", data);
+      sendSocketData(currentAgent._id, eventName, data);
 
       // Set the start time when the agent goes online
       currentAgent.loginStartTime = new Date();
@@ -756,7 +758,7 @@ const getCurrentDayAppDetailController = async (req, res, next) => {
       return next(appError("Agent not found", 404));
     }
 
-    console.log(agentFound.appDetail);
+    // console.log(agentFound.appDetail);
 
     const formattedResponse = {
       totalEarning: agentFound?.appDetail?.totalEarning || "0.0",

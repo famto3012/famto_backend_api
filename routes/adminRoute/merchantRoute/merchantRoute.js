@@ -18,6 +18,7 @@ const {
   addMerchantController,
   getMerchantProfileController,
   editMerchantProfileController,
+  addMerchantsFromCSVController,
 } = require("../../../controllers/admin/merchant/merchantController");
 const { upload } = require("../../../utils/imageOperation");
 const isAdmin = require("../../../middlewares/isAdmin");
@@ -196,6 +197,14 @@ merchantRoute.put(
   isAuthenticated,
   isAdmin,
   blockMerchant
+);
+
+merchantRoute.post(
+  "/admin/upload-merchant-csv",
+  upload.single("merchantCSV"),
+  isAuthenticated,
+  isAdmin,
+  addMerchantsFromCSVController
 );
 
 module.exports = merchantRoute;
