@@ -595,8 +595,9 @@ const toggleOnlineController = async (req, res, next) => {
       const data = {
         status: "Offline",
       };
+      const eventName = "updatedAgentStatusToggle"
 
-      sendSocketData(currentAgent._id, "updatedAgentStatusToggle", data);
+      sendSocketData(currentAgent._id, eventName, data);
 
       // Set the end time when the agent goes offline
       currentAgent.loginEndTime = new Date();
