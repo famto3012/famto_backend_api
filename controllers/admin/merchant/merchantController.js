@@ -16,6 +16,9 @@ const {
 } = require("../../../utils/sponsorshipHelpers");
 const mongoose = require("mongoose");
 const AccountLogs = require("../../../models/AccountLogs");
+const csvParser = require("csv-parser");
+const { Readable } = require("stream");
+const axios = require("axios");
 
 //----------------------------
 //For Merchant
@@ -1110,6 +1113,121 @@ const blockMerchant = async (req, res, next) => {
   }
 };
 
+// Add Merchants by CSV
+const addMerchantsFromCSVController = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return next(appError("CSV file is required", 400));
+    }
+
+    // Upload the CSV file to Firebase and get the download URL
+    const fileUrl = await uploadToFirebase(req.file, "csv-uploads");
+
+    const merchants = [];
+
+    // Download the CSV data from Firebase Storage
+    const response = await axios.get(fileUrl);
+    const csvData = response.data;
+
+    // Create a readable stream from the CSV data
+    const stream = Readable.from(csvData);
+
+    // Parse the CSV data
+    stream
+      .pipe(csvParser())
+      .on("data", (row) => {
+        const isRowEmpty = Object.values(row).every(
+          (value) => value.trim() === ""
+        );
+
+        if (!isRowEmpty) {
+          const merchant = {
+            fullName: row["Full name"]?.trim(),
+            email: row.Email?.toLowerCase().trim(),
+            phoneNumber: row["Phone number"]?.trim(),
+            password: row.Password?.trim() || "12345678",
+          };
+
+          // Validate required fields
+          if (!merchant.email && !merchant.phoneNumber) {
+            throw new Error("Either email or phoneNumber is required.");
+          }
+
+          merchants.push(merchant);
+        }
+      })
+      .on("end", async () => {
+        try {
+          const merchantPromise = merchants.map(async (merchantData) => {
+            // Check if the merchant already exists by email or phone number
+            const existingMerchant = await Merchant.findOne({
+              $or: [
+                { email: merchantData.email },
+                { phoneNumber: merchantData.phoneNumber },
+              ],
+            });
+
+            if (existingMerchant) {
+              // Prepare the update object
+              const updateData = {};
+
+              // Update only the provided fields
+              if (merchantData.fullName)
+                updateData.fullName = merchantData.fullName;
+              if (merchantData.email) updateData.email = merchantData.email;
+              if (merchantData.phoneNumber)
+                updateData.phoneNumber = merchantData.phoneNumber;
+
+              const salt = await bcrypt.genSalt(10);
+              updateData.password = await bcrypt.hash(
+                merchantData.password,
+                salt
+              );
+
+              // Update existing merchant with only the new fields
+              await Merchant.findByIdAndUpdate(
+                existingMerchant._id,
+                { $set: updateData },
+                { new: true }
+              );
+            } else {
+              // Hash password for new merchant
+              const salt = await bcrypt.genSalt(10);
+              const hashedPassword = await bcrypt.hash(
+                merchantData.password,
+                salt
+              );
+
+              // Create new merchant
+              const merchant = new Merchant({
+                ...merchantData,
+                password: hashedPassword,
+              });
+
+              return merchant.save();
+            }
+          });
+
+          await Promise.all(merchantPromise);
+
+          res.status(201).json({
+            message: "Merchants added/updated successfully.",
+          });
+        } catch (err) {
+          next(appError(err.message));
+        } finally {
+          // Delete the file from Firebase after processing
+          await deleteFromFirebase(fileUrl);
+        }
+      })
+      .on("error", (error) => {
+        next(appError(error.message));
+      });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerMerchantController,
   getMerchantProfileController,
@@ -1132,4 +1250,5 @@ module.exports = {
   addMerchantController,
   editMerchantController,
   filterMerchantsController,
+  addMerchantsFromCSVController,
 };

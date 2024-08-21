@@ -1,5 +1,9 @@
 const csvParser = require("csv-parser");
 const { Readable } = require("stream");
+const fs = require("fs");
+const { stringify } = require("csv-stringify");
+const { parse } = require("csv-parse");
+const path = require("path");
 const { validationResult } = require("express-validator");
 const Category = require("../../../../models/Category");
 const appError = require("../../../../utils/appError");
@@ -7,7 +11,7 @@ const {
   uploadToFirebase,
   deleteFromFirebase,
 } = require("../../../../utils/imageOperation");
-const { default: axios } = require("axios");
+const axios = require("axios");
 
 // ----------------------------------------------------
 // For Admin
@@ -216,6 +220,66 @@ const changeCategoryStatusByAdminController = async (req, res, next) => {
   }
 };
 
+const downloadCategorySampleCSVController = async (req, res, next) => {
+  try {
+    const { businessCategoryId, merchantId } = req.body;
+
+    if (!businessCategoryId || !merchantId) {
+      return next(
+        appError("Business Category Id and Merchant Id are required", 400)
+      );
+    }
+
+    // Path to the sample CSV file
+    const sampleCSVPath = path.join(
+      __dirname,
+      "../../../../sample_CSV/sample_CSV.csv"
+    );
+
+    // Read the sample CSV file
+    const sampleCSVData = fs.readFileSync(sampleCSVPath, "utf8");
+
+    // Parse the CSV data
+    parse(sampleCSVData, { columns: true }, (err, records) => {
+      if (err) {
+        return next(appError("Error parsing CSV", 500));
+      }
+
+      // Add new columns and populate them with the passed values
+      const updatedRecords = records.map((record) => ({
+        "Business Category Id": businessCategoryId,
+        "Merchant Id": merchantId,
+        "Category name": record["Category name"],
+        Description: record["Description"],
+        Type: record["Type"],
+        Status: record["Status"],
+      }));
+
+      // Convert the updated records back to CSV
+      stringify(updatedRecords, { header: true }, (err, output) => {
+        if (err) {
+          return next(appError("Error generating CSV", 500));
+        }
+
+        // Convert the CSV output to a readable stream
+        const stream = Readable.from(output);
+
+        // Set the headers to trigger a download
+        res.setHeader(
+          "Content-disposition",
+          "attachment; filename=Category_CSV.csv"
+        );
+        res.setHeader("Content-Type", "text/csv");
+
+        // Pipe the stream to the response
+        stream.pipe(res);
+      });
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 const addCategoryFromCSVController = async (req, res, next) => {
   try {
     if (!req.file) {
@@ -244,12 +308,12 @@ const addCategoryFromCSVController = async (req, res, next) => {
 
         if (!isRowEmpty) {
           const category = {
-            businessCategoryId: row.businessCategoryId,
-            merchantId: row.merchantId,
-            categoryName: row.categoryName,
-            description: row.description,
-            type: row.type,
-            status: row.status.toLowerCase(),
+            businessCategoryId: row["Business Category Id"]?.trim(),
+            merchantId: row["Merchant Id"]?.trim(),
+            categoryName: row["Category name"]?.trim(),
+            description: row["Description"]?.trim(),
+            type: row["Type"]?.trim(),
+            status: row["Status"]?.toLowerCase(),
           };
 
           categories.push(category);
@@ -269,15 +333,13 @@ const addCategoryFromCSVController = async (req, res, next) => {
             });
 
             if (existingCategory) {
-              throw new Error(
-                `Category '${categoryData.categoryName}' already exists for the same merchant`
-              );
+              await Category.findByIdAndUpdate();
+            } else {
+              // Set the order and create the new category
+              categoryData.order = newOrder++;
+              const category = new Category(categoryData);
+              return category.save();
             }
-
-            // Set the order and create the new category
-            categoryData.order = newOrder++;
-            const category = new Category(categoryData);
-            return category.save();
           });
 
           await Promise.all(categoryPromise);
@@ -300,6 +362,7 @@ const addCategoryFromCSVController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
+
 // ----------------------------------------------------
 // For Merchant
 // ----------------------------------------------------

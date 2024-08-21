@@ -447,8 +447,6 @@ const getFavoriteMerchantsController = async (req, res, next) => {
   try {
     const currentCustomer = req.userAuth;
 
-    console.log("here");
-
     const customer = await Customer.findById(currentCustomer)
       .select("customerDetails.location customerDetails.favoriteMerchants")
       .populate("customerDetails.favoriteMerchants");
@@ -458,8 +456,12 @@ const getFavoriteMerchantsController = async (req, res, next) => {
     }
 
     const favoriteMerchants = customer.customerDetails.favoriteMerchants;
-
     const customerLocation = customer.customerDetails.location;
+
+    // Extract favorite merchant IDs for quick lookup
+    const favoriteMerchantIds = new Set(
+      favoriteMerchants.map((merchant) => merchant._id.toString())
+    );
 
     const simplifiedMerchants = await Promise.all(
       favoriteMerchants.map(async (merchant) => {
@@ -470,10 +472,7 @@ const getFavoriteMerchantsController = async (req, res, next) => {
         );
 
         // Determine if the merchant is a favorite
-        const isFavorite =
-          currentCustomer?.customerDetails?.favoriteMerchants?.includes(
-            merchant._id
-          ) ?? false;
+        const isFavorite = favoriteMerchantIds.has(merchant._id.toString());
 
         return {
           _id: merchant._id,
@@ -513,12 +512,21 @@ const getCustomerOrdersController = async (req, res, next) => {
       .exec();
 
     const formattedResponse = ordersOfCustomer.map((order) => {
+      let orderStatus;
+      if (order.status === "Pending" || order.status === "Ongoing") {
+        orderStatus = "On-going";
+      } else if (order.status === "Cancelled") {
+        orderStatus = "Cancelled";
+      } else if (order.status === "Completed") {
+        orderStatus = "Completed";
+      }
+
       return {
         _id: order._id,
         merchantName: order?.merchantId?.merchantDetail?.merchantName || null,
         displayAddress:
           order?.merchantId?.merchantDetail?.displayAddress || null,
-        orderStatus: order.status,
+        orderStatus,
         orderDate: `${formatDate(order.createdAt)} | ${formatTime(
           order.createdAt
         )}`,

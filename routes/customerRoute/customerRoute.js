@@ -35,6 +35,7 @@ const {
   generateReferralCode,
   getCurrentOrderDetailcontroller,
   cancelOrdeAfterOrderCreationController,
+  addCustomerFromCSVController,
 } = require("../../controllers/customer/customerController");
 const {
   getAllBusinessCategoryController,

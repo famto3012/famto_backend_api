@@ -12,8 +12,10 @@ const {
   addMoneyToWalletController,
   deductMoneyFromWalletCOntroller,
   getCustomersOfMerchant,
+  addCustomerFromCSVController,
 } = require("../../../controllers/admin/customer/customerController");
 const isAdminOrMerchant = require("../../../middlewares/isAdminOrMerchant");
+const { upload } = require("../../../utils/imageOperation");
 const adminCustomerRoute = express.Router();
 
 adminCustomerRoute.get(
@@ -84,6 +86,13 @@ adminCustomerRoute.patch(
   isAuthenticated,
   isAdmin,
   deductMoneyFromWalletCOntroller
+);
+
+adminCustomerRoute.post(
+  "/upload-customer-csv",
+  upload.single("customerCSV"),
+  isAdminOrMerchant,
+  addCustomerFromCSVController
 );
 
 module.exports = adminCustomerRoute;
