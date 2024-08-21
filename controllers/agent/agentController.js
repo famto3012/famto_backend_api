@@ -597,6 +597,7 @@ const toggleOnlineController = async (req, res, next) => {
       const data = {
         status: "Offline",
       };
+      const eventName = "updatedAgentStatusToggle"
 
       sendSocketData(currentAgent._id, eventName, data);
 

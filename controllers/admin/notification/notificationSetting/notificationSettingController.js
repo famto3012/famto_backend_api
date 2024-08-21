@@ -16,6 +16,7 @@ const addNotificationSettingController = async (req, res, next) => {
   try {
     const {
       event,
+      title,
       description,
       admin,
       merchant,
@@ -28,6 +29,7 @@ const addNotificationSettingController = async (req, res, next) => {
 
     const newNotificationSetting = new NotificationSetting({
       event,
+      title,
       description,
       admin,
       merchant,
@@ -63,6 +65,7 @@ const editNotificationSettingController = async (req, res, next) => {
   try {
     const {
       event,
+      title,
       description,
       admin,
       merchant,
@@ -78,6 +81,7 @@ const editNotificationSettingController = async (req, res, next) => {
         req.params.id,
         {
           event,
+          title,
           description,
           admin,
           merchant,

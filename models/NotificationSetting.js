@@ -5,6 +5,11 @@ const notificationSettingSchema = new mongoose.Schema(
     event: {
       type: String,
       required: true,
+      unique: true,
+    },
+    title: {
+      type: String,
+      required: true,
     },
     description: {
       type: String,
