@@ -64,7 +64,6 @@ const createRazorpayQrCode = async (amount) => {
       name: "FAMTO Delivery",
     });
 
-    console.log("QR Code created:", qrCode);
     return qrCode;
   } catch (err) {
     console.error(

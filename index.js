@@ -147,7 +147,7 @@ app.use("/api/v1/customers/subscription-payment", subscriptionLogRoute);
 app.use("/api/v1/token", tokenRoute);
 
 // Schedule the task to run fout times daily for deleting expired plans of Merchants and customer
-cron.schedule("26 11 * * *", async () => {
+cron.schedule("10 11 * * *", async () => {
   await deleteExpiredSponsorshipPlans();
   await deleteExpiredSubscriptionPlans();
   // const orderId = "O24075";
@@ -217,7 +217,7 @@ cron.schedule("* * * * *", async () => {
   }
 });
 
-cron.schedule("24 14 * * *", async () => {
+cron.schedule("01 16 * * *", async () => {
   await generateMapplsAuthToken();
   // await moveAppDetailToHistoryAndResetForAllAgents();
   // await updateOneDayLoyaltyPointEarning();

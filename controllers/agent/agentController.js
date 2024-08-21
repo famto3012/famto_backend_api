@@ -1708,7 +1708,7 @@ const generateRazorpayQRController = async (req, res, next) => {
   try {
     const { amount } = req.body;
 
-    const { qrCode } = await createRazorpayQrCode(amount);
+    const qrCode = await createRazorpayQrCode(amount);
 
     res.status(200).json({ message: "QR code", data: qrCode });
   } catch (err) {

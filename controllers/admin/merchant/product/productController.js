@@ -6,6 +6,9 @@ const {
   deleteFromFirebase,
 } = require("../../../../utils/imageOperation");
 const Category = require("../../../../models/Category");
+const axios = require("axios");
+const { Readable } = require("stream");
+const csvParser = require("csv-parser");
 
 // ------------------------------------------------------
 // For Merchant and Admin
@@ -476,6 +479,108 @@ const deleteVariantTypeController = async (req, res, next) => {
   }
 };
 
+const addProductFromCSVController = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return next(appError("CSV file is required", 400));
+    }
+
+    // Upload the CSV file to Firebase and get the download URL
+    const fileUrl = await uploadToFirebase(req.file, "csv-uploads");
+
+    const products = [];
+
+    // Download the CSV data from Firebase Storage
+    const response = await axios.get(fileUrl);
+    const csvData = response.data;
+
+    // Create a readable stream from the CSV data
+    const stream = Readable.from(csvData);
+
+    // Parse the CSV data
+    stream
+      .pipe(csvParser())
+      .on("data", (row) => {
+        const isRowEmpty = Object.values(row).every(
+          (value) => value.trim() === ""
+        );
+
+        if (!isRowEmpty) {
+          const product = {
+            productName: row.productName,
+            price: row.price,
+            minQuantityToOrder: row.minQuantityToOrder,
+            maxQuantityPerOrder: row.maxQuantityPerOrder,
+            costPrice: row.costPrice,
+            sku: row.sku,
+            preparationTime: row.preparationTime,
+            description: row.description,
+            longDescription: row.longDescription,
+            type: row.type,
+            categoryId: row.categoryId,
+            inventory: row.inventory.toLowerCase(),
+            availableQuantity: row.availableQuantity,
+            alert: row.alert,
+          };
+
+          products.push(product);
+        }
+      })
+      .on("end", async () => {
+        try {
+          // // Get the last category order
+          // let lastProduct = await Category.findOne().sort({ order: -1 });
+          // let newOrder = lastProduct ? lastProduct.order + 1 : 1;
+
+          const productPromise = products.map(async (productData) => {
+            // Check if the category already exists
+            const existingProduct = await Product.findOne({
+              productName: productData.productName,
+              categoryId: productData.categoryId,
+            });
+
+            if (existingProduct) {
+              // Replace existing product data with the new data from the CSV
+              await Product.findByIdAndUpdate(
+                existingProduct._id,
+                productData,
+                {
+                  new: true,
+                }
+              );
+            } else {
+              // Get the last product order
+              let lastProduct = await Product.findOne().sort({ order: -1 });
+              let newOrder = lastProduct ? lastProduct.order + 1 : 1;
+
+              // Set the order and create the new product
+              productData.order = newOrder++;
+              const product = new Product(productData);
+              await product.save();
+            }
+          });
+
+          await Promise.all(productPromise);
+
+          res.status(201).json({
+            message: "Products added successfully.",
+            data: products,
+          });
+        } catch (err) {
+          next(appError(err.message));
+        } finally {
+          // Delete the file from Firebase after processing
+          await deleteFromFirebase(fileUrl);
+        }
+      })
+      .on("error", (err) => {
+        next(appError(err.message));
+      });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getProductController,
   getAllProductsByMerchant,
@@ -490,4 +595,5 @@ module.exports = {
   changeProductCategoryController,
   changeInventoryStatusController,
   updateProductOrderController,
+  addProductFromCSVController,
 };

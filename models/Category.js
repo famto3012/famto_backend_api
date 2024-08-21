@@ -28,7 +28,6 @@ const categorySchema = mongoose.Schema(
     },
     categoryImageURL: {
       type: String,
-      required: true,
     },
     status: {
       type: Boolean,

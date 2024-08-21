@@ -1,3 +1,5 @@
+const csvParser = require("csv-parser");
+const { Readable } = require("stream");
 const { validationResult } = require("express-validator");
 const Category = require("../../../../models/Category");
 const appError = require("../../../../utils/appError");
@@ -5,6 +7,7 @@ const {
   uploadToFirebase,
   deleteFromFirebase,
 } = require("../../../../utils/imageOperation");
+const { default: axios } = require("axios");
 
 // ----------------------------------------------------
 // For Admin
@@ -213,6 +216,90 @@ const changeCategoryStatusByAdminController = async (req, res, next) => {
   }
 };
 
+const addCategoryFromCSVController = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return next(appError("CSV file is required", 400));
+    }
+
+    // Upload the CSV file to Firebase and get the download URL
+    const fileUrl = await uploadToFirebase(req.file, "csv-uploads");
+
+    const categories = [];
+
+    // Download the CSV data from Firebase Storage
+    const response = await axios.get(fileUrl);
+    const csvData = response.data;
+
+    // Create a readable stream from the CSV data
+    const stream = Readable.from(csvData);
+
+    // Parse the CSV data
+    stream
+      .pipe(csvParser())
+      .on("data", (row) => {
+        const isRowEmpty = Object.values(row).every(
+          (value) => value.trim() === ""
+        );
+
+        if (!isRowEmpty) {
+          const category = {
+            businessCategoryId: row.businessCategoryId,
+            merchantId: row.merchantId,
+            categoryName: row.categoryName,
+            description: row.description,
+            type: row.type,
+            status: row.status.toLowerCase(),
+          };
+
+          categories.push(category);
+        }
+      })
+      .on("end", async () => {
+        try {
+          // Get the last category order
+          let lastCategory = await Category.findOne().sort({ order: -1 });
+          let newOrder = lastCategory ? lastCategory.order + 1 : 1;
+
+          const categoryPromise = categories.map(async (categoryData) => {
+            // Check if the category already exists
+            const existingCategory = await Category.findOne({
+              merchantId: categoryData.merchantId,
+              categoryName: categoryData.categoryName,
+            });
+
+            if (existingCategory) {
+              throw new Error(
+                `Category '${categoryData.categoryName}' already exists for the same merchant`
+              );
+            }
+
+            // Set the order and create the new category
+            categoryData.order = newOrder++;
+            const category = new Category(categoryData);
+            return category.save();
+          });
+
+          await Promise.all(categoryPromise);
+
+          res.status(201).json({
+            message: "Categories added successfully.",
+            data: categories,
+          });
+        } catch (err) {
+          next(appError(err.message));
+        } finally {
+          // Delete the file from Firebase after processing
+          await deleteFromFirebase(fileUrl);
+        }
+      })
+      .on("error", (error) => {
+        next(appError(error.message));
+      });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
 // ----------------------------------------------------
 // For Merchant
 // ----------------------------------------------------
@@ -458,4 +545,5 @@ module.exports = {
   deleteCategoryByMerchantController,
   changeCategoryStatusByMerchantController,
   updateCategoryOrderController,
+  addCategoryFromCSVController,
 };

@@ -365,6 +365,7 @@ const verifyWalletRechargeController = async (req, res, next) => {
       transactionAmount: parsedAmount,
       transactionId: paymentDetails.razorpay_payment_id,
       date: new Date(),
+      type: "Credit",
     };
 
     let customerTransation = {

@@ -476,6 +476,7 @@ const addTipAndApplyPromocodeInPickAndDropController = async (
 
 const confirmPickAndDropController = async (req, res, next) => {
   try {
+    const { paymentMode } = req.body;
     const customerId = req.userAuth;
 
     const cartFound = await PickAndCustomCart.findOne({ customerId });
@@ -493,15 +494,230 @@ const confirmPickAndDropController = async (req, res, next) => {
       return next(appError("Invalid order amount", 400));
     }
 
-    const { success, orderId, error } = await createRazorpayOrderId(
-      orderAmount
-    );
+    if (paymentMode === "Famto-cash") {
+      const customer = await Customer.findById(customerId);
+      if (!customer) {
+        return next(appError("Customer not found", 404));
+      }
 
-    if (!success) {
-      return next(appError(`Error in creating Razorpay order: ${error}`, 500));
+      const cart = await PickAndCustomCart.findOne({ customerId });
+      if (!cart) {
+        return next(appError("Cart not found", 404));
+      }
+
+      const orderAmount =
+        cart.billDetail.discountedGrandTotal ||
+        cart.billDetail.originalGrandTotal;
+
+      let orderBill = {
+        deliveryChargePerDay: cart.billDetail.deliveryChargePerDay,
+        deliveryCharge:
+          cart.billDetail.discountedDeliveryCharge ||
+          cart.billDetail.originalDeliveryCharge,
+        discountedAmount: cart.billDetail.discountedAmount,
+        grandTotal:
+          cart.billDetail.discountedGrandTotal ||
+          cart.billDetail.originalGrandTotal,
+        addedTip: cart.billDetail.addedTip,
+      };
+
+      let walletTransaction = {
+        closingBalance: customer?.customerDetails?.walletBalance,
+        transactionAmount: orderAmount,
+        date: new Date(),
+        type: "Debit",
+      };
+
+      let customerTransation = {
+        madeOn: new Date(),
+        transactionType: "Bill",
+        transactionAmount: orderAmount,
+        type: "Debit",
+      };
+
+      let startDate, endDate, newOrder;
+      if (cart.cartDetail.deliveryOption === "Scheduled") {
+        startDate = convertStartDateToUTC(
+          cart.cartDetail.startDate,
+          cart.cartDetail.time
+        );
+
+        endDate = convertEndDateToUTC(
+          cart.cartDetail.endDate,
+          cart.cartDetail.time
+        );
+
+        // Create scheduled Pick and Drop
+        newOrder = await ScheduledPickAndCustom.create({
+          customerId,
+          items: cart.items,
+          orderDetail: cart.cartDetail,
+          billDetail: orderBill,
+          totalAmount: orderAmount,
+          status: "Pending",
+          paymentMode: "Online-payment",
+          paymentStatus: "Completed",
+          startDate,
+          endDate,
+          time: cart.cartDetail.time,
+        });
+
+        // Clear the cart
+        await PickAndCustomCart.deleteOne({ customerId });
+        customer.transactionDetail.push(customerTransation);
+        customer.walletTransactionDetail.push(walletTransaction);
+        await customer.save();
+
+        res.status(200).json({
+          message: "Scheduled order created successfully",
+          data: newOrder,
+        });
+        return;
+      }
+
+      // Generate a unique order ID
+      const orderId = new mongoose.Types.ObjectId();
+
+      // Store order details temporarily in the database
+      const tempOrder = await TemperoryOrder.create({
+        orderId,
+        customerId,
+        items: cart.items,
+        orderDetail: cart.cartDetail,
+        billDetail: orderBill,
+        totalAmount: orderAmount,
+        status: "Pending",
+        paymentMode: "Famto-cash",
+        paymentStatus: "Completed",
+      });
+
+      customer.transactionDetail.push(customerTransation);
+      customer.walletTransactionDetail.push(walletTransaction);
+      await customer.save();
+
+      // Clear the cart
+      await PickAndCustomCart.deleteOne({ customerId });
+
+      if (!tempOrder) {
+        return next(appError("Error in creating temperory order"));
+      }
+
+      // Return countdown timer to client
+      res.status(200).json({
+        message: "Pick and Drop order will be created in 1 minute.",
+        orderId,
+        countdown: 60,
+      });
+
+      setTimeout(async () => {
+        const storedOrderData = await TemperoryOrder.findOne({ orderId });
+
+        if (storedOrderData) {
+          const newOrder = await Order.create({
+            customerId: storedOrderData.customerId,
+            items: storedOrderData.items,
+            orderDetail: storedOrderData.cartDetail,
+            billDetail: storedOrderData.orderBill,
+            totalAmount: storedOrderData.orderAmount,
+            status: storedOrderData.status,
+            paymentMode: storedOrderData.paymentMode,
+            paymentStatus: storedOrderData.paymentStatus,
+            "orderDetailStepper.created": {
+              by: storedOrderData.orderDetail.deliveryAddress.fullName,
+              userId: storedOrderData.customerId,
+              date: new Date(),
+            },
+          });
+
+          if (!newOrder) {
+            return next(appError("Error in creating order"));
+          }
+
+          // Remove the temporary order data from the database
+          await TemperoryOrder.deleteOne({ orderId });
+
+          //? Notify the USER and ADMIN about successful order creation
+          const customerData = {
+            socket: {
+              orderId: newOrder._id,
+              orderDetail: newOrder.orderDetail,
+              billDetail: newOrder.billDetail,
+              orderDetailStepper: newOrder.orderDetailStepper.created,
+            },
+            fcm: {
+              title: "Order created",
+              body: "Your order was created successfully",
+              image: "",
+              orderId: newOrder._id,
+              customerId: newOrder.customerId,
+            },
+          };
+
+          const adminData = {
+            socket: {
+              _id: newOrder._id,
+              orderStatus: newOrder.status,
+              merchantName: "-",
+              customerName:
+                newOrder?.orderDetail?.deliveryAddress?.fullName ||
+                newOrder?.customerId?.fullName ||
+                "-",
+              deliveryMode: newOrder?.orderDetail?.deliveryMode,
+              orderDate: formatDate(newOrder.createdAt),
+              orderTime: formatTime(newOrder.createdAt),
+              deliveryDate: newOrder?.orderDetail?.deliveryTime
+                ? formatDate(newOrder.orderDetail.deliveryTime)
+                : "-",
+              deliveryTime: newOrder?.orderDetail?.deliveryTime
+                ? formatTime(newOrder.orderDetail.deliveryTime)
+                : "-",
+              paymentMethod: newOrder.paymentMode,
+              deliveryOption: newOrder.orderDetail.deliveryOption,
+              amount: newOrder.billDetail.grandTotal,
+              orderDetailStepper: newOrder.orderDetailStepper.created,
+            },
+            fcm: {
+              title: "New Order Admin",
+              body: "Your have a new pending order",
+              image: "",
+              orderId: newOrder._id,
+            },
+          };
+
+          const parameter = {
+            eventName: "newOrderCreated",
+            user: "Customer",
+            role: "Admin",
+          };
+
+          sendNotification(
+            newOrder.customerId,
+            parameter.eventName,
+            customerData,
+            parameter.user
+          );
+
+          sendNotification(
+            process.env.ADMIN_ID,
+            parameter.eventName,
+            adminData,
+            parameter.role
+          );
+        }
+      });
+    } else if (paymentMode === "Online-payment") {
+      const { success, orderId, error } = await createRazorpayOrderId(
+        orderAmount
+      );
+
+      if (!success) {
+        return next(
+          appError(`Error in creating Razorpay order: ${error}`, 500)
+        );
+      }
+
+      res.status(200).json({ success: true, orderId, amount: orderAmount });
     }
-
-    res.status(200).json({ success: true, orderId, amount: orderAmount });
   } catch (err) {
     next(appError(err.message));
   }
