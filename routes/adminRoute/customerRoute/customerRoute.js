@@ -13,6 +13,7 @@ const {
   deductMoneyFromWalletCOntroller,
   getCustomersOfMerchant,
   addCustomerFromCSVController,
+  downloadCustomerSampleCSVController,
 } = require("../../../controllers/admin/customer/customerController");
 const isAdminOrMerchant = require("../../../middlewares/isAdminOrMerchant");
 const { upload } = require("../../../utils/imageOperation");
@@ -88,10 +89,18 @@ adminCustomerRoute.patch(
   deductMoneyFromWalletCOntroller
 );
 
+adminCustomerRoute.get(
+  "/download-sample-customer-csv",
+  isAuthenticated,
+  isAdminOrMerchant,
+  downloadCustomerSampleCSVController
+);
+
 adminCustomerRoute.post(
   "/upload-customer-csv",
-  upload.single("customerCSV"),
+  isAuthenticated,
   isAdminOrMerchant,
+  upload.single("customerCSV"),
   addCustomerFromCSVController
 );
 

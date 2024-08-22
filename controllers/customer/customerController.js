@@ -31,7 +31,6 @@ const Banner = require("../../models/Banner");
 const ServiceCategory = require("../../models/ServiceCategory");
 const ReferralCode = require("../../models/ReferralCode");
 const { formatToHours } = require("../../utils/agentAppHelpers");
-const Task = require("../../models/Task");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -130,7 +129,7 @@ const getCustomerProfileController = async (req, res, next) => {
     }
 
     const formattedCustomer = {
-      _id: currentCustomer._id,
+      id: currentCustomer._id,
       fullName: currentCustomer.fullName || "-",
       email: currentCustomer.email || "-",
       phoneNumber: currentCustomer.phoneNumber,
@@ -291,9 +290,9 @@ const updateCustomerAddressController = async (req, res, next) => {
 
     await currentCustomer.save();
 
-    res
-      .status(200)
-      .json({ message: "Customer addresses updated successfully" });
+    res.status(200).json({
+      message: "Customer addresses updated successfully",
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -345,7 +344,7 @@ const verifyWalletRechargeController = async (req, res, next) => {
     const customerId = req.userAuth;
 
     if (!customerId) {
-      return next(appError("Customer is not authenticated", 401));
+      return next(appError("Customer is not authenticated", 200));
     }
 
     const customer = await Customer.findById(customerId);
@@ -475,7 +474,7 @@ const getFavoriteMerchantsController = async (req, res, next) => {
         const isFavorite = favoriteMerchantIds.has(merchant._id.toString());
 
         return {
-          _id: merchant._id,
+          id: merchant._id,
           merchantName: merchant.merchantDetail.merchantName,
           deliveryTime: merchant.merchantDetail.deliveryTime,
           description: merchant.merchantDetail.description,
@@ -522,7 +521,7 @@ const getCustomerOrdersController = async (req, res, next) => {
       }
 
       return {
-        _id: order._id,
+        id: order._id,
         merchantName: order?.merchantId?.merchantDetail?.merchantName || null,
         displayAddress:
           order?.merchantId?.merchantDetail?.displayAddress || null,
@@ -576,7 +575,7 @@ const getsingleOrderDetailController = async (req, res, next) => {
     );
 
     const formattedResponse = {
-      _id: singleOrderDetail._id,
+      id: singleOrderDetail._id,
       merchantName:
         singleOrderDetail?.merchantId?.merchantDetail?.merchantName || null,
       displayAddress:
@@ -637,7 +636,7 @@ const searchOrderController = async (req, res, next) => {
 
     const formattedResponse = filteredOrders.map((order) => {
       return {
-        _id: order._id,
+        id: order._id,
         merchantName: order?.merchantId?.merchantDetail?.merchantName || null,
         displayAddress:
           order?.merchantId?.merchantDetail?.displayAddress || null,
@@ -679,6 +678,7 @@ const getTransactionOfCustomerController = async (req, res, next) => {
     const formattedData = sortedTransactions.map((transaction) => {
       return {
         customerName: customerFound.fullName || "-",
+        // TODO: Need to change the default image URL
         customerImage:
           customerFound.customerDetails.customerImageURL ||
           "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/AgentImages%2Fdemo-image.png-0fe7a62e-6d1c-4e5f-9d3c-87698bdfc32e?alt=media&token=97737725-250d-481e-a8db-69bdaedbb073",
@@ -706,6 +706,20 @@ const getCustomerSubscriptionDetailController = async (req, res, next) => {
 
     const allSubscriptionPlans = await CustomerSubscription.find({});
 
+    const formattedAllSubscriptionPlans = allSubscriptionPlans.map((plan) => {
+      return {
+        id: plan._id,
+        title: plan.title,
+        name: plan.name,
+        amount: plan.amount,
+        duration: plan.duration,
+        taxId: plan.taxId,
+        renewalReminder: plan.renewalReminder,
+        noOfOrder: plan.noOfOrder,
+        description: plan.description,
+      };
+    });
+
     const currentSubscriptionLog = await Customer.findById(currentCustomer)
       .select("customerDetails")
       .populate({
@@ -714,52 +728,42 @@ const getCustomerSubscriptionDetailController = async (req, res, next) => {
       })
       .exec();
 
+    let formattedCurrentSubscriptionPlan;
+
     if (
-      !currentSubscriptionLog ||
-      !currentSubscriptionLog.customerDetails.pricing ||
-      !currentSubscriptionLog.customerDetails.pricing.length
+      currentSubscriptionLog &&
+      currentSubscriptionLog.customerDetails.pricing &&
+      currentSubscriptionLog.customerDetails.pricing.length
     ) {
-      return res.status(404).json({
-        message: "No active subscription plan found for the customer.",
-      });
+      const currentSubscriptionPlanId =
+        currentSubscriptionLog.customerDetails.pricing[0].planId;
+
+      const currentSubscription = await CustomerSubscription.findById(
+        currentSubscriptionPlanId
+      );
+
+      const endDate = currentSubscriptionLog.customerDetails.pricing[0].endDate;
+
+      const currentDate = new Date();
+      const endDateObject = new Date(endDate);
+
+      const timeDiff = endDateObject - currentDate;
+      const daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+      formattedCurrentSubscriptionPlan = {
+        planName: currentSubscription.name,
+        duration: currentSubscription.duration,
+        amount: currentSubscription.amount,
+        description: currentSubscription.description,
+        daysLeft,
+      };
     }
-
-    const currentSubscriptionPlanId =
-      currentSubscriptionLog.customerDetails.pricing[0].planId;
-
-    const currentSubscription = await CustomerSubscription.findById(
-      currentSubscriptionPlanId
-    );
-
-    if (!currentSubscription) {
-      return res.status(404).json({
-        message: "Subscription plan not found.",
-      });
-    }
-
-    const startDate =
-      currentSubscriptionLog.customerDetails.pricing[0].startDate;
-    const endDate = currentSubscriptionLog.customerDetails.pricing[0].endDate;
-
-    const currentDate = new Date();
-    const endDateObject = new Date(endDate);
-
-    const timeDiff = endDateObject - currentDate;
-    const daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-
-    const formattedCurrentSubscriptionPlan = {
-      planName: currentSubscription.name,
-      duration: currentSubscription.duration,
-      amount: currentSubscription.amount,
-      description: currentSubscription.description,
-      daysLeft,
-    };
 
     res.status(200).json({
       message: "Subscription plan details",
       data: {
-        allSubscriptionPlans,
-        currentSubscription: formattedCurrentSubscriptionPlan,
+        allSubscriptionPlans: formattedAllSubscriptionPlans,
+        currentSubscription: formattedCurrentSubscriptionPlan || {},
       },
     });
   } catch (err) {
@@ -790,7 +794,7 @@ const getPromocodesOfCustomerController = async (req, res, next) => {
 
     const formattedResponse = promocodesFound.map((promo) => {
       return {
-        _id: promo._id,
+        id: promo._id,
         imageURL: promo.imageUrl,
         promoCode: promo.promoCode,
         validUpTo: formatDate(promo.toDate),
@@ -832,7 +836,7 @@ const searchPromocodeController = async (req, res, next) => {
 
     const formattedResponse = promocodesFound.map((promo) => {
       return {
-        _id: promo._id,
+        id: promo._id,
         imageURL: promo.imageUrl,
         promoCode: promo.promoCode,
         validUpTo: formatDate(promo.toDate),
@@ -901,7 +905,7 @@ const getCustomerCartController = async (req, res, next) => {
             if (variantType) {
               variantTypeName = variantType.typeName;
               variantTypeData = {
-                _id: variantType._id,
+                id: variantType._id,
                 variantTypeName: variantTypeName,
               };
             }
@@ -909,7 +913,7 @@ const getCustomerCartController = async (req, res, next) => {
           return {
             ...item,
             productId: {
-              _id: product._id,
+              id: product._id,
               productName: product.productName,
               description: product.description,
               productImageURL: product.productImageURL,
@@ -921,7 +925,12 @@ const getCustomerCartController = async (req, res, next) => {
 
     res.status(200).json({
       message: "Customer cart found",
-      data: populatedCartWithVariantNames || {},
+      data: {
+        cartId: populatedCartWithVariantNames._id,
+        customerId: populatedCartWithVariantNames.customerId,
+        merchantId: populatedCartWithVariantNames?.merchantId || null,
+        items: populatedCartWithVariantNames?.items || [],
+      },
     });
   } catch (err) {
     next(appError(err.message));
@@ -936,7 +945,7 @@ const getSpalshScreenImageController = async (req, res, next) => {
 
     res.status(200).json({
       message: "Splash screen image",
-      data: spalshScreenImage,
+      data: spalshScreenImage.splashScreenUrl,
     });
   } catch (err) {
     next(appError(err.message));
@@ -949,10 +958,14 @@ const getCustomerAppBannerController = async (req, res, next) => {
       "name imageUrl"
     );
 
-    res.status(200).json({
-      message: "All Banners",
-      data: allBanners,
+    const formattedResponse = allBanners?.map((banner) => {
+      return {
+        name: banner.name,
+        imageUrl: banner.imageUrl,
+      };
     });
+
+    res.status(200).json({ message: "Banner", data: formattedResponse });
   } catch (err) {
     next(appError(err.message));
   }
@@ -964,10 +977,15 @@ const getPickAndDropBannersController = async (req, res, next) => {
       "title description imageUrl"
     );
 
-    res.status(200).json({
-      message: "All Pick and Drop Banners",
-      data: allBanners,
+    const formattedResponse = allBanners.map((banner) => {
+      return {
+        title: banner.title,
+        description: banner.description,
+        imageUrl: banner.imageUrl,
+      };
     });
+
+    res.status(200).json({ message: "Banner", data: formattedResponse });
   } catch (err) {
     next(appError(err.message));
   }
@@ -979,10 +997,15 @@ const getCustomOrderBannersController = async (req, res, next) => {
       "title description imageUrl"
     );
 
-    res.status(200).json({
-      message: "All Custom Order Banners",
-      data: allBanners,
+    const formattedResponse = allBanners?.map((banner) => {
+      return {
+        title: banner.title,
+        description: banner.description,
+        imageUrl: banner.imageUrl,
+      };
     });
+
+    res.status(200).json({ message: "Banner", data: formattedResponse });
   } catch (err) {
     next(appError(err.message));
   }
@@ -994,9 +1017,16 @@ const getAvailableServiceController = async (req, res, next) => {
       .select("title geofenceId bannerImageURL")
       .sort({ order: 1 });
 
+    const formattedResponse = availableServices?.map((service) => {
+      return {
+        title: service.title,
+        bannerImageURL: service.bannerImageURL,
+      };
+    });
+
     res.status(200).json({
       message: "All service categories",
-      data: availableServices,
+      data: formattedResponse,
     });
   } catch (err) {
     next(appError(err.message));
@@ -1079,7 +1109,7 @@ const getCurrentOrderDetailcontroller = async (req, res, next) => {
       new Date(orderFound.createdAt);
 
     const formattedResponse = {
-      _id: orderFound._id,
+      orderId: orderFound._id,
       agentId: orderFound.agentId._id,
       agentName: orderFound.agentId.fullName,
       agentLocation: orderFound.agentId.location,
@@ -1096,123 +1126,6 @@ const getCurrentOrderDetailcontroller = async (req, res, next) => {
     res.status(200).json({
       messsage: "Ongoing order",
       data: formattedResponse,
-    });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
-const cancelOrdeAfterOrderCreationController = async (req, res, next) => {
-  try {
-    const { orderId } = req.params;
-    const customerId = req.userAuth;
-
-    const orderFound = await Order.findOne({
-      _id: orderId,
-      customerId,
-    });
-
-    const customerFound = await Customer.findById(customerId);
-
-    if (!customerFound) {
-      return next(appError("Customer not found", 404));
-    }
-
-    if (!orderFound) {
-      return next(appError("Order not found", 404));
-    }
-
-    if (orderFound.status === "Completed") {
-      return next(appError("Order already completed"));
-    } else {
-      const stepperData = {
-        by: `${
-          customerFound.fullName ||
-          orderFound.orderDetail.deliveryAddress.fullName ||
-          "-"
-        } (Customer)`,
-        userId: customerId,
-        date: new Date(),
-      };
-
-      orderFound.orderDetailStepper.cancelled = stepperData;
-      orderFound.status = "Cancelled";
-      await orderFound.save();
-    }
-
-    const taskFound = await Task.findOne({ orderId });
-
-    if (taskFound) {
-      taskFound.taskStatus = "Cancelled";
-      taskFound.pickupDetail.pickupStatus = "Cancelled";
-      taskFound.deliveryDetail.deliveryStatus = "Cancelled";
-
-      await taskFound.save();
-    }
-
-    //? Notify the CUSTOMER, ADMIN, MERCHANT, AGENT about successful order cancellation
-    const customerData = {
-      socket: {
-        orderId: orderFound._id,
-        title: "Order cancelled",
-        body: "Your order has been cancelled",
-        orderId: orderFound._id,
-        customerId: orderFound.customerId,
-      },
-      fcm: {
-        title: "Order cancelled",
-        body: "Your order has been cancelled",
-        orderId: orderFound._id,
-        customerId: orderFound.customerId,
-      },
-    };
-
-    const merchantData = {
-      socket: {
-        orderId: orderFound._id,
-        title: "Order cancelled",
-        body: `OrderId #${orderFound._id} has been cancelled by the customer`,
-        orderId: orderFound._id,
-        merchantId: orderFound.merchantId,
-      },
-      fcm: {
-        title: "Order cancelled",
-        body: `OrderId #${orderFound._id} has been cancelled by the customer`,
-        orderId: orderFound._id,
-        merchantId: orderFound.merchantId,
-      },
-    };
-
-    const adminData = {
-      socket: {
-        orderId: orderFound._id,
-        title: "Order cancelled",
-        body: `OrderId #${orderFound._id} has been cancelled by the customer`,
-        orderId: orderFound._id,
-      },
-      fcm: {
-        title: "Order cancelled",
-        body: `OrderId #${orderFound._id} has been cancelled by the customer`,
-        orderId: orderFound._id,
-      },
-    };
-
-    const agentData = {
-      socket: {
-        orderId: orderFound._id,
-        title: "Order cancelled",
-        body: `OrderId #${orderFound._id} has been cancelled by the customer`,
-        orderId: orderFound._id,
-      },
-      fcm: {
-        title: "Order cancelled",
-        body: `OrderId #${orderFound._id} has been cancelled by the customer`,
-        orderId: orderFound._id,
-      },
-    };
-
-    res.status(200).json({
-      messag: "Order cancelled successfully",
     });
   } catch (err) {
     next(appError(err.message));
@@ -1245,5 +1158,4 @@ module.exports = {
   getAvailableServiceController,
   generateReferralCode,
   getCurrentOrderDetailcontroller,
-  cancelOrdeAfterOrderCreationController,
 };

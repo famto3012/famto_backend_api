@@ -358,7 +358,13 @@ const addPickandDropItemsController = async (req, res, next) => {
 
     res.status(200).json({
       message: "Added items to pick and drop",
-      data: cart,
+      data: {
+        cartId: cart._id,
+        customerId: cart.customerId,
+        cartDetail: cart.cartDetail,
+        items: cart.items,
+        billDetail: cart.billDetail,
+      },
     });
   } catch (err) {
     next(appError(err.message));
@@ -467,13 +473,20 @@ const addTipAndApplyPromocodeInPickAndDropController = async (
 
     res.status(200).json({
       message: "Tip and promo code applied successfully",
-      data: cart,
+      data: {
+        cartId: cart._id,
+        customerId: cart.customerId,
+        cartDetail: cart.cartDetail,
+        items: cart.items,
+        billDetail: cart.billDetail,
+      },
     });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
+//
 const confirmPickAndDropController = async (req, res, next) => {
   try {
     const { paymentMode } = req.body;
@@ -958,6 +971,7 @@ const cancelPickBeforeOrderCreationController = async (req, res, next) => {
     if (orderFound) {
       if (orderFound.paymentMode === "Famto-cash") {
         const orderAmount = orderFound.billDetail.grandTotal;
+
         if (orderFound.orderDetail.deliveryOption === "On-demand") {
           customerFound.customerDetails.walletBalance += orderAmount;
           updatedTransactionDetail.transactionAmount = orderAmount;
@@ -971,19 +985,22 @@ const cancelPickBeforeOrderCreationController = async (req, res, next) => {
         await customerFound.save();
 
         res.status(200).json({
-          message: "Order cancelled and amount refunded to wallet",
+          message: "Order cancelled",
         });
+
         return;
       } else if (orderFound.paymentMode === "Cash-on-delivery") {
         // Remove the temporary order data from the database
         await TemperoryOrder.deleteOne({ orderId });
 
         res.status(200).json({ message: "Order cancelled" });
+
         return;
       } else if (orderFound.paymentMode === "Online-payment") {
         const paymentId = orderFound.paymentId;
 
         let refundAmount;
+
         if (orderFound.orderDetail.deliveryOption === "On-demand") {
           refundAmount = orderFound.billDetail.grandTotal;
           updatedTransactionDetail.transactionAmount = refundAmount;
@@ -1003,9 +1020,10 @@ const cancelPickBeforeOrderCreationController = async (req, res, next) => {
 
         await customerFound.save();
 
-        res
-          .status(200)
-          .json({ message: "Order cancelled and amount refunded" });
+        res.status(200).json({
+          message: "Order cancelled",
+        });
+
         return;
       }
     } else {

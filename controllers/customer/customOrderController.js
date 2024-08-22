@@ -151,7 +151,12 @@ const addItemsToCartController = async (req, res, next) => {
 
     res.status(200).json({
       message: "Item added successfully",
-      data: cart,
+      data: {
+        cartId: cart._id,
+        customerId: cart.customerId,
+        cartDetail: cart.cartDetail,
+        items: cart.items,
+      },
     });
   } catch (err) {
     next(appError(err.message));
@@ -393,6 +398,7 @@ const addDeliveryAddressController = async (req, res, next) => {
     await cartFound.save();
 
     const formattedItems = cartFound.items.map((item) => ({
+      itemId: item.itemId,
       itemName: item.itemName,
       quantity: `${item.quantity}${item.unit}`,
       numOfUnits: item.numOfUnits,
@@ -515,7 +521,13 @@ const addTipAndApplyPromocodeInCustomOrderController = async (
 
     res.status(200).json({
       message: "Tip and promo code applied successfully",
-      data: cart,
+      data: {
+        cartId: cart._id,
+        customerId: cart.customerId,
+        cartDetail: cart.cartDetail,
+        items: cart.items,
+        billDetail: cart.billDetail,
+      },
     });
   } catch (err) {
     next(appError(err.message));
