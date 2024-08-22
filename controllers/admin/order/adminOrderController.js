@@ -210,26 +210,30 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
       return next(appError("Task not created"));
     }
 
+    await orderFound.save();
+
     orderFound = await orderFound.populate("merchantId");
+
+    console.log(orderFound.status);
 
     //? Notify the USER and ADMIN about successful order creation
     const customerData = {
       socket: {
-        orderId: orderFound._id,
+        orderId,
         orderDetail: orderFound.orderDetail,
         billDetail: orderFound.billDetail,
       },
       fcm: {
         title: "Order accepted",
         body: "Your order has been accepted by the merchant",
-        orderId: orderFound._id,
+        orderId,
         customerId: orderFound.customerId,
       },
     };
 
     const merchantData = {
       socket: {
-        _id: orderFound._id,
+        _id: orderId,
         orderStatus: orderFound.status,
         merchantName: "-",
         customerName:
@@ -272,12 +276,14 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
       parameter.user
     );
 
-    sendNotification(
-      orderFound.merchantId._id,
-      parameter.eventName,
-      merchantData,
-      parameter.role1
-    );
+    if (orderFound?.merchantId?._id) {
+      sendNotification(
+        orderFound.merchantId._id,
+        parameter.eventName,
+        merchantData,
+        parameter.role1
+      );
+    }
 
     sendNotification(
       process.env.ADMIN_ID,

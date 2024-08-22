@@ -34,8 +34,6 @@ const {
   getAvailableServiceController,
   generateReferralCode,
   getCurrentOrderDetailcontroller,
-  cancelOrdeAfterOrderCreationController,
-  addCustomerFromCSVController,
 } = require("../../controllers/customer/customerController");
 const {
   getAllBusinessCategoryController,
@@ -368,12 +366,6 @@ customerRoute.get(
   "/get-current-order",
   isAuthenticated,
   getCurrentOrderDetailcontroller
-);
-
-customerRoute.post(
-  "/cancel-current-order/:orderId",
-  isAuthenticated,
-  cancelOrdeAfterOrderCreationController
 );
 
 // ============================================

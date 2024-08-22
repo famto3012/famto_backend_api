@@ -17,6 +17,7 @@
     "csv-parse": "^5.5.6",
     "csv-parser": "^3.0.0",
     "csv-stringify": "^6.5.1",
+    "csv-writer": "^1.6.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-validator": "^7.1.0",

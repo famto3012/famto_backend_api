@@ -609,4 +609,5 @@ module.exports = {
   changeCategoryStatusByMerchantController,
   updateCategoryOrderController,
   addCategoryFromCSVController,
+  downloadCategorySampleCSVController,
 };
