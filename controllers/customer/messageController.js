@@ -51,19 +51,29 @@ const sendMessage = async (req, res) => {
       }),
     ]);
 
+    const formattedResponse = {
+      conversationId: newMessage.conversationId,
+      sender: newMessage.sender,
+      seen: false, // Assuming the message is not seen when it's just sent
+      img: newMessage.img,
+      id: newMessage._id,
+      createdAt: newMessage.createdAt,
+      updatedAt: newMessage.updatedAt,
+    };
+
     const recipientSocketId = getRecipientSocketId(recipientId);
     if (recipientSocketId) {
-      io.to(recipientSocketId).emit("newMessage", newMessage);
+      io.to(recipientSocketId).emit("newMessage", formattedResponse);
       const data = {
         title: "New message",
-        body: newMessage.text,
-        image: newMessage.img,
+        body: formattedResponse.text,
+        image: formattedResponse.img,
       };
       const fcmToken = userSocketMap[recipientId]?.fcmToken;
       sendPushNotificationToUser(fcmToken, data);
     }
 
-    res.status(201).json(newMessage);
+    res.status(201).json(formattedResponse);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -72,6 +82,7 @@ const sendMessage = async (req, res) => {
 const getMessages = async (req, res) => {
   const { otherUserId } = req.params;
   const userId = req.userAuth;
+
   try {
     const conversation = await Conversation.findOne({
       participants: { $all: [userId, otherUserId] },
@@ -85,14 +96,27 @@ const getMessages = async (req, res) => {
       conversationId: conversation._id,
     }).sort({ createdAt: 1 });
 
-    res.status(200).json(messages);
+    const formattedMessages = messages.map((message) => ({
+      id: message._id,
+      conversationId: message.conversationId,
+      sender: message.sender,
+      seen: message.seen || false, // Assuming `seen` is false if not present
+      img: message.img || "",
+      createdAt: message.createdAt,
+      updatedAt: message.updatedAt,
+      deletionDate: message.deletionDate, // Deletion date set to 7 days after creation
+    }));
+
+    res.status(200).json(formattedMessages);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
+
 const getConversations = async (req, res) => {
   const userId = req.userAuth;
+
   try {
     const conversations = await Conversation.find({
       participants: userId,
@@ -101,16 +125,31 @@ const getConversations = async (req, res) => {
       select: "username profilePic",
     });
 
-    // remove the current user from the participants array
-    conversations.forEach((conversation) => {
-      conversation.participants = conversation.participants.filter(
-        (participant) => participant._id !== userId
-      );
+    const formattedConversations = conversations.map((conversation) => {
+      conversations.forEach((conversation) => {
+        conversation.participants = conversation.participants.filter(
+          (participant) => participant._id !== userId
+        );
+      });
+
+      return {
+        lastMessage: {
+          seen: conversation.lastMessage?.seen || false,
+          sender: conversation.lastMessage?.sender,
+        },
+        id: conversation._id,
+        participants: conversation.participants,
+        createdAt: conversation.createdAt,
+        updatedAt: conversation.updatedAt,
+        deletionDate: conversation.deletionDate, 
+      };
     });
-    res.status(200).json(conversations);
+
+    res.status(200).json(formattedConversations);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 module.exports = { sendMessage, getMessages, getConversations };

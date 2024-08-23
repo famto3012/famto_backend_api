@@ -25,6 +25,7 @@ const {
   updateOrderDetails,
   updateAgentDetails,
 } = require("../utils/agentAppHelpers");
+const NotificationSetting = require("../models/NotificationSetting");
 
 const serviceAccount = {
   type: process.env.TYPE,
@@ -65,15 +66,17 @@ const io = socketio(server, {
 
 const userSocketMap = {};
 
-const sendPushNotificationToUser = (fcmToken, message, user) => {
+const sendPushNotificationToUser = async(fcmToken, message, eventName, user) => {
+  const notificationSettings = await NotificationSetting.find({event: eventName})
   const mes = {
     notification: {
-      title: message.title,
-      body: message.body,
+      title: notificationSettings.title,
+      body: notificationSettings.description,
       image: message.image,
     },
     token: fcmToken,
   };
+  console.log("fcm message",mes)
 
   getMessaging()
     .send(mes)
@@ -82,23 +85,23 @@ const sendPushNotificationToUser = (fcmToken, message, user) => {
 
       const logData = {
         imageUrl: message.image,
-        title: message.title,
-        description: message.body,
-        ...(user !== "Customer" && { orderId: message.orderId }),
+        title: notificationSettings.title,
+        description: notificationSettings.description,
+        ...(!notificationSettings.customer && { orderId: message.orderId }),
       };
 
       try {
-        if (user === "Customer") {
+        if (notificationSettings.customer) {
           await CustomerNotificationLogs.create({
             ...logData,
             customerId: message.customerId,
           });
-        } else if (user === "Merchant") {
+        } else if (notificationSettings.merchant) {
           await MerchantNotificationLogs.create({
             ...logData,
             merchantId: message.merchantId,
           });
-        } else if (user === "Agent") {
+        } else if (notificationSettings.driver) {
           await AgentNotificationLogs.create({
             ...logData,
             agentId: message.agentId,
@@ -106,7 +109,7 @@ const sendPushNotificationToUser = (fcmToken, message, user) => {
             deliveryDetail: message.deliveryDetail,
             orderType: message.orderType,
           });
-        } else if (user === "Admin") {
+        } else if (notificationSettings.admin) {
           await AdminNotificationLogs.create(logData);
         }
       } catch (err) {
@@ -121,13 +124,12 @@ const sendPushNotificationToUser = (fcmToken, message, user) => {
 // Function to send notification to user (using Socket.IO if available, else FCM)
 const sendNotification = (userId, eventName, data, user) => {
   const { socketId, fcmToken } = userSocketMap[userId] || {};
-
   if (socketId) {
     io.to(socketId).emit(eventName, data.socket);
   }
 
   if (fcmToken) {
-    sendPushNotificationToUser(fcmToken, data.fcm, user);
+    sendPushNotificationToUser(fcmToken, data.fcm, eventName, user);
   }
 
   if (!socketId && !fcmToken) {
@@ -461,7 +463,7 @@ io.on("connection", async (socket) => {
       if (maxRadius > 0) {
         const pickupLocation = taskFound?.pickupDetail?.pickupLocation;
         const agentLocation = agentFound.location;
-
+        console.log(pickupLocation);
         if (pickupLocation) {
           const distance = turf.distance(
             turf.point(pickupLocation),
@@ -479,6 +481,9 @@ io.on("connection", async (socket) => {
             orderFound.orderDetailStepper.reachedPickupLocation = stepperData;
 
             await orderFound.save();
+
+            taskFound.pickupDetail.pickupStatus = "Completed";
+            await taskFound.save();
 
             const customerData = {
               socket: {
