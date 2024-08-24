@@ -38,7 +38,6 @@ const {
 const {
   getAllBusinessCategoryController,
   homeSearchController,
-
   getMerchantWithCategoriesAndProductsController,
   filterMerchantController,
   searchProductsInMerchantController,

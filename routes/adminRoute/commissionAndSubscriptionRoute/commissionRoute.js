@@ -8,8 +8,10 @@ const {
   getCommissionLogsByCreatedDate,
   getCommissionLogsByMerchantId,
   updateCommissionLogStatus,
+  getCommissionDetailOfMerchant,
 } = require("../../../controllers/admin/commissionAndSubscription/commissionController");
 const { body } = require("express-validator");
+const isAdminOrMerchant = require("../../../middlewares/isAdminOrMerchant");
 
 const commissionRoute = express.Router();
 
@@ -64,6 +66,13 @@ commissionRoute.put(
   isAuthenticated,
   isAdmin,
   updateCommissionLogStatus
+);
+
+commissionRoute.get(
+  "/commission-detail",
+  isAuthenticated,
+  isAdminOrMerchant,
+  getCommissionDetailOfMerchant
 );
 
 module.exports = commissionRoute;

@@ -14,6 +14,7 @@ const {
   getAllProductsByMerchant,
   updateProductOrderController,
   addProductFromCSVController,
+  downloadProductSampleCSVController,
 } = require("../../../../controllers/admin/merchant/product/productController");
 const { upload } = require("../../../../utils/imageOperation");
 const {
@@ -25,6 +26,14 @@ const isAuthenticated = require("../../../../middlewares/isAuthenticated");
 const isAdminOrMerchant = require("../../../../middlewares/isAdminOrMerchant");
 
 const productRoute = express.Router();
+
+// Download sample product Data CSV
+productRoute.get(
+  "/download-sample-product-csv",
+  isAuthenticated,
+  isAdminOrMerchant,
+  downloadProductSampleCSVController
+);
 
 //Search Product Details
 productRoute.get("/search", isAuthenticated, searchProductController);
@@ -135,6 +144,7 @@ productRoute.delete(
 productRoute.post(
   "/upload-product-csv",
   upload.single("productCSV"),
+  isAuthenticated,
   isAdminOrMerchant,
   addProductFromCSVController
 );

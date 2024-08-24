@@ -20,6 +20,13 @@ const { upload } = require("../../../utils/imageOperation");
 const adminCustomerRoute = express.Router();
 
 adminCustomerRoute.get(
+  "/download-sample-customer-csv",
+  isAuthenticated,
+  isAdminOrMerchant,
+  downloadCustomerSampleCSVController
+);
+
+adminCustomerRoute.get(
   "/customer-of-merchant",
   isAuthenticated,
   isAdminOrMerchant,
@@ -87,13 +94,6 @@ adminCustomerRoute.patch(
   isAuthenticated,
   isAdmin,
   deductMoneyFromWalletCOntroller
-);
-
-adminCustomerRoute.get(
-  "/download-sample-customer-csv",
-  isAuthenticated,
-  isAdminOrMerchant,
-  downloadCustomerSampleCSVController
 );
 
 adminCustomerRoute.post(

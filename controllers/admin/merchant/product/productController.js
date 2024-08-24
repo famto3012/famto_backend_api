@@ -9,6 +9,8 @@ const Category = require("../../../../models/Category");
 const axios = require("axios");
 const { Readable } = require("stream");
 const csvParser = require("csv-parser");
+const path = require("path");
+const csvWriter = require("csv-writer").createObjectCsvWriter;
 
 // ------------------------------------------------------
 // For Merchant and Admin
@@ -180,10 +182,13 @@ const editProductController = async (req, res, next) => {
       return next(appError("Product not found", 404));
     }
 
-    let productImageURL = productToUpdate.productImageURL;
+    let productImageURL = productToUpdate?.productImageURL;
 
     if (req.file) {
-      await deleteFromFirebase(productImageURL);
+      if (productImageURL) {
+        await deleteFromFirebase(productImageURL);
+      }
+
       productImageURL = await uploadToFirebase(req.file, "ProductImages");
     }
 
@@ -406,39 +411,6 @@ const editVariantController = async (req, res, next) => {
   }
 };
 
-// const deleteVariantTypeController = async (req, res, next) => {
-//   try {
-//     const { productId, variantId, variantTypeId } = req.params;
-
-//     const product = await Product.findById(productId);
-//     if (!product) {
-//       return next(appError("Product not found", 404));
-//     }
-
-//     const variant = product.variants.id(variantId);
-//     if (!variant) {
-//       return next(appError("Variant not found", 404));
-//     }
-
-//     const variantTypeIndex = variant.variantTypes.findIndex(
-//       (vt) => vt._id.toString() === variantTypeId
-//     );
-//     if (variantTypeIndex === -1) {
-//       return next(appError("Variant type not found", 404));
-//     }
-
-//     variant.variantTypes.splice(variantTypeIndex, 1);
-//     await product.save();
-
-//     res.status(200).json({
-//       message: "Variant type deleted successfully",
-//       data: product,
-//     });
-//   } catch (err) {
-//     next(appError(err.message));
-//   }
-// };
-
 const deleteVariantTypeController = async (req, res, next) => {
   try {
     const { productId, variantId, variantTypeId } = req.params;
@@ -485,6 +457,12 @@ const addProductFromCSVController = async (req, res, next) => {
       return next(appError("CSV file is required", 400));
     }
 
+    const { categoryId } = req.body;
+
+    if (!categoryId) {
+      return next(appError("Category Id is required", 400));
+    }
+
     // Upload the CSV file to Firebase and get the download URL
     const fileUrl = await uploadToFirebase(req.file, "csv-uploads");
 
@@ -506,13 +484,16 @@ const addProductFromCSVController = async (req, res, next) => {
         );
 
         if (!isRowEmpty) {
-          const productKey = `${row.productName}-${row.categoryId}`;
+          // Use a unique key that includes SKU or other unique identifiers
+          const productKey = `${row[
+            "Product name"
+          ]?.trim()}-${categoryId}-${row["SKU"]?.trim()}`;
 
           // Check if the product is already in the map
           if (!productsMap.has(productKey)) {
             productsMap.set(productKey, {
               productName: row["Product name"]?.trim(),
-              price: parseFloat(row["Price"].trim()),
+              price: parseFloat(row["Price"]?.trim()),
               minQuantityToOrder: parseInt(
                 row["Min Quantity To Order"]?.trim()
               ),
@@ -525,8 +506,8 @@ const addProductFromCSVController = async (req, res, next) => {
               description: row["Description"]?.trim(),
               longDescription: row["Long description"]?.trim(),
               type: row["Type"]?.trim(),
-              categoryId: row["Category Id"]?.trim(),
-              inventory: row["Inventory"].trim().toLowerCase() === "true",
+              categoryId,
+              inventory: row["Inventory"]?.trim().toLowerCase() === "true",
               availableQuantity: parseInt(row["Available Quantity"]?.trim()),
               alert: parseInt(row["Alert"]?.trim()),
               variants: [],
@@ -536,32 +517,40 @@ const addProductFromCSVController = async (req, res, next) => {
           // Get the existing product
           const product = productsMap.get(productKey);
 
-          // Add or update the variant for the product
-          const variant = {
-            variantName: row["Variant name"]?.trim(),
-            variantTypes: [
-              {
-                typeName: row["Variant Type name"]?.trim(),
-                price: parseFloat(row["Variant Type price"]?.trim()),
-              },
-            ],
-          };
-
-          // Check if the variant already exists
-          const existingVariant = product.variants.find(
-            (v) => v.variantName === variant.variantName
+          // Only add the variant if `Variant name`, `Variant Type name`, and `Variant Type price` are available
+          const variantName = row["Variant name"]?.trim();
+          const variantTypeName = row["Variant Type name"]?.trim();
+          const variantTypePrice = parseFloat(
+            row["Variant Type price"]?.trim()
           );
 
-          if (existingVariant) {
-            // Add new variant types to the existing variant
-            existingVariant.variantTypes.push(...variant.variantTypes);
-          } else {
-            // Add new variant to the product
-            product.variants.push(variant);
-          }
+          if (variantName && variantTypeName && variantTypePrice) {
+            const variant = {
+              variantName,
+              variantTypes: [
+                {
+                  typeName: variantTypeName,
+                  price: variantTypePrice,
+                },
+              ],
+            };
 
-          // Update the map with the modified product
-          productsMap.set(productKey, product);
+            // Check if the variant already exists
+            const existingVariant = product.variants.find(
+              (v) => v.variantName === variant.variantName
+            );
+
+            if (existingVariant) {
+              // Add new variant types to the existing variant
+              existingVariant.variantTypes.push(...variant.variantTypes);
+            } else {
+              // Add new variant to the product
+              product.variants.push(variant);
+            }
+
+            // Update the map with the modified product
+            productsMap.set(productKey, product);
+          }
         }
       })
       .on("end", async () => {
@@ -571,6 +560,7 @@ const addProductFromCSVController = async (req, res, next) => {
               const existingProduct = await Product.findOne({
                 productName: productData.productName,
                 categoryId: productData.categoryId,
+                sku: productData.sku, // Ensure SKU is also checked
               });
 
               if (existingProduct) {
@@ -600,9 +590,8 @@ const addProductFromCSVController = async (req, res, next) => {
 
           await Promise.all(productPromises);
 
-          res.status(201).json({
+          res.status(200).json({
             message: "Products added/updated successfully.",
-            data: Array.from(productsMap.values()),
           });
         } catch (err) {
           next(appError(err.message));
@@ -616,6 +605,95 @@ const addProductFromCSVController = async (req, res, next) => {
       });
   } catch (err) {
     next(appError(err.message));
+  }
+};
+
+const downloadProductSampleCSVController = async (req, res, next) => {
+  try {
+    // Define the path to your sample CSV file
+    const filePath = path.join(
+      __dirname,
+      "../../../../sample_CSV/sample_CSV.csv"
+    );
+
+    // Define the headers and data for the CSV
+    const csvHeaders = [
+      { id: "productName", title: "Product name" },
+      { id: "price", title: "Price" },
+      { id: "minQuantityToOrder", title: "Min Quantity To Order" },
+      { id: "maxQuantityPerOrder", title: "Max Quantity per Order" },
+      { id: "costPrice", title: "Cost price" },
+      { id: "sku", title: "SKU" },
+      { id: "preparationTime", title: "Preparation time" },
+      { id: "description", title: "Description" },
+      { id: "longDescription", title: "Long description" },
+      { id: "type", title: "Type" },
+      { id: "inventory", title: "Inventory" },
+      { id: "availableQuantity", title: "Available Quantity" },
+      { id: "alert", title: "Alert" },
+      { id: "variantName", title: "Variant name" },
+      { id: "typeName", title: "Variant Type name" },
+      { id: "variantTypePrice", title: "Variant Type price" },
+    ];
+
+    const csvData = [
+      {
+        productName: "Product 1",
+        price: "100",
+        minQuantityToOrder: "1",
+        maxQuantityPerOrder: "20",
+        costPrice: "100",
+        sku: "SKU12345",
+        preparationTime: "30",
+        description: "Description",
+        longDescription: "Long description",
+        type: "Veg / Non-veg",
+        inventory: "TRUE / FALSE",
+        availableQuantity: "20",
+        alert: "10",
+        variantName: "Size",
+        typeName: "Medium",
+        variantTypePrice: "150",
+      },
+      {
+        productName: "Product 2",
+        price: "100",
+        minQuantityToOrder: "1",
+        maxQuantityPerOrder: "20",
+        costPrice: "100",
+        sku: "SKU12345",
+        preparationTime: "30",
+        description: "Description",
+        longDescription: "Long description",
+        type: "Veg / Non-veg",
+        inventory: "TRUE / FALSE",
+        availableQuantity: "20",
+        alert: "10",
+        variantName: "Colour",
+        typeName: "Black",
+        variantTypePrice: "150",
+      },
+    ];
+
+    // Create a new CSV writer
+    const writer = csvWriter({
+      path: filePath,
+      header: csvHeaders,
+    });
+
+    // Write the data to the CSV file
+    await writer.writeRecords(csvData);
+
+    console.log("Final");
+
+    // Send the CSV file as a response for download
+    res.download(filePath, "Product_sample.csv", (err) => {
+      if (err) {
+        next(err);
+      }
+    });
+  } catch (error) {
+    res.status(500).send("Error processing the CSV file");
   }
 };
 
@@ -634,4 +712,5 @@ module.exports = {
   changeInventoryStatusController,
   updateProductOrderController,
   addProductFromCSVController,
+  downloadProductSampleCSVController,
 };
