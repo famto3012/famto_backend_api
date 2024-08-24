@@ -1,9 +1,5 @@
 const csvParser = require("csv-parser");
 const { Readable } = require("stream");
-const fs = require("fs");
-const { stringify } = require("csv-stringify");
-const { parse } = require("csv-parse");
-const path = require("path");
 const { validationResult } = require("express-validator");
 const Category = require("../../../../models/Category");
 const appError = require("../../../../utils/appError");
@@ -12,6 +8,9 @@ const {
   deleteFromFirebase,
 } = require("../../../../utils/imageOperation");
 const axios = require("axios");
+const path = require("path");
+const BusinessCategory = require("../../../../models/BusinessCategory");
+const csvWriter = require("csv-writer").createObjectCsvWriter;
 
 // ----------------------------------------------------
 // For Admin
@@ -140,15 +139,13 @@ const editCategoryByAdminController = async (req, res, next) => {
       return next(appError("Category not found", 404));
     }
 
-    let categoryImageURL = categoryToUpdate.categoryImageURL;
+    let categoryImageURL = categoryToUpdate?.categoryImageURL;
 
     if (req.file) {
-      // Delete the old file from Firebase
       if (categoryImageURL) {
         await deleteFromFirebase(categoryImageURL);
       }
 
-      // Upload the new file to Firebase
       categoryImageURL = await uploadToFirebase(req.file, "CategoryImages");
     }
 
@@ -220,68 +217,10 @@ const changeCategoryStatusByAdminController = async (req, res, next) => {
   }
 };
 
-const downloadCategorySampleCSVController = async (req, res, next) => {
-  try {
-    const { businessCategoryId, merchantId } = req.body;
-
-    if (!businessCategoryId || !merchantId) {
-      return next(
-        appError("Business Category Id and Merchant Id are required", 400)
-      );
-    }
-
-    // Path to the sample CSV file
-    const sampleCSVPath = path.join(
-      __dirname,
-      "../../../../sample_CSV/sample_CSV.csv"
-    );
-
-    // Read the sample CSV file
-    const sampleCSVData = fs.readFileSync(sampleCSVPath, "utf8");
-
-    // Parse the CSV data
-    parse(sampleCSVData, { columns: true }, (err, records) => {
-      if (err) {
-        return next(appError("Error parsing CSV", 500));
-      }
-
-      // Add new columns and populate them with the passed values
-      const updatedRecords = records.map((record) => ({
-        "Business Category Id": businessCategoryId,
-        "Merchant Id": merchantId,
-        "Category name": record["Category name"],
-        Description: record["Description"],
-        Type: record["Type"],
-        Status: record["Status"],
-      }));
-
-      // Convert the updated records back to CSV
-      stringify(updatedRecords, { header: true }, (err, output) => {
-        if (err) {
-          return next(appError("Error generating CSV", 500));
-        }
-
-        // Convert the CSV output to a readable stream
-        const stream = Readable.from(output);
-
-        // Set the headers to trigger a download
-        res.setHeader(
-          "Content-disposition",
-          "attachment; filename=Category_CSV.csv"
-        );
-        res.setHeader("Content-Type", "text/csv");
-
-        // Pipe the stream to the response
-        stream.pipe(res);
-      });
-    });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
 const addCategoryFromCSVController = async (req, res, next) => {
   try {
+    const { merchantId } = req.body;
+
     if (!req.file) {
       return next(appError("CSV file is required", 400));
     }
@@ -301,22 +240,35 @@ const addCategoryFromCSVController = async (req, res, next) => {
     // Parse the CSV data
     stream
       .pipe(csvParser())
-      .on("data", (row) => {
+      .on("data", async (row) => {
         const isRowEmpty = Object.values(row).every(
           (value) => value.trim() === ""
         );
 
         if (!isRowEmpty) {
-          const category = {
-            businessCategoryId: row["Business Category Id"]?.trim(),
-            merchantId: row["Merchant Id"]?.trim(),
-            categoryName: row["Category name"]?.trim(),
-            description: row["Description"]?.trim(),
-            type: row["Type"]?.trim(),
-            status: row["Status"]?.toLowerCase(),
-          };
+          // Find the BusinessCategory asynchronously
+          try {
+            const businessCategoryFound = await BusinessCategory.findOne({
+              title: row["Business Category name"]?.trim(),
+            });
 
-          categories.push(category);
+            if (businessCategoryFound) {
+              const category = {
+                businessCategoryId: businessCategoryFound._id,
+                merchantId,
+                categoryName: row["Category name"]?.trim(),
+                description: row["Description"]?.trim(),
+                type: row["Type"]?.trim(),
+                status: row["Status"]?.toLowerCase(),
+              };
+
+              categories.push(category);
+            }
+
+            console.log(categories);
+          } catch (err) {
+            next(appError(err.message));
+          }
         }
       })
       .on("end", async () => {
@@ -332,8 +284,22 @@ const addCategoryFromCSVController = async (req, res, next) => {
               categoryName: categoryData.categoryName,
             });
 
+            // Prepare the update object
+            const updateData = {};
+
+            if (categoryData.categoryName)
+              updateData.categoryName = categoryData.categoryName;
+            if (categoryData.description)
+              updateData.description = categoryData.description;
+            if (categoryData.type) updateData.type = categoryData.type;
+            if (categoryData.status) updateData.status = categoryData.status;
+
             if (existingCategory) {
-              await Category.findByIdAndUpdate();
+              await Category.findByIdAndUpdate(
+                existingCategory._id,
+                { $set: updateData },
+                { new: true }
+              );
             } else {
               // Set the order and create the new category
               categoryData.order = newOrder++;
@@ -344,9 +310,10 @@ const addCategoryFromCSVController = async (req, res, next) => {
 
           await Promise.all(categoryPromise);
 
-          res.status(201).json({
+          console.log("Successfully");
+
+          res.status(200).json({
             message: "Categories added successfully.",
-            data: categories,
           });
         } catch (err) {
           next(appError(err.message));
@@ -360,6 +327,61 @@ const addCategoryFromCSVController = async (req, res, next) => {
       });
   } catch (err) {
     next(appError(err.message));
+  }
+};
+
+const downloadCategorySampleCSVController = async (req, res, next) => {
+  try {
+    console.log("Download");
+    // Define the path to your sample CSV file
+    const filePath = path.join(
+      __dirname,
+      "../../../../sample_CSV/sample_CSV.csv"
+    );
+
+    // Define the headers and data for the CSV
+    const csvHeaders = [
+      { id: "businessCategoryName", title: "Business Category name" },
+      { id: "categoryName", title: "Category name" },
+      { id: "description", title: "Description" },
+      { id: "type", title: "Type" },
+      { id: "status", title: "Status" },
+    ];
+
+    const csvData = [
+      {
+        businessCategoryName: "Food / Grocery / Vegetables / Fruits",
+        categoryName: "Category 1",
+        description: "Description 1",
+        type: "Veg / Non-veg / Both",
+        status: "TRUE / FALSE",
+      },
+      {
+        businessCategoryName: "Food / Grocery / Vegetables / Fruits",
+        categoryName: "Category 2",
+        description: "Description 2",
+        type: "Veg / Non-veg / Both",
+        status: "TRUE / FALSE",
+      },
+    ];
+
+    // Create a new CSV writer
+    const writer = csvWriter({
+      path: filePath,
+      header: csvHeaders,
+    });
+
+    // Write the data to the CSV file
+    await writer.writeRecords(csvData);
+
+    // Send the CSV file as a response for download
+    res.download(filePath, "Category_sample.csv", (err) => {
+      if (err) {
+        next(err);
+      }
+    });
+  } catch (error) {
+    res.status(500).send("Error processing the CSV file");
   }
 };
 

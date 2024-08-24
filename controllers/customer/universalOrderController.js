@@ -12,6 +12,7 @@ const {
   getTaxAmount,
   getDeliveryAndSurgeCharge,
   calculateDiscountedPrice,
+  filterProductIdAndQuantity,
 } = require("../../utils/customerAppHelpers");
 const CustomerCart = require("../../models/CustomerCart");
 const mongoose = require("mongoose");
@@ -509,6 +510,15 @@ const searchProductsInMerchantController = async (req, res, next) => {
         productName: product.productName,
         price: product.price,
         description: product.description,
+        variants: product.variants.map((variant) => ({
+          id: variant._id,
+          variantName: variant.variantName,
+          variantTypes: variant.variantTypes.map((variantType) => ({
+            id: variantType._id,
+            typeName: variantType.typeName,
+            price: variantType.price,
+          })),
+        })),
       };
     });
 
@@ -794,12 +804,25 @@ const addOrUpdateCartItemController = async (req, res, next) => {
       variantTypeId
     );
 
+    console.log(discountPrice);
+
+    console.log("Here");
+
     let finalPrice = discountPrice;
     if (variantTypeId) {
       const variant = variantsWithDiscount
         .flatMap((variant) => variant.variantTypes)
         .find((vt) => vt._id.equals(variantTypeId));
-      finalPrice = variant ? variant.discountPrice : discountPrice;
+
+      console.log(variant);
+
+      console.log("finalPrice inside 1", variant.discountPrice);
+
+      finalPrice = variant
+        ? variant.discountPrice || variant.price
+        : discountPrice;
+
+      console.log("finalPrice inside", finalPrice);
     }
 
     let cart = await CustomerCart.findOne({ customerId });
@@ -840,8 +863,12 @@ const addOrUpdateCartItemController = async (req, res, next) => {
           variantTypeId: variantTypeId || null,
         };
         cart.items.push(newItem);
+        console.log("newItem", newItem);
+        console.log("cart.items", cart.items);
       }
     }
+
+    console.log("here 2", cart.items);
 
     // Calculate the itemTotal ensuring no NaN values
     cart.itemTotal = cart.items.reduce(
@@ -866,6 +893,7 @@ const addOrUpdateCartItemController = async (req, res, next) => {
       .exec();
 
     const updatedCartWithVariantNames = updatedCart.toObject();
+    console.log("updatedCartWithVariantNames", updatedCartWithVariantNames);
     updatedCartWithVariantNames.items = updatedCartWithVariantNames.items.map(
       (item) => {
         const product = item.productId;
@@ -878,15 +906,17 @@ const addOrUpdateCartItemController = async (req, res, next) => {
           if (variantType) {
             variantTypeName = variantType.typeName;
             variantTypeData = {
-              id: variantType._id, // Convert _id to id
+              id: variantType._id,
               variantTypeName: variantTypeName,
             };
           }
         }
+
+        console.log("Inside");
         return {
           ...item,
           productId: {
-            id: product._id, // Convert _id to id
+            id: product._id,
             productName: product.productName,
             description: product.description,
             productImageURL: product.productImageURL,
@@ -895,6 +925,8 @@ const addOrUpdateCartItemController = async (req, res, next) => {
         };
       }
     );
+
+    console.log("Heer 3");
 
     res.status(200).json({
       success: "Cart updated successfully",
@@ -1559,6 +1591,10 @@ const orderPaymentController = async (req, res, next) => {
         };
       });
 
+    const purchasedItems = filterProductIdAndQuantity(
+      populatedCartWithVariantNames.items
+    );
+
     let formattedItems = populatedCartWithVariantNames.items.map((items) => {
       return {
         itemName: items.productId.productName,
@@ -1634,6 +1670,7 @@ const orderPaymentController = async (req, res, next) => {
           startDate, //: cart.cartDetail.startDate,
           endDate, //: cart.cartDetail.endDate,
           time: cart.cartDetail.time,
+          purchasedItems,
         });
 
         // Clear the cart
@@ -1663,6 +1700,7 @@ const orderPaymentController = async (req, res, next) => {
           status: "Pending",
           paymentMode: "Famto-cash",
           paymentStatus: "Completed",
+          purchasedItems,
         });
 
         // Clear the cart
@@ -1694,6 +1732,7 @@ const orderPaymentController = async (req, res, next) => {
               status: storedOrderData.status,
               paymentMode: storedOrderData.paymentMode,
               paymentStatus: storedOrderData.paymentStatus,
+              purchasedItems: storedOrderData.purchasedItems,
               "orderDetailStepper.created": {
                 by: storedOrder.orderDetail.deliveryAddress.fullName,
                 userId: storedOrderData.customerId,
@@ -1813,6 +1852,7 @@ const orderPaymentController = async (req, res, next) => {
         status: "Pending",
         paymentMode: "Cash-on-delivery",
         paymentStatus: "Pending",
+        purchasedItems,
       });
 
       customer.transactionDetail.push(customerTransation);
@@ -1847,6 +1887,7 @@ const orderPaymentController = async (req, res, next) => {
             status: storedOrderData.status,
             paymentMode: storedOrderData.paymentMode,
             paymentStatus: storedOrderData.paymentStatus,
+            purchasedItems: storedOrderData.purchasedItems,
             "orderDetailStepper.created": {
               by: storedOrderData.orderDetail.deliveryAddress.fullName,
               userId: storedOrderData.customerId,
@@ -1956,75 +1997,6 @@ const orderPaymentController = async (req, res, next) => {
     } else {
       return next(appError("Invalid payment mode", 400));
     }
-
-    // if (deliveryMode === "Home Delivery") {
-    //   const orderResponse = {
-    //     _id: newOrder._id,
-    //     customerId: newOrder.customerId,
-    //     customerName:
-    //       customer.fullName || newOrder.orderDetail.deliveryAddress.fullName,
-    //     merchantId: newOrder.merchantId,
-    //     merchantName: merchant.merchantDetail.merchantName,
-    //     status: newOrder.status,
-    //     totalAmount: newOrder.totalAmount,
-    //     paymentMode: newOrder.paymentMode,
-    //     paymentStatus: newOrder.paymentStatus,
-    //     items: newOrder.items,
-    //     deliveryAddress: newOrder.orderDetail.deliveryAddress,
-    //     billDetail: newOrder.billDetail,
-    //     orderDetail: {
-    //       pickupLocation: merchant.merchantDetail.location,
-    //       deliveryLocation: cart.cartDetail.deliveryLocation,
-    //       deliveryMode: cart.cartDetail.deliveryMode,
-    //       deliveryOption: cart.cartDetail.deliveryOption,
-    //       instructionToMerchant: cart.cartDetail.instructionToMerchant,
-    //       instructionToDeliveryAgent:
-    //         cart.cartDetail.instructionToDeliveryAgent,
-    //       distance: cart.cartDetail.distance,
-    //     },
-    //     createdAt: newOrder.createdAt,
-    //     updatedAt: newOrder.updatedAt,
-    //   };
-
-    //   res.status(200).json({
-    //     message: "Order created successfully",
-    //     data: orderResponse,
-    //   });
-    // } else {
-    //   const orderResponse = {
-    //     _id: newOrder._id,
-    //     customerId: newOrder.customerId,
-    //     customerName: customer.fullName || deliveryAddress.fullName,
-    //     merchantId: newOrder.merchantId,
-    //     merchantName: merchant.merchantDetail.merchantName,
-    //     status: newOrder.status,
-    //     totalAmount: newOrder.totalAmount,
-    //     paymentMode: newOrder.paymentMode,
-    //     paymentStatus: newOrder.paymentStatus,
-    //     items: newOrder.items,
-    //     pickupLocation: {
-    //       merchantName: merchant.merchantDetail.merchantName,
-    //       location: merchant.merchantDetail.displayAddress,
-    //     },
-    //     billDetail: newOrder.billDetail,
-    //     orderDetail: {
-    //       pickupLocation: merchant.merchantDetail.location,
-    //       deliveryMode: cart.cartDetail.deliveryMode,
-    //       deliveryOption: cart.cartDetail.deliveryOption,
-    //       instructionToMerchant: cart.cartDetail.instructionToMerchant,
-    //       instructionToDeliveryAgent:
-    //         cart.cartDetail.instructionToDeliveryAgent,
-    //       distance: cart.cartDetail.distance,
-    //     },
-    //     createdAt: newOrder.createdAt,
-    //     updatedAt: newOrder.updatedAt,
-    //   };
-
-    //   res.status(200).json({
-    //     message: "Order created successfully",
-    //     data: orderResponse,
-    //   });
-    // }
   } catch (err) {
     next(appError(err.message));
   }
@@ -2098,6 +2070,10 @@ const verifyOnlinePaymentController = async (req, res, next) => {
           variantTypeId: variantTypeData,
         };
       });
+
+    const purchasedItems = filterProductIdAndQuantity(
+      populatedCartWithVariantNames.items
+    );
 
     let formattedItems = populatedCartWithVariantNames.items.map((items) => {
       return {
@@ -2177,6 +2153,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
         endDate, //: cart.cartDetails.endDate,
         time: cart.cartDetail.time,
         paymentId: paymentDetails.razorpay_payment_id,
+        purchasedItems,
       });
 
       // Clear the cart
@@ -2210,6 +2187,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
         paymentMode: "Online-payment",
         paymentStatus: "Completed",
         paymentId: paymentDetails.razorpay_payment_id,
+        purchasedItems,
       });
 
       customer.transactionDetail.push(customerTransation);
@@ -2242,6 +2220,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
             status: storedOrderData.status,
             paymentMode: storedOrderData.paymentMode,
             paymentStatus: storedOrderData.paymentStatus,
+            purchasedItems: storedOrderData.purchasedItems,
             "orderDetailStepper.created": {
               by: storedOrder.orderDetail.deliveryAddress.fullName,
               userId: storedOrderData.customerId,
@@ -2335,76 +2314,6 @@ const verifyOnlinePaymentController = async (req, res, next) => {
           );
         }
       }, 60000);
-
-      // Clear the cart
-
-      // if (deliveryMode === "Home Delivery") {
-      //   const orderResponse = {
-      //     _id: newOrder._id,
-      //     customerId: newOrder.customerId,
-      //     customerName: customer.fullName || deliveryAddress.fullName,
-      //     merchantId: newOrder.merchantId,
-      //     merchantName: merchant.merchantDetail.merchantName,
-      //     status: newOrder.status,
-      //     totalAmount: newOrder.totalAmount,
-      //     paymentMode: newOrder.paymentMode,
-      //     paymentStatus: newOrder.paymentStatus,
-      //     items: newOrder.items,
-      //     deliveryAddress: newOrder.orderDetail.deliveryAddress,
-      //     billDetail: newOrder.billDetail,
-      //     orderDetail: {
-      //       pickupLocation: merchant.merchantDetail.location,
-      //       deliveryLocation: cart.cartDetail.deliveryLocation,
-      //       deliveryMode: cart.cartDetail.deliveryMode,
-      //       deliveryOption: cart.cartDetail.deliveryOption,
-      //       instructionToMerchant: cart.cartDetail.instructionToMerchant,
-      //       instructionToDeliveryAgent:
-      //         cart.cartDetail.instructionToDeliveryAgent,
-      //       distance: cart.cartDetail.distance,
-      //     },
-      //     createdAt: newOrder.createdAt,
-      //     updatedAt: newOrder.updatedAt,
-      //   };
-
-      //   res.status(200).json({
-      //     message: "Order created successfully",
-      //     data: orderResponse,
-      //   });
-      // } else {
-      //   const orderResponse = {
-      //     _id: newOrder._id,
-      //     customerId: newOrder.customerId,
-      //     customerName: customer.fullName || deliveryAddress.fullName,
-      //     merchantId: newOrder.merchantId,
-      //     merchantName: merchant.merchantDetail.merchantName,
-      //     status: newOrder.status,
-      //     totalAmount: newOrder.totalAmount,
-      //     paymentMode: newOrder.paymentMode,
-      //     paymentStatus: newOrder.paymentStatus,
-      //     items: newOrder.items,
-      //     pickupLocation: {
-      //       merchantName: merchant.merchantDetail.merchantName,
-      //       location: merchant.merchantDetail.displayAddress,
-      //     },
-      //     billDetail: newOrder.billDetail,
-      //     orderDetail: {
-      //       pickupLocation: merchant.merchantDetail.location,
-      //       deliveryMode: cart.cartDetail.deliveryMode,
-      //       deliveryOption: cart.cartDetail.deliveryOption,
-      //       instructionToMerchant: cart.cartDetail.instructionToMerchant,
-      //       instructionToDeliveryAgent:
-      //         cart.cartDetail.instructionToDeliveryAgent,
-      //       distance: cart.cartDetail.distance,
-      //     },
-      //     createdAt: newOrder.createdAt,
-      //     updatedAt: newOrder.updatedAt,
-      //   };
-
-      //   res.status(200).json({
-      //     message: "Order created successfully",
-      //     data: orderResponse,
-      //   });
-      // }
     }
   } catch (err) {
     next(appError(err.message));

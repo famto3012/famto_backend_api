@@ -226,6 +226,28 @@ const updateCommissionLogStatus = async (req, res) => {
   }
 };
 
+const getCommissionDetailOfMerchant = async (req, res, next) => {
+  try {
+    const merchantId = req.userAuth;
+
+    console.log(merchantId);
+
+    const commissionFound = await Commission.findOne({ merchantId });
+
+    console.log(commissionFound);
+
+    res.status(200).json({
+      message: "Commission of merchant",
+      data: {
+        commissionType: commissionFound.commissionType,
+        commissionValue: commissionFound.commissionValue,
+      },
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   addAndEditCommissionController,
   getAllCommissionLogController,
@@ -233,4 +255,5 @@ module.exports = {
   getCommissionLogsByCreatedDate,
   getCommissionLogsByMerchantId,
   updateCommissionLogStatus,
+  getCommissionDetailOfMerchant,
 };

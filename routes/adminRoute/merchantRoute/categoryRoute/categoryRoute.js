@@ -14,6 +14,7 @@ const {
   changeCategoryStatusByMerchantController,
   updateCategoryOrderController,
   addCategoryFromCSVController,
+  downloadCategorySampleCSVController,
 } = require("../../../../controllers/admin/merchant/category/categoryController");
 const { upload } = require("../../../../utils/imageOperation");
 const isAuthenticated = require("../../../../middlewares/isAuthenticated");
@@ -31,6 +32,13 @@ const categoryRoute = express.Router();
 // ----------------------------------------------------
 // For Admin
 // ----------------------------------------------------
+
+categoryRoute.get(
+  "/admin/download-sample-category-csv",
+  isAuthenticated,
+  isAdminOrMerchant,
+  downloadCategorySampleCSVController
+);
 
 //Get all category of a merchant by Admin
 categoryRoute.get(

@@ -1,3 +1,0 @@
-Product name,Price,Min Quantity To Order,Max Quantity To Order,Cost price,SKU,Preparation time,Description,Long description,Type,Category Id,Inventory,Avalable Quantity,Alert,Variant name,Variant Type name,Variant Type price
-Product 1,250,1,5,150,SKU12345,20,Small description,Long description,Veg,66c5965a4cc77f5166eded6d,FALSE,50,20,Size,Medium,120
-Product 2,250,1,5,150,SKU12346,20,Small description,Long description,Non-veg,66c5965a4cc77f5166eded6d,FALSE,50,20,Colour,Green,480

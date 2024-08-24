@@ -25,6 +25,7 @@ const {
   updateOrderDetails,
   updateAgentDetails,
 } = require("../utils/agentAppHelpers");
+const verifyToken = require("../utils/verifyToken");
 
 const serviceAccount = {
   type: process.env.TYPE,
@@ -66,6 +67,8 @@ const io = socketio(server, {
 const userSocketMap = {};
 
 const sendPushNotificationToUser = (fcmToken, message, user) => {
+  console.log("FAM TOKEN", fcmToken);
+
   const mes = {
     notification: {
       title: message.title,
@@ -368,8 +371,12 @@ io.on("connection", async (socket) => {
   socket.on("agentLocationUpdateForUser", async ({ agentId }) => {
     const agent = await Agent.findById(agentId);
 
+    const data = {
+      agentLocation: agent.location,
+    };
+
     if (agent) {
-      sendSocketData(data.userId, "agentCurrentLocation", agent.location);
+      sendSocketData(data.userId, "agentCurrentLocation", data);
     }
   });
 
@@ -425,8 +432,6 @@ io.on("connection", async (socket) => {
 
       await orderFound.save();
       await taskFound.save();
-
-      console.log("Success");
 
       const data = {
         socket: stepperDetail,
@@ -496,6 +501,9 @@ io.on("connection", async (socket) => {
 
             orderFound.orderDetailStepper.reachedPickupLocation = stepperData;
 
+            taskFound.pickupDetail.pickupStatus = "Completed";
+
+            await taskFound.save();
             await orderFound.save();
 
             const customerData = {
@@ -543,6 +551,11 @@ io.on("connection", async (socket) => {
               fcm: {
                 title: "Alert",
                 body: `It seems like you have not reached the pickup location. Please try again after reaching the pickup location`,
+                agentId,
+                orderId: orderFound._id,
+                pickupDetail: taskFound?.pickupDetail?.pickupAddress,
+                deliveryDetail: taskFound.deliveryDetail.deliveryAddress,
+                orderType: orderFound.orderDetail.deliveryMode,
               },
             };
 

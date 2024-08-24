@@ -11,7 +11,6 @@ const {
 const csvParser = require("csv-parser");
 const { Readable } = require("stream");
 const axios = require("axios");
-const fs = require("fs");
 const path = require("path");
 const csvWriter = require("csv-writer").createObjectCsvWriter;
 
@@ -622,10 +621,8 @@ const addCustomerFromCSVController = async (req, res, next) => {
 
 const downloadCustomerSampleCSVController = async (req, res, next) => {
   try {
-    console.log("here");
     // Define the path to your sample CSV file
-    const filePath = path.join(__dirname, "sample_CSV", "sample_CSV.csv");
-    console.log("filePath", filePath);
+    const filePath = path.join(__dirname, "../../../sample_CSV/sample_CSV.csv");
 
     // Define the headers and data for the CSV
     const csvHeaders = [
@@ -657,7 +654,7 @@ const downloadCustomerSampleCSVController = async (req, res, next) => {
     await writer.writeRecords(csvData);
 
     // Send the CSV file as a response for download
-    res.download(filePath, "customerSample.csv", (err) => {
+    res.download(filePath, "Customer_sample.csv", (err) => {
       if (err) {
         next(err);
       }
