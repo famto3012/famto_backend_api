@@ -16,6 +16,8 @@ const {
   getDistanceFromPickupToDelivery,
   getTaxAmount,
   calculateDeliveryCharges,
+  reduceProductAvailableQuantity,
+  filterProductIdAndQuantity,
 } = require("../../../utils/customerAppHelpers");
 const CustomerPricing = require("../../../models/CustomerPricing");
 const BusinessCategory = require("../../../models/BusinessCategory");
@@ -87,8 +89,8 @@ const getAllOrdersForAdminController = async (req, res, next) => {
           ? formatTime(order.orderDetail.deliveryTime)
           : "-",
         paymentMethod: order.paymentMode,
-        deliveryOption: order.orderDetail.deliveryOption,
-        amount: order.billDetail.grandTotal,
+        deliveryOption: order?.orderDetail?.deliveryOption,
+        amount: order?.billDetail?.grandTotal,
       };
     });
 
@@ -192,8 +194,6 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
     orderFound.status = "On-going";
 
     if (orderFound.merchantId) {
-      console.log(orderId);
-
       const { payableAmountToFamto, payableAmountToMerchant } =
         await orderCommissionLogHelper(orderId);
 
@@ -210,26 +210,32 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
       return next(appError("Task not created"));
     }
 
+    if (orderFound?.purchasedItems) {
+      await reduceProductAvailableQuantity(orderFound.purchasedItems);
+    }
+
+    await orderFound.save();
+
     orderFound = await orderFound.populate("merchantId");
 
     //? Notify the USER and ADMIN about successful order creation
     const customerData = {
       socket: {
-        orderId: orderFound._id,
+        orderId,
         orderDetail: orderFound.orderDetail,
         billDetail: orderFound.billDetail,
       },
       fcm: {
         title: "Order accepted",
         body: "Your order has been accepted by the merchant",
-        orderId: orderFound._id,
+        orderId,
         customerId: orderFound.customerId,
       },
     };
 
     const merchantData = {
       socket: {
-        _id: orderFound._id,
+        _id: orderId,
         orderStatus: orderFound.status,
         merchantName: "-",
         customerName:
@@ -272,12 +278,14 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
       parameter.user
     );
 
-    sendNotification(
-      orderFound.merchantId._id,
-      parameter.eventName,
-      merchantData,
-      parameter.role1
-    );
+    if (orderFound?.merchantId?._id) {
+      sendNotification(
+        orderFound.merchantId._id,
+        parameter.eventName,
+        merchantData,
+        parameter.role1
+      );
+    }
 
     sendNotification(
       process.env.ADMIN_ID,
@@ -311,7 +319,7 @@ const rejectOrderByAdminController = async (req, res, next) => {
 
     let updatedTransactionDetail = {
       transactionType: "Refund",
-      madeon: new Date(),
+      madeOn: new Date(),
       type: "Credit",
     };
 
@@ -504,24 +512,28 @@ const rejectOrderByAdminController = async (req, res, next) => {
     } else if (orderFound.paymentMode === "Online-payment") {
       const paymentId = orderFound.paymentId;
 
-      let refundAmount;
-      if (orderFound.orderDetail.deliveryOption === "On-demand") {
-        refundAmount = orderFound.totalAmount;
-      } else if (orderFound.orderDetail.deliveryOption === "Scheduled") {
-        refundAmount =
-          orderFound.totalAmount / orderFound.orderDetail.numOfDays;
-      }
+      let refundResponse;
+      if (paymentId) {
+        let refundAmount;
+        if (orderFound.orderDetail.deliveryOption === "On-demand") {
+          refundAmount = orderFound.totalAmount;
+        } else if (orderFound.orderDetail.deliveryOption === "Scheduled") {
+          refundAmount =
+            orderFound.totalAmount / orderFound.orderDetail.numOfDays;
+        }
 
-      const refundResponse = await razorpayRefund(paymentId, refundAmount);
+        refundResponse = await razorpayRefund(paymentId, refundAmount);
 
-      if (!refundResponse.success) {
-        return next(appError("Refund failed: " + refundResponse.error, 500));
+        if (!refundResponse.success) {
+          return next(appError("Refund failed: " + refundResponse.error, 500));
+        }
+
+        customerFound.transactionDetail.push(updatedTransactionDetail);
       }
 
       orderFound.status = "Cancelled";
-      orderFound.refundId = refundResponse.refundId;
+      orderFound.refundId = refundResponse?.refundId;
       orderFound.orderDetailStepper.cancelled = stepperData;
-      customerFound.transactionDetail.push(updatedTransactionDetail);
 
       await orderFound.save();
       await customerFound.save();
@@ -911,8 +923,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
       addedTip,
     } = req.body;
 
-    console.log("items", items);
-
     // Extract ifScheduled only if deliveryOption is scheduled
     let ifScheduled, startDate, endDate, time, numOfDays;
     if (deliveryOption === "Scheduled") {
@@ -954,10 +964,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
       }
     }
 
-    console.log("newCustomer", newCustomer);
-    console.log("customerAddress", customerAddress);
-    console.log("deliveryMode", deliveryMode);
-
     let customer = await findOrCreateCustomer({
       customerId,
       newCustomer,
@@ -967,8 +973,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
     });
 
     if (!customer) return res.status(409).json({ errors: formattedErrors });
-
-    console.log("after finding customer");
 
     let pickupLocation,
       pickupAddress,
@@ -1004,13 +1008,11 @@ const createInvoiceByAdminController = async (req, res, next) => {
           newDeliveryAddress,
         }));
 
-      // TODO: Uncomment after full testing
       const distanceData = await getDistanceFromPickupToDelivery(
         pickupLocation,
         deliveryLocation
       );
       distanceInKM = parseFloat(distanceData.distanceInKM);
-      console.log("distanceInKM", distanceInKM);
     } else if (deliveryMode === "Custom Order") {
       if (customPickupLocation) {
         pickupLocation = customPickupLocation;
@@ -1031,8 +1033,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
           deliveryLocation
         );
         distanceInKM = parseFloat(distanceData.distanceInKM);
-
-        // console.log("My Distance in CO", distanceInKM);
       }
     }
 
@@ -1046,8 +1046,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
       time,
       numOfDays,
     };
-
-    // console.log("creates updated cart object", updatedCartDetail);
 
     if (deliveryMode === "Take Away") {
       updatedCartDetail.distance = 0;
@@ -1063,10 +1061,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
       updatedCartDetail.distance = distanceInKM || 0;
     }
 
-    // console.log("re updated details", updatedCartDetail);
-
     if (deliveryMode === "Take Away" || deliveryMode === "Home Delivery") {
-      console.log("Items", items);
       const itemTotal = calculateItemTotal(items);
 
       const businessCategory = await BusinessCategory.findById(
@@ -1078,11 +1073,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
 
       let customerPricing;
       if (deliveryMode === "Home Delivery") {
-        console.log("checking", customer.customerDetails);
-
-        // console.log("businessId", businessCategory._id);
-        // console.log("GeofenceId", customer.customerDetails.geofenceId);
-
         customerPricing = await CustomerPricing.findOne({
           deliveryMode: "Home Delivery",
           businessCategoryId: businessCategory._id,
@@ -1094,16 +1084,12 @@ const createInvoiceByAdminController = async (req, res, next) => {
           return res.status(404).json({ error: "Customer pricing not found" });
       }
 
-      // console.log("customerPricing", customerPricing);
-
       const oneTimeDeliveryCharge = calculateDeliveryCharges(
         distanceInKM,
         customerPricing?.baseFare,
         customerPricing?.baseDistance,
         customerPricing?.fareAfterBaseDistance
       );
-
-      // console.log("oneTimeDeliveryCharge", oneTimeDeliveryCharge);
 
       const customerSurge = await CustomerSurge.findOne({
         geofenceId: customer?.customerDetails?.geofenceId,
@@ -1206,7 +1192,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
             deliveryCharge: 0,
             addedTip,
           });
-          // console.log("here");
 
           grandTotal = subTotal;
         } else if (deliveryOption === "Scheduled") {
@@ -1221,8 +1206,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
           grandTotal = subTotal;
         }
       } else if (deliveryMode === "Home Delivery") {
-        // console.log("calcualting charges of Home delivery");
-
         subTotal = calculateSubTotal({
           itemTotal,
           deliveryCharge:
@@ -1308,9 +1291,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
         data: responseData,
       });
     } else if (deliveryMode === "Pick and Drop") {
-      // console.log("reached pick");
       const selectedVehicle = vehicleType;
-      // console.log("selectedVehicle", selectedVehicle);
 
       // Fetch all available vehicle types from the Agent model
       const agents = await Agent.find({});
@@ -1379,14 +1360,9 @@ const createInvoiceByAdminController = async (req, res, next) => {
         vehiclePrice.fareAfterBaseWeight
       );
 
-      // console.log("deliveryCharges", deliveryCharges);
-      // console.log("additionalWeightCharge", additionalWeightCharge);
-
       const deliveryChargePerDay = (
         parseFloat(deliveryCharges) + parseFloat(additionalWeightCharge)
       ).toFixed(2);
-
-      // console.log("deliveryChargePerDay", deliveryChargePerDay);
 
       let originalDeliveryCharge = deliveryChargePerDay;
       if (deliveryOption === "Scheduled") {
@@ -1434,8 +1410,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
       });
       return;
     } else if (deliveryMode === "Custom Order") {
-      // console.log("Inside custom order cart creation");
-
       const latitude = deliveryLocation.latitude;
       const longitude = deliveryLocation.longitude;
 
@@ -1510,8 +1484,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
         itemImageURL: item?.itemImageURL,
       }));
 
-      // console.log(transformedItems);
-
       const customerCart = await PickAndCustomCart.findOneAndUpdate(
         { customerId: customer._id },
         {
@@ -1553,8 +1525,6 @@ const createOrderByAdminController = async (req, res, next) => {
 
   try {
     const { paymentMode, deliveryMode, cartId } = req.body;
-
-    console.log(req.body);
 
     let cartFound;
 
@@ -1630,11 +1600,12 @@ const createOrderByAdminController = async (req, res, next) => {
     };
 
     let formattedItems;
+    let purchasedItems;
     if (
       cartDeliveryMode === "Take Away" ||
       cartDeliveryMode === "Home Delivery"
     ) {
-      populatedCartWithVariantNames = await formattedCartItems(cartFound);
+      let populatedCartWithVariantNames = await formattedCartItems(cartFound);
 
       formattedItems = populatedCartWithVariantNames.items.map((item) => {
         return {
@@ -1645,6 +1616,12 @@ const createOrderByAdminController = async (req, res, next) => {
           variantTypeName: item?.variantTypeId?.variantTypeName,
         };
       });
+
+      purchasedItems = filterProductIdAndQuantity(
+        populatedCartWithVariantNames.items
+      );
+
+      console.log("purchasedItems", purchasedItems);
     }
 
     let newOrder;
@@ -1683,6 +1660,7 @@ const createOrderByAdminController = async (req, res, next) => {
         status: "Pending",
         paymentMode: "Cash-on-delivery",
         paymentStatus: "Pending",
+        purchasedItems,
       });
 
       // Clear the cart
@@ -1716,7 +1694,6 @@ const createOrderByAdminController = async (req, res, next) => {
         cartDeliveryMode === "Pick and Drop" ||
         cartDeliveryMode === "Custom Order")
     ) {
-      console.log("before creating order in P&D");
       newOrder = await Order.create({
         customerId: cartFound.customerId,
         merchantId: cartFound?.merchantId && cartFound.merchantId,
@@ -1734,6 +1711,7 @@ const createOrderByAdminController = async (req, res, next) => {
         status: "Pending",
         paymentMode: "Online-payment",
         paymentStatus: "Completed",
+        purchasedItems,
       });
 
       // Clear the cart
@@ -1772,6 +1750,7 @@ const createOrderByAdminController = async (req, res, next) => {
         startDate: cartFound.cartDetail.startDate,
         endDate: cartFound.cartDetail.endDate,
         time: cartFound.cartDetail.time,
+        purchasedItems,
       });
 
       // Clear the cart

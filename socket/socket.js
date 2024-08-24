@@ -66,8 +66,10 @@ const io = socketio(server, {
 
 const userSocketMap = {};
 
+
 const sendPushNotificationToUser = async(fcmToken, message, eventName, user) => {
   const notificationSettings = await NotificationSetting.find({event: eventName})
+
   const mes = {
     notification: {
       title: notificationSettings.title,
@@ -370,27 +372,45 @@ io.on("connection", async (socket) => {
   socket.on("agentLocationUpdateForUser", async ({ agentId }) => {
     const agent = await Agent.findById(agentId);
 
+    const data = {
+      agentLocation: agent.location,
+    };
+
     if (agent) {
-      sendSocketData(data.userId, "agentCurrentLocation", agent.location);
+      sendSocketData(data.userId, "agentCurrentLocation", data);
     }
   });
 
   // Update started stepper in order detail
-  socket.on("agentPickupStarted", async ({ orderId, agentId }) => {
+  socket.on("agentPickupStarted", async ({ taskId, agentId }) => {
     try {
-      const orderFound = await Order.findById(orderId);
+      const taskFound = await Task.findById(taskId);
+      if (!taskFound) {
+        throw new Error("Task not found");
+      }
 
+      const orderFound = await Order.findById(taskFound.orderId);
       if (!orderFound) {
         throw new Error("Order not found");
       }
 
       const agentFound = await Agent.findById(agentId);
+      if (!agentFound) {
+        throw new Error("Agent not found");
+      }
 
       const stepperDetail = {
         by: agentFound.fullName,
         userId: agentId,
         date: new Date(),
       };
+
+      // Initialize orderDetailStepper if it does not exist
+      if (!orderFound.orderDetailStepper) {
+        orderFound.orderDetailStepper = {};
+      }
+
+      orderFound.orderDetailStepper.started = stepperDetail;
 
       if (orderFound.orderDetail.deliveryMode === "Custom Order") {
         const data = {
@@ -409,9 +429,10 @@ io.on("connection", async (socket) => {
         shopUpdates.push(data);
       }
 
-      orderFound.orderDetailStepper.started = stepperDetail;
+      taskFound.pickupDetail.pickupStatus = "Started";
 
       await orderFound.save();
+      await taskFound.save();
 
       const data = {
         socket: stepperDetail,
@@ -435,7 +456,8 @@ io.on("connection", async (socket) => {
       sendSocketData(
         process.env.ADMIN_ID,
         parameters.eventName,
-        data.parameters.user
+        data,
+        parameters.user
       );
     } catch (err) {
       throw new Error(`Error in starting pickup ${err}`);
@@ -480,6 +502,9 @@ io.on("connection", async (socket) => {
 
             orderFound.orderDetailStepper.reachedPickupLocation = stepperData;
 
+            taskFound.pickupDetail.pickupStatus = "Completed";
+
+            await taskFound.save();
             await orderFound.save();
 
             taskFound.pickupDetail.pickupStatus = "Completed";
@@ -530,6 +555,11 @@ io.on("connection", async (socket) => {
               fcm: {
                 title: "Alert",
                 body: `It seems like you have not reached the pickup location. Please try again after reaching the pickup location`,
+                agentId,
+                orderId: orderFound._id,
+                pickupDetail: taskFound?.pickupDetail?.pickupAddress,
+                deliveryDetail: taskFound.deliveryDetail.deliveryAddress,
+                orderType: orderFound.orderDetail.deliveryMode,
               },
             };
 
@@ -550,7 +580,7 @@ io.on("connection", async (socket) => {
     try {
       const agentFound = await Agent.findById(agentId);
       const taskFound = await Task.findById(taskId);
-      const orderFound = await Order.findbyId(taskFound.orderId);
+      const orderFound = await Order.findById(taskFound.orderId);
 
       if (!agentFound || !taskFound || !orderFound) {
         throw new Error(`Agent or Task or Order not found`);

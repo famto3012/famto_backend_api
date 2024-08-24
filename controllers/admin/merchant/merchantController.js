@@ -19,6 +19,8 @@ const AccountLogs = require("../../../models/AccountLogs");
 const csvParser = require("csv-parser");
 const { Readable } = require("stream");
 const axios = require("axios");
+const path = require("path");
+const csvWriter = require("csv-writer").createObjectCsvWriter;
 
 //----------------------------
 //For Merchant
@@ -660,7 +662,7 @@ const rejectRegistrationController = async (req, res, next) => {
 const getAllMerchantsController = async (req, res, next) => {
   try {
     // Get page and limit from query parameters
-    let { page = 1, limit = 10 } = req.query;
+    let { page = 1, limit = 50 } = req.query;
 
     // Convert to integers
     page = parseInt(page, 10);
@@ -1228,6 +1230,54 @@ const addMerchantsFromCSVController = async (req, res, next) => {
   }
 };
 
+const downloadMerchantSampleCSVController = async (req, res, next) => {
+  try {
+    // Define the path to your sample CSV file
+    const filePath = path.join(__dirname, "../../../sample_CSV/sample_CSV.csv");
+
+    // Define the headers and data for the CSV
+    const csvHeaders = [
+      { id: "fullName", title: "Full name" },
+      { id: "email", title: "Email" },
+      { id: "phoneNumber", title: "Phone number" },
+      { id: "password", title: "Password" },
+    ];
+
+    const csvData = [
+      {
+        fullName: "John Doe",
+        email: "john.doe@example.com",
+        phoneNumber: "1234567890",
+        password: "12345678",
+      },
+      {
+        fullName: "Jane Smith",
+        email: "jane.smith@example.com",
+        phoneNumber: "1234567890",
+        password: "12345678",
+      },
+    ];
+
+    // Create a new CSV writer
+    const writer = csvWriter({
+      path: filePath,
+      header: csvHeaders,
+    });
+
+    // Write the data to the CSV file
+    await writer.writeRecords(csvData);
+
+    // Send the CSV file as a response for download
+    res.download(filePath, "Merchant_sample.csv", (err) => {
+      if (err) {
+        next(err);
+      }
+    });
+  } catch (error) {
+    res.status(500).send("Error processing the CSV file");
+  }
+};
+
 module.exports = {
   registerMerchantController,
   getMerchantProfileController,
@@ -1251,4 +1301,5 @@ module.exports = {
   editMerchantController,
   filterMerchantsController,
   addMerchantsFromCSVController,
+  downloadMerchantSampleCSVController,
 };

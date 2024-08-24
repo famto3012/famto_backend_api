@@ -298,6 +298,17 @@ const orderDetailStepperSchema = mongoose.Schema({
   cancelled: stepperSchema,
 });
 
+const purchasedItemsSchema = mongoose.Schema({
+  productId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+  },
+  quantity: {
+    type: Number,
+    required: true,
+  },
+});
+
 const orderSchema = mongoose.Schema(
   {
     _id: {
@@ -357,6 +368,7 @@ const orderSchema = mongoose.Schema(
     commissionDetail: commissionDetailSchema,
     detailAddedByAgent: detailAddedByAgentSchema,
     orderDetailStepper: orderDetailStepperSchema,
+    purchasedItems: [purchasedItemsSchema],
   },
   {
     timestamps: true,

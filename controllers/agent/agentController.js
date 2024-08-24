@@ -597,7 +597,7 @@ const toggleOnlineController = async (req, res, next) => {
       const data = {
         status: "Offline",
       };
-      const eventName = "updatedAgentStatusToggle"
+      const eventName = "updatedAgentStatusToggle";
 
       sendSocketData(currentAgent._id, eventName, data);
 
@@ -982,6 +982,9 @@ const getPickUpDetailController = async (req, res, next) => {
         taskFound?.pickupDetail?.pickupAddress?.phoneNumber || null,
       instructions:
         taskFound?.orderId?.orderDetail?.instructionInPickup || null,
+      voiceInstructions:
+        taskFound?.orderId?.orderDetail?.voiceInstructionToDeliveryAgent ||
+        null,
       pickupLocation: taskFound?.pickupDetail?.pickupLocation,
       deliveryMode: taskFound.orderId.orderDetail.deliveryMode,
       orderItems: taskFound.orderId.items,
@@ -1020,6 +1023,8 @@ const getDeliveryDetailController = async (req, res, next) => {
       instructions:
         taskFound?.orderId?.orderDetail?.instructionToDeliveryAgent ||
         taskFound?.orderId?.orderDetail?.instructionInDelivery,
+      voiceInstructions:
+        taskFound?.orderId?.orderDetail?.voiceInstructionToDeliveryAgent,
       deliveryLocation: taskFound?.deliveryDetail?.deliveryLocation,
       deliveryMode: taskFound.orderId.orderDetail.deliveryMode,
       orderItems: taskFound.orderId.items,

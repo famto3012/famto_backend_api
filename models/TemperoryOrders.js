@@ -12,6 +12,7 @@ const tempOrderSchema = new mongoose.Schema({
   paymentMode: String,
   paymentStatus: String,
   paymentId: String,
+  purchasedItems: Object,
   createdAt: {
     type: Date,
     default: Date.now,

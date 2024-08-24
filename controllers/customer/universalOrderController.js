@@ -12,6 +12,7 @@ const {
   getTaxAmount,
   getDeliveryAndSurgeCharge,
   calculateDiscountedPrice,
+  filterProductIdAndQuantity,
 } = require("../../utils/customerAppHelpers");
 const CustomerCart = require("../../models/CustomerCart");
 const mongoose = require("mongoose");
@@ -44,9 +45,17 @@ const getAllBusinessCategoryController = async (req, res, next) => {
       .select("title bannerImageURL")
       .sort({ order: 1 });
 
+    const formattedResponse = allBusinessCategories?.map((category) => {
+      return {
+        id: category._id,
+        title: category.title,
+        bannerImageURL: category.bannerImageURL,
+      };
+    });
+
     res.status(200).json({
       message: "All business categories",
-      data: allBusinessCategories,
+      data: formattedResponse,
     });
   } catch (err) {
     next(appError(err.message));
@@ -75,6 +84,16 @@ const homeSearchController = async (req, res, next) => {
       .select("title bannerImageURL")
       .exec();
 
+    const formattedBusinessCategoryResponse = businessCategories?.map(
+      (category) => {
+        return {
+          id: category._id,
+          title: category.title,
+          bannerImageURL: category.bannerImageURL,
+        };
+      }
+    );
+
     // Search in Product by productName or searchTags
     const products = await Product.find({
       $or: [
@@ -84,6 +103,15 @@ const homeSearchController = async (req, res, next) => {
     })
       .select("productName productImageURL type, price")
       .exec();
+
+    const formattedProductResponse = products?.map((product) => {
+      return {
+        id: product._id,
+        productName: product.productName,
+        type: product.type,
+        productImageURL: product.productImageURL,
+      };
+    });
 
     // Search in Merchant by merchantName
     const merchants = await Merchant.find({
@@ -97,10 +125,10 @@ const homeSearchController = async (req, res, next) => {
 
     // Combine results from all models
     const searchResults = {
-      businessCategories,
-      products,
+      formattedBusinessCategoryResponse,
+      formattedProductResponse,
       merchants: merchants.map((merchant) => ({
-        _id: merchant._id,
+        id: merchant._id,
         merchantName: merchant.merchantDetail.merchantName,
         merchantImageURL: merchant.merchantDetail.merchantImageURL,
         displayAddress: merchant.merchantDetail.displayAddress,
@@ -180,7 +208,7 @@ const listRestaurantsController = async (req, res, next) => {
           ) ?? false;
 
         return {
-          _id: merchant._id,
+          id: merchant._id,
           merchantName: merchant.merchantDetail.merchantName,
           deliveryTime: merchant.merchantDetail.deliveryTime,
           description: merchant.merchantDetail.description,
@@ -331,7 +359,7 @@ const getMerchantWithCategoriesAndProductsController = async (
 
     const formattedResponse = {
       merchant: {
-        _id: merchantFound.id,
+        id: merchantFound._id,
         phoneNumber: merchantFound.phoneNumber || "-",
         FSSAINumber: merchantFound.merchantDetail?.FSSAINumber || "-",
         merchantName: merchantFound.merchantDetail?.merchantName || "-",
@@ -341,7 +369,30 @@ const getMerchantWithCategoriesAndProductsController = async (
         merchantImageURL:
           merchantFound?.merchantDetail?.merchantImageURL || "-",
       },
-      categories: categoriesWithProducts,
+      categories: categoriesWithProducts.map((category) => ({
+        id: category._id,
+        categoryName: category.categoryName,
+        status: category.status,
+        products: category.products.map((product) => ({
+          id: product._id,
+          productName: product.productName,
+          price: product.price,
+          description: product.description,
+          productImageURL: product.productImageURL,
+          inventory: product.inventory,
+          variants: product.variants.map((variant) => ({
+            id: variant._id,
+            variantName: variant.variantName,
+            variantTypes: variant.variantTypes.map((variantType) => ({
+              id: variantType._id,
+              typeName: variantType.typeName,
+              price: variantType.price,
+            })),
+          })),
+          isFavorite: product.isFavorite,
+          discountPrice: product.discountPrice,
+        })),
+      })),
     };
 
     res.status(200).json({
@@ -407,7 +458,7 @@ const filterMerchantController = async (req, res, next) => {
       );
 
       return {
-        _id: merchant._id,
+        id: merchant._id,
         merchantName: merchant.merchantDetail.merchantName,
         averageRating: merchant.merchantDetail.averageRating,
         merchantImageURL: merchant.merchantDetail.merchantImageURL,
@@ -453,9 +504,27 @@ const searchProductsInMerchantController = async (req, res, next) => {
       .select("_id productName price description inventory variants")
       .sort({ order: 1 });
 
+    const formattedResponse = products?.map((product) => {
+      return {
+        id: product._id,
+        productName: product.productName,
+        price: product.price,
+        description: product.description,
+        variants: product.variants.map((variant) => ({
+          id: variant._id,
+          variantName: variant.variantName,
+          variantTypes: variant.variantTypes.map((variantType) => ({
+            id: variantType._id,
+            typeName: variantType.typeName,
+            price: variantType.price,
+          })),
+        })),
+      };
+    });
+
     res.status(200).json({
       message: "Products found in merchant",
-      data: products,
+      data: formattedResponse,
     });
   } catch (err) {
     next(appError(err.message));
@@ -470,7 +539,6 @@ const filterAndSortProductsController = async (req, res, next) => {
 
     // Get category IDs associated with the merchant
     const categories = await Category.find({ merchantId }).select("_id");
-
     const categoryIds = categories.map((category) => category._id);
 
     // Build the query object
@@ -512,9 +580,28 @@ const filterAndSortProductsController = async (req, res, next) => {
       )
       .sort(sortObj);
 
+    // Convert _id to id
+    const formattedProducts = products.map((product) => ({
+      id: product._id,
+      productName: product.productName,
+      price: product.price,
+      longDescription: product.longDescription,
+      productImageURL: product.productImageURL,
+      inventory: product.inventory,
+      variants: product.variants.map((variant) => ({
+        id: variant._id,
+        variantName: variant.variantName,
+        variantTypes: variant.variantTypes.map((variantType) => ({
+          id: variantType._id,
+          typeName: variantType.typeName,
+          price: variantType.price,
+        })),
+      })),
+    }));
+
     res.status(200).json({
       message: "Filtered and sorted products retrieved successfully",
-      products,
+      products: formattedProducts,
     });
   } catch (err) {
     next(appError(err.message));
@@ -717,12 +804,25 @@ const addOrUpdateCartItemController = async (req, res, next) => {
       variantTypeId
     );
 
+    console.log(discountPrice);
+
+    console.log("Here");
+
     let finalPrice = discountPrice;
     if (variantTypeId) {
       const variant = variantsWithDiscount
         .flatMap((variant) => variant.variantTypes)
         .find((vt) => vt._id.equals(variantTypeId));
-      finalPrice = variant ? variant.discountPrice : discountPrice;
+
+      console.log(variant);
+
+      console.log("finalPrice inside 1", variant.discountPrice);
+
+      finalPrice = variant
+        ? variant.discountPrice || variant.price
+        : discountPrice;
+
+      console.log("finalPrice inside", finalPrice);
     }
 
     let cart = await CustomerCart.findOne({ customerId });
@@ -762,10 +862,13 @@ const addOrUpdateCartItemController = async (req, res, next) => {
           totalPrice: quantity * finalPrice,
           variantTypeId: variantTypeId || null,
         };
-        console.log("New Item", newItem);
         cart.items.push(newItem);
+        console.log("newItem", newItem);
+        console.log("cart.items", cart.items);
       }
     }
+
+    console.log("here 2", cart.items);
 
     // Calculate the itemTotal ensuring no NaN values
     cart.itemTotal = cart.items.reduce(
@@ -790,6 +893,7 @@ const addOrUpdateCartItemController = async (req, res, next) => {
       .exec();
 
     const updatedCartWithVariantNames = updatedCart.toObject();
+    console.log("updatedCartWithVariantNames", updatedCartWithVariantNames);
     updatedCartWithVariantNames.items = updatedCartWithVariantNames.items.map(
       (item) => {
         const product = item.productId;
@@ -802,15 +906,17 @@ const addOrUpdateCartItemController = async (req, res, next) => {
           if (variantType) {
             variantTypeName = variantType.typeName;
             variantTypeData = {
-              _id: variantType._id,
+              id: variantType._id,
               variantTypeName: variantTypeName,
             };
           }
         }
+
+        console.log("Inside");
         return {
           ...item,
           productId: {
-            _id: product._id,
+            id: product._id,
             productName: product.productName,
             description: product.description,
             productImageURL: product.productImageURL,
@@ -820,10 +926,18 @@ const addOrUpdateCartItemController = async (req, res, next) => {
       }
     );
 
+    console.log("Heer 3");
+
     res.status(200).json({
       success: "Cart updated successfully",
       data: {
-        ...updatedCartWithVariantNames,
+        cartId: updatedCartWithVariantNames._id,
+        customerId: updatedCartWithVariantNames.customerId,
+        billDetail: updatedCartWithVariantNames.billDetail,
+        cartDetail: updatedCartWithVariantNames.cartDetail,
+        createdAt: updatedCartWithVariantNames.createdAt,
+        updatedAt: updatedCartWithVariantNames.updatedAt,
+        items: updatedCartWithVariantNames.items,
         itemTotal: updatedCart.itemTotal,
       },
     });
@@ -1180,7 +1294,7 @@ const addCartDetailsController = async (req, res, next) => {
           if (variantType) {
             variantTypeName = variantType.typeName;
             variantTypeData = {
-              _id: variantType._id,
+              id: variantType._id,
               variantTypeName: variantTypeName,
             };
           }
@@ -1188,7 +1302,7 @@ const addCartDetailsController = async (req, res, next) => {
         return {
           ...item,
           productId: {
-            _id: product._id,
+            id: product._id,
             productName: product.productName,
             description: product.description,
             productImageURL: product.productImageURL,
@@ -1199,7 +1313,14 @@ const addCartDetailsController = async (req, res, next) => {
 
     res.status(200).json({
       success: "Delivery address and details added to cart successfully",
-      data: populatedCartWithVariantNames,
+      data: {
+        cartId: populatedCartWithVariantNames._id,
+        customerId: populatedCartWithVariantNames.customerId,
+        merchantId: populatedCartWithVariantNames.merchantId,
+        billDetail: populatedCartWithVariantNames.billDetail,
+        cartDetail: populatedCartWithVariantNames.cartDetail,
+        items: populatedCartWithVariantNames.items,
+      },
     });
   } catch (err) {
     next(appError(err.message));
@@ -1346,7 +1467,7 @@ const applyPromocodeController = async (req, res, next) => {
           if (variantType) {
             variantTypeName = variantType.typeName;
             variantTypeData = {
-              _id: variantType._id,
+              id: variantType._id,
               variantTypeName: variantTypeName,
             };
           }
@@ -1354,7 +1475,7 @@ const applyPromocodeController = async (req, res, next) => {
         return {
           ...item,
           productId: {
-            _id: product._id,
+            id: product._id,
             productName: product.productName,
             description: product.description,
             productImageURL: product.productImageURL,
@@ -1366,7 +1487,12 @@ const applyPromocodeController = async (req, res, next) => {
     res.status(200).json({
       success: "Promo code applied successfully",
       data: {
-        data: populatedCartWithVariantNames,
+        cartId: populatedCartWithVariantNames._id,
+        customerId: populatedCartWithVariantNames.customerId,
+        merchantId: populatedCartWithVariantNames.merchantId,
+        billDetail: populatedCartWithVariantNames.billDetail,
+        cartDetail: populatedCartWithVariantNames.cartDetail,
+        items: populatedCartWithVariantNames.items,
       },
     });
   } catch (err) {
@@ -1465,6 +1591,10 @@ const orderPaymentController = async (req, res, next) => {
         };
       });
 
+    const purchasedItems = filterProductIdAndQuantity(
+      populatedCartWithVariantNames.items
+    );
+
     let formattedItems = populatedCartWithVariantNames.items.map((items) => {
       return {
         itemName: items.productId.productName,
@@ -1540,6 +1670,7 @@ const orderPaymentController = async (req, res, next) => {
           startDate, //: cart.cartDetail.startDate,
           endDate, //: cart.cartDetail.endDate,
           time: cart.cartDetail.time,
+          purchasedItems,
         });
 
         // Clear the cart
@@ -1569,6 +1700,7 @@ const orderPaymentController = async (req, res, next) => {
           status: "Pending",
           paymentMode: "Famto-cash",
           paymentStatus: "Completed",
+          purchasedItems,
         });
 
         // Clear the cart
@@ -1600,6 +1732,7 @@ const orderPaymentController = async (req, res, next) => {
               status: storedOrderData.status,
               paymentMode: storedOrderData.paymentMode,
               paymentStatus: storedOrderData.paymentStatus,
+              purchasedItems: storedOrderData.purchasedItems,
               "orderDetailStepper.created": {
                 by: storedOrder.orderDetail.deliveryAddress.fullName,
                 userId: storedOrderData.customerId,
@@ -1616,7 +1749,6 @@ const orderPaymentController = async (req, res, next) => {
             // Remove the temporary order data from the database
             await TemperoryOrder.deleteOne({ orderId });
 
-            //! Optionally, notify the user about successful order creation
             //? Notify the USER and ADMIN about successful order creation
             const customerData = {
               socket: {
@@ -1720,6 +1852,7 @@ const orderPaymentController = async (req, res, next) => {
         status: "Pending",
         paymentMode: "Cash-on-delivery",
         paymentStatus: "Pending",
+        purchasedItems,
       });
 
       customer.transactionDetail.push(customerTransation);
@@ -1754,6 +1887,7 @@ const orderPaymentController = async (req, res, next) => {
             status: storedOrderData.status,
             paymentMode: storedOrderData.paymentMode,
             paymentStatus: storedOrderData.paymentStatus,
+            purchasedItems: storedOrderData.purchasedItems,
             "orderDetailStepper.created": {
               by: storedOrderData.orderDetail.deliveryAddress.fullName,
               userId: storedOrderData.customerId,
@@ -1863,75 +1997,6 @@ const orderPaymentController = async (req, res, next) => {
     } else {
       return next(appError("Invalid payment mode", 400));
     }
-
-    // if (deliveryMode === "Home Delivery") {
-    //   const orderResponse = {
-    //     _id: newOrder._id,
-    //     customerId: newOrder.customerId,
-    //     customerName:
-    //       customer.fullName || newOrder.orderDetail.deliveryAddress.fullName,
-    //     merchantId: newOrder.merchantId,
-    //     merchantName: merchant.merchantDetail.merchantName,
-    //     status: newOrder.status,
-    //     totalAmount: newOrder.totalAmount,
-    //     paymentMode: newOrder.paymentMode,
-    //     paymentStatus: newOrder.paymentStatus,
-    //     items: newOrder.items,
-    //     deliveryAddress: newOrder.orderDetail.deliveryAddress,
-    //     billDetail: newOrder.billDetail,
-    //     orderDetail: {
-    //       pickupLocation: merchant.merchantDetail.location,
-    //       deliveryLocation: cart.cartDetail.deliveryLocation,
-    //       deliveryMode: cart.cartDetail.deliveryMode,
-    //       deliveryOption: cart.cartDetail.deliveryOption,
-    //       instructionToMerchant: cart.cartDetail.instructionToMerchant,
-    //       instructionToDeliveryAgent:
-    //         cart.cartDetail.instructionToDeliveryAgent,
-    //       distance: cart.cartDetail.distance,
-    //     },
-    //     createdAt: newOrder.createdAt,
-    //     updatedAt: newOrder.updatedAt,
-    //   };
-
-    //   res.status(200).json({
-    //     message: "Order created successfully",
-    //     data: orderResponse,
-    //   });
-    // } else {
-    //   const orderResponse = {
-    //     _id: newOrder._id,
-    //     customerId: newOrder.customerId,
-    //     customerName: customer.fullName || deliveryAddress.fullName,
-    //     merchantId: newOrder.merchantId,
-    //     merchantName: merchant.merchantDetail.merchantName,
-    //     status: newOrder.status,
-    //     totalAmount: newOrder.totalAmount,
-    //     paymentMode: newOrder.paymentMode,
-    //     paymentStatus: newOrder.paymentStatus,
-    //     items: newOrder.items,
-    //     pickupLocation: {
-    //       merchantName: merchant.merchantDetail.merchantName,
-    //       location: merchant.merchantDetail.displayAddress,
-    //     },
-    //     billDetail: newOrder.billDetail,
-    //     orderDetail: {
-    //       pickupLocation: merchant.merchantDetail.location,
-    //       deliveryMode: cart.cartDetail.deliveryMode,
-    //       deliveryOption: cart.cartDetail.deliveryOption,
-    //       instructionToMerchant: cart.cartDetail.instructionToMerchant,
-    //       instructionToDeliveryAgent:
-    //         cart.cartDetail.instructionToDeliveryAgent,
-    //       distance: cart.cartDetail.distance,
-    //     },
-    //     createdAt: newOrder.createdAt,
-    //     updatedAt: newOrder.updatedAt,
-    //   };
-
-    //   res.status(200).json({
-    //     message: "Order created successfully",
-    //     data: orderResponse,
-    //   });
-    // }
   } catch (err) {
     next(appError(err.message));
   }
@@ -1989,7 +2054,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
           if (variantType) {
             variantTypeName = variantType.typeName;
             variantTypeData = {
-              _id: variantType._id,
+              id: variantType._id,
               variantTypeName: variantTypeName,
             };
           }
@@ -1997,7 +2062,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
         return {
           ...item,
           productId: {
-            _id: product._id,
+            id: product._id,
             productName: product.productName,
             description: product.description,
             productImageURL: product.productImageURL,
@@ -2005,6 +2070,10 @@ const verifyOnlinePaymentController = async (req, res, next) => {
           variantTypeId: variantTypeData,
         };
       });
+
+    const purchasedItems = filterProductIdAndQuantity(
+      populatedCartWithVariantNames.items
+    );
 
     let formattedItems = populatedCartWithVariantNames.items.map((items) => {
       return {
@@ -2084,6 +2153,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
         endDate, //: cart.cartDetails.endDate,
         time: cart.cartDetail.time,
         paymentId: paymentDetails.razorpay_payment_id,
+        purchasedItems,
       });
 
       // Clear the cart
@@ -2117,6 +2187,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
         paymentMode: "Online-payment",
         paymentStatus: "Completed",
         paymentId: paymentDetails.razorpay_payment_id,
+        purchasedItems,
       });
 
       customer.transactionDetail.push(customerTransation);
@@ -2130,7 +2201,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
 
       // Return countdown timer to client
       res.status(200).json({
-        message: "Custom order will be created in 1 minute.",
+        message: "Order will be created in 1 minute.",
         orderId,
         countdown: 60,
       });
@@ -2149,6 +2220,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
             status: storedOrderData.status,
             paymentMode: storedOrderData.paymentMode,
             paymentStatus: storedOrderData.paymentStatus,
+            purchasedItems: storedOrderData.purchasedItems,
             "orderDetailStepper.created": {
               by: storedOrder.orderDetail.deliveryAddress.fullName,
               userId: storedOrderData.customerId,
@@ -2242,82 +2314,13 @@ const verifyOnlinePaymentController = async (req, res, next) => {
           );
         }
       }, 60000);
-
-      // Clear the cart
-
-      // if (deliveryMode === "Home Delivery") {
-      //   const orderResponse = {
-      //     _id: newOrder._id,
-      //     customerId: newOrder.customerId,
-      //     customerName: customer.fullName || deliveryAddress.fullName,
-      //     merchantId: newOrder.merchantId,
-      //     merchantName: merchant.merchantDetail.merchantName,
-      //     status: newOrder.status,
-      //     totalAmount: newOrder.totalAmount,
-      //     paymentMode: newOrder.paymentMode,
-      //     paymentStatus: newOrder.paymentStatus,
-      //     items: newOrder.items,
-      //     deliveryAddress: newOrder.orderDetail.deliveryAddress,
-      //     billDetail: newOrder.billDetail,
-      //     orderDetail: {
-      //       pickupLocation: merchant.merchantDetail.location,
-      //       deliveryLocation: cart.cartDetail.deliveryLocation,
-      //       deliveryMode: cart.cartDetail.deliveryMode,
-      //       deliveryOption: cart.cartDetail.deliveryOption,
-      //       instructionToMerchant: cart.cartDetail.instructionToMerchant,
-      //       instructionToDeliveryAgent:
-      //         cart.cartDetail.instructionToDeliveryAgent,
-      //       distance: cart.cartDetail.distance,
-      //     },
-      //     createdAt: newOrder.createdAt,
-      //     updatedAt: newOrder.updatedAt,
-      //   };
-
-      //   res.status(200).json({
-      //     message: "Order created successfully",
-      //     data: orderResponse,
-      //   });
-      // } else {
-      //   const orderResponse = {
-      //     _id: newOrder._id,
-      //     customerId: newOrder.customerId,
-      //     customerName: customer.fullName || deliveryAddress.fullName,
-      //     merchantId: newOrder.merchantId,
-      //     merchantName: merchant.merchantDetail.merchantName,
-      //     status: newOrder.status,
-      //     totalAmount: newOrder.totalAmount,
-      //     paymentMode: newOrder.paymentMode,
-      //     paymentStatus: newOrder.paymentStatus,
-      //     items: newOrder.items,
-      //     pickupLocation: {
-      //       merchantName: merchant.merchantDetail.merchantName,
-      //       location: merchant.merchantDetail.displayAddress,
-      //     },
-      //     billDetail: newOrder.billDetail,
-      //     orderDetail: {
-      //       pickupLocation: merchant.merchantDetail.location,
-      //       deliveryMode: cart.cartDetail.deliveryMode,
-      //       deliveryOption: cart.cartDetail.deliveryOption,
-      //       instructionToMerchant: cart.cartDetail.instructionToMerchant,
-      //       instructionToDeliveryAgent:
-      //         cart.cartDetail.instructionToDeliveryAgent,
-      //       distance: cart.cartDetail.distance,
-      //     },
-      //     createdAt: newOrder.createdAt,
-      //     updatedAt: newOrder.updatedAt,
-      //   };
-
-      //   res.status(200).json({
-      //     message: "Order created successfully",
-      //     data: orderResponse,
-      //   });
-      // }
     }
   } catch (err) {
     next(appError(err.message));
   }
 };
 
+// Cancel order vefore getting created
 const cancelOrderBeforeCreationController = async (req, res, next) => {
   try {
     const { orderId } = req.params;
@@ -2348,7 +2351,7 @@ const cancelOrderBeforeCreationController = async (req, res, next) => {
         await customerFound.save();
 
         res.status(200).json({
-          message: "Order cancelled and amount refunded to wallet",
+          message: "Order cancelled",
         });
         return;
       } else if (orderFound.paymentMode === "Cash-on-delivery") {
@@ -2381,7 +2384,7 @@ const cancelOrderBeforeCreationController = async (req, res, next) => {
         await customerFound.save();
 
         res.status(200).json({
-          message: "Order cancelled and amount refunded",
+          message: "Order cancelled",
         });
         return;
       }
