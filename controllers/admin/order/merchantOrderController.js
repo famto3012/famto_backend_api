@@ -17,6 +17,7 @@ const {
   getTaxAmount,
   calculateDeliveryCharges,
   reduceProductAvailableQuantity,
+  filterProductIdAndQuantity,
 } = require("../../../utils/customerAppHelpers");
 const CustomerPricing = require("../../../models/CustomerPricing");
 const BusinessCategory = require("../../../models/BusinessCategory");
@@ -210,18 +211,25 @@ const confirmOrderController = async (req, res, next) => {
       return next(appError("Order not found", 404));
     }
 
+    const stepperData = {
+      by: "Merchant",
+      userId: orderFound.merchantId,
+      date: new Date(),
+    };
+
     if (orderFound.merchantId.toString() === currentMerchant.toString()) {
       orderFound.status = "On-going";
-      if (orderFound.merchantId) {
-        const { payableAmountToFamto, payableAmountToMerchant } =
-          await orderCommissionLogHelper(orderId);
+      orderFound.orderDetailStepper.accepted = stepperData;
 
-        let updatedCommission = {
-          merchantEarnings: payableAmountToMerchant,
-          famtoEarnings: payableAmountToFamto,
-        };
-        orderFound.commissionDetail = updatedCommission;
-      }
+      const { payableAmountToFamto, payableAmountToMerchant } =
+        await orderCommissionLogHelper(orderId);
+
+      let updatedCommission = {
+        merchantEarnings: payableAmountToMerchant,
+        famtoEarnings: payableAmountToFamto,
+      };
+
+      orderFound.commissionDetail = updatedCommission;
 
       const task = await orderCreateTaskHelper(orderId);
 
@@ -234,88 +242,68 @@ const confirmOrderController = async (req, res, next) => {
         orderFound.merchantId
       );
 
-      orderFound = await orderFound.populate("merchantId");
+      await orderFound.save();
 
-      //? Notify the USER and ADMIN about successful order creation
-      const customerData = {
-        socket: {
-          orderId: orderFound._id,
-          orderDetail: orderFound.orderDetail,
-          billDetail: orderFound.billDetail,
-        },
-        fcm: {
-          title: "Order accepted",
-          body: "Your order has been accepted by the merchant",
-          orderId: orderFound._id,
-          customerId: orderFound.customerId,
-        },
-      };
+      const eventName = "orderAccepted";
 
-      const merchantData = {
-        socket: {
-          _id: orderFound._id,
-          orderStatus: orderFound.status,
-          merchantName: orderFound?.merchantId?.merchantDetail?.merchantName,
-          customerName:
-            orderFound?.orderDetail?.deliveryAddress?.fullName ||
-            orderFound?.customerId?.fullName ||
-            "-",
-          deliveryMode: orderFound?.orderDetail?.deliveryMode,
-          orderDate: formatDate(orderFound.createdAt),
-          orderTime: formatTime(orderFound.createdAt),
-          deliveryDate: orderFound?.orderDetail?.deliveryTime
-            ? formatDate(orderFound.orderDetail.deliveryTime)
-            : "-",
-          deliveryTime: orderFound?.orderDetail?.deliveryTime
-            ? formatTime(orderFound.orderDetail.deliveryTime)
-            : "-",
-          paymentMethod: orderFound.paymentMode,
-          deliveryOption: orderFound.orderDetail.deliveryOption,
-          amount: orderFound.billDetail.grandTotal,
-          "orderDetailStepper.assigned": stepperDetail,
-        },
-        fcm: {
-          title: "Order accepted",
-          body: "Order accepted by merchant",
-          orderId: orderFound._id,
-          merchantId: orderFound.merchantId._id,
-        },
-      };
+      // Fetch notification settings to determine roles
+      const notificationSettings = await NotificationSetting.findOne({
+        event: eventName,
+      });
 
-      const parameter = {
-        eventName: "orderAccepted",
-        user: "Customer",
-        role1: "Merchant",
-        role2: "Admin",
-      };
-
-      sendNotification(
-        orderFound.customerId,
-        parameter.eventName,
-        customerData,
-        parameter.user
+      const rolesToNotify = ["admin", "merchant", "driver", "customer"].filter(
+        (role) => notificationSettings[role]
       );
 
-      sendNotification(
-        orderFound.merchantId._id,
-        parameter.eventName,
-        merchantData,
-        parameter.role1
-      );
+      // Send notifications to each role dynamically
+      for (const role of rolesToNotify) {
+        let roleId;
 
-      sendNotification(
-        process.env.ADMIN_ID,
-        parameter.eventName,
-        merchantData,
-        parameter.role2
-      );
+        if (role === "admin") {
+          roleId = process.env.ADMIN_ID;
+        } else if (role === "merchant") {
+          roleId = orderFound?.merchantId;
+        } else if (role === "driver") {
+          roleId = orderFound?.agentId;
+        } else if (role === "customer") {
+          roleId = orderFound?.customerId;
+        }
+
+        if (roleId) {
+          const notificationData = {
+            fcm: {
+              orderId,
+              customerId: orderFound.customerId,
+              merchantId: orderFound?.merchantId,
+            },
+          };
+
+          await sendNotification(
+            roleId,
+            eventName,
+            notificationData,
+            role.charAt(0).toUpperCase() + role.slice(1)
+          );
+        }
+      }
+
+      const data = {
+        orderId: orderFound._id,
+        orderDetail: orderFound.orderDetail,
+        billDetail: orderFound.billDetail,
+        orderDetailStepper: orderFound.orderDetailStepper.accepted,
+      };
+
+      sendSocketData(orderFound.customerId, eventName, data);
+      sendSocketData(orderFound?.merchantId, eventName, data);
+      sendSocketData(process.env.ADMIN_ID, eventName, data);
     } else {
       return next(appError("Access Denied", 400));
     }
 
-    res
-      .status(200)
-      .json({ message: `Order with ID: ${orderFound._id} is confirmed` });
+    res.status(200).json({
+      message: `Order with ID: ${orderFound._id} is confirmed`,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -1302,6 +1290,16 @@ const createOrderController = async (req, res, next) => {
       };
     });
 
+    const purchasedItems = filterProductIdAndQuantity(
+      populatedCartWithVariantNames.items
+    );
+
+    const stepperData = {
+      by: "Merchant",
+      userId: cartFound.merchantId,
+      date: new Date(),
+    };
+
     let newOrder;
     if (paymentMode === "Cash-on-delivery") {
       if (deliveryOption === "Scheduled") {
@@ -1322,7 +1320,32 @@ const createOrderController = async (req, res, next) => {
           status: "Pending",
           paymentMode: "Cash-on-delivery",
           paymentStatus: "Pending",
+          "orderDetailStepper.accepted": stepperData,
+          purchasedItems,
         });
+
+        const { payableAmountToFamto, payableAmountToMerchant } =
+          await orderCommissionLogHelper(newOrder._id);
+
+        let updatedCommission = {
+          merchantEarnings: payableAmountToMerchant,
+          famtoEarnings: payableAmountToFamto,
+        };
+
+        newOrder.commissionDetail = updatedCommission;
+
+        const task = await orderCreateTaskHelper(newOrder._id);
+
+        if (!task) {
+          return next(appError("Task not created"));
+        }
+
+        await reduceProductAvailableQuantity(
+          purchasedItems,
+          newOrder.merchantId
+        );
+
+        await newOrder.save();
 
         // Clear the cart
         await CustomerCart.deleteOne({ customerId: customerFound._id });
@@ -1342,12 +1365,15 @@ const createOrderController = async (req, res, next) => {
           startDate: cart.cartDetail.startDate,
           endDate: cart.cartDetail.endDate,
           time: cart.cartDetail.time,
+          purchasedItems,
         });
 
         // Clear the cart
         await CustomerCart.deleteOne({ customerId: customerFound._id });
 
         customerFound.transactionDetail.push(customerTransation);
+
+        newOrder.status = "On-going";
 
         await customerFound.save();
 
@@ -1371,7 +1397,34 @@ const createOrderController = async (req, res, next) => {
           status: "Pending",
           paymentMode: "Online-payment",
           paymentStatus: "Completed",
+          "orderDetailStepper.accepted": stepperData,
+          purchasedItems,
         });
+
+        const { payableAmountToFamto, payableAmountToMerchant } =
+          await orderCommissionLogHelper(newOrder._id);
+
+        let updatedCommission = {
+          merchantEarnings: payableAmountToMerchant,
+          famtoEarnings: payableAmountToFamto,
+        };
+
+        newOrder.commissionDetail = updatedCommission;
+
+        const task = await orderCreateTaskHelper(newOrder._id);
+
+        if (!task) {
+          return next(appError("Task not created"));
+        }
+
+        await reduceProductAvailableQuantity(
+          purchasedItems,
+          newOrder.merchantId
+        );
+
+        newOrder.status = "On-going";
+
+        await newOrder.save();
 
         // Clear the cart
         await CustomerCart.deleteOne({ customerId: customerFound._id });

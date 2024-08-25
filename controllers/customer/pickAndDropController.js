@@ -29,7 +29,8 @@ const {
   uploadToFirebase,
 } = require("../../utils/imageOperation");
 const TemperoryOrder = require("../../models/TemperoryOrders");
-const { sendNotification } = require("../../socket/socket");
+const { sendNotification, sendSocketData } = require("../../socket/socket");
+const NotificationSetting = require("../../models/NotificationSetting");
 
 const addPickUpAddressController = async (req, res, next) => {
   try {
@@ -880,75 +881,83 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
         // Remove the temporary order data from the database
         await TemperoryOrder.deleteOne({ orderId });
 
-        //? Notify the USER and ADMIN about successful order creation
-        const customerData = {
-          socket: {
-            orderId: newOrder._id,
-            orderDetail: newOrder.orderDetail,
-            billDetail: newOrder.billDetail,
-            orderDetailStepper: newOrder.orderDetailStepper.created,
-          },
-          fcm: {
-            title: "Order created",
-            body: "Your order was created successfully",
-            image: "",
-            orderId: newOrder._id,
-            customerId: newOrder.customerId,
-          },
+        const eventName = "newOrderCreated";
+
+        // Fetch notification settings to determine roles
+        const notificationSettings = await NotificationSetting.findOne({
+          event: eventName,
+        });
+
+        const rolesToNotify = [
+          "admin",
+          "merchant",
+          "driver",
+          "customer",
+        ].filter((role) => notificationSettings[role]);
+
+        // Send notifications to each role dynamically
+        for (const role of rolesToNotify) {
+          let roleId;
+
+          if (role === "admin") {
+            roleId = process.env.ADMIN_ID;
+          } else if (role === "merchant") {
+            roleId = newOrder?.merchantId;
+          } else if (role === "driver") {
+            roleId = newOrder?.agentId;
+          } else if (role === "customer") {
+            roleId = newOrder?.customerId;
+          }
+
+          if (roleId) {
+            const notificationData = {
+              fcm: {
+                orderId: newOrder._id,
+                customerId: newOrder.customerId,
+              },
+            };
+
+            await sendNotification(
+              roleId,
+              eventName,
+              notificationData,
+              role.charAt(0).toUpperCase() + role.slice(1)
+            );
+          }
+        }
+
+        const data = {
+          orderId: newOrder._id,
+          orderDetail: newOrder.orderDetail,
+          billDetail: newOrder.billDetail,
+          orderDetailStepper: newOrder.orderDetailStepper.created,
+
+          //? Data for displayinf detail in all orders table
+          _id: newOrder._id,
+          orderStatus: newOrder.status,
+          merchantName: "-",
+          customerName:
+            newOrder?.orderDetail?.deliveryAddress?.fullName ||
+            newOrder?.customerId?.fullName ||
+            "-",
+          deliveryMode: newOrder?.orderDetail?.deliveryMode,
+          orderDate: formatDate(newOrder.createdAt),
+          orderTime: formatTime(newOrder.createdAt),
+          deliveryDate: newOrder?.orderDetail?.deliveryTime
+            ? formatDate(newOrder.orderDetail.deliveryTime)
+            : "-",
+          deliveryTime: newOrder?.orderDetail?.deliveryTime
+            ? formatTime(newOrder.orderDetail.deliveryTime)
+            : "-",
+          paymentMethod: newOrder.paymentMode,
+          deliveryOption: newOrder.orderDetail.deliveryOption,
+          amount: newOrder.billDetail.grandTotal,
         };
 
-        const adminData = {
-          socket: {
-            _id: newOrder._id,
-            orderStatus: newOrder.status,
-            merchantName: "-",
-            customerName:
-              newOrder?.orderDetail?.deliveryAddress?.fullName ||
-              newOrder?.customerId?.fullName ||
-              "-",
-            deliveryMode: newOrder?.orderDetail?.deliveryMode,
-            orderDate: formatDate(newOrder.createdAt),
-            orderTime: formatTime(newOrder.createdAt),
-            deliveryDate: newOrder?.orderDetail?.deliveryTime
-              ? formatDate(newOrder.orderDetail.deliveryTime)
-              : "-",
-            deliveryTime: newOrder?.orderDetail?.deliveryTime
-              ? formatTime(newOrder.orderDetail.deliveryTime)
-              : "-",
-            paymentMethod: newOrder.paymentMode,
-            deliveryOption: newOrder.orderDetail.deliveryOption,
-            amount: newOrder.billDetail.grandTotal,
-            orderDetailStepper: newOrder.orderDetailStepper.created,
-          },
-          fcm: {
-            title: "New Order Admin",
-            body: "Your have a new pending order",
-            image: "",
-            orderId: newOrder._id,
-          },
-        };
-
-        const parameter = {
-          eventName: "newOrderCreated",
-          user: "Customer",
-          role: "Admin",
-        };
-
-        sendNotification(
-          newOrder.customerId,
-          parameter.eventName,
-          customerData,
-          parameter.user
-        );
-
-        sendNotification(
-          process.env.ADMIN_ID,
-          parameter.eventName,
-          adminData,
-          parameter.role
-        );
+        sendSocketData(newOrder.customerId, eventName, data);
+        sendSocketData(process.env.ADMIN_ID, eventName, data);
       }
-    });
+    }, 60000);
   } catch (err) {
     next(appError(err.message));
   }

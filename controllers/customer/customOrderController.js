@@ -14,7 +14,7 @@ const PromoCode = require("../../models/PromoCode");
 const Order = require("../../models/Order");
 const TemperoryOrder = require("../../models/TemperoryOrders");
 const { razorpayRefund } = require("../../utils/razorpayPayment");
-const { sendNotification } = require("../../socket/socket");
+const { sendNotification, sendSocketData } = require("../../socket/socket");
 const { formatDate, formatTime } = require("../../utils/formatters");
 const NotificationSetting = require("../../models/NotificationSetting");
 
@@ -607,7 +607,7 @@ const confirmCustomOrderController = async (req, res, next) => {
     }
 
     // Clear the cart
-    // await PickAndCustomCart.deleteOne({ customerId });
+    await PickAndCustomCart.deleteOne({ customerId });
 
     // Return countdown timer to client
     res.status(200).json({
@@ -644,9 +644,11 @@ const confirmCustomOrderController = async (req, res, next) => {
         // Remove the temporary order data from the database
         await TemperoryOrder.deleteOne({ orderId });
 
+        const eventName = "newOrderCreated";
+
         // Fetch notification settings to determine roles
         const notificationSettings = await NotificationSetting.findOne({
-          event: "newOrderCreated",
+          event: eventName,
         });
 
         const rolesToNotify = [
@@ -655,8 +657,6 @@ const confirmCustomOrderController = async (req, res, next) => {
           "driver",
           "customer",
         ].filter((role) => notificationSettings[role]);
-
-        console.log("rolesToNotify", rolesToNotify);
 
         // Send notifications to each role dynamically
         for (const role of rolesToNotify) {
@@ -676,12 +676,6 @@ const confirmCustomOrderController = async (req, res, next) => {
 
           if (roleId) {
             const notificationData = {
-              // socket: {
-              //   orderId: newOrder._id,
-              //   orderDetail: newOrder.orderDetail,
-              //   billDetail: newOrder.billDetail,
-              //   orderDetailStepper: newOrder.orderDetailStepper.created,
-              // },
               fcm: {
                 orderId: newOrder._id,
                 customerId: newOrder.customerId,
@@ -692,15 +686,45 @@ const confirmCustomOrderController = async (req, res, next) => {
 
             await sendNotification(
               roleId,
-              "newOrderCreated",
+              eventName,
               notificationData,
               role.charAt(0).toUpperCase() + role.slice(1)
             );
           }
         }
+
+        const data = {
+          orderId: newOrder._id,
+          orderDetail: newOrder.orderDetail,
+          billDetail: newOrder.billDetail,
+          orderDetailStepper: newOrder.orderDetailStepper.created,
+
+          //? Data for displayinf detail in all orders table
+          _id: newOrder._id,
+          orderStatus: newOrder.status,
+          merchantName: "-",
+          customerName:
+            newOrder?.orderDetail?.deliveryAddress?.fullName ||
+            newOrder?.customerId?.fullName ||
+            "-",
+          deliveryMode: newOrder?.orderDetail?.deliveryMode,
+          orderDate: formatDate(newOrder.createdAt),
+          orderTime: formatTime(newOrder.createdAt),
+          deliveryDate: newOrder?.orderDetail?.deliveryTime
+            ? formatDate(newOrder.orderDetail.deliveryTime)
+            : "-",
+          deliveryTime: newOrder?.orderDetail?.deliveryTime
+            ? formatTime(newOrder.orderDetail.deliveryTime)
+            : "-",
+          paymentMethod: newOrder.paymentMode,
+          deliveryOption: newOrder.orderDetail.deliveryOption,
+          amount: newOrder.billDetail.grandTotal,
+        };
+
+        sendSocketData(newOrder.customerId, eventName, data);
+        sendSocketData(process.env.ADMIN_ID, eventName, data);
       }
-      // }, 60000);
-    }, 1000);
+    }, 60000);
   } catch (err) {
     next(appError(err.message));
   }
