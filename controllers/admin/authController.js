@@ -6,7 +6,7 @@ const { validationResult } = require("express-validator");
 const Merchant = require("../../models/Merchant");
 const Manager = require("../../models/Manager");
 const Agent = require("../../models/Agent");
-const nodemailer = require('nodemailer');
+const nodemailer = require("nodemailer");
 
 //For Admin and Merchant
 // -----------------------------
@@ -193,7 +193,7 @@ const forgotPassword = async (req, res) => {
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 465,
-      secure: true, 
+      secure: true,
       auth: {
         user: process.env.EMAIL_USERNAME,
         pass: process.env.EMAIL_PASSWORD,
@@ -237,9 +237,9 @@ const resetPassword = async (req, res) => {
     }
 
     if (!user) {
-      return res
-        .status(400)
-        .json({ message: "Token is invalid or has expired" });
+      return res.status(400).json({
+        message: "Token is invalid or has expired",
+      });
     }
 
     // Update the password and clear the token fields

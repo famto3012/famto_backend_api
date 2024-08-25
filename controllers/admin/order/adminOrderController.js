@@ -43,6 +43,7 @@ const scheduledPickAndCustom = require("../../../models/ScheduledPickAndCustom")
 const { formatToHours } = require("../../../utils/agentAppHelpers");
 const geoLocation = require("../../../utils/getGeoLocation");
 const { sendNotification } = require("../../../socket/socket");
+const NotificationSetting = require("../../../models/NotificationSetting");
 
 const getAllOrdersForAdminController = async (req, res, next) => {
   try {
@@ -191,7 +192,14 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
       return next(appError("Order not found", 404));
     }
 
+    const stepperData = {
+      by: "Admin",
+      userId: process.env.ADMIN_ID,
+      date: new Date(),
+    };
+
     orderFound.status = "On-going";
+    orderFound.orderDetailStepper.accepted = stepperData;
 
     if (orderFound.merchantId) {
       const { payableAmountToFamto, payableAmountToMerchant } =
@@ -219,83 +227,59 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
 
     await orderFound.save();
 
-    orderFound = await orderFound.populate("merchantId");
+    const eventName = "orderAccepted";
 
-    //? Notify the USER and ADMIN about successful order creation
-    const customerData = {
-      socket: {
-        orderId,
-        orderDetail: orderFound.orderDetail,
-        billDetail: orderFound.billDetail,
-      },
-      fcm: {
-        title: "Order accepted",
-        body: "Your order has been accepted by the merchant",
-        orderId,
-        customerId: orderFound.customerId,
-      },
-    };
+    // Fetch notification settings to determine roles
+    const notificationSettings = await NotificationSetting.findOne({
+      event: eventName,
+    });
 
-    const merchantData = {
-      socket: {
-        _id: orderId,
-        orderStatus: orderFound.status,
-        merchantName: "-",
-        customerName:
-          orderFound?.orderDetail?.deliveryAddress?.fullName ||
-          orderFound?.customerId?.fullName ||
-          "-",
-        deliveryMode: orderFound?.orderDetail?.deliveryMode,
-        orderDate: formatDate(orderFound.createdAt),
-        orderTime: formatTime(orderFound.createdAt),
-        deliveryDate: orderFound?.orderDetail?.deliveryTime
-          ? formatDate(orderFound.orderDetail.deliveryTime)
-          : "-",
-        deliveryTime: orderFound?.orderDetail?.deliveryTime
-          ? formatTime(orderFound.orderDetail.deliveryTime)
-          : "-",
-        paymentMethod: orderFound.paymentMode,
-        deliveryOption: orderFound.orderDetail.deliveryOption,
-        amount: orderFound.billDetail.grandTotal,
-        // orderDetailStepper: { assigned: stepperDetail },
-      },
-      fcm: {
-        title: "Order accepted",
-        body: "Order accepted by admin",
-        orderId: orderFound._id,
-        merchantId: orderFound?.merchantId?._id,
-      },
-    };
-
-    const parameter = {
-      eventName: "orderAccepted",
-      user: "Customer",
-      role1: "Merchant",
-      role2: "Admin",
-    };
-
-    sendNotification(
-      orderFound.customerId,
-      parameter.eventName,
-      customerData,
-      parameter.user
+    const rolesToNotify = ["admin", "merchant", "driver", "customer"].filter(
+      (role) => notificationSettings[role]
     );
 
-    if (orderFound?.merchantId?._id) {
-      sendNotification(
-        orderFound.merchantId._id,
-        parameter.eventName,
-        merchantData,
-        parameter.role1
-      );
+    // Send notifications to each role dynamically
+    for (const role of rolesToNotify) {
+      let roleId;
+
+      if (role === "admin") {
+        roleId = process.env.ADMIN_ID;
+      } else if (role === "merchant") {
+        roleId = orderFound?.merchantId;
+      } else if (role === "driver") {
+        roleId = orderFound?.agentId;
+      } else if (role === "customer") {
+        roleId = orderFound?.customerId;
+      }
+
+      if (roleId) {
+        const notificationData = {
+          fcm: {
+            orderId,
+            customerId: orderFound.customerId,
+            merchantId: orderFound?.merchantId,
+          },
+        };
+
+        await sendNotification(
+          roleId,
+          eventName,
+          notificationData,
+          role.charAt(0).toUpperCase() + role.slice(1)
+        );
+      }
     }
 
-    sendNotification(
-      process.env.ADMIN_ID,
-      parameter.eventName,
-      merchantData,
-      parameter.role2
-    );
+    const data = {
+      orderId: orderFound._id,
+      orderDetail: orderFound.orderDetail,
+      billDetail: orderFound.billDetail,
+      orderDetailStepper: orderFound.orderDetailStepper.accepted,
+    };
+
+    sendSocketData(orderFound.customerId, eventName, data);
+    sendSocketData(orderFound?.merchantId, eventName, data);
+    sendSocketData(process.env.ADMIN_ID, eventName, data);
 
     res.status(200).json({
       message: `Order with ID: ${orderFound._id} is confirmed`,
@@ -314,6 +298,7 @@ const rejectOrderByAdminController = async (req, res, next) => {
     if (!orderFound) {
       return next(appError("Order not found", 404));
     }
+
     const customerFound = await Customer.findById(orderFound.customerId);
 
     if (!customerFound) {
@@ -324,205 +309,54 @@ const rejectOrderByAdminController = async (req, res, next) => {
       transactionType: "Refund",
       madeOn: new Date(),
       type: "Credit",
+      transactionAmount: null,
     };
 
     const stepperData = {
       by: "Admin",
-      userId: process.env.Admin_ID,
+      userId: process.env.ADMIN_ID,
       date: new Date(),
     };
 
+    const updateOrderStatus = (order) => {
+      order.status = "Cancelled";
+      order.orderDetailStepper.cancelled = stepperData;
+    };
+
     if (orderFound.paymentMode === "Famto-cash") {
-      const orderAmount = orderFound.totalAmount;
+      let orderAmount = orderFound.billDetail.grandTotal;
+
       if (orderFound.orderDetail.deliveryOption === "On-demand") {
         customerFound.customerDetails.walletBalance += orderAmount;
       } else if (orderFound.orderDetail.deliveryOption === "Scheduled") {
-        const orderAmountPerDay =
-          orderFound.totalAmount / orderFound.orderDetail.numOfDays;
-        customerFound.customerDetails.walletBalance += orderAmountPerDay;
+        orderAmount =
+          orderFound.billDetail.grandTotal / orderFound.orderDetail.numOfDays;
+        customerFound.customerDetails.walletBalance += orderAmount;
       }
 
-      orderFound.status = "Cancelled";
-      orderFound.orderDetailStepper.cancelled = stepperData;
+      updatedTransactionDetail.transactionAmount = orderAmount;
       customerFound.transactionDetail.push(updatedTransactionDetail);
+
+      updateOrderStatus(orderFound);
+
       await customerFound.save();
       await orderFound.save();
-
-      orderFound = await orderFound.populate("merchantId");
-
-      //? Notify the USER and ADMIN about successful order creation
-      const customerData = {
-        socket: {
-          orderId: orderFound._id,
-          orderDetail: orderFound.orderDetail,
-          billDetail: orderFound.billDetail,
-        },
-        fcm: {
-          title: "Order rejected",
-          body: "Your order has been rejected by the merchant",
-          orderId: orderFound._id,
-          customerId: orderFound.customerId,
-        },
-      };
-
-      const merchantData = {
-        socket: {
-          _id: orderFound._id,
-          orderStatus: orderFound.status,
-          merchantName:
-            orderFound?.merchantId?.merchantDetail?.merchantName || "-",
-          customerName:
-            orderFound?.orderDetail?.deliveryAddress?.fullName ||
-            orderFound?.customerId?.fullName ||
-            "-",
-          deliveryMode: orderFound?.orderDetail?.deliveryMode,
-          orderDate: formatDate(orderFound.createdAt),
-          orderTime: formatTime(orderFound.createdAt),
-          deliveryDate: orderFound?.orderDetail?.deliveryTime
-            ? formatDate(orderFound.orderDetail.deliveryTime)
-            : "-",
-          deliveryTime: orderFound?.orderDetail?.deliveryTime
-            ? formatTime(orderFound.orderDetail.deliveryTime)
-            : "-",
-          paymentMethod: orderFound.paymentMode,
-          deliveryOption: orderFound.orderDetail.deliveryOption,
-          amount: orderFound.billDetail.grandTotal,
-        },
-        fcm: {
-          title: "Order rejected",
-          body: "Order rejected by merchant",
-          orderId: orderFound._id,
-          merchantId: orderFound?.merchantId?._id,
-        },
-      };
-
-      const parameter = {
-        eventName: "orderRejected",
-        user: "Customer",
-        role1: "Merchant",
-        role2: "Admin",
-      };
-
-      sendNotification(
-        orderFound.customerId,
-        parameter.eventName,
-        customerData,
-        parameter.user
-      );
-
-      sendNotification(
-        orderFound.merchantId._id,
-        parameter.eventName,
-        merchantData,
-        parameter.role1
-      );
-
-      sendNotification(
-        process.env.ADMIN_ID,
-        parameter.eventName,
-        merchantData,
-        parameter.role2
-      );
-
-      res.status(200).json({
-        message: "Order cancelled and amount refunded to wallet",
-      });
-      return;
     } else if (orderFound.paymentMode === "Cash-on-delivery") {
-      orderFound.status === "Cancelled";
-      orderFound.orderDetailStepper.cancelled = stepperData;
+      updateOrderStatus(orderFound);
 
-      await customerFound.save();
-
-      orderFound = await orderFound.populate("merchantId");
-
-      //? Notify the USER and ADMIN about successful order creation
-      const customerData = {
-        socket: {
-          orderId: orderFound._id,
-          orderDetail: orderFound.orderDetail,
-          billDetail: orderFound.billDetail,
-        },
-        fcm: {
-          title: "Order rejected",
-          body: "Your order has been rejected by the merchant",
-          orderId: orderFound._id,
-          customerId: orderFound.customerId,
-        },
-      };
-
-      const merchantData = {
-        socket: {
-          _id: orderFound._id,
-          orderStatus: orderFound.status,
-          merchantName:
-            orderFound?.merchantId?.merchantDetail?.merchantName || "-",
-          customerName:
-            orderFound?.orderDetail?.deliveryAddress?.fullName ||
-            orderFound?.customerId?.fullName ||
-            "-",
-          deliveryMode: orderFound?.orderDetail?.deliveryMode,
-          orderDate: formatDate(orderFound.createdAt),
-          orderTime: formatTime(orderFound.createdAt),
-          deliveryDate: orderFound?.orderDetail?.deliveryTime
-            ? formatDate(orderFound.orderDetail.deliveryTime)
-            : "-",
-          deliveryTime: orderFound?.orderDetail?.deliveryTime
-            ? formatTime(orderFound.orderDetail.deliveryTime)
-            : "-",
-          paymentMethod: orderFound.paymentMode,
-          deliveryOption: orderFound.orderDetail.deliveryOption,
-          amount: orderFound.billDetail.grandTotal,
-        },
-        fcm: {
-          title: "Order rejected",
-          body: "Order rejected by merchant",
-          orderId: orderFound._id,
-          merchantId: orderFound?.merchantId?._id,
-        },
-      };
-
-      const parameter = {
-        eventName: "orderRejected",
-        user: "Customer",
-        role1: "Merchant",
-        role2: "Admin",
-      };
-
-      sendNotification(
-        orderFound.customerId,
-        parameter.eventName,
-        customerData,
-        parameter.user
-      );
-
-      sendNotification(
-        orderFound.merchantId._id,
-        parameter.eventName,
-        merchantData,
-        parameter.role1
-      );
-
-      sendNotification(
-        process.env.ADMIN_ID,
-        parameter.eventName,
-        merchantData,
-        parameter.role2
-      );
-
-      res.status(200).json({ message: "Order cancelled" });
-      return;
+      await orderFound.save();
     } else if (orderFound.paymentMode === "Online-payment") {
       const paymentId = orderFound.paymentId;
 
       let refundResponse;
+
       if (paymentId) {
         let refundAmount;
         if (orderFound.orderDetail.deliveryOption === "On-demand") {
-          refundAmount = orderFound.totalAmount;
+          refundAmount = orderFound.billDetail.grandTotal;
         } else if (orderFound.orderDetail.deliveryOption === "Scheduled") {
           refundAmount =
-            orderFound.totalAmount / orderFound.orderDetail.numOfDays;
+            orderFound.billDetail.grandTotal / orderFound.orderDetail.numOfDays;
         }
 
         refundResponse = await razorpayRefund(paymentId, refundAmount);
@@ -531,95 +365,72 @@ const rejectOrderByAdminController = async (req, res, next) => {
           return next(appError("Refund failed: " + refundResponse.error, 500));
         }
 
+        updatedTransactionDetail.transactionAmount = refundAmount;
         customerFound.transactionDetail.push(updatedTransactionDetail);
+        orderFound.refundId = refundResponse?.refundId;
       }
 
-      orderFound.status = "Cancelled";
-      orderFound.refundId = refundResponse?.refundId;
-      orderFound.orderDetailStepper.cancelled = stepperData;
+      updateOrderStatus(orderFound);
 
       await orderFound.save();
       await customerFound.save();
-
-      orderFound = await orderFound.populate("merchantId");
-
-      //? Notify the USER and ADMIN about successful order creation
-      const customerData = {
-        socket: {
-          orderId: orderFound._id,
-          orderDetail: orderFound.orderDetail,
-          billDetail: orderFound.billDetail,
-        },
-        fcm: {
-          title: "Order rejected",
-          body: "Your order has been rejected by the merchant",
-          orderId: orderFound._id,
-          customerId: orderFound.customerId,
-        },
-      };
-
-      const merchantData = {
-        socket: {
-          _id: orderFound._id,
-          orderStatus: orderFound.status,
-          merchantName:
-            orderFound?.merchantId?.merchantDetail?.merchantName || "-",
-          customerName:
-            orderFound?.orderDetail?.deliveryAddress?.fullName ||
-            orderFound?.customerId?.fullName ||
-            "-",
-          deliveryMode: orderFound?.orderDetail?.deliveryMode,
-          orderDate: formatDate(orderFound.createdAt),
-          orderTime: formatTime(orderFound.createdAt),
-          deliveryDate: orderFound?.orderDetail?.deliveryTime
-            ? formatDate(orderFound.orderDetail.deliveryTime)
-            : "-",
-          deliveryTime: orderFound?.orderDetail?.deliveryTime
-            ? formatTime(orderFound.orderDetail.deliveryTime)
-            : "-",
-          paymentMethod: orderFound.paymentMode,
-          deliveryOption: orderFound.orderDetail.deliveryOption,
-          amount: orderFound.billDetail.grandTotal,
-        },
-        fcm: {
-          title: "Order rejected",
-          body: "Order rejected by merchant",
-          orderId: orderFound._id,
-          merchantId: orderFound?.merchantId?._id,
-        },
-      };
-
-      const parameter = {
-        eventName: "orderRejected",
-        user: "Customer",
-        role1: "Merchant",
-        role2: "Admin",
-      };
-
-      sendNotification(
-        orderFound.customerId,
-        parameter.eventName,
-        customerData,
-        parameter.user
-      );
-
-      sendNotification(
-        orderFound.merchantId._id,
-        parameter.eventName,
-        merchantData,
-        parameter.role1
-      );
-
-      sendNotification(
-        process.env.ADMIN_ID,
-        parameter.eventName,
-        merchantData,
-        parameter.role2
-      );
-
-      res.status(200).json({ message: "Order cancelled and amount refunded" });
-      return;
     }
+
+    const eventName = "orderRejected";
+
+    // Fetch notification settings to determine roles
+    const notificationSettings = await NotificationSetting.findOne({
+      event: eventName,
+    });
+
+    const rolesToNotify = ["admin", "merchant", "driver", "customer"].filter(
+      (role) => notificationSettings[role]
+    );
+
+    // Send notifications to each role dynamically
+    for (const role of rolesToNotify) {
+      let roleId;
+
+      if (role === "admin") {
+        roleId = process.env.ADMIN_ID;
+      } else if (role === "merchant") {
+        roleId = orderFound?.merchantId;
+      } else if (role === "driver") {
+        roleId = orderFound?.agentId;
+      } else if (role === "customer") {
+        roleId = orderFound?.customerId;
+      }
+
+      if (roleId) {
+        const notificationData = {
+          fcm: {
+            orderId,
+            customerId: orderFound.customerId,
+            merchantId: orderFound?.merchantId,
+          },
+        };
+
+        await sendNotification(
+          roleId,
+          eventName,
+          notificationData,
+          role.charAt(0).toUpperCase() + role.slice(1)
+        );
+      }
+    }
+
+    const data = {
+      orderId: orderFound._id,
+      orderDetail: orderFound.orderDetail,
+      billDetail: orderFound.billDetail,
+      orderDetailStepper: orderFound.orderDetailStepper.cancelled,
+    };
+
+    sendSocketData(orderFound.customerId, eventName, data);
+    sendSocketData(orderFound?.merchantId, eventName, data);
+    sendSocketData(process.env.ADMIN_ID, eventName, data);
+
+    res.status(200).json({ message: "Order cancelled" });
   } catch (err) {
     next(appError(err.message));
   }
@@ -1623,8 +1434,6 @@ const createOrderByAdminController = async (req, res, next) => {
       purchasedItems = filterProductIdAndQuantity(
         populatedCartWithVariantNames.items
       );
-
-      console.log("purchasedItems", purchasedItems);
     }
 
     let newOrder;
