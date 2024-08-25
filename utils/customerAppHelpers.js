@@ -10,6 +10,7 @@ const CustomerPricing = require("../models/CustomerPricing");
 const CustomerSurge = require("../models/CustomerSurge");
 const Referral = require("../models/Referral");
 const ReferralCode = require("../models/ReferralCode");
+const Product = require("../models/Product");
 
 // Helper function to sort merchants by sponsorship
 const sortMerchantsBySponsorship = (merchants) => {
@@ -383,6 +384,47 @@ const completeReferralDetail = async (newCustomer, code) => {
   }
 };
 
+const filterProductIdAndQuantity = (items) => {
+  try {
+    const filteredArray = [];
+
+    for (const item of items) {
+      const data = {
+        productId: item.productId,
+        quantity: item.quantity,
+      };
+
+      filteredArray.push(data);
+    }
+
+    return filteredArray;
+  } catch (err) {
+    throw new Error(err.message);
+  }
+};
+
+const reduceProductAvailableQuantity = async (purchasedItems, merchantId) => {
+  try {
+    for (const item of purchasedItems) {
+      const productFound = await Product.findById(item.productId);
+
+      if (!productFound) {
+        throw new Error("Product not found");
+      }
+
+      productFound.availableQuantity -= item.quantity;
+
+      await productFound.save();
+
+      // TODO Send notification
+      if (productFound.availableQuantity <= productFound.alert) {
+      }
+    }
+  } catch (err) {
+    throw new Error(err.message);
+  }
+};
+
 module.exports = {
   sortMerchantsBySponsorship,
   getDistanceFromPickupToDelivery,
@@ -394,4 +436,6 @@ module.exports = {
   getDeliveryAndSurgeCharge,
   calculateDiscountedPrice,
   completeReferralDetail,
+  filterProductIdAndQuantity,
+  reduceProductAvailableQuantity,
 };

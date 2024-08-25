@@ -130,6 +130,17 @@ const billSchema = mongoose.Schema(
   }
 );
 
+const purchasedItemsSchema = mongoose.Schema({
+  productId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+  },
+  qunatity: {
+    type: Number,
+    required: true,
+  },
+});
+
 const scheduledOrderSchema = mongoose.Schema(
   {
     _id: {
@@ -184,6 +195,7 @@ const scheduledOrderSchema = mongoose.Schema(
     paymentId: {
       type: String,
     },
+    purchasedItems: [purchasedItemsSchema],
   },
   {
     timestamps: true,

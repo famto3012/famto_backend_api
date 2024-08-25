@@ -11,6 +11,8 @@ const {
 const csvParser = require("csv-parser");
 const { Readable } = require("stream");
 const axios = require("axios");
+const path = require("path");
+const csvWriter = require("csv-writer").createObjectCsvWriter;
 
 const getAllCustomersController = async (req, res, next) => {
   try {
@@ -599,7 +601,7 @@ const addCustomerFromCSVController = async (req, res, next) => {
 
           await Promise.all(customerPromise);
 
-          res.status(201).json({
+          res.status(200).json({
             message: "Customers added successfully.",
           });
         } catch (err) {
@@ -614,6 +616,51 @@ const addCustomerFromCSVController = async (req, res, next) => {
       });
   } catch (err) {
     next(appError(err.message));
+  }
+};
+
+const downloadCustomerSampleCSVController = async (req, res, next) => {
+  try {
+    // Define the path to your sample CSV file
+    const filePath = path.join(__dirname, "../../../sample_CSV/sample_CSV.csv");
+
+    // Define the headers and data for the CSV
+    const csvHeaders = [
+      { id: "fullName", title: "Full Name" },
+      { id: "email", title: "Email" },
+      { id: "phoneNumber", title: "Phone Number" },
+    ];
+
+    const csvData = [
+      {
+        fullName: "John Doe",
+        email: "john.doe@example.com",
+        phoneNumber: "123-456-7890",
+      },
+      {
+        fullName: "Jane Smith",
+        email: "jane.smith@example.com",
+        phoneNumber: "098-765-4321",
+      },
+    ];
+
+    // Create a new CSV writer
+    const writer = csvWriter({
+      path: filePath,
+      header: csvHeaders,
+    });
+
+    // Write the data to the CSV file
+    await writer.writeRecords(csvData);
+
+    // Send the CSV file as a response for download
+    res.download(filePath, "Customer_sample.csv", (err) => {
+      if (err) {
+        next(err);
+      }
+    });
+  } catch (error) {
+    res.status(500).send("Error processing the CSV file");
   }
 };
 
@@ -675,4 +722,5 @@ module.exports = {
   deductMoneyFromWalletCOntroller,
   getCustomersOfMerchant,
   addCustomerFromCSVController,
+  downloadCustomerSampleCSVController,
 };

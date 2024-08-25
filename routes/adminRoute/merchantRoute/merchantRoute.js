@@ -19,6 +19,7 @@ const {
   getMerchantProfileController,
   editMerchantProfileController,
   addMerchantsFromCSVController,
+  downloadMerchantSampleCSVController,
 } = require("../../../controllers/admin/merchant/merchantController");
 const { upload } = require("../../../utils/imageOperation");
 const isAdmin = require("../../../middlewares/isAdmin");
@@ -87,6 +88,14 @@ merchantRoute.post(
 // -------------------------------
 // For Admin
 // -------------------------------
+
+// Download sample CSV
+merchantRoute.get(
+  "/admin/download-sample-merchant-csv",
+  isAuthenticated,
+  isAdmin,
+  downloadMerchantSampleCSVController
+);
 
 // Approve merchant registration
 merchantRoute.patch(

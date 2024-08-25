@@ -16,6 +16,7 @@ const {
   getDistanceFromPickupToDelivery,
   getTaxAmount,
   calculateDeliveryCharges,
+  reduceProductAvailableQuantity,
 } = require("../../../utils/customerAppHelpers");
 const CustomerPricing = require("../../../models/CustomerPricing");
 const BusinessCategory = require("../../../models/BusinessCategory");
@@ -227,6 +228,11 @@ const confirmOrderController = async (req, res, next) => {
       if (!task) {
         return next(appError("Task not created"));
       }
+
+      await reduceProductAvailableQuantity(
+        orderFound.purchasedItems,
+        orderFound.merchantId
+      );
 
       orderFound = await orderFound.populate("merchantId");
 
