@@ -1,6 +1,6 @@
 const express = require("express");
 const { body } = require("express-validator");
-const { loginController } = require("../../controllers/admin/authController");
+const { loginController, forgotPassword, resetPassword } = require("../../controllers/admin/authController");
 
 const authRoute = express.Router();
 
@@ -42,6 +42,19 @@ authRoute.post(
     body("role").trim().notEmpty().withMessage("Role is required"),
   ],
   loginController
+);
+
+authRoute.post(
+  "/forgot-password",
+  [
+    body("email").trim().notEmpty().withMessage("Email is required").isEmail().withMessage("Please provide a valid email"),
+  ],
+  forgotPassword
+);
+
+authRoute.post(
+  "/reset-password",
+  resetPassword
 );
 
 module.exports = authRoute;
