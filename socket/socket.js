@@ -66,17 +66,25 @@ const io = socketio(server, {
 
 const userSocketMap = {};
 
-const sendPushNotificationToUser = async(fcmToken, message, eventName, user) => {
-  const notificationSettings = await NotificationSetting.find({event: eventName})
+const sendPushNotificationToUser = async (
+  fcmToken,
+  message,
+  eventName,
+  user
+) => {
+  const notificationSettings = await NotificationSetting.find({
+    event: eventName,
+  });
+  console.log("notification settings", notificationSettings)
   const mes = {
     notification: {
-      title: notificationSettings.title,
-      body: notificationSettings.description,
+      title: notificationSettings[0]?.title,
+      body: notificationSettings[0]?.description,
       image: message.image,
     },
     token: fcmToken,
   };
-  console.log("fcm message",mes)
+  console.log("fcm message", mes);
 
   getMessaging()
     .send(mes)
@@ -85,23 +93,25 @@ const sendPushNotificationToUser = async(fcmToken, message, eventName, user) => 
 
       const logData = {
         imageUrl: message.image,
-        title: notificationSettings.title,
-        description: notificationSettings.description,
-        ...(!notificationSettings.customer && { orderId: message.orderId }),
+        title: notificationSettings[0]?.title,
+        description: notificationSettings[0]?.description,
+        ...(!notificationSettings[0]?.customer && { orderId: message.orderId }),
       };
 
       try {
-        if (notificationSettings.customer) {
+        if (notificationSettings[0]?.customer) {
           await CustomerNotificationLogs.create({
             ...logData,
             customerId: message.customerId,
           });
-        } else if (notificationSettings.merchant) {
+        }
+        if (notificationSettings[0]?.merchant) {
           await MerchantNotificationLogs.create({
             ...logData,
             merchantId: message.merchantId,
           });
-        } else if (notificationSettings.driver) {
+        }
+        if (notificationSettings[0]?.driver) {
           await AgentNotificationLogs.create({
             ...logData,
             agentId: message.agentId,
@@ -109,7 +119,8 @@ const sendPushNotificationToUser = async(fcmToken, message, eventName, user) => 
             deliveryDetail: message.deliveryDetail,
             orderType: message.orderType,
           });
-        } else if (notificationSettings.admin) {
+        }
+        if (notificationSettings[0]?.admin) {
           await AdminNotificationLogs.create(logData);
         }
       } catch (err) {
