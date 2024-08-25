@@ -210,8 +210,11 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
       return next(appError("Task not created"));
     }
 
-    if (orderFound?.purchasedItems) {
-      await reduceProductAvailableQuantity(orderFound.purchasedItems);
+    if (orderFound?.purchasedItems && orderFound.merchantId) {
+      await reduceProductAvailableQuantity(
+        orderFound.purchasedItems,
+        orderFound.merchantId
+      );
     }
 
     await orderFound.save();
