@@ -16,7 +16,7 @@ const TemperoryOrder = require("../../models/TemperoryOrders");
 const { razorpayRefund } = require("../../utils/razorpayPayment");
 const { sendNotification } = require("../../socket/socket");
 const { formatDate, formatTime } = require("../../utils/formatters");
-const { listenerCount } = require("../../models/Merchant");
+const NotificationSetting = require("../../models/NotificationSetting");
 
 const addShopController = async (req, res, next) => {
   try {
@@ -574,7 +574,7 @@ const confirmCustomOrderController = async (req, res, next) => {
       type: "Debit",
     };
 
-    let customerTransation = {
+    let customerTransaction = {
       madeOn: new Date(),
       transactionType: "Bill",
       transactionAmount: orderAmount,
@@ -597,7 +597,7 @@ const confirmCustomOrderController = async (req, res, next) => {
       paymentStatus: "Pending",
     });
 
-    customer.transactionDetail.push(customerTransation);
+    customer.transactionDetail.push(customerTransaction);
     customer.walletTransactionDetail.push(walletTransaction);
 
     await customer.save();
@@ -607,7 +607,7 @@ const confirmCustomOrderController = async (req, res, next) => {
     }
 
     // Clear the cart
-    await PickAndCustomCart.deleteOne({ customerId });
+    // await PickAndCustomCart.deleteOne({ customerId });
 
     // Return countdown timer to client
     res.status(200).json({
@@ -616,7 +616,7 @@ const confirmCustomOrderController = async (req, res, next) => {
       countdown: 60,
     });
 
-    // After 60 seconds, create the order if not canceled
+    // After 60 seconds, create the order if it is not cancelled
     setTimeout(async () => {
       const storedOrderData = await TemperoryOrder.findOne({ orderId });
 
@@ -644,75 +644,63 @@ const confirmCustomOrderController = async (req, res, next) => {
         // Remove the temporary order data from the database
         await TemperoryOrder.deleteOne({ orderId });
 
-        //? Notify the USER and ADMIN about successful order creation
-        const customerData = {
-          socket: {
-            orderId: newOrder._id,
-            orderDetail: newOrder.orderDetail,
-            billDetail: newOrder.billDetail,
-            orderDetailStepper: newOrder.orderDetailStepper.created,
-          },
-          fcm: {
-            title: "Order created",
-            body: "Your order was created successfully",
-            image: "",
-            orderId: newOrder._id,
-            customerId: newOrder.customerId,
-          },
-        };
+        // Fetch notification settings to determine roles
+        const notificationSettings = await NotificationSetting.findOne({
+          event: "newOrderCreated",
+        });
 
-        const adminData = {
-          socket: {
-            _id: newOrder._id,
-            orderStatus: newOrder.status,
-            merchantName: "-",
-            customerName:
-              newOrder?.orderDetail?.deliveryAddress?.fullName ||
-              newOrder?.customerId?.fullName ||
-              "-",
-            deliveryMode: newOrder?.orderDetail?.deliveryMode,
-            orderDate: formatDate(newOrder.createdAt),
-            orderTime: formatTime(newOrder.createdAt),
-            deliveryDate: newOrder?.orderDetail?.deliveryTime
-              ? formatDate(newOrder.orderDetail.deliveryTime)
-              : "-",
-            deliveryTime: newOrder?.orderDetail?.deliveryTime
-              ? formatTime(newOrder.orderDetail.deliveryTime)
-              : "-",
-            paymentMethod: newOrder.paymentMode,
-            deliveryOption: newOrder.orderDetail.deliveryOption,
-            amount: newOrder.billDetail.grandTotal,
-            orderDetailStepper: newOrder.orderDetailStepper.created,
-          },
-          fcm: {
-            title: "New Order Admin",
-            body: "Your have a new pending order",
-            image: "",
-            orderId: newOrder._id,
-          },
-        };
+        const rolesToNotify = [
+          "admin",
+          "merchant",
+          "driver",
+          "customer",
+        ].filter((role) => notificationSettings[role]);
 
-        const parameter = {
-          eventName: "newOrderCreated",
-          user: "Customer",
-          role: "Admin",
-        };
+        console.log("rolesToNotify", rolesToNotify);
 
-        sendNotification(
-          newOrder.customerId,
-          parameter.eventName,
-          customerData,
-          parameter.user
-        );
+        // Send notifications to each role dynamically
+        for (const role of rolesToNotify) {
+          let roleId;
 
-        sendNotification(
-          process.env.ADMIN_ID,
-          parameter.eventName,
-          adminData,
-          parameter.role
-        );
+          if (role === "admin") {
+            roleId = process.env.ADMIN_ID;
+          } else if (role === "merchant") {
+            roleId = newOrder?.merchantId;
+          } else if (role === "driver") {
+            roleId = newOrder?.agentId;
+          } else if (role === "customer") {
+            roleId = newOrder?.customerId;
+          }
+
+          console.log("roleId", roleId);
+
+          if (roleId) {
+            const notificationData = {
+              // socket: {
+              //   orderId: newOrder._id,
+              //   orderDetail: newOrder.orderDetail,
+              //   billDetail: newOrder.billDetail,
+              //   orderDetailStepper: newOrder.orderDetailStepper.created,
+              // },
+              fcm: {
+                orderId: newOrder._id,
+                customerId: newOrder.customerId,
+              },
+            };
+
+            console.log("Here");
+
+            await sendNotification(
+              roleId,
+              "newOrderCreated",
+              notificationData,
+              role.charAt(0).toUpperCase() + role.slice(1)
+            );
+          }
+        }
       }
-    }, 60000);
+      // }, 60000);
+    }, 1000);
   } catch (err) {
     next(appError(err.message));
   }
