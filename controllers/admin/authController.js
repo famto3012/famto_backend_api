@@ -6,6 +6,7 @@ const { validationResult } = require("express-validator");
 const Merchant = require("../../models/Merchant");
 const Manager = require("../../models/Manager");
 const Agent = require("../../models/Agent");
+const nodemailer = require('nodemailer');
 
 //For Admin and Merchant
 // -----------------------------
@@ -150,7 +151,112 @@ const registerOnWebsite = async (req, res, next) => {
   }
 };
 
+const findUserByEmail = async (email) => {
+  let user = await Admin.findOne({ email });
+  if (user) return { user, role: "Admin" };
+
+  user = await Manager.findOne({ email });
+  if (user) return { user, role: "Manager" };
+
+  user = await Merchant.findOne({ email });
+  if (user) return { user, role: "Merchant" };
+
+  return null;
+};
+
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Find the user in any of the models
+    const userResult = await findUserByEmail(email);
+    if (!userResult) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const { user, role } = userResult;
+
+    // Generate a token for password reset
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetTokenExpiry = Date.now() + 3600000; // 1 hour expiry
+
+    // Save the token and expiry to the user's model
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpiry = resetTokenExpiry;
+    await user.save();
+
+    // Send email with reset link
+    const resetURL = `${process.env.BASE_URL}/reset-password/${resetToken}?role=${role}`;
+    const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please make a request to:\n\n${resetURL}`;
+
+    // Set up nodemailer transport
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true, 
+      auth: {
+        user: process.env.EMAIL_USERNAME,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+
+    await transporter.sendMail({
+      to: email,
+      subject: "Password Reset",
+      text: message,
+    });
+
+    res.status(200).json({ message: "Password reset link sent to email" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { resetToken, role } = req.query;
+    const { password } = req.body;
+
+    let user;
+
+    if (role === "Admin") {
+      user = await Admin.findOne({
+        resetPasswordToken: resetToken,
+        resetPasswordExpiry: { $gt: Date.now() },
+      });
+    } else if (role === "Manager") {
+      user = await Manager.findOne({
+        resetPasswordToken: resetToken,
+        resetPasswordExpiry: { $gt: Date.now() },
+      });
+    } else if (role === "Merchant") {
+      user = await Merchant.findOne({
+        resetPasswordToken: resetToken,
+        resetPasswordExpiry: { $gt: Date.now() },
+      });
+    }
+
+    if (!user) {
+      return res
+        .status(400)
+        .json({ message: "Token is invalid or has expired" });
+    }
+
+    // Update the password and clear the token fields
+    user.password = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpiry = undefined;
+    await user.save();
+
+    res.status(200).json({ message: "Password has been reset" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 module.exports = {
   loginController,
   registerOnWebsite,
+  forgotPassword,
+  resetPassword,
 };
