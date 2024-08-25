@@ -10,6 +10,7 @@ const {
 const axios = require("axios");
 const path = require("path");
 const BusinessCategory = require("../../../../models/BusinessCategory");
+const Product = require("../../../../models/Product");
 const csvWriter = require("csv-writer").createObjectCsvWriter;
 
 // ----------------------------------------------------
@@ -188,6 +189,20 @@ const deleteCategoryByAdminController = async (req, res, next) => {
     }
 
     await Category.findByIdAndDelete(req.params.categoryId);
+
+    const allProducts = await Product.find({
+      categoryId: req.params.categoryId,
+    });
+
+    allProducts.forEach(async (product) => {
+      let productImageURL = product?.productImageURL;
+
+      if (productImageURL) {
+        await deleteFromFirebase(productImageURL);
+      }
+
+      await Product.findByIdAndDelete(product._id);
+    });
 
     res.status(200).json({
       message: "Category deleted successfully",
