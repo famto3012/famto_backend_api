@@ -7,6 +7,7 @@ const Merchant = require("../../models/Merchant");
 const Manager = require("../../models/Manager");
 const Agent = require("../../models/Agent");
 const nodemailer = require("nodemailer");
+const crypto = require("crypto"); 
 
 //For Admin and Merchant
 // -----------------------------
@@ -186,7 +187,7 @@ const forgotPassword = async (req, res) => {
     await user.save();
 
     // Send email with reset link
-    const resetURL = `${process.env.BASE_URL}/reset-password/${resetToken}?role=${role}`;
+    const resetURL = `${process.env.BASE_URL}/api/v1/auth/reset-password/?resetToken=${resetToken}&role=${role}`;
     const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please make a request to:\n\n${resetURL}`;
 
     // Set up nodemailer transport
@@ -242,8 +243,10 @@ const resetPassword = async (req, res) => {
       });
     }
 
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
     // Update the password and clear the token fields
-    user.password = password;
+    user.password = hashedPassword;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpiry = undefined;
     await user.save();
