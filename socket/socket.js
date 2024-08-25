@@ -105,24 +105,24 @@ const sendPushNotificationToUser = async (
 
 const createNotificationLog = async (notificationSettings, message, user) => {
   const logData = {
-    imageUrl: message.image,
+    imageUrl: message?.image,
     title: notificationSettings?.title,
     description: notificationSettings?.description,
-    ...(!notificationSettings?.customer && { orderId: message.orderId }),
+    ...(!notificationSettings?.customer && { orderId: message?.orderId }),
   };
 
   try {
     if (notificationSettings?.customer) {
       await CustomerNotificationLogs.create({
         ...logData,
-        customerId: message.customerId,
+        customerId: message?.customerId,
       });
     }
 
     if (notificationSettings?.merchant) {
       await MerchantNotificationLogs.create({
         ...logData,
-        merchantId: message.merchantId,
+        merchantId: message?.merchantId,
       });
     }
 

@@ -281,6 +281,18 @@ const merchantSchema = new mongoose.Schema(
       type: [sponsorshipSchema],
       default: [],
     },
+    resetPasswordToken: {
+      type: String,
+    },
+    resetPasswordExpiry : {
+      type: Date,
+    },
+  },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true
+    }
   },
   {
     timestamps: true,

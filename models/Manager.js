@@ -42,6 +42,12 @@ const managerSchema = mongoose.Schema(
       enum: ["Order", "Finance", "Marketing"],
       required: true,
     },
+    resetPasswordToken: {
+      type: String,
+    },
+    resetPasswordExpiry : {
+      type: Date,
+    },
   },
   {
     timestamp: true,
