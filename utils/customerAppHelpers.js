@@ -403,7 +403,7 @@ const filterProductIdAndQuantity = (items) => {
   }
 };
 
-const reduceProductAvailableQuantity = async (purchasedItems) => {
+const reduceProductAvailableQuantity = async (purchasedItems, merchantId) => {
   try {
     for (const item of purchasedItems) {
       const productFound = await Product.findById(item.productId);
@@ -415,6 +415,10 @@ const reduceProductAvailableQuantity = async (purchasedItems) => {
       productFound.availableQuantity -= item.quantity;
 
       await productFound.save();
+
+      // TODO Send notification
+      if (productFound.availableQuantity <= productFound.alert) {
+      }
     }
   } catch (err) {
     throw new Error(err.message);

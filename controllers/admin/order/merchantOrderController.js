@@ -229,7 +229,10 @@ const confirmOrderController = async (req, res, next) => {
         return next(appError("Task not created"));
       }
 
-      await reduceProductAvailableQuantity(orderFound.purchasedItems);
+      await reduceProductAvailableQuantity(
+        orderFound.purchasedItems,
+        orderFound.merchantId
+      );
 
       orderFound = await orderFound.populate("merchantId");
 
