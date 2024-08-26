@@ -129,12 +129,6 @@ customerRoute.get(
   getAllProductsOfMerchantController
 );
 
-// Get all categories and products of a merchant
-customerRoute.get(
-  "/merchant-with-categories-and-products/:customerId/:merchantId",
-  getMerchantWithCategoriesAndProductsController
-);
-
 // Filter merchants by criteria (Pure veg, Rating, Nearby)
 customerRoute.post("/filter-merchants", filterMerchantController);
 
