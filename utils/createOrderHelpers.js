@@ -1,4 +1,5 @@
 const Customer = require("../models/Customer");
+const Order = require("../models/Order");
 const Product = require("../models/Product");
 const { convertToUTC } = require("./formatters");
 const geoLocation = require("./getGeoLocation");
@@ -225,6 +226,7 @@ const getTotalItemWeight = (items) => {
 
   return weight.toFixed(2);
 };
+
 // Calculate additional weight charge
 const calculateAdditionalWeightCharge = (
   totalWeight,
@@ -537,6 +539,11 @@ const getCustomDeliveryAddressForAdmin = async ({
   return { deliveryLocation, deliveryAddress };
 };
 
+// const updateOrderStatus = async (orderId, newStatus) => {
+//   await Order.findByIdAndUpdate(orderId, { status: newStatus });
+//   updateRealTimeData();
+// };
+
 module.exports = {
   findOrCreateCustomer,
   getDeliveryDetails,
@@ -550,4 +557,5 @@ module.exports = {
   formattedCartItems,
   getPickAndDeliveryDetailForAdminOrderCreation,
   getCustomDeliveryAddressForAdmin,
+  // updateOrderStatus,
 };

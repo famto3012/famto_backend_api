@@ -21,6 +21,7 @@ const {
 } = require("../../socket/socket");
 const { formatDate, formatTime } = require("../../utils/formatters");
 const NotificationSetting = require("../../models/NotificationSetting");
+const { updateOrderStatus } = require("../../utils/createOrderHelpers");
 
 const addShopController = async (req, res, next) => {
   try {
@@ -647,6 +648,9 @@ const confirmCustomOrderController = async (req, res, next) => {
 
         // Remove the temporary order data from the database
         await TemperoryOrder.deleteOne({ orderId });
+
+        // //? Update order count in realtime for Home page
+        // await updateOrderStatus(newOrder._id, "Pending");
 
         const eventName = "newOrderCreated";
 

@@ -218,6 +218,47 @@ const findRolesToNotify = async (eventName) => {
   }
 };
 
+const getRealTimeDataCount = async () => {
+  try {
+    const [pending, ongoing, completed, cancelled] = await Promise.all([
+      Order.countDocuments({ status: "Pending" }),
+      Order.countDocuments({ status: "On-going" }),
+      Order.countDocuments({ status: "Completed" }),
+      Order.countDocuments({ status: "Cancelled" }),
+    ]);
+
+    const [free, inActive, busy] = await Promise.all([
+      Agent.countDocuments({ status: "Free" }),
+      Agent.countDocuments({ status: "Inactive" }),
+      Agent.countDocuments({ status: "Busy" }),
+    ]);
+
+    const realTimeData = {
+      orderCount: {
+        pending,
+        ongoing,
+        completed,
+        cancelled,
+      },
+      agentCount: {
+        free,
+        inActive,
+        busy,
+      },
+    };
+
+    // Emit updated data to all connected clients
+    io.emit("realTimeDataCount", realTimeData);
+  } catch (err) {
+    console.error("Error updating real-time data:", err);
+  }
+};
+
+// Example of listening for changes
+Order.watch().on("change", async (change) => {
+  getRealTimeDataCount();
+});
+
 // Connection socket
 io.on("connection", async (socket) => {
   const userId = socket?.handshake?.query?.userId;
@@ -254,6 +295,9 @@ io.on("connection", async (socket) => {
 
   // Get online user socket
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
+
+  // Get realtime data count for Home page
+  getRealTimeDataCount();
 
   // User location update socket
   socket.on("locationUpdated", async (data) => {
