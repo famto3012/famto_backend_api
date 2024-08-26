@@ -20,6 +20,8 @@ const csvParser = require("csv-parser");
 const { Readable } = require("stream");
 const axios = require("axios");
 const path = require("path");
+const { sendNotification, sendSocketData } = require("../../../socket/socket");
+const NotificationSetting = require("../../../models/NotificationSetting");
 const csvWriter = require("csv-writer").createObjectCsvWriter;
 
 //----------------------------
@@ -60,6 +62,19 @@ const registerMerchantController = async (req, res, next) => {
       password: hashedPassword,
     });
     await newMerchant.save();
+
+    const notification = await NotificationSetting.findOne({event: "newMerchant"})
+
+    const event = "newMerchant"
+    const role = "Merchant"
+
+    const data = {
+       title: notification.title,
+       description: notification.description,
+    }
+
+    sendNotification(process.env.ADMIN_ID, event, data, role)
+    sendSocketData(process.env.ADMIN_ID, event, data)
 
     if (newMerchant) {
       res.status(201).json({

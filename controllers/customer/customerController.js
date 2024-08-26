@@ -31,6 +31,8 @@ const Banner = require("../../models/Banner");
 const ServiceCategory = require("../../models/ServiceCategory");
 const ReferralCode = require("../../models/ReferralCode");
 const { formatToHours } = require("../../utils/agentAppHelpers");
+const NotificationSetting = require("../../models/NotificationSetting");
+const { sendNotification, sendSocketData } = require("../../socket/socket");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -59,7 +61,7 @@ const registerAndLoginController = async (req, res, next) => {
     }
 
     if (customer) {
-      if (customer.customerDetails.isBlocked) {
+      if (customer?.customerDetails?.isBlocked) {
         return res.status(400).json({
           message: "Account is Blocked",
         });
@@ -105,6 +107,19 @@ const registerAndLoginController = async (req, res, next) => {
       if (referralCode) {
         await completeReferralDetail(newCustomer, referralCode);
       }
+
+      const notification = await NotificationSetting.findOne({event: "newCustomer"})
+
+      const event = "newCustomer"
+      const role = "Customer"
+  
+      const data = {
+         title: notification.title,
+         description: notification.description,
+      }
+  
+      sendNotification(process.env.ADMIN_ID, event, data, role)
+      sendSocketData(process.env.ADMIN_ID, event, data)
 
       return res.status(201).json({
         success: "User created successfully",
