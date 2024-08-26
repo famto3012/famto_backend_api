@@ -672,8 +672,6 @@ const confirmCustomOrderController = async (req, res, next) => {
             roleId = newOrder?.customerId;
           }
 
-          console.log("roleId", roleId);
-
           if (roleId) {
             const notificationData = {
               fcm: {
@@ -681,8 +679,6 @@ const confirmCustomOrderController = async (req, res, next) => {
                 customerId: newOrder.customerId,
               },
             };
-
-            console.log("Here");
 
             await sendNotification(
               roleId,

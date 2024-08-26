@@ -232,6 +232,163 @@ const listRestaurantsController = async (req, res, next) => {
   }
 };
 
+const getAllCategoriesOfMerchants = async (rea, res, next) => {
+  try {
+    const { merchantId } = rea.params;
+
+    const allCategories = await Category.find({ merchantId }).sort({
+      order: 1,
+    });
+
+    const formattedResponse = allCategories?.map((category) => {
+      return {
+        categoryId: category._id,
+        categoryName: category?.categoryName || null,
+        description: category?.description || null,
+        type: category?.type || null,
+        categoryImageURL: category?.categoryImageURL || null,
+        status: category?.status || null,
+      };
+    });
+
+    res.status(200).json({
+      message: "All categories",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getAllProductsOfMerchantController = async (req, res, next) => {
+  try {
+    const { categoryId, customerId } = req.params;
+
+    const allProducts = await Product.find({ categoryId })
+      .populate(
+        "discountId",
+        "discountName maxAmount discountType discountValue validFrom validTo onAddOn status"
+      )
+      .sort({ order: 1 });
+
+    let currentCustomer = null;
+    if (customerId) {
+      currentCustomer = await Customer.findById(customerId)
+        .select("customerDetails.favoriteProducts")
+        .exec();
+    }
+
+    const productsWithDetails = allProducts.map((product) => {
+      const currentDate = new Date();
+      const validFrom = new Date(product?.discountId?.validFrom);
+      const validTo = new Date(product?.discountId?.validTo);
+
+      // Adjusting the validTo date to the end of the day
+      validTo?.setHours(23, 59, 59, 999);
+
+      let discountPrice = null;
+      let variantsWithDiscount = product?.variants?.map((variant) => ({
+        ...variant._doc,
+        variantTypes: variant.variantTypes.map((variantType) => ({
+          ...variantType._doc,
+          discountPrice: null,
+        })),
+      }));
+
+      if (
+        product?.discountId &&
+        validFrom <= currentDate &&
+        validTo >= currentDate &&
+        product?.discountId?.status
+      ) {
+        const discount = product.discountId;
+
+        if (discount.discountType === "Percentage-discount") {
+          let discountAmount = (product.price * discount.discountValue) / 100;
+          if (discountAmount > discount.maxAmount) {
+            discountAmount = discount.maxAmount;
+          }
+          discountPrice = Math.max(0, product.price - discountAmount);
+        } else if (discount.discountType === "Flat-discount") {
+          discountPrice = Math.max(0, product.price - discount.discountValue);
+        }
+
+        if (discount.onAddOn) {
+          variantsWithDiscount = product.variants.map((variant) => {
+            const variantTypesWithDiscount = variant.variantTypes.map(
+              (variantType) => {
+                let variantDiscountPrice = variantType.price;
+                if (discount.discountType === "Percentage-discount") {
+                  let discountAmount =
+                    (variantType.price * discount.discountValue) / 100;
+                  if (discountAmount > discount.maxAmount) {
+                    discountAmount = discount.maxAmount;
+                  }
+                  variantDiscountPrice = Math.max(
+                    0,
+                    variantType.price - discountAmount
+                  );
+                } else if (discount.discountType === "Flat-discount") {
+                  variantDiscountPrice = Math.max(
+                    0,
+                    variantType.price - discount.discountValue
+                  );
+                }
+
+                return {
+                  ...variantType._doc,
+                  discountPrice: variantDiscountPrice,
+                };
+              }
+            );
+            return {
+              ...variant._doc,
+              variantTypes: variantTypesWithDiscount,
+            };
+          });
+        }
+      }
+
+      const isFavorite =
+        currentCustomer?.customerDetails?.favoriteProducts?.includes(
+          product._id
+        ) ?? false;
+
+      return {
+        productId: product._id,
+        productName: product.productName || null,
+        price: product.price || null,
+        discountPrice,
+        minQuantityToOrder: product.minQuantityToOrder || null,
+        maxQuantityPerOrder: product.maxQuantityPerOrder || null,
+        isFavorite,
+        preparationTime: `${product.preparationTime} min` || null,
+        description: product.description || null,
+        longDescription: product.longDescription || null,
+        type: product.type || null,
+        productImageURL: product.productImageURL || null,
+        inventory: product.inventory || null,
+        variants: variantsWithDiscount?.map((variant) => ({
+          variantName: variant.variantName,
+          variantTypes: variant.variantTypes.map((type) => ({
+            variantTypeId: type._id,
+            typeName: type.typeName,
+            price: type.price,
+            discountPrice: type.discountPrice || null,
+          })),
+        })),
+      };
+    });
+
+    res.status(200).json({
+      message: "All products",
+      data: productsWithDetails,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 // Get all the availble categories and products of a merchant
 const getMerchantWithCategoriesAndProductsController = async (
   req,
@@ -2406,6 +2563,8 @@ module.exports = {
   getAllBusinessCategoryController,
   homeSearchController,
   listRestaurantsController,
+  getAllCategoriesOfMerchants,
+  getAllProductsOfMerchantController,
   getMerchantWithCategoriesAndProductsController,
   filterMerchantController,
   searchProductsInMerchantController,
