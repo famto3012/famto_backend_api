@@ -14,7 +14,11 @@ const PromoCode = require("../../models/PromoCode");
 const Order = require("../../models/Order");
 const TemperoryOrder = require("../../models/TemperoryOrders");
 const { razorpayRefund } = require("../../utils/razorpayPayment");
-const { sendNotification, sendSocketData } = require("../../socket/socket");
+const {
+  sendNotification,
+  sendSocketData,
+  findRolesToNotify,
+} = require("../../socket/socket");
 const { formatDate, formatTime } = require("../../utils/formatters");
 const NotificationSetting = require("../../models/NotificationSetting");
 
@@ -646,17 +650,7 @@ const confirmCustomOrderController = async (req, res, next) => {
 
         const eventName = "newOrderCreated";
 
-        // Fetch notification settings to determine roles
-        const notificationSettings = await NotificationSetting.findOne({
-          event: eventName,
-        });
-
-        const rolesToNotify = [
-          "admin",
-          "merchant",
-          "driver",
-          "customer",
-        ].filter((role) => notificationSettings[role]);
+        const { rolesToNotify, data } = await findRolesToNotify(eventName);
 
         // Send notifications to each role dynamically
         for (const role of rolesToNotify) {
@@ -689,7 +683,9 @@ const confirmCustomOrderController = async (req, res, next) => {
           }
         }
 
-        const data = {
+        const socketData = {
+          ...data,
+
           orderId: newOrder._id,
           orderDetail: newOrder.orderDetail,
           billDetail: newOrder.billDetail,
@@ -717,8 +713,8 @@ const confirmCustomOrderController = async (req, res, next) => {
           amount: newOrder.billDetail.grandTotal,
         };
 
-        sendSocketData(newOrder.customerId, eventName, data);
-        sendSocketData(process.env.ADMIN_ID, eventName, data);
+        sendSocketData(newOrder.customerId, eventName, socketData);
+        sendSocketData(process.env.ADMIN_ID, eventName, socketData);
       }
     }, 60000);
   } catch (err) {

@@ -150,8 +150,6 @@ app.use("/api/v1/token", tokenRoute);
 cron.schedule("10 11 * * *", async () => {
   await deleteExpiredSponsorshipPlans();
   await deleteExpiredSubscriptionPlans();
-  // const orderId = "O24075";
-  // await orderCreateTaskHelper(orderId);
 });
 
 cron.schedule("* * * * *", async () => {
@@ -219,9 +217,9 @@ cron.schedule("* * * * *", async () => {
 
 cron.schedule("45 15 * * *", async () => {
   await generateMapplsAuthToken();
-  // await moveAppDetailToHistoryAndResetForAllAgents();
-  // await updateOneDayLoyaltyPointEarning();
-  // await resetAllAgentTaskHelper();
+  await moveAppDetailToHistoryAndResetForAllAgents();
+  await updateOneDayLoyaltyPointEarning();
+  await resetAllAgentTaskHelper();
 });
 
 //global errors

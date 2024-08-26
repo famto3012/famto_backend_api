@@ -42,8 +42,11 @@ const PickAndCustomCart = require("../../../models/PickAndCustomCart");
 const scheduledPickAndCustom = require("../../../models/ScheduledPickAndCustom");
 const { formatToHours } = require("../../../utils/agentAppHelpers");
 const geoLocation = require("../../../utils/getGeoLocation");
-const { sendNotification } = require("../../../socket/socket");
-const NotificationSetting = require("../../../models/NotificationSetting");
+const {
+  sendNotification,
+  findRolesToNotify,
+  sendSocketData,
+} = require("../../../socket/socket");
 
 const getAllOrdersForAdminController = async (req, res, next) => {
   try {
@@ -229,14 +232,7 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
 
     const eventName = "orderAccepted";
 
-    // Fetch notification settings to determine roles
-    const notificationSettings = await NotificationSetting.findOne({
-      event: eventName,
-    });
-
-    const rolesToNotify = ["admin", "merchant", "driver", "customer"].filter(
-      (role) => notificationSettings[role]
-    );
+    const { rolesToNotify, data } = await findRolesToNotify(eventName);
 
     // Send notifications to each role dynamically
     for (const role of rolesToNotify) {
@@ -270,16 +266,20 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
       }
     }
 
-    const data = {
+    const socketData = {
+      ...data,
+
       orderId: orderFound._id,
       orderDetail: orderFound.orderDetail,
       billDetail: orderFound.billDetail,
-      orderDetailStepper: orderFound.orderDetailStepper.accepted,
+      stepperDetail: orderFound.orderDetailStepper.accepted,
     };
 
-    sendSocketData(orderFound.customerId, eventName, data);
-    sendSocketData(orderFound?.merchantId, eventName, data);
-    sendSocketData(process.env.ADMIN_ID, eventName, data);
+    sendSocketData(orderFound.customerId, eventName, socketData);
+    sendSocketData(process.env.ADMIN_ID, eventName, socketData);
+    if (orderFound?.merchantId) {
+      sendSocketData(orderFound?.merchantId, eventName, socketData);
+    }
 
     res.status(200).json({
       message: `Order with ID: ${orderFound._id} is confirmed`,
@@ -378,14 +378,7 @@ const rejectOrderByAdminController = async (req, res, next) => {
 
     const eventName = "orderRejected";
 
-    // Fetch notification settings to determine roles
-    const notificationSettings = await NotificationSetting.findOne({
-      event: eventName,
-    });
-
-    const rolesToNotify = ["admin", "merchant", "driver", "customer"].filter(
-      (role) => notificationSettings[role]
-    );
+    const { rolesToNotify, data } = await findRolesToNotify(eventName);
 
     // Send notifications to each role dynamically
     for (const role of rolesToNotify) {
@@ -419,16 +412,20 @@ const rejectOrderByAdminController = async (req, res, next) => {
       }
     }
 
-    const data = {
+    const socketData = {
+      ...data,
+
       orderId: orderFound._id,
       orderDetail: orderFound.orderDetail,
       billDetail: orderFound.billDetail,
-      orderDetailStepper: orderFound.orderDetailStepper.cancelled,
+      stepperDetail: orderFound.orderDetailStepper.cancelled,
     };
 
-    sendSocketData(orderFound.customerId, eventName, data);
-    sendSocketData(orderFound?.merchantId, eventName, data);
-    sendSocketData(process.env.ADMIN_ID, eventName, data);
+    sendSocketData(orderFound.customerId, eventName, socketData);
+    sendSocketData(process.env.ADMIN_ID, eventName, socketData);
+    if (orderFound?.merchantId) {
+      sendSocketData(orderFound?.merchantId, eventName, socketData);
+    }
 
     res.status(200).json({ message: "Order cancelled" });
   } catch (err) {
@@ -1413,6 +1410,10 @@ const createOrderByAdminController = async (req, res, next) => {
       type: "Debit",
     };
 
+    const eventName = "newOrderCreated";
+
+    const { rolesToNotify } = await findRolesToNotify(eventName);
+
     let formattedItems;
     let purchasedItems;
     if (
@@ -1491,6 +1492,75 @@ const createOrderByAdminController = async (req, res, next) => {
       customer.transactionDetail.push(customerTransation);
       await customer.save();
 
+      // Send notifications to each role dynamically
+      for (const role of rolesToNotify) {
+        let roleId;
+
+        if (role === "admin") {
+          roleId = process.env.ADMIN_ID;
+        } else if (role === "merchant") {
+          roleId = newOrder?.merchantId;
+        } else if (role === "driver") {
+          roleId = newOrder?.agentId;
+        } else if (role === "customer") {
+          roleId = newOrder?.customerId;
+        }
+
+        if (roleId) {
+          const notificationData = {
+            fcm: {
+              orderId: newOrder._id,
+              customerId: newOrder.customerId,
+            },
+          };
+
+          await sendNotification(
+            roleId,
+            eventName,
+            notificationData,
+            role.charAt(0).toUpperCase() + role.slice(1)
+          );
+        }
+      }
+
+      const data = {
+        title: notificationSettings.title,
+        description: notificationSettings.description,
+
+        orderId: newOrder._id,
+        orderDetail: newOrder.orderDetail,
+        billDetail: newOrder.billDetail,
+        orderDetailStepper: newOrder.orderDetailStepper.created,
+
+        //? Data for displayinf detail in all orders table
+        _id: newOrder._id,
+        orderStatus: newOrder.status,
+        merchantName: "-",
+        customerName:
+          newOrder?.orderDetail?.deliveryAddress?.fullName ||
+          newOrder?.customerId?.fullName ||
+          "-",
+        deliveryMode: newOrder?.orderDetail?.deliveryMode,
+        orderDate: formatDate(newOrder.createdAt),
+        orderTime: formatTime(newOrder.createdAt),
+        deliveryDate: newOrder?.orderDetail?.deliveryTime
+          ? formatDate(newOrder.orderDetail.deliveryTime)
+          : "-",
+        deliveryTime: newOrder?.orderDetail?.deliveryTime
+          ? formatTime(newOrder.orderDetail.deliveryTime)
+          : "-",
+        paymentMethod: newOrder.paymentMode,
+        deliveryOption: newOrder.orderDetail.deliveryOption,
+        amount: newOrder.billDetail.grandTotal,
+      };
+
+      sendSocketData(newOrder.customerId, eventName, data);
+      sendSocketData(process.env.ADMIN_ID, eventName, data);
+
+      if (newOrder?.merchantId) {
+        sendSocketData(newOrder.merchantId, eventName, data);
+      }
+
       res.status(201).json({
         message: "Order created successfully",
         data: newOrder,
@@ -1537,6 +1607,75 @@ const createOrderByAdminController = async (req, res, next) => {
       }
       customer.transactionDetail.push(customerTransation);
       await customer.save();
+
+      // Send notifications to each role dynamically
+      for (const role of rolesToNotify) {
+        let roleId;
+
+        if (role === "admin") {
+          roleId = process.env.ADMIN_ID;
+        } else if (role === "merchant") {
+          roleId = newOrder?.merchantId;
+        } else if (role === "driver") {
+          roleId = newOrder?.agentId;
+        } else if (role === "customer") {
+          roleId = newOrder?.customerId;
+        }
+
+        if (roleId) {
+          const notificationData = {
+            fcm: {
+              orderId: newOrder._id,
+              customerId: newOrder.customerId,
+            },
+          };
+
+          await sendNotification(
+            roleId,
+            eventName,
+            notificationData,
+            role.charAt(0).toUpperCase() + role.slice(1)
+          );
+        }
+      }
+
+      const data = {
+        title: notificationSettings.title,
+        description: notificationSettings.description,
+
+        orderId: newOrder._id,
+        orderDetail: newOrder.orderDetail,
+        billDetail: newOrder.billDetail,
+        orderDetailStepper: newOrder.orderDetailStepper.created,
+
+        //? Data for displayinf detail in all orders table
+        _id: newOrder._id,
+        orderStatus: newOrder.status,
+        merchantName: "-",
+        customerName:
+          newOrder?.orderDetail?.deliveryAddress?.fullName ||
+          newOrder?.customerId?.fullName ||
+          "-",
+        deliveryMode: newOrder?.orderDetail?.deliveryMode,
+        orderDate: formatDate(newOrder.createdAt),
+        orderTime: formatTime(newOrder.createdAt),
+        deliveryDate: newOrder?.orderDetail?.deliveryTime
+          ? formatDate(newOrder.orderDetail.deliveryTime)
+          : "-",
+        deliveryTime: newOrder?.orderDetail?.deliveryTime
+          ? formatTime(newOrder.orderDetail.deliveryTime)
+          : "-",
+        paymentMethod: newOrder.paymentMode,
+        deliveryOption: newOrder.orderDetail.deliveryOption,
+        amount: newOrder.billDetail.grandTotal,
+      };
+
+      sendSocketData(newOrder.customerId, eventName, data);
+      sendSocketData(process.env.ADMIN_ID, eventName, data);
+
+      if (newOrder?.merchantId) {
+        sendSocketData(newOrder.merchantId, eventName, data);
+      }
 
       return res.status(201).json({
         message: "Order created successfully",

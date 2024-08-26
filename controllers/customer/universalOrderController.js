@@ -1780,6 +1780,9 @@ const orderPaymentController = async (req, res, next) => {
             }
 
             const data = {
+              title: notificationSettings.title,
+              description: notificationSettings.description,
+
               orderId: newOrder._id,
               orderDetail: newOrder.orderDetail,
               billDetail: newOrder.billDetail,
@@ -1936,6 +1939,9 @@ const orderPaymentController = async (req, res, next) => {
           }
 
           const data = {
+            title: notificationSettings.title,
+            description: notificationSettings.description,
+
             orderId: newOrder._id,
             orderDetail: newOrder.orderDetail,
             billDetail: newOrder.billDetail,
@@ -2019,8 +2025,6 @@ const verifyOnlinePaymentController = async (req, res, next) => {
     if (!isPaymentValid) {
       return next(appError("Invalid payment", 400));
     }
-
-    const deliveryMode = cart.cartDetail.deliveryMode;
 
     const merchant = await Merchant.findById(cart.merchantId);
 
@@ -2270,6 +2274,9 @@ const verifyOnlinePaymentController = async (req, res, next) => {
           }
 
           const data = {
+            title: notificationSettings.title,
+            description: notificationSettings.description,
+
             orderId: newOrder._id,
             orderDetail: newOrder.orderDetail,
             billDetail: newOrder.billDetail,
