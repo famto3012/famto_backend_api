@@ -111,7 +111,7 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
       throw new Error("Merchant not found", 404);
     }
 
-    const newOrder = await Order.create({
+    let newOrder = await Order.create({
       customerId: scheduledOrder.customerId,
       merchantId: scheduledOrder.merchantId,
       items: scheduledOrder.items,
@@ -123,7 +123,81 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
       status: "Pending",
     });
 
-    console.log("Order created successfully with order ID: " + newOrder._id);
+    newOrder = await newOrder.populate(
+      "merchantId",
+      "merchantDetail.merchantName"
+    );
+
+    const { findRolesToNotify, sendSocketData } = require("../socket/socket");
+
+    const eventName = "scheduledOrderCreated";
+
+    const { rolesToNotify, data } = await findRolesToNotify(eventName);
+
+    // Send notifications to each role dynamically
+    for (const role of rolesToNotify) {
+      let roleId;
+
+      if (role === "admin") {
+        roleId = process.env.ADMIN_ID;
+      } else if (role === "merchant") {
+        roleId = newOrder?.merchantId;
+      } else if (role === "driver") {
+        roleId = newOrder?.agentId;
+      } else if (role === "customer") {
+        roleId = newOrder?.customerId;
+      }
+
+      if (roleId) {
+        const notificationData = {
+          fcm: {
+            orderId: newOrder._id,
+            customerId: newOrder.customerId,
+          },
+        };
+
+        await sendNotification(
+          roleId,
+          eventName,
+          notificationData,
+          role.charAt(0).toUpperCase() + role.slice(1)
+        );
+      }
+    }
+
+    const socketData = {
+      ...data,
+
+      orderId: newOrder._id,
+      orderDetail: newOrder.orderDetail,
+      billDetail: newOrder.billDetail,
+      orderDetailStepper: newOrder.orderDetailStepper.created,
+
+      //? Data for displaying detail in all orders table
+      _id: newOrder._id,
+      orderStatus: newOrder.status,
+      merchantName: newOrder.merchantId.merchantDetail.merchantName || "-",
+      customerName:
+        newOrder?.orderDetail?.deliveryAddress?.fullName ||
+        newOrder?.customerId?.fullName ||
+        "-",
+      deliveryMode: newOrder?.orderDetail?.deliveryMode,
+      orderDate: formatDate(newOrder.createdAt),
+      orderTime: formatTime(newOrder.createdAt),
+      deliveryDate: newOrder?.orderDetail?.deliveryTime
+        ? formatDate(newOrder.orderDetail.deliveryTime)
+        : "-",
+      deliveryTime: newOrder?.orderDetail?.deliveryTime
+        ? formatTime(newOrder.orderDetail.deliveryTime)
+        : "-",
+      paymentMethod: newOrder.paymentMode,
+      deliveryOption: newOrder.orderDetail.deliveryOption,
+      amount: newOrder.billDetail.grandTotal,
+    };
+
+    sendSocketData(newOrder.customerId, eventName, socketData);
+    sendSocketData(newOrder.merchantId, eventName, socketData);
+    sendSocketData(process.env.ADMIN_ID, eventName, socketData);
 
     if (new Date() < new Date(scheduledOrder.endDate)) {
       const nextTime = new Date();
@@ -161,7 +235,75 @@ const createOrdersFromScheduledPickAndDrop = async (scheduledOrder) => {
       status: "Pending",
     });
 
-    console.log("Order created successfully with order ID: " + newOrder._id);
+    const { findRolesToNotify, sendSocketData } = require("../socket/socket");
+
+    const eventName = "scheduleOrderCreated";
+
+    const { rolesToNotify, data } = await findRolesToNotify(eventName);
+
+    // Send notifications to each role dynamically
+    for (const role of rolesToNotify) {
+      let roleId;
+
+      if (role === "admin") {
+        roleId = process.env.ADMIN_ID;
+      } else if (role === "merchant") {
+        roleId = newOrder?.merchantId;
+      } else if (role === "driver") {
+        roleId = newOrder?.agentId;
+      } else if (role === "customer") {
+        roleId = newOrder?.customerId;
+      }
+
+      if (roleId) {
+        const notificationData = {
+          fcm: {
+            orderId: newOrder._id,
+            customerId: newOrder.customerId,
+          },
+        };
+
+        await sendNotification(
+          roleId,
+          eventName,
+          notificationData,
+          role.charAt(0).toUpperCase() + role.slice(1)
+        );
+      }
+    }
+
+    const socketData = {
+      ...data,
+
+      orderId: newOrder._id,
+      orderDetail: newOrder.orderDetail,
+      billDetail: newOrder.billDetail,
+      orderDetailStepper: newOrder.orderDetailStepper.created,
+
+      //? Data for displaying detail in all orders table
+      _id: newOrder._id,
+      orderStatus: newOrder.status,
+      merchantName: "-",
+      customerName:
+        newOrder?.orderDetail?.deliveryAddress?.fullName ||
+        newOrder?.customerId?.fullName ||
+        "-",
+      deliveryMode: newOrder?.orderDetail?.deliveryMode,
+      orderDate: formatDate(newOrder.createdAt),
+      orderTime: formatTime(newOrder.createdAt),
+      deliveryDate: newOrder?.orderDetail?.deliveryTime
+        ? formatDate(newOrder.orderDetail.deliveryTime)
+        : "-",
+      deliveryTime: newOrder?.orderDetail?.deliveryTime
+        ? formatTime(newOrder.orderDetail.deliveryTime)
+        : "-",
+      paymentMethod: newOrder.paymentMode,
+      deliveryOption: newOrder.orderDetail.deliveryOption,
+      amount: newOrder.billDetail.grandTotal,
+    };
+
+    sendSocketData(newOrder.customerId, eventName, socketData);
+    sendSocketData(process.env.ADMIN_ID, eventName, socketData);
 
     if (new Date() < new Date(scheduledOrder.endDate)) {
       const nextTime = new Date();

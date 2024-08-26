@@ -72,6 +72,9 @@ const messageRoute = require("./routes/customerRoute/messageRoute.js");
 const deleteExpiredConversationsAndMessages = require("./utils/deleteChatDataHelper.js");
 const scheduledPickAndCustom = require("./models/ScheduledPickAndCustom.js");
 const homeRoute = require("./routes/adminRoute/homeRoute/homeRoute.js");
+const {
+  updateRealTimeData,
+} = require("./controllers/admin/order/adminOrderController.js");
 
 // const app = express();
 
@@ -153,6 +156,8 @@ cron.schedule("10 11 * * *", async () => {
 });
 
 cron.schedule("* * * * *", async () => {
+  await updateRealTimeData();
+
   console.log("Running scheduled order job...");
   const now = new Date();
   console.log("Current Date and Time:", now);

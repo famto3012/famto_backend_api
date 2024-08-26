@@ -20,6 +20,7 @@ const HomeScreenRealTimeDataSchema = new mongoose.Schema(
         default: 0,
       },
     },
+
     merchants: {
       open: {
         type: Number,
@@ -38,6 +39,7 @@ const HomeScreenRealTimeDataSchema = new mongoose.Schema(
         default: 0,
       },
     },
+
     deliveryAgent: {
       free: {
         type: Number,
