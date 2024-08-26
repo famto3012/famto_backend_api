@@ -33,6 +33,7 @@ const {
 } = require("../../utils/razorpayPayment");
 const { sendSocketData, sendNotification } = require("../../socket/socket");
 const Razorpay = require("razorpay");
+const NotificationSetting = require("../../models/NotificationSetting");
 
 // const razorpay = new Razorpay({
 //   key_id: process.env.RAZORPAY_KEY_ID,
@@ -133,6 +134,19 @@ const registerAgentController = async (req, res, next) => {
     if (!newAgent) {
       return next(appError("Error in registering new agent"));
     }
+
+    const notification = await NotificationSetting.findOne({event: "newAgent"})
+
+    const event = "newAgent"
+    const role = "Agent"
+
+    const data = {
+       title: notification.title,
+       description: notification.description,
+    }
+
+    sendNotification(process.env.ADMIN_ID, event, data, role)
+    sendSocketData(process.env.ADMIN_ID, event, data)
 
     res.status(200).json({
       message: "Agent registering successfully",

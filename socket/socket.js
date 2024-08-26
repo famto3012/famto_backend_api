@@ -85,7 +85,7 @@ const sendPushNotificationToUser = async (
     notification: {
       title: notificationSettings?.title,
       body: notificationSettings?.description,
-      image: message.image,
+      image: message?.image,
     },
     token: fcmToken,
   };
