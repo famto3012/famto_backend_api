@@ -34,6 +34,8 @@ const {
 const { sendSocketData, sendNotification } = require("../../socket/socket");
 const Razorpay = require("razorpay");
 const NotificationSetting = require("../../models/NotificationSetting");
+const AgentNotificationLogs = require("../../models/AgentNotificationLog");
+const AgentAnnouncementLogs = require("../../models/AgentAnnouncementLog");
 
 // const razorpay = new Razorpay({
 //   key_id: process.env.RAZORPAY_KEY_ID,
@@ -135,18 +137,20 @@ const registerAgentController = async (req, res, next) => {
       return next(appError("Error in registering new agent"));
     }
 
-    const notification = await NotificationSetting.findOne({event: "newAgent"})
+    const notification = await NotificationSetting.findOne({
+      event: "newAgent",
+    });
 
-    const event = "newAgent"
-    const role = "Agent"
+    const event = "newAgent";
+    const role = "Agent";
 
     const data = {
-       title: notification.title,
-       description: notification.description,
-    }
+      title: notification.title,
+      description: notification.description,
+    };
 
-    sendNotification(process.env.ADMIN_ID, event, data, role)
-    sendSocketData(process.env.ADMIN_ID, event, data)
+    sendNotification(process.env.ADMIN_ID, event, data, role);
+    sendSocketData(process.env.ADMIN_ID, event, data);
 
     res.status(200).json({
       message: "Agent registering successfully",
@@ -1773,6 +1777,64 @@ const verifyQrPaymentController = async (req, res, next) => {
   }
 };
 
+const getAllNotificationsController = async (req, res, next) => {
+  try {
+    const agentId = req.userAuth;
+
+    const getAllNotifications = await AgentNotificationLogs.find({
+      agentId,
+    }).sort({
+      createdAt: -1,
+    });
+
+    const formattedResponse = getAllNotifications?.map((notification) => {
+      return {
+        notificationId: notification._id || null,
+        orderId: notification?.orderId || null,
+        pickupDetail: notification?.pickupDetail?.address || null,
+        deliveryDetail: notification?.deliveryDetail?.address || null,
+        orderType: notification?.orderType || null,
+        status: notification?.status || null,
+      };
+    });
+
+    res.status(200).json({
+      message: "All notification logs",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getAllAnnouncementsController = async (req, res, next) => {
+  try {
+    const agentId = req.userAuth;
+
+    const getAllAnnouncements = await AgentAnnouncementLogs.find({
+      agentId,
+    }).sort({
+      createdAt: -1,
+    });
+
+    const formattedResponse = getAllAnnouncements?.map((announcement) => {
+      return {
+        announcementId: announcement._id || null,
+        imageUrl: announcement?.imageUrl || null,
+        title: announcement?.title || null,
+        description: announcement?.description || null,
+      };
+    });
+
+    res.status(200).json({
+      message: "All announcements logs",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   updateLocationController,
   registerAgentController,
@@ -1812,4 +1874,6 @@ module.exports = {
   getCompleteOrderMessageController,
   generateRazorpayQRController,
   verifyQrPaymentController,
+  getAllNotificationsController,
+  getAllAnnouncementsController,
 };

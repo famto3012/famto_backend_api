@@ -33,6 +33,7 @@ const ReferralCode = require("../../models/ReferralCode");
 const { formatToHours } = require("../../utils/agentAppHelpers");
 const NotificationSetting = require("../../models/NotificationSetting");
 const { sendNotification, sendSocketData } = require("../../socket/socket");
+const CustomerNotificationLogs = require("../../models/CustomerNotificationLog");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -108,18 +109,20 @@ const registerAndLoginController = async (req, res, next) => {
         await completeReferralDetail(newCustomer, referralCode);
       }
 
-      const notification = await NotificationSetting.findOne({event: "newCustomer"})
+      const notification = await NotificationSetting.findOne({
+        event: "newCustomer",
+      });
 
-      const event = "newCustomer"
-      const role = "Customer"
-  
+      const event = "newCustomer";
+      const role = "Customer";
+
       const data = {
-         title: notification.title,
-         description: notification.description,
-      }
-  
-      sendNotification(process.env.ADMIN_ID, event, data, role)
-      sendSocketData(process.env.ADMIN_ID, event, data)
+        title: notification.title,
+        description: notification.description,
+      };
+
+      sendNotification(process.env.ADMIN_ID, event, data, role);
+      sendSocketData(process.env.ADMIN_ID, event, data);
 
       return res.status(201).json({
         success: "User created successfully",
@@ -1147,6 +1150,32 @@ const getCurrentOrderDetailcontroller = async (req, res, next) => {
   }
 };
 
+const getAllNotificationsOfCustomerController = async (req, res, next) => {
+  try {
+    const customerId = req.userAuth;
+
+    const getAllNotifications = await CustomerNotificationLogs.find({
+      customerId,
+    }).sort({ createdAt: -1 });
+
+    const formattedResponse = getAllNotifications?.map((notification) => {
+      return {
+        notificationId: notification._id,
+        imageUrl: notification?.imageUrl || null,
+        title: notification?.title || null,
+        description: notification?.description || null,
+      };
+    });
+
+    res.status(200).json({
+      message: "All notifications",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerAndLoginController,
   getCustomerProfileController,
@@ -1173,4 +1202,5 @@ module.exports = {
   getAvailableServiceController,
   generateReferralCode,
   getCurrentOrderDetailcontroller,
+  getAllNotificationsOfCustomerController,
 };

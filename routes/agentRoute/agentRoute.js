@@ -38,6 +38,8 @@ const {
   deleteAgentProfileController,
   generateRazorpayQRController,
   verifyQrPaymentController,
+  getAllNotificationsController,
+  getAllAnnouncementsController,
 } = require("../../controllers/agent/agentController");
 const { upload } = require("../../utils/imageOperation");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
@@ -280,5 +282,17 @@ agentRoute.get(
 agentRoute.post("/generate-qr", generateRazorpayQRController);
 
 agentRoute.post("/verify-qr", verifyQrPaymentController);
+
+agentRoute.get(
+  "/all-notifications",
+  isAuthenticated,
+  getAllNotificationsController
+);
+
+agentRoute.get(
+  "/all-announcements",
+  isAuthenticated,
+  getAllAnnouncementsController
+);
 
 module.exports = agentRoute;

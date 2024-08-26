@@ -34,6 +34,7 @@ const {
   getAvailableServiceController,
   generateReferralCode,
   getCurrentOrderDetailcontroller,
+  getAllNotificationsOfCustomerController,
 } = require("../../controllers/customer/customerController");
 const {
   getAllBusinessCategoryController,
@@ -382,5 +383,11 @@ customerRoute.get("/custom-order-banners", getCustomOrderBannersController);
 customerRoute.get("/available-services", getAvailableServiceController);
 
 customerRoute.get("/generate-referral", isAuthenticated, generateReferralCode);
+
+customerRoute.get(
+  "/all-notifications",
+  isAuthenticated,
+  getAllNotificationsOfCustomerController
+);
 
 module.exports = customerRoute;
