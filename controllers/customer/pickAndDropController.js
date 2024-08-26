@@ -927,6 +927,9 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
         }
 
         const data = {
+          title: notificationSettings.title,
+          description: notificationSettings.description,
+
           orderId: newOrder._id,
           orderDetail: newOrder.orderDetail,
           billDetail: newOrder.billDetail,

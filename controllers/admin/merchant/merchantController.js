@@ -23,6 +23,7 @@ const path = require("path");
 const { sendNotification, sendSocketData } = require("../../../socket/socket");
 const NotificationSetting = require("../../../models/NotificationSetting");
 const csvWriter = require("csv-writer").createObjectCsvWriter;
+const { createTransport } = require("nodemailer");
 
 //----------------------------
 //For Merchant
@@ -63,18 +64,20 @@ const registerMerchantController = async (req, res, next) => {
     });
     await newMerchant.save();
 
-    const notification = await NotificationSetting.findOne({event: "newMerchant"})
+    const notification = await NotificationSetting.findOne({
+      event: "newMerchant",
+    });
 
-    const event = "newMerchant"
-    const role = "Merchant"
+    const event = "newMerchant";
+    const role = "Merchant";
 
     const data = {
-       title: notification.title,
-       description: notification.description,
-    }
+      title: notification.title,
+      description: notification.description,
+    };
 
-    sendNotification(process.env.ADMIN_ID, event, data, role)
-    sendSocketData(process.env.ADMIN_ID, event, data)
+    sendNotification(process.env.ADMIN_ID, event, data, role);
+    sendSocketData(process.env.ADMIN_ID, event, data);
 
     if (newMerchant) {
       res.status(201).json({
@@ -662,6 +665,26 @@ const rejectRegistrationController = async (req, res, next) => {
     if (!merchantFound) {
       return next(appError("Merchant not found", 404));
     }
+
+    // Send email with message
+    const message = `We're sorry to inform you that your registration on My Famto was rejected.`;
+
+    // Set up nodemailer transport
+    const transporter = createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: {
+        user: process.env.EMAIL_USERNAME,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+
+    await transporter.sendMail({
+      to: merchantFound.email,
+      subject: "Registration rejection",
+      text: message,
+    });
 
     await Merchant.findByIdAndDelete(req.params.merchantId);
 

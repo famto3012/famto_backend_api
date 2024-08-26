@@ -2,34 +2,6 @@ const Merchant = require("../models/Merchant");
 const MerchantNotificationLogs = require("../models/MerchantNotificationLog");
 const { sendNotification } = require("../socket/socket");
 
-// const deleteExpiredSponsorshipPlans = async () => {
-//   const now = new Date();
-
-//   try {
-//     // Find all merchants with expired sponsorship plans
-//     const merchants = await Merchant.find({
-//       "sponsorshipDetail.endDate": { $lte: now },
-//     });
-
-//     // Use for...of loop to handle asynchronous operations correctly
-//     for (const merchant of merchants) {
-//       // Remove expired plans
-//       await Merchant.updateOne(
-//         { _id: merchant._id },
-//         {
-//           $pull: {
-//             sponsorshipDetail: { endDate: { $lte: now } },
-//           },
-//         }
-//       );
-//     }
-
-//     console.log("Expired sponsorship plans deleted successfully");
-//   } catch (err) {
-//     console.error(`Error deleting expired sponsorship plans: ${err}`);
-//   }
-// };
-
 const deleteExpiredSponsorshipPlans = async () => {
   const now = new Date();
   const today = new Date(now.setHours(0, 0, 0, 0)); // Current date set to midnight
@@ -82,6 +54,7 @@ const deleteExpiredSponsorshipPlans = async () => {
 
           const eventName = "sponsorshipPlanEnd";
           sendNotification(merchant._id, eventName, data, user);
+          sendNotification(process.env.ADMIN_ID, eventName, data, user);
         }
 
         // Remove expired plans
@@ -110,6 +83,7 @@ const deleteExpiredSponsorshipPlans = async () => {
 
           const eventName = "sponsorshipPlanExpired";
           sendNotification(merchant._id, eventName, data, user);
+          sendNotification(process.env.ADMIN_ID, eventName, data, user);
         }
       }
     }

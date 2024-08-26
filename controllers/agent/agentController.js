@@ -31,16 +31,15 @@ const {
   verifyPayment,
   createRazorpayQrCode,
 } = require("../../utils/razorpayPayment");
-const { sendSocketData, sendNotification } = require("../../socket/socket");
+const {
+  sendSocketData,
+  sendNotification,
+  findRolesToNotify,
+} = require("../../socket/socket");
 const Razorpay = require("razorpay");
 const NotificationSetting = require("../../models/NotificationSetting");
 const AgentNotificationLogs = require("../../models/AgentNotificationLog");
 const AgentAnnouncementLogs = require("../../models/AgentAnnouncementLog");
-
-// const razorpay = new Razorpay({
-//   key_id: process.env.RAZORPAY_KEY_ID,
-//   key_secret: process.env.RAZORPAY_KEY_SECRET,
-// });
 
 //Function for getting agent's manager from geofence
 const getManager = async (geofenceId) => {
@@ -1369,13 +1368,6 @@ const completeOrderController = async (req, res, next) => {
 
     await orderFound.save();
 
-    const parameters = {
-      eventName: "orderCompleted",
-      user: "Customer",
-      role: "Admin",
-      role1: "Merchant",
-    };
-
     const agent = await Agent.findByIdAndUpdate(agentId, {
       $inc: { taskCompleted: 1 },
       "appDetail.orders": { $inc: 1 },
@@ -1383,52 +1375,51 @@ const completeOrderController = async (req, res, next) => {
 
     await agent.save();
 
-    const agentData = {
-      socket: {
-        appDetail: agent.appDetail,
-      },
+    const eventName = "orderCompleted";
+
+    const { rolesToNotify, data } = await findRolesToNotify(eventName);
+
+    // Send notifications to each role dynamically
+    for (const role of rolesToNotify) {
+      let roleId;
+
+      if (role === "admin") {
+        roleId = process.env.ADMIN_ID;
+      } else if (role === "merchant") {
+        roleId = orderFound?.merchantId;
+      } else if (role === "driver") {
+        roleId = orderFound?.agentId;
+      } else if (role === "customer") {
+        roleId = orderFound?.customerId;
+      }
+
+      if (roleId) {
+        const notificationData = {
+          fcm: {
+            orderId: orderFound._id,
+            customerId: customerFound._id,
+            merchantId: orderFound?.merchantId,
+          },
+        };
+
+        await sendNotification(
+          roleId,
+          eventName,
+          notificationData,
+          role.charAt(0).toUpperCase() + role.slice(1)
+        );
+      }
+    }
+
+    const socketData = {
+      ...data,
+      stepperDetail,
     };
 
-    // TODO: complete the appDetail info in socket
-
-    sendSocketData(agent._id);
-
-    const data = {
-      socket: {
-        stepperDetail,
-        title: "Order Completed",
-        body: `Your order ID #${orderFound._id} has been completed successfully`,
-      },
-      fcm: {
-        title: "Order Completed",
-        body: `Your order ID #${orderFound._id} has been completed successfully`,
-        orderId: orderFound._id,
-        customerId: customerFound._id,
-        merchantId: orderFound?.merchantId,
-      },
-    };
-
-    sendNotification(
-      customerFound._id,
-      parameters.eventName,
-      data,
-      parameters.user
-    );
-
-    sendNotification(
-      process.env.ADMIN_ID,
-      parameters.eventName,
-      data,
-      parameters.role
-    );
-
-    if (orderFound.merchantId) {
-      sendNotification(
-        orderFound?.merchantId,
-        parameters.eventName,
-        data,
-        parameters.role1
-      );
+    sendSocketData(process.env.ADMIN_ID, eventName, socketData);
+    sendSocketData(orderFound.customerId, eventName, socketData);
+    if (orderFound?.merchantId) {
+      sendSocketData(orderFound.merchantId, eventName, socketData);
     }
 
     res.status(200).json({

@@ -9,6 +9,7 @@ const mongoose = require("mongoose");
 const AccountLogs = require("../../../models/AccountLogs");
 const { formatDate } = require("../../../utils/formatters");
 const { formatToHours } = require("../../../utils/agentAppHelpers");
+const { createTransport } = require("nodemailer");
 
 const addAgentByAdminController = async (req, res, next) => {
   const {
@@ -346,38 +347,6 @@ const getSingleAgentController = async (req, res, next) => {
   }
 };
 
-// const getAllAgentsController = async (req, res, next) => {
-//   try {
-//     const allAgents = await Agent.find({})
-//       .populate("geofenceId", "name")
-//       .populate("workStructure.managerId", "name")
-//       .select(
-//         "fullName email phoneNumber location isApproved geofenceId status workStructure"
-//       );
-
-//     const formattedResponse = allAgents.map((agent) => {
-//       return {
-//         _id: agent._id,
-//         fullName: agent.fullName,
-//         email: agent.email,
-//         phoneNumber: agent.phoneNumber,
-//         isApproved: agent.isApproved,
-//         geofence: agent?.geofenceId?.name || "-",
-//         status: agent.status === "Inactive" ? false : true,
-//         manager: agent?.workStructure?.managerId?.name || "-",
-//         location: agent.location,
-//       };
-//     });
-
-//     res.status(200).json({
-//       message: "All agents",
-//       data: formattedResponse,
-//     });
-//   } catch (err) {
-//     next(appError(err.message));
-//   }
-// };
-
 const getAllAgentsController = async (req, res, next) => {
   try {
     // Get page and limit from query parameters with default values
@@ -537,6 +506,26 @@ const rejectAgentRegistrationController = async (req, res, next) => {
       return next(appError("Agent not found", 404));
     }
 
+    // Send email with message
+    const message = `We're sorry to inform you that your registration on My Famto was rejected.`;
+
+    // Set up nodemailer transport
+    const transporter = createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: {
+        user: process.env.EMAIL_USERNAME,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+
+    await transporter.sendMail({
+      to: agentFound.email,
+      subject: "Registration rejection",
+      text: message,
+    });
+
     await Agent.findByIdAndDelete(req.params.agentId);
 
     res.status(200).json({
@@ -672,47 +661,6 @@ const blockAgentController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
-
-// const getDeliveryAgentPayoutController = async (req, res, next) => {
-//   try {
-//     const payoutOfAllAgents = await Agent.find({
-//       isApproved: "Approved",
-//     }).select("fullName phoneNumber appDetailHistory workStructure.cashInHand");
-
-//     const formattedResponse = payoutOfAllAgents
-//       .filter((agent) => agent.appDetailHistory.length >= 1)
-//       .map((agent) => {
-//         const historyLength = agent.appDetailHistory.length;
-//         const lastHistory = agent.appDetailHistory[historyLength - 1] || {
-//           details: {},
-//         };
-
-//         return {
-//           _id: agent._id,
-//           fullName: agent.fullName,
-//           phoneNumber: agent.phoneNumber,
-//           workedDate: lastHistory.date ? formatDate(lastHistory.date) : null,
-//           orders: lastHistory.details.orders || 0,
-//           cancelledOrders: lastHistory.details.cancelledOrders || 0,
-//           totalDistance: lastHistory.details.totalDistance || 0,
-//           loginHours: lastHistory.details.loginDuration
-//             ? formatToHours(lastHistory.details.loginDuration)
-//             : "0:00 hr",
-//           cashInHand: agent.workStructure?.cashInHand || 0,
-//           totalEarnings: lastHistory.details.totalEarning || 0,
-//           paymentSettled: lastHistory.details.paymentSettled,
-//           detailId: lastHistory._id,
-//         };
-//       });
-
-//     res.status(200).json({
-//       message: "Agent payout detail",
-//       data: formattedResponse,
-//     });
-//   } catch (err) {
-//     next(appError(err.message));
-//   }
-// };
 
 const getDeliveryAgentPayoutController = async (req, res, next) => {
   try {

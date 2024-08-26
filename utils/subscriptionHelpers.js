@@ -80,6 +80,13 @@ const deleteExpiredSubscriptionPlans = async () => {
           subscriptionLog.typeOfUser
         );
 
+        sendNotification(
+          process.env.ADMIN_ID,
+          eventName,
+          data,
+          subscriptionLog.typeOfUser
+        );
+
         // Proceed with deletion if the plan has expired
         if (now >= subscriptionLog.endDate) {
           if (subscriptionLog.typeOfUser === "Merchant") {
@@ -100,9 +107,18 @@ const deleteExpiredSubscriptionPlans = async () => {
                 merchantId: subscriptionLog.userId,
               },
             };
+
             const eventName = "subscriptionPlanEnd";
+
             sendNotification(
               subscriptionLog.userId,
+              eventName,
+              data,
+              subscriptionLog.typeOfUser
+            );
+
+            sendNotification(
+              process.env.ADMIN_ID,
               eventName,
               data,
               subscriptionLog.typeOfUser
@@ -126,9 +142,18 @@ const deleteExpiredSubscriptionPlans = async () => {
                 customerId: subscriptionLog.userId,
               },
             };
+
             const eventName = "subscriptionPlanEnd";
+
             sendNotification(
               subscriptionLog.userId,
+              eventName,
+              data,
+              subscriptionLog.typeOfUser
+            );
+
+            sendNotification(
+              process.env.ADMIN_ID,
               eventName,
               data,
               subscriptionLog.typeOfUser
