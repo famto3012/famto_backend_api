@@ -1,18 +1,23 @@
 const mongoose = require("mongoose");
 
 // Define a sub-schema for the details
-const DetailSchema = new mongoose.Schema({
-  name: {
-    type: String,
+const DetailSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+    },
+    address: {
+      fullName: String,
+      phoneNumber: String,
+      flat: String,
+      area: String,
+      landmark: String,
+    },
   },
-  address: {
-    fullName: String,
-    phoneNumber: String,
-    flat: String,
-    area: String,
-    landmark: String,
-  },
-});
+  {
+    _id: false,
+  }
+);
 
 const AgentNotificationLogSchema = new mongoose.Schema(
   {
