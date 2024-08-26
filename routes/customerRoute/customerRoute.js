@@ -54,6 +54,8 @@ const {
   verifyOnlinePaymentController,
   listRestaurantsController,
   cancelOrderBeforeCreationController,
+  getAllCategoriesOfMerchants,
+  getAllProductsOfMerchantController,
 } = require("../../controllers/customer/universalOrderController");
 const {
   addPickUpAddressController,
@@ -117,6 +119,15 @@ customerRoute.get("/search-home", homeSearchController);
 
 // List all restaurants in customers geofence
 customerRoute.post("/list-restaurants", listRestaurantsController);
+
+// Get all categories a merchant
+customerRoute.get("/:merchantId/categories", getAllCategoriesOfMerchants);
+
+// Get all products a merchant
+customerRoute.get(
+  "/merchant/:categoryId/products/:customerId",
+  getAllProductsOfMerchantController
+);
 
 // Get all categories and products of a merchant
 customerRoute.get(

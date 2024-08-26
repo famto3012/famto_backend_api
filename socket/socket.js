@@ -72,14 +72,9 @@ const sendPushNotificationToUser = async (
   eventName,
   user
 ) => {
-  console.log("eventName", eventName);
-  console.log("user", user);
-
   const notificationSettings = await NotificationSetting.findOne({
     event: eventName,
   });
-
-  console.log("notification settings", notificationSettings);
 
   const mes = {
     notification: {
@@ -89,8 +84,6 @@ const sendPushNotificationToUser = async (
     },
     token: fcmToken,
   };
-
-  console.log("fcm message", mes);
 
   try {
     const response = await getMessaging().send(mes);
@@ -149,14 +142,9 @@ const sendNotification = async (userId, eventName, data, role) => {
   const { socketId, fcmToken } = userSocketMap[userId] || {};
   let notificationSent = false;
 
-  console.log("eventName", eventName);
-  console.log("role", role);
-
   const notificationSettings = await NotificationSetting.findOne({
     event: eventName,
   });
-
-  console.log("notificationSettings", notificationSettings);
 
   // if (socketId) {
   //   io.to(socketId).emit(eventName, data.socket);
@@ -208,6 +196,23 @@ const getRecipientSocketId = (recipientId) => {
 
 const getRecipientFcmToken = (recipientId) => {
   return userSocketMap[recipientId].fcmToken;
+};
+
+const findRolesToNotify = async (eventName) => {
+  try {
+    // Fetch notification settings to determine roles
+    const notificationSettings = await NotificationSetting.findOne({
+      event: eventName,
+    });
+
+    const rolesToNotify = ["admin", "merchant", "driver", "customer"].filter(
+      (role) => notificationSettings[role]
+    );
+
+    return rolesToNotify;
+  } catch (err) {
+    throw new Error(err.message);
+  }
 };
 
 // Connection socket
@@ -324,6 +329,51 @@ io.on("connection", async (socket) => {
     agent.status = "Busy";
 
     await agent.save();
+
+    const eventName = "agentOrderAccepted";
+
+    const { rolesToNotify } = await findRolesToNotify(eventName);
+
+    // Send notifications to each role dynamically
+    for (const role of rolesToNotify) {
+      let roleId;
+
+      if (role === "admin") {
+        roleId = process.env.ADMIN_ID;
+      } else if (role === "merchant") {
+        roleId = orderFound?.merchantId;
+      } else if (role === "driver") {
+        roleId = orderFound?.agentId;
+      } else if (role === "customer") {
+        roleId = orderFound?.customerId;
+      }
+
+      if (roleId) {
+        const notificationData = {
+          fcm: {
+            customerId: orderFound.customerId,
+          },
+        };
+
+        await sendNotification(
+          roleId,
+          eventName,
+          notificationData,
+          role.charAt(0).toUpperCase() + role.slice(1)
+        );
+      }
+    }
+
+    const data = {
+      agentName: agent.fullName,
+      agentImgURL: agent.agentImageURL,
+      customerId: task.orderId.customerId,
+    };
+
+    sendSocketData(orderFound.customerId, eventName, data);
+    sendSocketData(process.env.ADMIN_ID, eventName, data);
+
+    // =================================
 
     // Send notification to user
     const dataForCustomer = {
@@ -505,116 +555,6 @@ io.on("connection", async (socket) => {
   });
 
   // Agent reached pickup location socket
-  // socket.on("reachedPickupLocation", async ({ agentId, taskId }) => {
-  //   const agentFound = await Agent.findById(agentId);
-
-  //   if (agentFound) {
-  //     const taskFound = await Task.findOne({ _id: taskId, agentId });
-
-  //     const orderFound = await Order.findById(taskFound.orderId);
-
-  //     const parameters = {
-  //       eventName: "reachedPickupLocation",
-  //       user: "Customer",
-  //       role: "Agent",
-  //       role2: "Admin",
-  //       role3: "Merchant",
-  //     };
-
-  //     const maxRadius = 0.1;
-  //     if (maxRadius > 0) {
-  //       const pickupLocation = taskFound?.pickupDetail?.pickupLocation;
-  //       const agentLocation = agentFound.location;
-  //       console.log(pickupLocation);
-  //       if (pickupLocation) {
-  //         const distance = turf.distance(
-  //           turf.point(pickupLocation),
-  //           turf.point(agentLocation),
-  //           { units: "kilometers" }
-  //         );
-
-  //         if (distance < maxRadius) {
-  //           const stepperData = {
-  //             by: agentFound.fullName,
-  //             userId: agentId,
-  //             date: new Date(),
-  //           };
-
-  //           orderFound.orderDetailStepper.reachedPickupLocation = stepperData;
-
-  //           taskFound.pickupDetail.pickupStatus = "Completed";
-
-  //           await taskFound.save();
-  //           await orderFound.save();
-
-  //           taskFound.pickupDetail.pickupStatus = "Completed";
-  //           await taskFound.save();
-
-  //           const customerData = {
-  //             socket: {
-  //               message: `${agentFound.fullName} has reached the pickup location`,
-  //               orderId: taskFound.orderId,
-  //               agentId: userId,
-  //               agentName: agentFound.fullName,
-  //             },
-  //             fcm: {
-  //               title: "Reached pickup",
-  //               body: `${agentFound.fullName} has reached the pickup location`,
-  //               customerId: orderFound.customerId,
-  //             },
-  //           };
-
-  //           const adminData = {
-  //             socket: stepperData,
-  //           };
-
-  //           sendNotification(
-  //             orderFound.customerId,
-  //             parameters.eventName,
-  //             customerData,
-  //             parameters.user
-  //           );
-
-  //           if (orderFound?.merchantId) {
-  //             sendSocketData(
-  //               orderFound.merchantId,
-  //               parameters.eventName,
-  //               adminData,
-  //               parameters.role3
-  //             );
-  //           }
-
-  //           sendSocketData(
-  //             process.env.ADMIN_ID,
-  //             parameters.eventName,
-  //             adminData,
-  //             parameters.role2
-  //           );
-  //         } else {
-  //           const data = {
-  //             fcm: {
-  //               title: "Alert",
-  //               body: `It seems like you have not reached the pickup location. Please try again after reaching the pickup location`,
-  //               agentId,
-  //               orderId: orderFound._id,
-  //               pickupDetail: taskFound?.pickupDetail?.pickupAddress,
-  //               deliveryDetail: taskFound.deliveryDetail.deliveryAddress,
-  //               orderType: orderFound.orderDetail.deliveryMode,
-  //             },
-  //           };
-
-  //           sendNotification(
-  //             agentFound._id,
-  //             parameters.eventName,
-  //             data,
-  //             parameters.role
-  //           );
-  //         }
-  //       }
-  //     }
-  //   }
-  // });
-
   socket.on("reachedPickupLocation", async ({ agentId, taskId }) => {
     const agentFound = await Agent.findById(agentId);
 
@@ -623,14 +563,13 @@ io.on("connection", async (socket) => {
 
       const orderFound = await Order.findById(taskFound.orderId);
 
-      // Fetch notification settings to determine roles
-      const notificationSettings = await NotificationSetting.findOne({
-        event: "reachedPickupLocation",
-      });
-
-      const rolesToNotify = ["admin", "merchant", "driver", "customer"].filter(
-        (role) => notificationSettings[role]
-      );
+      const parameters = {
+        eventName: "reachedPickupLocation",
+        user: "Customer",
+        role: "Agent",
+        role2: "Admin",
+        role3: "Merchant",
+      };
 
       const maxRadius = 0.1;
       if (maxRadius > 0) {
@@ -660,44 +599,6 @@ io.on("connection", async (socket) => {
 
             taskFound.pickupDetail.pickupStatus = "Completed";
             await taskFound.save();
-
-            for (const role of rolesToNotify) {
-              let roleId;
-
-              if (role === "admin") {
-                roleId = process.env.ADMIN_ID;
-              } else if (role === "merchant") {
-                roleId = newOrder?.merchantId;
-              } else if (role === "driver") {
-                roleId = newOrder?.agentId;
-              } else if (role === "customer") {
-                roleId = newOrder?.customerId;
-              }
-
-              console.log("roleId", roleId);
-
-              if (roleId) {
-                const notificationData = {
-                  socket: {
-                    orderId: newOrder._id,
-                    orderDetail: newOrder.orderDetail,
-                    billDetail: newOrder.billDetail,
-                    orderDetailStepper: newOrder.orderDetailStepper.created,
-                  },
-                  fcm: {
-                    orderId: newOrder._id,
-                    customerId: newOrder.customerId,
-                  },
-                };
-
-                await sendNotification(
-                  roleId,
-                  "newOrderCreated",
-                  notificationData,
-                  role
-                );
-              }
-            }
 
             const customerData = {
               socket: {
