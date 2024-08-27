@@ -171,14 +171,6 @@ const calculateAgentEarnings = async (agent, order) => {
   let orderSalary =
     order.orderDetail.distance * agentPricing.baseDistanceFarePerKM;
 
-  // if (order.orderDetail.distance <= agentPricing.baseDistance) {
-  //   return parseFloat(baseFare);
-  // } else {
-  //   return parseFloat(
-  //     baseFare + (distance - baseDistance) * fareAfterBaseDistance
-  //   );
-  // }
-
   let totalPurchaseFare = 0;
 
   if (order.orderDetail === "Custom Order") {
@@ -191,7 +183,17 @@ const calculateAgentEarnings = async (agent, order) => {
     }
   }
 
-  return parseFloat(orderSalary + totalPurchaseFare).toFixed(2);
+  if (order.orderDetail.distance <= agentPricing.baseDistance) {
+    return parseFloat(baseFare) - parseFloat(totalPurchaseFare);
+  } else {
+    return parseFloat(
+      totalPurchaseFare +
+        baseFare +
+        (distance - baseDistance) * fareAfterBaseDistance
+    );
+  }
+
+  // return parseFloat(orderSalary + totalPurchaseFare).toFixed(2);
 };
 
 const updateOrderDetails = (order) => {
