@@ -53,7 +53,12 @@ const {
   updateOneDayLoyaltyPointEarning,
   createOrdersFromScheduledPickAndDrop,
 } = require("./utils/customerAppHelpers");
-const { app, server, populateUserSocketMap, getRealTimeDataCount } = require("./socket/socket.js");
+const {
+  app,
+  server,
+  populateUserSocketMap,
+  getRealTimeDataCount,
+} = require("./socket/socket.js");
 const ScheduledOrder = require("./models/ScheduledOrder.js");
 const { orderCreateTaskHelper } = require("./utils/orderCreateTaskHelper.js");
 const {
@@ -156,8 +161,8 @@ cron.schedule("10 11 * * *", async () => {
 });
 
 cron.schedule("* * * * *", async () => {
-  await updateRealTimeData();
-  await  getRealTimeDataCount();
+  // await updateRealTimeData();
+  // await  getRealTimeDataCount();
   console.log("Running scheduled order job...");
   const now = new Date();
   console.log("Current Date and Time:", now);

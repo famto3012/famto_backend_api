@@ -220,12 +220,12 @@ const findRolesToNotify = async (eventName) => {
 
 const getRealTimeDataCount = async () => {
   try {
-    console.log("in")
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0); // Set to midnight (start of the day)
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
+    console.time("Count");
     const [pending, ongoing, completed, cancelled] = await Promise.all([
       Order.countDocuments({
         status: "Pending",
@@ -325,13 +325,21 @@ const getRealTimeDataCount = async () => {
           },
         ],
       }),
+      // =======================
+      // Merchant.countDocuments({ isServiceableToday: "open" }),
+      // Merchant.countDocuments({ isServiceableToday: "closed" }),
     ]);
 
     // Counting active and not active merchants
     const [active, notActive] = await Promise.all([
-      Merchant.countDocuments({ status: true }), // active merchants
-      Merchant.countDocuments({ status: false }), // inactive merchants
+      Merchant.countDocuments({
+        "merchantDetail.pricing.0": { $exists: true },
+      }), // active merchants
+      Merchant.countDocuments({
+        "merchantDetail.pricing.0": { $exists: false },
+      }), // inactive merchants
     ]);
+    console.timeEnd("Count");
 
     const realTimeData = {
       orderCount: {
@@ -353,7 +361,7 @@ const getRealTimeDataCount = async () => {
       },
     };
 
-    // Emit updated data to all connected clients
+    console.log("Emitting real-time data:", realTimeData);
     io.emit("realTimeDataCount", realTimeData);
   } catch (err) {
     console.error("Error updating real-time data:", err);
@@ -362,6 +370,14 @@ const getRealTimeDataCount = async () => {
 
 // Example of listening for changes
 Order.watch().on("change", async (change) => {
+  getRealTimeDataCount();
+});
+// Example of listening for changes
+Merchant.watch().on("change", async (change) => {
+  getRealTimeDataCount();
+});
+// Example of listening for changes
+Agent.watch().on("change", async (change) => {
   getRealTimeDataCount();
 });
 
@@ -403,7 +419,9 @@ io.on("connection", async (socket) => {
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
   // Get realtime data count for Home page
-  getRealTimeDataCount();
+  socket.on("getRealTimeDataOnRefresh", () => {
+    getRealTimeDataCount();
+  });
 
   // User location update socket
   socket.on("locationUpdated", async (data) => {
