@@ -225,7 +225,6 @@ const getRealTimeDataCount = async () => {
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
-    console.time("Count");
     const [pending, ongoing, completed, cancelled] = await Promise.all([
       Order.countDocuments({
         status: "Pending",
@@ -252,7 +251,7 @@ const getRealTimeDataCount = async () => {
     ]);
 
     const today = new Date()
-      .toLocaleString("en-IN", { weekday: "long" })
+      .toLocaleString("en-IN", { weekday: "short" })
       .toLowerCase();
 
     // Counting opened and closed merchants
@@ -288,6 +287,7 @@ const getRealTimeDataCount = async () => {
           },
         ],
       }),
+
       Merchant.countDocuments({
         $or: [
           { "merchantDetail.availability.type": { $ne: "Full-time" } },
@@ -325,9 +325,6 @@ const getRealTimeDataCount = async () => {
           },
         ],
       }),
-      // =======================
-      // Merchant.countDocuments({ isServiceableToday: "open" }),
-      // Merchant.countDocuments({ isServiceableToday: "closed" }),
     ]);
 
     // Counting active and not active merchants
@@ -339,7 +336,6 @@ const getRealTimeDataCount = async () => {
         "merchantDetail.pricing.0": { $exists: false },
       }), // inactive merchants
     ]);
-    console.timeEnd("Count");
 
     const realTimeData = {
       orderCount: {

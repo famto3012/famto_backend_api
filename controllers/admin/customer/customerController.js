@@ -710,9 +710,99 @@ const getCustomersOfMerchant = async (req, res, next) => {
   }
 };
 
+const searchCustomerByNameForMerchantController = async (req, res, next) => {
+  try {
+    const merchantId = req.userAuth;
+
+    let { query, page = 1, limit = 25 } = req.query;
+
+    if (!query || query.trim() === "") {
+      return res.status(400).json({
+        message: "Search query cannot be empty",
+      });
+    }
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
+    // Find orders placed with this merchant to get customer IDs
+    const ordersOfMerchant = await Order.find({ merchantId }).select(
+      "customerId"
+    );
+
+    // Extract unique customer IDs from the orders
+    const uniqueCustomerIds = [
+      ...new Set(ordersOfMerchant.map((order) => order.customerId.toString())),
+    ];
+
+    // Find customers by name who belong to this merchant
+    const searchResults = await Customer.find({
+      _id: { $in: uniqueCustomerIds },
+      fullName: { $regex: query.trim(), $options: "i" },
+    })
+      .select(
+        "fullName email phoneNumber lastPlatformUsed createdAt customerDetails"
+      )
+      .skip(skip)
+      .limit(limit)
+      .lean({ virtuals: true });
+
+    // Count total documents for pagination (only for this merchant)
+    const totalDocuments = await Customer.countDocuments({
+      _id: { $in: uniqueCustomerIds },
+      fullName: { $regex: query.trim(), $options: "i" },
+    });
+
+    // Format customers with necessary fields
+    const formattedCustomers = searchResults.map((customer) => {
+      // const homeAddress = customer?.customerDetails?.homeAddress || {};
+      // const workAddress = customer?.customerDetails?.workAddress || {};
+      // const otherAddress = customer?.customerDetails?.otherAddress || [];
+
+      return {
+        _id: customer._id,
+        fullName: customer.fullName || "-",
+        email: customer.email || "-",
+        customerImageURL: customer?.customerDetails?.customerImageURL || null,
+        phoneNumber: customer.phoneNumber,
+        lastPlatformUsed: customer.lastPlatformUsed,
+        registrationDate: formatDate(customer.createdAt),
+        averageRating: customer.customerDetails?.averageRating || 0,
+        // address: [
+        //   { type: "home", homeAddress },
+        //   { type: "work", workAddress },
+        //   { type: "other", otherAddress },
+        // ],
+      };
+    });
+
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
+    res.status(200).json({
+      message: "Searched customers",
+      data: formattedCustomers,
+      pagination,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getAllCustomersController,
   searchCustomerByNameController,
+  searchCustomerByNameForMerchantController,
   filterCustomerByGeofenceController,
   getSingleCustomerController,
   blockCustomerController,
