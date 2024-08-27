@@ -254,80 +254,67 @@ const getRealTimeDataCount = async () => {
       .toLocaleString("en-IN", { weekday: "short" })
       .toLowerCase();
 
-    // Counting opened and closed merchants
+    //  const [open, closed] = await Promise.all([
+    //   // Count open merchants
+    //   Merchant.countDocuments({
+    //     $or: [
+    //       { "merchantDetail.availability.type": "Full-time" },
+    //       {
+    //         $and: [
+    //           { [`merchantDetail.availability.specificDays.${today}.openAllDay`]: true },
+    //           { [`merchantDetail.availability.specificDays.${today}.closedAllDay`]: false },
+    //         ],
+    //       },
+    //       {
+    //         $and: [
+    //           { [`merchantDetail.availability.specificDays.${today}.specificTime`]: true },
+    //           {
+    //             $expr: {
+    //               $and: [
+    //                 { $lte: [new Date(), { $dateFromString: { dateString: `$merchantDetail.availability.specificDays.${today}.endTime` } }] },
+    //                 { $gte: [new Date(), { $dateFromString: { dateString: `$merchantDetail.availability.specificDays.${today}.startTime` } }] },
+    //               ],
+    //             },
+    //           },
+    //         ],
+    //       },
+    //     ],
+    //   }),
+
+    //   // Count closed merchants
+    //   Merchant.countDocuments({
+    //     $or: [
+    //       { "merchantDetail.availability.type":  "Full-time"  },
+    //       { [`merchantDetail.availability.specificDays.${today}.closedAllDay`]: true },
+    //       { [`merchantDetail.availability.specificDays.${today}.openAllDay`]: false },
+    //       {
+    //         $and: [
+    //           { [`merchantDetail.availability.specificDays.${today}.specificTime`]: true },
+    //           {
+    //             $expr: {
+    //               $or: [
+    //                 { $lt: [new Date(), { $dateFromString: { dateString: `$merchantDetail.availability.specificDays.${today}.startTime` } }] },
+    //                 { $gt: [new Date(), { $dateFromString: { dateString: `$merchantDetail.availability.specificDays.${today}.endTime` } }] },
+    //               ],
+    //             },
+    //           },
+    //         ],
+    //       },
+    //     ],
+    //   }),
+    // ]);
+
+    // Counting active and not active merchants
     const [open, closed] = await Promise.all([
       Merchant.countDocuments({
-        $or: [
-          { "merchantDetail.availability.type": "Full-time" },
-          {
-            $and: [
-              {
-                [`merchantDetail.availability.specificDays.${today}.openAllDay`]: true,
-              },
-              {
-                [`merchantDetail.availability.specificDays.${today}.closedAllDay`]: false,
-              },
-            ],
-          },
-          {
-            $and: [
-              {
-                [`merchantDetail.availability.specificDays.${today}.specificTime`]: true,
-              },
-              {
-                [`merchantDetail.availability.specificDays.${today}.startTime`]:
-                  { $ne: null },
-              },
-              {
-                [`merchantDetail.availability.specificDays.${today}.endTime`]: {
-                  $ne: null,
-                },
-              },
-            ],
-          },
-        ],
+        status: true,
       }),
 
       Merchant.countDocuments({
-        $or: [
-          { "merchantDetail.availability.type": { $ne: "Full-time" } },
-          {
-            $or: [
-              {
-                [`merchantDetail.availability.specificDays.${today}.closedAllDay`]: true,
-              },
-              {
-                $and: [
-                  {
-                    [`merchantDetail.availability.specificDays.${today}.specificTime`]: true,
-                  },
-                  {
-                    $expr: {
-                      $or: [
-                        {
-                          $lt: [
-                            new Date(),
-                            `$merchantDetail.availability.specificDays.${today}.startTime`,
-                          ],
-                        },
-                        {
-                          $gt: [
-                            new Date(),
-                            `$merchantDetail.availability.specificDays.${today}.endTime`,
-                          ],
-                        },
-                      ],
-                    },
-                  },
-                ],
-              },
-            ],
-          },
-        ],
+        status: false,
       }),
     ]);
 
-    // Counting active and not active merchants
     const [active, notActive] = await Promise.all([
       Merchant.countDocuments({
         "merchantDetail.pricing.0": { $exists: true },
