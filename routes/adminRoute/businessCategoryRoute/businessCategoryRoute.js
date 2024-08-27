@@ -24,8 +24,8 @@ businessCategoryRoute.post(
 
 businessCategoryRoute.get(
   "/get-all-business-category",
-  isAuthenticated,
-  isAdminOrMerchant,
+  // isAuthenticated,
+  // isAdminOrMerchant,
   getAllBusinessCategoryController
 );
 

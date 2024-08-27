@@ -507,7 +507,7 @@ const addProductFromCSVController = async (req, res, next) => {
               longDescription: row["Long description"]?.trim(),
               type: row["Type"]?.trim(),
               categoryId,
-              inventory: row["Inventory"]?.trim().toLowerCase() === "true",
+              inventory: row["Inventory"]?.trim().toLowerCase(),
               availableQuantity: parseInt(row["Available Quantity"]?.trim()),
               alert: parseInt(row["Alert"]?.trim()),
               variants: [],
