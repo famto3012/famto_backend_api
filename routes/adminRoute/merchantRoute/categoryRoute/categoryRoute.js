@@ -56,6 +56,15 @@ categoryRoute.get(
   getSingleCategoryOfMerchantByAdminController
 );
 
+// Upload categories from CSV by Admin
+categoryRoute.post(
+  "/admin/upload-category-csv",
+  upload.single("categoryCSV"),
+  isAuthenticated,
+  isAdminOrMerchant,
+  addCategoryFromCSVController
+);
+
 //Add category by Admin
 categoryRoute.post(
   "/admin/add-category",
@@ -98,15 +107,6 @@ categoryRoute.put(
   isAuthenticated,
   isAdminOrMerchant,
   updateCategoryOrderController
-);
-
-// Upload categories from CSV by Admin
-categoryRoute.post(
-  "/admin/upload-category-csv",
-  upload.single("categoryCSV"),
-  isAuthenticated,
-  isAdminOrMerchant,
-  addCategoryFromCSVController
 );
 
 // ----------------------------------------------------

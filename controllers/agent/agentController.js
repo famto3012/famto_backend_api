@@ -36,7 +36,6 @@ const {
   sendNotification,
   findRolesToNotify,
 } = require("../../socket/socket");
-const Razorpay = require("razorpay");
 const NotificationSetting = require("../../models/NotificationSetting");
 const AgentNotificationLogs = require("../../models/AgentNotificationLog");
 const AgentAnnouncementLogs = require("../../models/AgentAnnouncementLog");
