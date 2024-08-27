@@ -53,7 +53,12 @@ const {
   updateOneDayLoyaltyPointEarning,
   createOrdersFromScheduledPickAndDrop,
 } = require("./utils/customerAppHelpers");
-const { app, server, populateUserSocketMap, getRealTimeDataCount } = require("./socket/socket.js");
+const {
+  app,
+  server,
+  populateUserSocketMap,
+  getRealTimeDataCount,
+} = require("./socket/socket.js");
 const ScheduledOrder = require("./models/ScheduledOrder.js");
 const { orderCreateTaskHelper } = require("./utils/orderCreateTaskHelper.js");
 const {
