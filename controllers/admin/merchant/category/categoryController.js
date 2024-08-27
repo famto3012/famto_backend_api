@@ -288,6 +288,13 @@ const addCategoryFromCSVController = async (req, res, next) => {
       })
       .on("end", async () => {
         try {
+          // If there are no valid categories, return early
+          if (categories.length === 0) {
+            return res.status(400).json({
+              message: "No valid categories found.",
+            });
+          }
+
           // Get the last category order
           let lastCategory = await Category.findOne().sort({ order: -1 });
           let newOrder = lastCategory ? lastCategory.order + 1 : 1;
@@ -300,14 +307,16 @@ const addCategoryFromCSVController = async (req, res, next) => {
             });
 
             // Prepare the update object
-            const updateData = {};
-
-            if (categoryData.categoryName)
-              updateData.categoryName = categoryData.categoryName;
-            if (categoryData.description)
-              updateData.description = categoryData.description;
-            if (categoryData.type) updateData.type = categoryData.type;
-            if (categoryData.status) updateData.status = categoryData.status;
+            const updateData = {
+              ...(categoryData.categoryName && {
+                categoryName: categoryData.categoryName,
+              }),
+              ...(categoryData.description && {
+                description: categoryData.description,
+              }),
+              ...(categoryData.type && { type: categoryData.type }),
+              ...(categoryData.status && { status: categoryData.status }),
+            };
 
             if (existingCategory) {
               await Category.findByIdAndUpdate(
@@ -324,8 +333,6 @@ const addCategoryFromCSVController = async (req, res, next) => {
           });
 
           await Promise.all(categoryPromise);
-
-          console.log("Successfully");
 
           res.status(200).json({
             message: "Categories added successfully.",
@@ -347,7 +354,6 @@ const addCategoryFromCSVController = async (req, res, next) => {
 
 const downloadCategorySampleCSVController = async (req, res, next) => {
   try {
-    console.log("Download");
     // Define the path to your sample CSV file
     const filePath = path.join(
       __dirname,
@@ -471,12 +477,13 @@ const getAllCategoriesByMerchantController = async (req, res, next) => {
     const merchantId = req.userAuth;
 
     const categoriesOfMerchant = await Category.find({ merchantId })
-      .select("categoryName merchantId")
+      .select("categoryName merchantId status")
       .sort({ order: 1 });
 
-    res
-      .status(200)
-      .json({ message: "Categories of merchant", data: categoriesOfMerchant });
+    res.status(200).json({
+      message: "Categories of merchant",
+      data: categoriesOfMerchant,
+    });
   } catch (err) {
     next(appError(err.message));
   }

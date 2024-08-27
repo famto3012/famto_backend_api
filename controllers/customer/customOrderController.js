@@ -717,10 +717,12 @@ const confirmCustomOrderController = async (req, res, next) => {
           amount: newOrder.billDetail.grandTotal,
         };
 
+        console.log(socketData);
+
         sendSocketData(newOrder.customerId, eventName, socketData);
         sendSocketData(process.env.ADMIN_ID, eventName, socketData);
       }
-    }, 60000);
+    }, 2000);
   } catch (err) {
     next(appError(err.message));
   }

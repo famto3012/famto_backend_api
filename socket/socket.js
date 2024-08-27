@@ -171,6 +171,8 @@ const sendSocketData = (userId, eventName, data) => {
   if (socketId) {
     io.to(socketId).emit(eventName, data);
   }
+  console.log("socketId", socketId);
+  console.log("eventName", eventName);
 };
 
 const populateUserSocketMap = async () => {
@@ -183,6 +185,7 @@ const populateUserSocketMap = async () => {
         userSocketMap[token.userId] = { socketId: null, fcmToken: token.token };
       }
     });
+    console.log("userSocketMap: ", userSocketMap);
   } catch (error) {
     console.error("Error populating User Socket Map:", error);
   }
