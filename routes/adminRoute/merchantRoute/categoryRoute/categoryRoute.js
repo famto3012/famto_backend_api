@@ -33,6 +33,15 @@ const categoryRoute = express.Router();
 // For Admin
 // ----------------------------------------------------
 
+// Upload categories from CSV by Admin
+categoryRoute.post(
+  "/admin/upload-category-csv",
+  upload.single("categoryCSV"),
+  isAuthenticated,
+  isAdminOrMerchant,
+  addCategoryFromCSVController
+);
+
 categoryRoute.get(
   "/admin/download-sample-category-csv",
   isAuthenticated,
@@ -54,15 +63,6 @@ categoryRoute.get(
   isAuthenticated,
   isAdmin,
   getSingleCategoryOfMerchantByAdminController
-);
-
-// Upload categories from CSV by Admin
-categoryRoute.post(
-  "/admin/upload-category-csv",
-  upload.single("categoryCSV"),
-  isAuthenticated,
-  isAdminOrMerchant,
-  addCategoryFromCSVController
 );
 
 //Add category by Admin

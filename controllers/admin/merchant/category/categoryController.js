@@ -274,13 +274,15 @@ const addCategoryFromCSVController = async (req, res, next) => {
                 categoryName: row["Category name"]?.trim(),
                 description: row["Description"]?.trim(),
                 type: row["Type"]?.trim(),
-                status: row["Status"]?.toLowerCase(),
+                status: row["Status"]?.trim().toLowerCase(),
               };
+
+              console.log("category", category);
 
               categories.push(category);
             }
 
-            console.log(categories);
+            // console.log(categories);
           } catch (err) {
             next(appError(err.message));
           }
@@ -288,13 +290,6 @@ const addCategoryFromCSVController = async (req, res, next) => {
       })
       .on("end", async () => {
         try {
-          // If there are no valid categories, return early
-          if (categories.length === 0) {
-            return res.status(400).json({
-              message: "No valid categories found.",
-            });
-          }
-
           // Get the last category order
           let lastCategory = await Category.findOne().sort({ order: -1 });
           let newOrder = lastCategory ? lastCategory.order + 1 : 1;

@@ -1412,7 +1412,7 @@ const createOrderByAdminController = async (req, res, next) => {
 
     const eventName = "newOrderCreated";
 
-    const { rolesToNotify } = await findRolesToNotify(eventName);
+    const { rolesToNotify, data } = await findRolesToNotify(eventName);
 
     let formattedItems;
     let purchasedItems;
@@ -1437,7 +1437,12 @@ const createOrderByAdminController = async (req, res, next) => {
       );
     }
 
-    let newOrder;
+    const stepperDetail = {
+      by: "Admin",
+      date: new Date(),
+    };
+
+    let newOrderCreated;
 
     if (
       paymentMode === "Cash-on-delivery" &&
@@ -1456,7 +1461,7 @@ const createOrderByAdminController = async (req, res, next) => {
         cartDeliveryMode === "Pick and Drop" ||
         cartDeliveryMode === "Custom Order")
     ) {
-      newOrder = await Order.create({
+      newOrderCreated = await Order.create({
         customerId: cartFound.customerId,
         merchantId: cartFound?.merchantId && cartFound.merchantId,
         items:
@@ -1474,7 +1479,12 @@ const createOrderByAdminController = async (req, res, next) => {
         paymentMode: "Cash-on-delivery",
         paymentStatus: "Pending",
         purchasedItems,
+        "orderDetailStepper.created": stepperDetail,
       });
+
+      const newOrder = await Order.findById(newOrderCreated._id).populate(
+        "merchantId"
+      );
 
       // Clear the cart
       if (
@@ -1499,7 +1509,7 @@ const createOrderByAdminController = async (req, res, next) => {
         if (role === "admin") {
           roleId = process.env.ADMIN_ID;
         } else if (role === "merchant") {
-          roleId = newOrder?.merchantId;
+          roleId = newOrder?.merchantId._id;
         } else if (role === "driver") {
           roleId = newOrder?.agentId;
         } else if (role === "customer") {
@@ -1523,10 +1533,8 @@ const createOrderByAdminController = async (req, res, next) => {
         }
       }
 
-      const data = {
-        title: notificationSettings.title,
-        description: notificationSettings.description,
-
+      const socketData = {
+        ...data,
         orderId: newOrder._id,
         orderDetail: newOrder.orderDetail,
         billDetail: newOrder.billDetail,
@@ -1535,7 +1543,7 @@ const createOrderByAdminController = async (req, res, next) => {
         //? Data for displayinf detail in all orders table
         _id: newOrder._id,
         orderStatus: newOrder.status,
-        merchantName: "-",
+        merchantName: newOrder?.merchantId?.merchantDetail?.merchantName || "-",
         customerName:
           newOrder?.orderDetail?.deliveryAddress?.fullName ||
           newOrder?.customerId?.fullName ||
@@ -1554,11 +1562,11 @@ const createOrderByAdminController = async (req, res, next) => {
         amount: newOrder.billDetail.grandTotal,
       };
 
-      sendSocketData(newOrder.customerId, eventName, data);
-      sendSocketData(process.env.ADMIN_ID, eventName, data);
+      sendSocketData(newOrder.customerId, eventName, socketData);
+      sendSocketData(process.env.ADMIN_ID, eventName, socketData);
 
-      if (newOrder?.merchantId) {
-        sendSocketData(newOrder.merchantId, eventName, data);
+      if (newOrder?.merchantId?._id) {
+        sendSocketData(newOrder.merchantId?._id, eventName, socketData);
       }
 
       res.status(201).json({
@@ -1576,7 +1584,7 @@ const createOrderByAdminController = async (req, res, next) => {
         cartDeliveryMode === "Pick and Drop" ||
         cartDeliveryMode === "Custom Order")
     ) {
-      newOrder = await Order.create({
+      newOrderCreated = await Order.create({
         customerId: cartFound.customerId,
         merchantId: cartFound?.merchantId && cartFound.merchantId,
         items:
@@ -1594,7 +1602,12 @@ const createOrderByAdminController = async (req, res, next) => {
         paymentMode: "Online-payment",
         paymentStatus: "Completed",
         purchasedItems,
+        "orderDetailStepper.created": stepperDetail,
       });
+
+      const newOrder = await Order.findById(newOrderCreated._id).populate(
+        "merchantId"
+      );
 
       // Clear the cart
       if (
@@ -1615,7 +1628,7 @@ const createOrderByAdminController = async (req, res, next) => {
         if (role === "admin") {
           roleId = process.env.ADMIN_ID;
         } else if (role === "merchant") {
-          roleId = newOrder?.merchantId;
+          roleId = newOrder?.merchantId._id;
         } else if (role === "driver") {
           roleId = newOrder?.agentId;
         } else if (role === "customer") {
@@ -1639,10 +1652,8 @@ const createOrderByAdminController = async (req, res, next) => {
         }
       }
 
-      const data = {
-        title: notificationSettings.title,
-        description: notificationSettings.description,
-
+      const socketData = {
+        ...data,
         orderId: newOrder._id,
         orderDetail: newOrder.orderDetail,
         billDetail: newOrder.billDetail,
@@ -1651,7 +1662,7 @@ const createOrderByAdminController = async (req, res, next) => {
         //? Data for displayinf detail in all orders table
         _id: newOrder._id,
         orderStatus: newOrder.status,
-        merchantName: "-",
+        merchantName: newOrder?.merchantId?.merchantDetail?.merchantName || "-",
         customerName:
           newOrder?.orderDetail?.deliveryAddress?.fullName ||
           newOrder?.customerId?.fullName ||
@@ -1670,11 +1681,11 @@ const createOrderByAdminController = async (req, res, next) => {
         amount: newOrder.billDetail.grandTotal,
       };
 
-      sendSocketData(newOrder.customerId, eventName, data);
-      sendSocketData(process.env.ADMIN_ID, eventName, data);
+      sendSocketData(newOrder.customerId, eventName, socketData);
+      sendSocketData(process.env.ADMIN_ID, eventName, socketData);
 
-      if (newOrder?.merchantId) {
-        sendSocketData(newOrder.merchantId, eventName, data);
+      if (newOrder?.merchantId?._id) {
+        sendSocketData(newOrder.merchantId?._id, eventName, socketData);
       }
 
       return res.status(201).json({
@@ -1688,7 +1699,7 @@ const createOrderByAdminController = async (req, res, next) => {
       cartDeliveryOption === "Scheduled" &&
       (cartDeliveryMode === "Take Away" || cartDeliveryMode === "Home Delivery")
     ) {
-      newOrder = await ScheduledOrder.create({
+      newOrderCreated = await ScheduledOrder.create({
         customerId: cartFound.customerId,
         merchantId: cartFound.merchantId,
         items: formattedItems,
@@ -1721,7 +1732,7 @@ const createOrderByAdminController = async (req, res, next) => {
       (cartDeliveryMode === "Pick and Drop" ||
         cartDeliveryMode === "Custom Order")
     ) {
-      newOrder = await scheduledPickAndCustom.create({
+      newOrderCreated = await scheduledPickAndCustom.create({
         customerId: cartFound.customerId,
         items: cartFound.items,
         orderDetail: cartFound.cartDetail,
