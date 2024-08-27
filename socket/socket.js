@@ -172,6 +172,8 @@ const sendSocketData = (userId, eventName, data) => {
   if (socketId) {
     io.to(socketId).emit(eventName, data);
   }
+  console.log("socketId", socketId);
+  console.log("eventName", eventName);
 };
 
 const populateUserSocketMap = async () => {

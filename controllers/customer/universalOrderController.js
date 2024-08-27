@@ -789,25 +789,15 @@ const addOrUpdateCartItemController = async (req, res, next) => {
       variantTypeId
     );
 
-    console.log(discountPrice);
-
-    console.log("Here");
-
     let finalPrice = discountPrice;
     if (variantTypeId) {
       const variant = variantsWithDiscount
         .flatMap((variant) => variant.variantTypes)
         .find((vt) => vt._id.equals(variantTypeId));
 
-      console.log(variant);
-
-      console.log("finalPrice inside 1", variant.discountPrice);
-
       finalPrice = variant
         ? variant.discountPrice || variant.price
         : discountPrice;
-
-      console.log("finalPrice inside", finalPrice);
     }
 
     let cart = await CustomerCart.findOne({ customerId });
@@ -848,12 +838,8 @@ const addOrUpdateCartItemController = async (req, res, next) => {
           variantTypeId: variantTypeId || null,
         };
         cart.items.push(newItem);
-        console.log("newItem", newItem);
-        console.log("cart.items", cart.items);
       }
     }
-
-    console.log("here 2", cart.items);
 
     // Calculate the itemTotal ensuring no NaN values
     cart.itemTotal = cart.items.reduce(
@@ -878,7 +864,7 @@ const addOrUpdateCartItemController = async (req, res, next) => {
       .exec();
 
     const updatedCartWithVariantNames = updatedCart.toObject();
-    console.log("updatedCartWithVariantNames", updatedCartWithVariantNames);
+
     updatedCartWithVariantNames.items = updatedCartWithVariantNames.items.map(
       (item) => {
         const product = item.productId;
@@ -897,7 +883,6 @@ const addOrUpdateCartItemController = async (req, res, next) => {
           }
         }
 
-        console.log("Inside");
         return {
           ...item,
           productId: {
@@ -910,8 +895,6 @@ const addOrUpdateCartItemController = async (req, res, next) => {
         };
       }
     );
-
-    console.log("Heer 3");
 
     res.status(200).json({
       success: "Cart updated successfully",
@@ -1515,8 +1498,6 @@ const orderPaymentController = async (req, res, next) => {
       cart.billDetail.discountedGrandTotal ||
       cart.billDetail.originalGrandTotal;
 
-    const deliveryMode = cart.cartDetail.deliveryMode;
-
     const merchant = await Merchant.findById(cart.merchantId);
 
     if (!merchant) {
@@ -1634,7 +1615,7 @@ const orderPaymentController = async (req, res, next) => {
         customer.customerDetails.walletBalance.toFixed(2)
       );
 
-      walletTransaction.orderId = newOrder._id;
+      // walletTransaction.orderId = newOrder._id; //TODO: Update orderId in wallet transaction
       customer.walletTransactionDetail.push(walletTransaction);
       customer.transactionDetail.push(customerTransation);
       await customer.save();
@@ -1707,9 +1688,9 @@ const orderPaymentController = async (req, res, next) => {
           const storedOrderData = await TemperoryOrder.findOne({ orderId });
 
           if (storedOrderData) {
-            let newOrder = await Order.create({
+            let newOrderCreated = await Order.create({
               customerId: storedOrderData.customerId,
-              merchantId: newOrder.merchantId,
+              merchantId: storedOrderData.merchantId,
               items: storedOrderData.items,
               orderDetail: storedOrderData.orderDetail,
               billDetail: storedOrderData.billDetail,
@@ -1719,7 +1700,7 @@ const orderPaymentController = async (req, res, next) => {
               paymentStatus: storedOrderData.paymentStatus,
               purchasedItems: storedOrderData.purchasedItems,
               "orderDetailStepper.created": {
-                by: storedOrder.orderDetail.deliveryAddress.fullName,
+                by: storedOrderData.orderDetail.deliveryAddress.fullName,
                 userId: storedOrderData.customerId,
                 date: new Date(),
               },
@@ -1729,7 +1710,16 @@ const orderPaymentController = async (req, res, next) => {
               return next(appError("Error in creating order"));
             }
 
-            newOrder = await newOrder.populate("merchantId");
+            const newOrder = await Order.findById(newOrderCreated._id).populate(
+              "merchantId"
+            );
+
+            // Check if population was successful
+            if (!newOrder.merchantId) {
+              return next(
+                appError("Error in populating order's merchant information")
+              );
+            }
 
             // Remove the temporary order data from the database
             await TemperoryOrder.deleteOne({ orderId });
@@ -1755,7 +1745,7 @@ const orderPaymentController = async (req, res, next) => {
               if (role === "admin") {
                 roleId = process.env.ADMIN_ID;
               } else if (role === "merchant") {
-                roleId = newOrder?.merchantId;
+                roleId = newOrder?.merchantId._id;
               } else if (role === "driver") {
                 roleId = newOrder?.agentId;
               } else if (role === "customer") {
@@ -1791,7 +1781,8 @@ const orderPaymentController = async (req, res, next) => {
               //? Data for displaying detail in all orders table
               _id: newOrder._id,
               orderStatus: newOrder.status,
-              merchantName: "-",
+              merchantName:
+                newOrder?.merchantId?.merchantDetail?.merchantName || "-",
               customerName:
                 newOrder?.orderDetail?.deliveryAddress?.fullName ||
                 newOrder?.customerId?.fullName ||
@@ -1811,7 +1802,7 @@ const orderPaymentController = async (req, res, next) => {
             };
 
             sendSocketData(newOrder.customerId, eventName, data);
-            sendSocketData(newOrder.merchantId, eventName, data);
+            sendSocketData(newOrder.merchantId._id, eventName, data);
             sendSocketData(process.env.ADMIN_ID, eventName, data);
           }
         }, 60000);
@@ -1866,7 +1857,7 @@ const orderPaymentController = async (req, res, next) => {
         const storedOrderData = await TemperoryOrder.findOne({ orderId });
 
         if (storedOrderData) {
-          let newOrder = await Order.create({
+          let newOrderCreated = await Order.create({
             customerId: storedOrderData.customerId,
             merchantId: storedOrderData.merchantId,
             items: storedOrderData.items,
@@ -1884,11 +1875,20 @@ const orderPaymentController = async (req, res, next) => {
             },
           });
 
-          if (!newOrder) {
+          if (!newOrderCreated) {
             return next(appError("Error in creating order"));
           }
 
-          newOrder = await newOrder.populate("merchantId");
+          const newOrder = await Order.findById(newOrderCreated._id).populate(
+            "merchantId"
+          );
+
+          // Check if population was successful
+          if (!newOrder.merchantId) {
+            return next(
+              appError("Error in populating order's merchant information")
+            );
+          }
 
           // Remove the temporary order data from the database
           await TemperoryOrder.deleteOne({ orderId });
@@ -1914,7 +1914,7 @@ const orderPaymentController = async (req, res, next) => {
             if (role === "admin") {
               roleId = process.env.ADMIN_ID;
             } else if (role === "merchant") {
-              roleId = newOrder?.merchantId;
+              roleId = newOrder?.merchantId._id;
             } else if (role === "driver") {
               roleId = newOrder?.agentId;
             } else if (role === "customer") {
@@ -1950,7 +1950,8 @@ const orderPaymentController = async (req, res, next) => {
             //? Data for displaying detail in all orders table
             _id: newOrder._id,
             orderStatus: newOrder.status,
-            merchantName: "-",
+            merchantName:
+              newOrder?.merchantId?.merchantDetail?.merchantName || "-",
             customerName:
               newOrder?.orderDetail?.deliveryAddress?.fullName ||
               newOrder?.customerId?.fullName ||
@@ -1970,7 +1971,7 @@ const orderPaymentController = async (req, res, next) => {
           };
 
           sendSocketData(newOrder.customerId, eventName, data);
-          sendSocketData(newOrder.merchantId, eventName, data);
+          sendSocketData(newOrder.merchantId._id, eventName, data);
           sendSocketData(process.env.ADMIN_ID, eventName, data);
         }
       }, 60000);
@@ -2202,7 +2203,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
         const storedOrderData = await TemperoryOrder.findOne({ orderId });
 
         if (storedOrderData) {
-          const newOrder = await Order.create({
+          let newOrderCreated = await Order.create({
             customerId: storedOrderData.customerId,
             items: storedOrderData.items,
             orderDetail: storedOrderData.orderDetail,
@@ -2219,11 +2220,20 @@ const verifyOnlinePaymentController = async (req, res, next) => {
             },
           });
 
-          if (!newOrder) {
+          if (!newOrderCreated) {
             return next(appError("Error in creating order"));
           }
 
-          newOrder = await newOrder.populate("merchantId");
+          const newOrder = await Order.findById(newOrderCreated._id).populate(
+            "merchantId"
+          );
+
+          // Check if population was successful
+          if (!newOrder.merchantId) {
+            return next(
+              appError("Error in populating order's merchant information")
+            );
+          }
 
           // Remove the temporary order data from the database
           await TemperoryOrder.deleteOne({ orderId });
@@ -2249,7 +2259,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
             if (role === "admin") {
               roleId = process.env.ADMIN_ID;
             } else if (role === "merchant") {
-              roleId = newOrder?.merchantId;
+              roleId = newOrder?.merchantId._id;
             } else if (role === "driver") {
               roleId = newOrder?.agentId;
             } else if (role === "customer") {
@@ -2285,7 +2295,8 @@ const verifyOnlinePaymentController = async (req, res, next) => {
             //? Data for displaying detail in all orders table
             _id: newOrder._id,
             orderStatus: newOrder.status,
-            merchantName: "-",
+            merchantName:
+              newOrder?.merchantId?.merchantDetail?.merchantName || "-",
             customerName:
               newOrder?.orderDetail?.deliveryAddress?.fullName ||
               newOrder?.customerId?.fullName ||
@@ -2305,7 +2316,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
           };
 
           sendSocketData(newOrder.customerId, eventName, data);
-          sendSocketData(newOrder.merchantId, eventName, data);
+          sendSocketData(newOrder.merchantId._id, eventName, data);
           sendSocketData(process.env.ADMIN_ID, eventName, data);
         }
       }, 60000);

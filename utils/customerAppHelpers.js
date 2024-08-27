@@ -26,8 +26,8 @@ const getDistanceFromPickupToDelivery = async (
   deliveryCoordinates,
   profile = "biking"
 ) => {
-  console.log("pickupCoordinates", pickupCoordinates);
-  console.log("deliveryCoordinates", deliveryCoordinates);
+  // console.log("pickupCoordinates", pickupCoordinates);
+  // console.log("deliveryCoordinates", deliveryCoordinates);
 
   // distance_matrix_eta;
   // distance_matrix;
@@ -74,8 +74,6 @@ const getTaxAmount = async (
   deliveryCharges
 ) => {
   try {
-    console.log(businessCategoryId);
-    console.log(geofenceId);
     const taxFound = await Tax.findOne({
       assignToBusinessCategoryId: businessCategoryId,
       geofenceId,
@@ -350,10 +348,6 @@ const getDeliveryAndSurgeCharge = async (
 
   let customerPricing;
 
-  console.log(businessCategoryId);
-  console.log(customer.customerDetails.geofenceId);
-  console.log(deliveryMode);
-
   if (deliveryMode === "Home Delivery") {
     customerPricing = await CustomerPricing.findOne({
       deliveryMode,
@@ -362,9 +356,6 @@ const getDeliveryAndSurgeCharge = async (
       status: true,
     });
   } else {
-    console.log(deliveryMode);
-    console.log(customer.customerDetails.geofenceId);
-
     customerPricing = await CustomerPricing.findOne({
       deliveryMode,
       geofenceId: customer.customerDetails.geofenceId,
@@ -465,7 +456,6 @@ const calculateDiscountedPrice = (product, variantId) => {
 
     // Apply discount to the variants if onAddOn is true
     if (discount.onAddOn) {
-      console.log("here inside addon discount");
       variantsWithDiscount = product.variants.map((variant) => {
         const variantTypesWithDiscount = variant.variantTypes.map(
           (variantType) => {
