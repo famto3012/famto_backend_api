@@ -220,17 +220,117 @@ const findRolesToNotify = async (eventName) => {
 
 const getRealTimeDataCount = async () => {
   try {
+    console.log("in")
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0); // Set to midnight (start of the day)
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
     const [pending, ongoing, completed, cancelled] = await Promise.all([
-      Order.countDocuments({ status: "Pending" }),
-      Order.countDocuments({ status: "On-going" }),
-      Order.countDocuments({ status: "Completed" }),
-      Order.countDocuments({ status: "Cancelled" }),
+      Order.countDocuments({
+        status: "Pending",
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+      }),
+      Order.countDocuments({
+        status: "On-going",
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+      }),
+      Order.countDocuments({
+        status: "Completed",
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+      }),
+      Order.countDocuments({
+        status: "Cancelled",
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+      }),
     ]);
 
     const [free, inActive, busy] = await Promise.all([
       Agent.countDocuments({ status: "Free" }),
       Agent.countDocuments({ status: "Inactive" }),
       Agent.countDocuments({ status: "Busy" }),
+    ]);
+
+    const today = new Date()
+      .toLocaleString("en-IN", { weekday: "long" })
+      .toLowerCase();
+
+    // Counting opened and closed merchants
+    const [open, closed] = await Promise.all([
+      Merchant.countDocuments({
+        $or: [
+          { "merchantDetail.availability.type": "Full-time" },
+          {
+            $and: [
+              {
+                [`merchantDetail.availability.specificDays.${today}.openAllDay`]: true,
+              },
+              {
+                [`merchantDetail.availability.specificDays.${today}.closedAllDay`]: false,
+              },
+            ],
+          },
+          {
+            $and: [
+              {
+                [`merchantDetail.availability.specificDays.${today}.specificTime`]: true,
+              },
+              {
+                [`merchantDetail.availability.specificDays.${today}.startTime`]:
+                  { $ne: null },
+              },
+              {
+                [`merchantDetail.availability.specificDays.${today}.endTime`]: {
+                  $ne: null,
+                },
+              },
+            ],
+          },
+        ],
+      }),
+      Merchant.countDocuments({
+        $or: [
+          { "merchantDetail.availability.type": { $ne: "Full-time" } },
+          {
+            $or: [
+              {
+                [`merchantDetail.availability.specificDays.${today}.closedAllDay`]: true,
+              },
+              {
+                $and: [
+                  {
+                    [`merchantDetail.availability.specificDays.${today}.specificTime`]: true,
+                  },
+                  {
+                    $expr: {
+                      $or: [
+                        {
+                          $lt: [
+                            new Date(),
+                            `$merchantDetail.availability.specificDays.${today}.startTime`,
+                          ],
+                        },
+                        {
+                          $gt: [
+                            new Date(),
+                            `$merchantDetail.availability.specificDays.${today}.endTime`,
+                          ],
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    ]);
+
+    // Counting active and not active merchants
+    const [active, notActive] = await Promise.all([
+      Merchant.countDocuments({ status: true }), // active merchants
+      Merchant.countDocuments({ status: false }), // inactive merchants
     ]);
 
     const realTimeData = {
@@ -244,6 +344,12 @@ const getRealTimeDataCount = async () => {
         free,
         inActive,
         busy,
+      },
+      merchantCount: {
+        open,
+        closed,
+        active,
+        notActive,
       },
     };
 
@@ -1047,4 +1153,5 @@ module.exports = {
   sendPushNotificationToUser,
   sendSocketData,
   findRolesToNotify,
+  getRealTimeDataCount,
 };
