@@ -6,7 +6,10 @@ const {
 } = require("../../../../utils/imageOperation");
 const AlertNotification = require("../../../../models/AlertNotification");
 const MerchantNotificationLogs = require("../../../../models/MerchantNotificationLog");
-const { sendNotification } = require("../../../../socket/socket");
+const {
+  sendNotification,
+  sendSocketData,
+} = require("../../../../socket/socket");
 const CustomerNotificationLogs = require("../../../../models/CustomerNotificationLog");
 const AgentNotificationLogs = require("../../../../models/AgentNotificationLog");
 const AgentAnnouncementLogs = require("../../../../models/AgentAnnouncementLog");
@@ -38,53 +41,88 @@ const addAlertNotificationController = async (req, res, next) => {
       imageUrl,
     };
 
-    const data = {
-      socket: {
-        title: title,
-        body: description,
-        image: imageUrl,
-      },
-      fcm: {
-        title: title,
-        body: description,
-        image: imageUrl,
-      },
-    };
-
     if (userType === "merchant") {
       alertNotificationData.merchantId = id;
       alertNotificationData.merchant = true;
 
-      await MerchantNotificationLogs.create({
+      const merchant = await MerchantNotificationLogs.create({
         merchantId: id,
         title,
         description,
         imageUrl,
       });
 
+      const data = {
+        socket: {
+          title,
+          description,
+          imageUrl,
+          createdAt: merchant.createdAt,
+        },
+        fcm: {
+          title: title,
+          body: description,
+          image: imageUrl,
+        },
+      };
+
       sendNotification(id, "alertNotification", data);
+      const event = "alertNotification";
+      sendSocketData(id, event, data.socket);
+      sendSocketData(process.env.ADMIN_ID, event, data.socket);
     } else if (userType === "agent") {
       alertNotificationData.agentId = id;
       alertNotificationData.agent = true;
-      await AgentAnnouncementLogs.create({
+      const agent = await AgentAnnouncementLogs.create({
         agentId: id,
         title,
         description,
         imageUrl,
+       
       });
-
+      const data = {
+        socket: {
+          title,
+          description,
+          imageUrl,
+          createdAt: agent.createdAt,
+        },
+        fcm: {
+          title: title,
+          body: description,
+          image: imageUrl,
+        },
+      };
       sendNotification(id, "alertNotification", data);
+      const event = "alertNotification";
+      sendSocketData(id, event, data.socket);
+      sendSocketData(process.env.ADMIN_ID, event, data.socket);
     } else if (userType === "customer") {
       alertNotificationData.customerId = id;
       alertNotificationData.customer = true;
-      await CustomerNotificationLogs.create({
+     const customer = await CustomerNotificationLogs.create({
         customerId: id,
         title,
         description,
         imageUrl,
       });
-
+      const data = {
+        socket: {
+          title,
+          description,
+          imageUrl,
+          createdAt: customer.createdAt,
+        },
+        fcm: {
+          title: title,
+          body: description,
+          image: imageUrl,
+        },
+      };
       sendNotification(id, "alertNotification", data);
+      const event = "alertNotification";
+      sendSocketData(id, event, data.socket);
+      sendSocketData(process.env.ADMIN_ID, event, data.socket);
     } else {
       return next(
         appError(
