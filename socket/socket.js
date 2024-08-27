@@ -220,7 +220,7 @@ const findRolesToNotify = async (eventName) => {
 
 const getRealTimeDataCount = async () => {
   try {
-    console.log("in")
+    // console.log("in")
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0); // Set to midnight (start of the day)
     const endOfDay = new Date();

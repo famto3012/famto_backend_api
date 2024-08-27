@@ -156,8 +156,8 @@ cron.schedule("10 11 * * *", async () => {
 });
 
 cron.schedule("* * * * *", async () => {
-  await updateRealTimeData();
-  await  getRealTimeDataCount();
+  // await updateRealTimeData();
+  // await  getRealTimeDataCount();
   console.log("Running scheduled order job...");
   const now = new Date();
   console.log("Current Date and Time:", now);
