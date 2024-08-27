@@ -8,7 +8,7 @@ const {
 const Customer = require("../../../../models/Customer");
 const Merchant = require("../../../../models/Merchant");
 const Agent = require("../../../../models/Agent");
-const { sendNotification } = require("../../../../socket/socket");
+const { sendNotification, sendSocketData } = require("../../../../socket/socket");
 const AgentNotificationLogs = require("../../../../models/AgentNotificationLog");
 const AgentAnnouncementLogs = require("../../../../models/AgentAnnouncementLog");
 const CustomerNotificationLogs = require("../../../../models/CustomerNotificationLog");
@@ -190,8 +190,9 @@ const sendPushNotificationController = async (req, res, next) => {
     const data = {
       socket: {
         title: pushNotification.title,
-        body: pushNotification.description,
-        image: pushNotification.imageUrl
+        description: pushNotification.description,
+        imageUrl: pushNotification.imageUrl,
+        createdAt: pushNotification.createdAt
       },
       fcm: {
         title: pushNotification.title,
@@ -202,7 +203,9 @@ const sendPushNotificationController = async (req, res, next) => {
     console.log("user", userIds);
     for (const userId of userIds) {
       await sendNotification(userId, "pushNotification", data);
-
+      const event = "pushNotification"
+      sendSocketData(userId, event, data.socket)
+      sendSocketData(process.env.ADMIN_ID, event, data.socket)
     }
 
     await AdminNotificationLogs.create({
