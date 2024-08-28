@@ -15,14 +15,14 @@ const taxSchema = new mongoose.Schema(
       enum: ["Fixed-amount", "Percentage"],
       required: true,
     },
-    geofenceId: [
+    geofences: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Geofence",
         required: true,
       },
     ],
-    assignToBusinessCategoryId: {
+    assignToBusinessCategory: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "BusinessCategory",
       required: true,
