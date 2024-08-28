@@ -58,16 +58,31 @@ const addTaxController = async (req, res, next) => {
   }
 };
 
-//Get All taxes
+// Get all tax
 const getAllTaxController = async (req, res, next) => {
   try {
     const allTaxes = await Tax.find({})
-      .populate("geofenceId", "name")
+      .populate({
+        path: "geofenceId",
+        select: "name",
+      })
       .populate("assignToBusinessCategoryId", "title");
+
+    const formattedResponse = allTaxes.map((tax) => {
+      return {
+        taxName: tax.taxName,
+        tax: tax.tax,
+        taxType: tax.taxType,
+        geofences: tax.geofenceId.map((geofence) => {
+          return geofence.name;
+        }),
+        assignToBusinessCategory: tax.assignToBusinessCategoryId.title,
+      };
+    });
 
     res.status(200).json({
       message: "All taxes",
-      data: allTaxes,
+      data: formattedResponse,
     });
   } catch (err) {
     next(appError(err.message));
@@ -77,9 +92,7 @@ const getAllTaxController = async (req, res, next) => {
 //Get single Tax
 const getSinglTaxController = async (req, res, next) => {
   try {
-    const taxFound = await Tax.findById(req.params.taxId)
-      .populate("geofenceId", "name")
-      .populate("assignToBusinessCategoryId", "title");
+    const taxFound = await Tax.findById(req.params.taxId);
 
     if (!taxFound) {
       return next(appError("Tax not found", 404));
@@ -150,7 +163,10 @@ const editTaxController = async (req, res, next) => {
     }
 
     updatedTax = await Tax.findById(updatedTax._id)
-      .populate("geofenceId", "name")
+      .populate({
+        path: "geofenceId",
+        select: "name",
+      })
       .populate("assignToBusinessCategoryId", "title");
 
     res.status(200).json({

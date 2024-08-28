@@ -93,6 +93,7 @@ app.use(
       "http://localhost:3000",
       "https://famto-backend-api.vercel.app",
       "https://famto-admin-panel-react.vercel.app",
+      "https://www.famto.in",
       "*",
     ],
     credentials: true,

@@ -9,6 +9,8 @@ const {
 const addBusinessCategoryController = async (req, res, next) => {
   const { title, geofenceId } = req.body;
 
+  console.log(req.body);
+
   const errors = validationResult(req);
 
   let formattedErrors = {};
@@ -61,9 +63,18 @@ const getAllBusinessCategoryController = async (req, res, next) => {
       .select("title status order bannerImageURL")
       .sort({ order: 1 });
 
+    const formattedResponse = allBusinessCategories?.map((category) => {
+      return {
+        _id: category._id,
+        title: category.title,
+        bannerImageURL: category.bannerImageURL,
+        status: category.status,
+      };
+    });
+
     res.status(200).json({
       message: "All business categories",
-      data: allBusinessCategories,
+      data: formattedResponse,
     });
   } catch (err) {
     next(appError(err.message));
@@ -74,7 +85,7 @@ const getSingleBusinessCategoryController = async (req, res, next) => {
   try {
     const businessCategory = await BusinessCategory.findById(
       req.params.businessCategoryId
-    ).populate("geofenceId", "name");
+    );
 
     if (!businessCategory) {
       return next(appError("Business category not found", 404));
@@ -83,7 +94,7 @@ const getSingleBusinessCategoryController = async (req, res, next) => {
     const formattedData = {
       _id: businessCategory._id,
       title: businessCategory.title,
-      geofenceId: businessCategory?.geofenceId?._id,
+      geofenceId: businessCategory?.geofenceId,
       bannerImageURL: businessCategory.bannerImageURL,
     };
 
@@ -122,7 +133,10 @@ const editBusinessCategoryController = async (req, res, next) => {
     let order = businessCategoryFound.order;
 
     if (req.file) {
-      await deleteFromFirebase(bannerImageURL);
+      if (bannerImageURL) {
+        await deleteFromFirebase(bannerImageURL);
+      }
+
       bannerImageURL = await uploadToFirebase(
         req.file,
         "BusinessCategoryImages"
