@@ -7,11 +7,13 @@ const BusinessCategorySchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
-    geofenceId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Geofence",
-      required: true,
-    },
+    geofenceId: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Geofence",
+        required: true,
+      },
+    ],
     bannerImageURL: {
       type: String,
       required: true,
