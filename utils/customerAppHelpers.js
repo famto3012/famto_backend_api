@@ -75,8 +75,8 @@ const getTaxAmount = async (
 ) => {
   try {
     const taxFound = await Tax.findOne({
-      assignToBusinessCategoryId: businessCategoryId,
-      geofenceId,
+      assignToBusinessCategory: businessCategoryId,
+      geofences: { $in: [geofenceId] },
     });
 
     if (!taxFound) {

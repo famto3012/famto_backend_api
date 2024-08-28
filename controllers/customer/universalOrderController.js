@@ -44,22 +44,18 @@ const getAllBusinessCategoryController = async (req, res, next) => {
   try {
     const { latitude, longitude } = req.body;
 
-    let allBusinessCategories;
-
-    if (latitude && longitude) {
-      const geofence = await geoLocation(latitude, longitude, next);
-
-      allBusinessCategories = await BusinessCategory.find({
-        status: true,
-        geofenceId: { $in: [geofence._id] },
-      })
-        .select("title bannerImageURL")
-        .sort({ order: 1 });
-    } else {
-      allBusinessCategories = await BusinessCategory.find({ status: true })
-        .select("title bannerImageURL")
-        .sort({ order: 1 });
+    if (!latitude || !longitude) {
+      return next(appError("Latitude & Longitude are required", 400));
     }
+
+    const geofence = await geoLocation(latitude, longitude, next);
+
+    const allBusinessCategories = await BusinessCategory.find({
+      status: true,
+      geofenceId: { $in: [geofence._id] },
+    })
+      .select("title bannerImageURL")
+      .sort({ order: 1 });
 
     const formattedResponse = allBusinessCategories?.map((category) => {
       return {

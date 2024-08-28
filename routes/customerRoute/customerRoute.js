@@ -39,7 +39,6 @@ const {
 const {
   getAllBusinessCategoryController,
   homeSearchController,
-  getMerchantWithCategoriesAndProductsController,
   filterMerchantController,
   searchProductsInMerchantController,
   filterAndSortProductsController,
@@ -112,7 +111,10 @@ customerRoute.get(
 );
 
 // Get all business categories route
-customerRoute.get("/all-business-categories", getAllBusinessCategoryController);
+customerRoute.post(
+  "/all-business-categories",
+  getAllBusinessCategoryController
+);
 
 // Search in home
 customerRoute.get("/search-home", homeSearchController);

@@ -4,7 +4,7 @@ const appError = require("../../../utils/appError");
 
 //Add tax
 const addTaxController = async (req, res, next) => {
-  const { taxName, tax, taxType, geofenceId, assignToBusinessCategoryId } =
+  const { taxName, tax, taxType, geofences, assignToBusinessCategory } =
     req.body;
 
   const errors = validationResult(req);
@@ -25,7 +25,7 @@ const addTaxController = async (req, res, next) => {
 
     const taxNameFound = await Tax.findOne({
       taxName: normalizedTaxName,
-      assignToBusinessCategoryId,
+      assignToBusinessCategory,
     });
 
     if (taxNameFound) {
@@ -37,8 +37,8 @@ const addTaxController = async (req, res, next) => {
       taxName: normalizedTaxName,
       tax,
       taxType,
-      geofenceId,
-      assignToBusinessCategoryId,
+      geofences,
+      assignToBusinessCategory,
     });
 
     if (!newTax) {
@@ -46,12 +46,24 @@ const addTaxController = async (req, res, next) => {
     }
 
     newTax = await Tax.findById(newTax._id)
-      .populate("geofenceId", "name")
-      .populate("assignToBusinessCategoryId", "title");
+      .populate("geofences", "name")
+      .populate("assignToBusinessCategory", "title");
+
+    const formattedResponse = {
+      taxId: newTax._id,
+      taxName: newTax.taxName,
+      tax: newTax.tax,
+      taxType: newTax.taxType,
+      geofences: newTax.geofences.map((geofence) => {
+        return geofence.name;
+      }),
+      assignToBusinessCategory: newTax.assignToBusinessCategory.title,
+      status: newTax.status,
+    };
 
     res.status(201).json({
       message: `${normalizedTaxName} Tax created`,
-      data: newTax,
+      data: formattedResponse,
     });
   } catch (err) {
     next(appError(err.message));
@@ -63,20 +75,22 @@ const getAllTaxController = async (req, res, next) => {
   try {
     const allTaxes = await Tax.find({})
       .populate({
-        path: "geofenceId",
+        path: "geofences",
         select: "name",
       })
-      .populate("assignToBusinessCategoryId", "title");
+      .populate("assignToBusinessCategory", "title");
 
     const formattedResponse = allTaxes.map((tax) => {
       return {
+        taxId: tax._id,
         taxName: tax.taxName,
         tax: tax.tax,
         taxType: tax.taxType,
-        geofences: tax.geofenceId.map((geofence) => {
+        geofences: tax.geofences.map((geofence) => {
           return geofence.name;
         }),
-        assignToBusinessCategory: tax.assignToBusinessCategoryId.title,
+        assignToBusinessCategory: tax.assignToBusinessCategory.title,
+        status: tax.status,
       };
     });
 
@@ -109,7 +123,7 @@ const getSinglTaxController = async (req, res, next) => {
 
 //Edit tax
 const editTaxController = async (req, res, next) => {
-  const { taxName, tax, taxType, geofenceId, assignToBusinessCategoryId } =
+  const { taxName, tax, taxType, geofences, assignToBusinessCategory } =
     req.body;
 
   const errors = validationResult(req);
@@ -152,8 +166,8 @@ const editTaxController = async (req, res, next) => {
         taxName: normalizedTaxName,
         tax,
         taxType,
-        geofenceId,
-        assignToBusinessCategoryId,
+        geofences,
+        assignToBusinessCategory,
       },
       { new: true }
     );
@@ -164,14 +178,26 @@ const editTaxController = async (req, res, next) => {
 
     updatedTax = await Tax.findById(updatedTax._id)
       .populate({
-        path: "geofenceId",
+        path: "geofences",
         select: "name",
       })
-      .populate("assignToBusinessCategoryId", "title");
+      .populate("assignToBusinessCategory", "title");
+
+    const formattedResponse = {
+      taxId: updatedTax._id,
+      taxName: updatedTax.taxName,
+      tax: updatedTax.tax,
+      taxType: updatedTax.taxType,
+      geofences: updatedTax.geofences.map((geofence) => {
+        return geofence.name;
+      }),
+      assignToBusinessCategory: updatedTax.assignToBusinessCategory.title,
+      status: updatedTax.status,
+    };
 
     res.status(200).json({
       message: `${normalizedTaxName} is updated successfully`,
-      data: updatedTax,
+      data: formattedResponse,
     });
   } catch (err) {
     next(appError(err.message));
