@@ -80,6 +80,7 @@ const homeRoute = require("./routes/adminRoute/homeRoute/homeRoute.js");
 const {
   updateRealTimeData,
 } = require("./controllers/admin/order/adminOrderController.js");
+const mapRoute = require("./routes/adminRoute/mapRoute/mapRoute.js");
 
 // const app = express();
 
@@ -143,6 +144,7 @@ app.use("/api/v1/merchant/subscription-payment", subscriptionLogRoute);
 app.use("/api/v1/orders", orderRoute);
 app.use("/api/v1/admin/auto-allocation", autoAllocationRoute);
 app.use("/api/v1/admin/delivery-management", taskRoute);
+app.use("/api/v1/admin/map", mapRoute);
 
 //agent
 app.use("/api/v1/agents", agentRoute);
