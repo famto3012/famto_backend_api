@@ -202,7 +202,7 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
       userId: process.env.ADMIN_ID,
       date: new Date(),
     };
-
+    console.log(orderFound)
     orderFound.status = "On-going";
     orderFound.orderDetailStepper.accepted = stepperData;
 

@@ -328,7 +328,7 @@ const orderSchema = mongoose.Schema(
     agentId: {
       type: String,
       ref: "Agent",
-      defalt: null,
+      default: null,
     },
     items: [orderItemSchema],
     orderDetail: orderDetailSchema,
