@@ -682,6 +682,7 @@ const getOrderDetailByAdminController = async (req, res, next) => {
       pickUpLocation: orderFound?.orderDetail?.pickupLocation || null,
       deliveryLocation: orderFound.orderDetail.deliveryLocation,
       agentLocation: orderFound?.agentId?.location,
+      stepperDetail:[ orderFound?.orderDetailStepper]
     };
 
     res.status(200).json({
