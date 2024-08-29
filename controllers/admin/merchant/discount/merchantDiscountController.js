@@ -116,15 +116,15 @@ const getAllDiscountController = async (req, res, next) => {
 
     const discounts = await MerchantDiscount.find({ merchantId });
 
-    if (!discounts || discounts.length === 0) {
-      return res
-        .status(404)
-        .json({ error: "No discounts found for this merchant" });
-    }
+    // if (!discounts || discounts.length === 0) {
+    //   return res
+    //     .status(404)
+    //     .json({ error: "No discounts found for this merchant" });
+    // }
 
     res.status(200).json({
       success: "Discounts retrieved successfully",
-      data: discounts,
+      data: discounts || [],
     });
   } catch (err) {
     next(appError(err.message));
@@ -311,15 +311,15 @@ const getAllDiscountAdminController = async (req, res, next) => {
 
     const discounts = [...merchantDiscounts, ...productDiscounts];
 
-    if (!discounts || discounts.length === 0) {
-      return res
-        .status(404)
-        .json({ error: "No discounts found for this merchant" });
-    }
+    // if (!discounts || discounts.length === 0) {
+    //   return res
+    //     .status(404)
+    //     .json({ error: "No discounts found for this merchant" });
+    // }
 
     res.status(200).json({
       success: "Discounts retrieved successfully",
-      data: discounts,
+      data: discounts || [],
     });
   } catch (err) {
     next(appError(err.message));
