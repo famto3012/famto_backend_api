@@ -28,7 +28,9 @@ taxRoute.get(
   isAdminOrMerchant,
   getAllTaxController
 );
+
 taxRoute.get("/:taxId", isAuthenticated, isAdmin, getSinglTaxController);
+
 taxRoute.put(
   "/edit-tax/:taxId",
   taxValidations,
@@ -36,12 +38,14 @@ taxRoute.put(
   isAdmin,
   editTaxController
 );
+
 taxRoute.delete(
   "/delete-tax/:taxId",
   isAuthenticated,
   isAdmin,
   deleteTaxController
 );
+
 taxRoute.post(
   "/change-status/:taxId",
   isAuthenticated,

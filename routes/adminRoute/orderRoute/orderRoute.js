@@ -10,6 +10,7 @@ const {
   createInvoiceController,
   createOrderController,
   getAllScheduledOrdersOfMerchantController,
+  downloadOrdersCSVByMerchantController,
 } = require("../../../controllers/admin/order/merchantOrderController");
 const {
   getAllOrdersForAdminController,
@@ -21,6 +22,7 @@ const {
   createInvoiceByAdminController,
   createOrderByAdminController,
   getAllScheduledOrdersForAdminController,
+  downloadOrdersCSVByAdminController,
 } = require("../../../controllers/admin/order/adminOrderController");
 const isAdmin = require("../../../middlewares/isAdmin");
 const { upload } = require("../../../utils/imageOperation");
@@ -57,6 +59,13 @@ orderRoute.put(
 orderRoute.get("/search-order", isAuthenticated, searchOrderByIdController);
 
 orderRoute.get("/filter", isAuthenticated, filterOrdersController);
+
+orderRoute.get(
+  "/download-csv",
+  isAuthenticated,
+  isAdmin,
+  downloadOrdersCSVByMerchantController
+);
 
 orderRoute.get("/:orderId", isAuthenticated, getOrderDetailController);
 
@@ -98,6 +107,13 @@ orderRoute.get(
   isAuthenticated,
   isAdmin,
   getAllScheduledOrdersForAdminController
+);
+
+orderRoute.get(
+  "/admin/download-csv",
+  isAuthenticated,
+  isAdmin,
+  downloadOrdersCSVByAdminController
 );
 
 orderRoute.get(

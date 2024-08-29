@@ -15,6 +15,7 @@ const {
   updateProductOrderController,
   addProductFromCSVController,
   downloadProductSampleCSVController,
+  downloadCobminedProductAndCategoryController,
 } = require("../../../../controllers/admin/merchant/product/productController");
 const { upload } = require("../../../../utils/imageOperation");
 const {
@@ -147,6 +148,13 @@ productRoute.post(
   isAuthenticated,
   isAdminOrMerchant,
   addProductFromCSVController
+);
+
+productRoute.post(
+  "/download-product-csv",
+  isAuthenticated,
+  isAdminOrMerchant,
+  downloadCobminedProductAndCategoryController
 );
 
 module.exports = productRoute;
