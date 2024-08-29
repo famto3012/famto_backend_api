@@ -1773,6 +1773,7 @@ const getAllNotificationsController = async (req, res, next) => {
 
     const getAllNotifications = await AgentNotificationLogs.find({
       agentId,
+      status: "Pending",
     }).sort({
       createdAt: -1,
     });

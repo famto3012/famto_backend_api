@@ -186,7 +186,7 @@ const populateUserSocketMap = async () => {
         userSocketMap[token.userId] = { socketId: null, fcmToken: token.token };
       }
     });
-    // console.log("User socket map", userSocketMap)
+    // console.log("User socket map", userSocketMap);
   } catch (error) {
     console.error("Error populating User Socket Map:", error);
   }
@@ -374,6 +374,8 @@ io.on("connection", async (socket) => {
   const fcmToken = socket?.handshake?.query?.fcmToken;
 
   if (userId !== "null" && fcmToken !== "null") {
+    console.log("UserId", userId);
+    console.log("fcmToken", fcmToken);
     const user = await FcmToken.findOne({ userId });
 
     if (!user) {
@@ -486,6 +488,7 @@ io.on("connection", async (socket) => {
     }
 
     agent.status = "Busy";
+    agent.appDetail.pendingOrder -= 1;
 
     await agent.save();
 
@@ -553,6 +556,19 @@ io.on("connection", async (socket) => {
         throw new Error("Order not found");
       }
 
+      const agentNotification = await AgentNotificationLogs.findOne({
+        orderId: orderId,
+        agentId: agentId,
+      });
+
+      if (agentNotification) {
+        agentNotification.status = "Rejected";
+        await agentNotification.save();
+      } else {
+        console.error("Agent notification not found");
+      }
+
+      agentFound.appDetail.pendingOrder -= 1;
       agentFound.appDetail.cancelledOrders += 1;
 
       await agentFound.save();

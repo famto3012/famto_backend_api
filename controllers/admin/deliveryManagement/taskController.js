@@ -1,20 +1,16 @@
 const Agent = require("../../../models/Agent");
-const Customer = require("../../../models/Customer");
-const Geofence = require("../../../models/Geofence");
-const Merchant = require("../../../models/Merchant");
 const Order = require("../../../models/Order");
 const Task = require("../../../models/Task");
 const {
-  io,
-  userSocketMap,
   sendNotification,
+  findRolesToNotify,
+  sendSocketData,
 } = require("../../../socket/socket");
 const turf = require("@turf/turf");
 const appError = require("../../../utils/appError");
 const {
   getDistanceFromPickupToDelivery,
 } = require("../../../utils/customerAppHelpers");
-// const AgentNotificationLogs = require("../../../models/AgentNotificationLog");
 
 const getTaskFilterController = async (req, res, next) => {
   try {
@@ -72,63 +68,60 @@ const assignAgentToTaskController = async (req, res, next) => {
 
     const task = await Task.findById(taskId);
     const order = await Order.findById(task.orderId);
-    const merchant = await Merchant.findById(order.merchantId);
-    const customer = await Customer.findById(order.customerId);
+    const agent = await Agent.findById(agentId);
+
+    agent.appDetail.pendingOrder += 1;
+
+    await agent.save();
+
     let deliveryAddress = order.orderDetail.deliveryAddress;
-    const data = {
-      socket: {
-        orderId: order.id,
-        merchantName: order.orderDetail.pickupAddress.fullName,
-        pickAddress: order.orderDetail.pickupAddress,
-        customerName: deliveryAddress.fullName,
-        customerAddress: deliveryAddress,
-      },
-      fcm: {
-        title: "New Order",
-        body: "You have a new order to pickup",
-        image: "",
-        orderId: order.id,
-        agentId,
-        pickupDetail: {
-          name: order.orderDetail.pickupAddress.fullName,
-          address: order.orderDetail.pickupAddress,
-        },
-        deliveryDetail: {
-          name: deliveryAddress.fullName,
-          address: deliveryAddress,
-        },
-        orderType: order.orderDetail.deliveryOption,
-      },
+
+    const eventName = "newOrder";
+
+    const { rolesToNotify, data } = await findRolesToNotify(eventName);
+
+    // Send notifications to each role dynamically
+    for (const role of rolesToNotify) {
+      let roleId;
+
+      if (role === "admin") {
+        roleId = process.env.ADMIN_ID;
+      } else if (role === "merchant") {
+        roleId = order?.merchantId;
+      } else if (role === "driver") {
+        roleId = agentId;
+      } else if (role === "customer") {
+        roleId = order?.customerId;
+      }
+
+      if (roleId) {
+        const notificationData = {
+          fcm: {
+            agentId,
+          },
+        };
+
+        await sendNotification(
+          roleId,
+          eventName,
+          notificationData,
+          role.charAt(0).toUpperCase() + role.slice(1)
+        );
+      }
+    }
+
+    const socketData = {
+      ...data,
+      orderId: order._id,
+      merchantName: order.orderDetail.pickupAddress.fullName,
+      pickAddress: order.orderDetail.pickupAddress,
+      customerName: deliveryAddress.fullName,
+      customerAddress: deliveryAddress,
+      agentId,
+      orderType: order.orderDetail.deliveryOption,
     };
 
-    const parameter = { user: "Agent", eventName: "newOrder" };
-
-    sendNotification(agentId, parameter.eventName, data, parameter.user);
-    // const pickupDetail = {
-    //   name: order.orderDetail.pickupAddress.fullName,
-    //   address: order.orderDetail.pickupAddress,
-    // };
-    // const deliveryDetail = {
-    //   name: deliveryAddress.fullName,
-    //   address: deliveryAddress,
-    // };
-    // const agentNotification = await AgentNotificationLogs.findOne({
-    //   orderId: order.id,
-    //   agentId: agentId,
-    // });
-    // if (agentNotification) {
-    //   res.status(200).json({
-    //     message: "Notification already send to the agent",
-    //   });
-    // } else {
-    //   await AgentNotificationLogs.create({
-    //     orderId: order.id,
-    //     agentId: agentId,
-    //     pickupDetail,
-    //     deliveryDetail,
-    //     orderType: order.orderDetail.deliveryMode,
-    //   });
-    // }
+    sendSocketData(agentId, eventName, socketData);
 
     res.status(200).json({
       message: "Notification send to the agent",
@@ -269,9 +262,15 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
 
 const getOrderByOrderIdController = async (req, res, next) => {
   try {
-    const { orderId } = req.query;
-    const order = await Task.find({ orderId });
+    const { orderId } = req.body;
+
+    console.log(orderId);
+    const order = await Task.find({
+      orderId: { $regex: orderId, $options: "i" },
+    });
+
     console.log(order);
+
     res.status(200).json({
       success: true,
       data: order,
@@ -302,8 +301,6 @@ const getAgentByNameController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
-
-const getSingleTaskController = async (req, res, next) => {};
 
 module.exports = {
   getTaskFilterController,

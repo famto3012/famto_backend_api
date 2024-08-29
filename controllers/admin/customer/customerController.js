@@ -137,10 +137,6 @@ const filterCustomerByGeofenceController = async (req, res, next) => {
   try {
     let { filter, page = 1, limit = 25 } = req.query;
 
-    if (!filter) {
-      return res.status(400).json({ message: "Geofence is required" });
-    }
-
     // Convert to integers
     page = parseInt(page, 10);
     limit = parseInt(limit, 10);
@@ -148,12 +144,17 @@ const filterCustomerByGeofenceController = async (req, res, next) => {
     // Calculate the number of documents to skip
     const skip = (page - 1) * limit;
 
-    // Convert geofence query parameter to ObjectId
-    const geofenceObjectId = new mongoose.Types.ObjectId(filter.trim());
+    // Base query
+    let query = {};
 
-    const filteredResults = await Customer.find({
-      "customerDetails.geofenceId": geofenceObjectId,
-    })
+    // If filter is not "all", filter by geofenceId
+    if (filter && filter.trim() !== "all") {
+      const geofenceObjectId = new mongoose.Types.ObjectId(filter.trim());
+      query = { "customerDetails.geofenceId": geofenceObjectId };
+    }
+
+    // Find customers based on the query
+    const filteredResults = await Customer.find(query)
       .select(
         "fullName email phoneNumber lastPlatformUsed createdAt customerDetails"
       )
@@ -161,10 +162,10 @@ const filterCustomerByGeofenceController = async (req, res, next) => {
       .limit(limit)
       .lean({ virtuals: true });
 
-    // Count total documents
-    const totalDocuments = await Customer.countDocuments({});
+    // Count total documents based on the query
+    const totalDocuments = await Customer.countDocuments(query);
 
-    // Calculate averageRating and format registrationDate for each customer
+    // Format the customers
     const formattedCustomers = filteredResults.map((customer) => {
       return {
         _id: customer._id,
@@ -177,7 +178,8 @@ const filterCustomerByGeofenceController = async (req, res, next) => {
       };
     });
 
-    let pagination = {
+    // Pagination info
+    const pagination = {
       totalDocuments: totalDocuments || 0,
       totalPages: Math.ceil(totalDocuments / limit),
       currentPage: page || 1,
