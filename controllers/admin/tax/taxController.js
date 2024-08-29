@@ -238,7 +238,7 @@ const disableOrEnableStatusController = async (req, res, next) => {
       await taxFound.save();
     }
 
-    res.status(201).json({ message: `${taxFound.taxName} status updated` });
+    res.status(200).json({ message: `${taxFound.taxName} status updated` });
   } catch (err) {
     next(appError(err.message));
   }

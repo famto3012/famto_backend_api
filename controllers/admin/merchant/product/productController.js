@@ -697,6 +697,116 @@ const downloadProductSampleCSVController = async (req, res, next) => {
   }
 };
 
+const downloadCobminedProductAndCategoryController = async (req, res, next) => {
+  try {
+    const { merchantId } = req.body;
+
+    // Find all categories and related products for the given merchant
+    const categories = await Category.find({ merchantId })
+      .populate("businessCategoryId", "title")
+      .lean();
+
+    const formattedResponse = [];
+
+    for (const category of categories) {
+      const products = await Product.find({ categoryId: category._id }).lean();
+
+      products.forEach((product) => {
+        const variants =
+          product.variants.length > 0
+            ? product.variants
+            : [
+                {
+                  variantName: "-",
+                  variantTypes: [{ typeName: "-", price: "-" }],
+                },
+              ];
+
+        variants.forEach((variant) => {
+          const variantTypes =
+            variant.variantTypes.length > 0
+              ? variant.variantTypes
+              : [{ typeName: "-", price: "-" }];
+
+          variantTypes.forEach((type) => {
+            formattedResponse.push({
+              businessCategory: category.businessCategoryId?.title || "-",
+              categoryName: category.categoryName || "-",
+              categoryDescription: category.description || "-",
+              categoryType: category.type || "-",
+              categoryImage: category.categoryImageURL || "-",
+              categoryStatus: category.status || "-",
+              productName: product.productName || "-",
+              productPrice: product.price || "-",
+              minQuantityToOrder: product.minQuantityToOrder || "-",
+              maxQuantityPerOrder: product.maxQuantityPerOrder || "-",
+              costPrice: product.costPrice || "-",
+              sku: product.sku || "-",
+              preparationTime: product.preparationTime || "-",
+              description: product.description || "-",
+              longDescription: product.longDescription || "-",
+              type: product.type || "-",
+              productImageURL: product.productImageURL || "-",
+              inventory: product.inventory || "-",
+              availableQuantity: product.availableQuantity || "-",
+              alert: product.alert || "-",
+              variantName: variant.variantName || "-",
+              typeName: type.typeName || "-",
+              price: type.price || "-",
+            });
+          });
+        });
+      });
+    }
+
+    const filePath = path.join(
+      __dirname,
+      "../../../../sample_CSV/sample_CSV.csv"
+    );
+
+    const csvHeaders = [
+      { id: "businessCategory", title: "Business category name" },
+      { id: "categoryName", title: "Category name" },
+      { id: "categoryDescription", title: "category description" },
+      { id: "categoryType", title: "Category type" },
+      { id: "categoryImage", title: "category Image" },
+      { id: "categoryStatus", title: "category status" },
+      { id: "productName", title: "Poduct name" },
+      { id: "productPrice", title: "Product price" },
+      { id: "minQuantityToOrder", title: "Min quantity to order" },
+      { id: "maxQuantityPerOrder", title: "Max quantity to order" },
+      { id: "costPrice", title: "Cost price" },
+      { id: "sku", title: "SKU" },
+      { id: "preparationTime", title: "Preperation time" },
+      { id: "description", title: "Product description" },
+      { id: "longDescription", title: "Product long description" },
+      { id: "type", title: "Product type" },
+      { id: "productImageURL", title: "Product Image" },
+      { id: "inventory", title: "Inventory" },
+      { id: "availableQuantity", title: "Available quantity" },
+      { id: "alert", title: "Alert" },
+      { id: "variantName", title: "Variant name" },
+      { id: "typeName", title: "Variant type name" },
+      { id: "price", title: "variant price" },
+    ];
+
+    const writer = csvWriter({
+      path: filePath,
+      header: csvHeaders,
+    });
+
+    await writer.writeRecords(formattedResponse);
+
+    res.status(200).download(filePath, "Combined_Product_Data.csv", (err) => {
+      if (err) {
+        next(err);
+      }
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getProductController,
   getAllProductsByMerchant,
@@ -713,4 +823,5 @@ module.exports = {
   updateProductOrderController,
   addProductFromCSVController,
   downloadProductSampleCSVController,
+  downloadCobminedProductAndCategoryController,
 };

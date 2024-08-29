@@ -40,6 +40,7 @@ const {
   findRolesToNotify,
   sendSocketData,
 } = require("../../../socket/socket");
+const csvWriter = require("csv-writer").createObjectCsvWriter;
 
 const getAllOrdersOfMerchantController = async (req, res, next) => {
   try {
@@ -1270,6 +1271,134 @@ const createOrderController = async (req, res, next) => {
   }
 };
 
+const downloadOrdersCSVByMerchantController = async (req, res, next) => {
+  try {
+    const { orderStatus, paymentMode, deliveryMode, query } = req.query;
+
+    // Build query object based on filters
+    const filter = {
+      merchantId: req.userAuth,
+    };
+    if (orderStatus && orderStatus !== "All") filter.status = orderStatus;
+    if (paymentMode && paymentMode !== "All") filter.paymentMode = paymentMode;
+    if (deliveryMode && deliveryMode !== "All")
+      filter["orderDetail.deliveryMode"] = deliveryMode;
+    if (query) {
+      filter.$or = [{ _id: { $regex: query, $options: "i" } }];
+    }
+
+    // Fetch the data based on filter
+    let allOrders = await Order.find(filter)
+      .populate("merchantId", "merchantDetail.merchantName")
+      .populate("customerId", "fullName")
+      .populate("agentId", "fullName")
+      .sort({ createdAt: -1 })
+      .exec();
+
+    let formattedResponse = [];
+
+    allOrders?.forEach((order) => {
+      order.items.forEach((item) => {
+        formattedResponse.push({
+          orderId: order._id,
+          status: order?.status || "-",
+          merchantId: order?.merchantId?._id || "-",
+          merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
+          customerName: order?.customerId?.fullName || "-",
+          customerPhoneNumber:
+            order?.orderDetail?.deliveryAddress?.phoneNumber || "-",
+          customerEmail: order?.customerId?.email || "-",
+          deliveryMode: order?.orderDetail?.deliveryMode || "-",
+          orderTime:
+            `${formatDate(order?.createdAt)} | ${formatTime(
+              order?.createdAt
+            )}` || "-",
+          deliveryTime:
+            `${formatDate(order?.orderDetail?.deliveryTime)} | ${formatTime(
+              order?.orderDetail?.deliveryTime
+            )}` || "-",
+          paymentMode: order?.paymentMode || "-",
+          deliveryOption: order?.orderDetail?.deliveryOption || "-",
+          totalAmount: order?.billDetail?.grandTotal || "-",
+          deliveryAddress:
+            `${order?.orderDetail?.deliveryAddress?.fullName}, ${order?.orderDetail?.deliveryAddress?.flat}, ${order?.orderDetail?.deliveryAddress?.area}, ${order?.orderDetail?.deliveryAddress?.landmark}` ||
+            "-",
+          distanceInKM: order?.orderDetail?.distance || "-",
+          cancellationReason: order?.cancellationReason || "-",
+          cancellationDescription: order?.cancellationDescription || "-",
+          merchantEarnings: order?.merchantEarnings || "-",
+          famtoEarnings: order?.famtoEarnings || "-",
+          deliveryCharge: order?.billDetail?.deliveryCharge || "-",
+          taxAmount: order?.billDetail?.taxAmount || "-",
+          discountedAmount: order?.billDetail?.discountedAmount || "-",
+          itemTotal: order?.billDetail?.itemTotal || "-",
+          addedTip: order?.billDetail?.addedTip || "-",
+          subTotal: order?.billDetail?.subTotal || "-",
+          surgePrice: order?.billDetail?.surgePrice || "-",
+          transactionId: order?.paymentId || "-",
+          itemName: item.itemName || "-",
+          quantity: item.quantity || "-",
+          length: item.length || "-",
+          width: item.width || "-",
+          height: item.height || "-",
+        });
+      });
+    });
+
+    const filePath = path.join(__dirname, "../../../sample_CSV/sample_CSV.csv");
+
+    const csvHeaders = [
+      { id: "orderId", title: "Order ID" },
+      { id: "status", title: "Status" },
+      { id: "merchantId", title: "Merchant ID" },
+      { id: "merchantName", title: "Merchant Name" },
+      { id: "customerName", title: "Customer Name" },
+      { id: "customerPhoneNumber", title: "Customer Phone Number" },
+      { id: "customerEmail", title: "Customer Email" },
+      { id: "deliveryMode", title: "Delivery Mode" },
+      { id: "orderTime", title: "Order Time" },
+      { id: "deliveryTime", title: "Delivery Time" },
+      { id: "paymentMode", title: "Payment Mode" },
+      { id: "deliveryOption", title: "Delivery Option" },
+      { id: "totalAmount", title: "Total Amount" },
+      { id: "deliveryAddress", title: "Delivery Address" },
+      { id: "distanceInKM", title: "Distance (KM)" },
+      { id: "cancellationReason", title: "Cancellation Reason" },
+      { id: "cancellationDescription", title: "Cancellation Description" },
+      { id: "merchantEarnings", title: "Merchant Earnings" },
+      { id: "famtoEarnings", title: "Famto Earnings" },
+      { id: "deliveryCharge", title: "Delivery Charge" },
+      { id: "taxAmount", title: "Tax Amount" },
+      { id: "discountedAmount", title: "Discounted Amount" },
+      { id: "itemTotal", title: "Item Total" },
+      { id: "addedTip", title: "Added Tip" },
+      { id: "subTotal", title: "Sub Total" },
+      { id: "surgePrice", title: "Surge Price" },
+      { id: "transactionId", title: "Transaction ID" },
+      { id: "itemName", title: "Item name" },
+      { id: "quantity", title: "Quantity" },
+      { id: "length", title: "Length" },
+      { id: "width", title: "Width" },
+      { id: "height", title: "height" },
+    ];
+
+    const writer = csvWriter({
+      path: filePath,
+      header: csvHeaders,
+    });
+
+    await writer.writeRecords(formattedResponse);
+
+    res.status(200).download(filePath, "Order_Data.csv", (err) => {
+      if (err) {
+        next(err);
+      }
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getAllOrdersOfMerchantController,
   getAllScheduledOrdersOfMerchantController,
@@ -1280,4 +1409,5 @@ module.exports = {
   getOrderDetailController,
   createInvoiceController,
   createOrderController,
+  downloadOrdersCSVByMerchantController,
 };
