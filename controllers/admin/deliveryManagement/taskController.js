@@ -11,6 +11,7 @@ const appError = require("../../../utils/appError");
 const {
   getDistanceFromPickupToDelivery,
 } = require("../../../utils/customerAppHelpers");
+const { formatDate, formatTime } = require("../../../utils/formatters");
 
 const getTaskFilterController = async (req, res, next) => {
   try {
@@ -97,7 +98,12 @@ const assignAgentToTaskController = async (req, res, next) => {
       if (roleId) {
         const notificationData = {
           fcm: {
+            ...data,
             agentId,
+            orderId: order._id,
+            orderType: order.orderDetail.deliveryOption,
+            pickupDetail: order?.orderDetail?.pickupAddress,
+            deliveryDetail: order.orderDetail.deliveryAddress,
           },
         };
 
@@ -119,12 +125,15 @@ const assignAgentToTaskController = async (req, res, next) => {
       customerAddress: deliveryAddress,
       agentId,
       orderType: order.orderDetail.deliveryOption,
+      taskDate: formatDate(new Date()),
+      taskTime: formatTime(new Date()),
     };
 
     sendSocketData(agentId, eventName, socketData);
 
     res.status(200).json({
       message: "Notification send to the agent",
+      data: socketData,
     });
   } catch (err) {
     next(appError(err.message));

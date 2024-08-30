@@ -562,7 +562,7 @@ const addCustomerFromCSVController = async (req, res, next) => {
 
           // Validate required fields
           if (!customer.email && !customer.phoneNumber) {
-            throw new Error("Either email or phoneNumber is required.");
+            return next(appError("Either email or phoneNumber is required."));
           }
 
           customers.push(customer);

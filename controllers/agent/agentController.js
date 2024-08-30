@@ -1773,7 +1773,6 @@ const getAllNotificationsController = async (req, res, next) => {
 
     const getAllNotifications = await AgentNotificationLogs.find({
       agentId,
-      status: "Pending",
     }).sort({
       createdAt: -1,
     });
@@ -1786,6 +1785,8 @@ const getAllNotificationsController = async (req, res, next) => {
         deliveryDetail: notification?.deliveryDetail?.address || null,
         orderType: notification?.orderType || null,
         status: notification?.status || null,
+        taskDate: formatDate(notification.createdAt) || null,
+        taskTime: formatTime(notification.createdAt) || null,
       };
     });
 

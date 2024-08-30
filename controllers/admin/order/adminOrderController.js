@@ -202,7 +202,7 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
       userId: process.env.ADMIN_ID,
       date: new Date(),
     };
-    console.log(orderFound)
+    console.log(orderFound);
     orderFound.status = "On-going";
     orderFound.orderDetailStepper.accepted = stepperData;
 
@@ -684,7 +684,7 @@ const getOrderDetailByAdminController = async (req, res, next) => {
       pickUpLocation: orderFound?.orderDetail?.pickupLocation || null,
       deliveryLocation: orderFound.orderDetail.deliveryLocation,
       agentLocation: orderFound?.agentId?.location,
-      stepperDetail:[ orderFound?.orderDetailStepper]
+      stepperDetail: [orderFound?.orderDetailStepper],
     };
 
     res.status(200).json({
@@ -1893,6 +1893,27 @@ const downloadOrdersCSVByAdminController = async (req, res, next) => {
   }
 };
 
+const downloadInvoiceBillController = async (req, res, next) => {
+  try {
+    const { cartId, deliveryMode } = req.body;
+
+    let cartFound;
+
+    if (deliveryMode === "Take Away" || deliveryMode === "Home Delivery") {
+      cartFound = await CustomerCart.findById(cartId);
+    } else if (
+      deliveryMode === "Pick and Drop" ||
+      deliveryMode === "Custom Order"
+    ) {
+      cartFound = await PickAndCustomCart.findById(cartId);
+    }
+
+    res.status(200).json({ data: cartFound.billDetail });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getAllOrdersForAdminController,
   getAllScheduledOrdersForAdminController,
@@ -1904,58 +1925,5 @@ module.exports = {
   createInvoiceByAdminController,
   createOrderByAdminController,
   downloadOrdersCSVByAdminController,
+  downloadInvoiceBillController,
 };
-
-// ====================
-
-//  const formattedResponse = allOrders?.map((order) => {
-//    return {
-//      orderId: order._id,
-//      status: order?.status || "-",
-//      merchantId: order?.merchantId?._id || "-",
-//      merchantName: order?.merchantId?.merchantDetil?.merchantName || "-",
-//      customerName: order?.customerId?.fullName || "-",
-//      customerPhoneNumber:
-//        order?.orderDetail?.deliveryAddress?.phoneNumber || "-",
-//      customerEmail: order?.customerId?.email || "-",
-//      deliveryMode: order?.orderDetail?.deliveryMode || "-",
-//      orderTime:
-//        `${formatDate(order?.createdAt)} | ${formatTime(order?.createdAt)}` ||
-//        "-",
-//      deliveryTime:
-//        `${formatDate(order?.orderDetail?.deliveryTime)} | ${formatTime(
-//          order?.orderDetail?.deliveryTime
-//        )}` || "-",
-//      paymentMode: order?.paymentMode || "-",
-//      deliveryOption: order?.orderDetail?.deliveryOption || "-",
-//      totalAmount: order?.billDetail?.grandTotal || "-",
-//      deliveryAddress:
-//        `${order?.orderDetail?.deliveryAddress?.fullName}, ${order?.orderDetail?.deliveryAddress?.flat}, ${order?.orderDetail?.deliveryAddress?.area}, ${order?.orderDetail?.deliveryAddress?.landmark}` ||
-//        "-",
-//      distanceInKM: order?.orderDetail?.distance || "-",
-//      cancellationReason: order?.cancellationReason || "-",
-//      cancellationDescription: order?.cancellationDescription || "-",
-//      merchantEarnings: order?.merchantEarnings || "-",
-//      famtoEarnings: order?.famtoEarnings || "-",
-//      deliveryCharge: order?.billDetail?.deliveryCharge || "-",
-//      taxAmount: order?.billDetail?.taxAmount || "-",
-//      discountedAmount: order?.billDetail?.discountedAmount || "-",
-//      itemTotal: order?.billDetail?.itemTotal || "-",
-//      addedTip: order?.billDetail?.addedTip || "-",
-//      subTotal: order?.billDetail?.subTotal || "-",
-//      surgePrice: order?.billDetail?.surgePrice || "-",
-//      transactionId: order?.paymentId || "-",
-//      items: order?.items?.map((item) => {
-//        return {
-//          itemName: item.itemName,
-//          quantity: item.quantity,
-//          variantTypeName: item.variantTypeName,
-//          length: item.length,
-//          width: item.width,
-//          height: item.height,
-//          unit: item.unit,
-//          numOfUnits: item.numOfUnits,
-//        };
-//      }),
-//    };
-//  });
