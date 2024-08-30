@@ -1190,7 +1190,7 @@ const addMerchantsFromCSVController = async (req, res, next) => {
 
           // Validate required fields
           if (!merchant.email && !merchant.phoneNumber) {
-            throw new Error("Either email or phoneNumber is required.");
+            return next(appError("Either email or phoneNumber is required."));
           }
 
           merchants.push(merchant);

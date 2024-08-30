@@ -23,6 +23,7 @@ const {
   createOrderByAdminController,
   getAllScheduledOrdersForAdminController,
   downloadOrdersCSVByAdminController,
+  downloadInvoiceBillController,
 } = require("../../../controllers/admin/order/adminOrderController");
 const isAdmin = require("../../../middlewares/isAdmin");
 const { upload } = require("../../../utils/imageOperation");
@@ -76,6 +77,12 @@ orderRoute.post(
 );
 
 orderRoute.post("/create-order", isAuthenticated, createOrderController);
+
+orderRoute.post(
+  "/download-invoice-bill",
+  isAuthenticated,
+  downloadInvoiceBillController
+);
 
 // -------------------------------------------------
 // For Admin
