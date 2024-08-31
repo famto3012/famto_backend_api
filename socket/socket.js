@@ -22,11 +22,10 @@ const {
 } = require("../utils/customerAppHelpers");
 const {
   calculateAgentEarnings,
-  updateOrderDetails,
   updateAgentDetails,
 } = require("../utils/agentAppHelpers");
 const NotificationSetting = require("../models/NotificationSetting");
-const AgentAnnouncementLogs = require("../models/AgentAnnouncementLog");
+const Admin = require("../models/Admin");
 
 const serviceAccount = {
   type: process.env.TYPE,
@@ -209,7 +208,7 @@ const populateUserSocketMap = async () => {
         userSocketMap[token.userId] = { socketId: null, fcmToken: token.token };
       }
     });
-    // console.log("User socket map", userSocketMap);
+    console.log("User socket map", userSocketMap);
   } catch (error) {
     console.error("Error populating User Socket Map:", error);
   }
@@ -280,56 +279,6 @@ const getRealTimeDataCount = async () => {
     const today = new Date()
       .toLocaleString("en-IN", { weekday: "short" })
       .toLowerCase();
-
-    //  const [open, closed] = await Promise.all([
-    //   // Count open merchants
-    //   Merchant.countDocuments({
-    //     $or: [
-    //       { "merchantDetail.availability.type": "Full-time" },
-    //       {
-    //         $and: [
-    //           { [`merchantDetail.availability.specificDays.${today}.openAllDay`]: true },
-    //           { [`merchantDetail.availability.specificDays.${today}.closedAllDay`]: false },
-    //         ],
-    //       },
-    //       {
-    //         $and: [
-    //           { [`merchantDetail.availability.specificDays.${today}.specificTime`]: true },
-    //           {
-    //             $expr: {
-    //               $and: [
-    //                 { $lte: [new Date(), { $dateFromString: { dateString: `$merchantDetail.availability.specificDays.${today}.endTime` } }] },
-    //                 { $gte: [new Date(), { $dateFromString: { dateString: `$merchantDetail.availability.specificDays.${today}.startTime` } }] },
-    //               ],
-    //             },
-    //           },
-    //         ],
-    //       },
-    //     ],
-    //   }),
-
-    //   // Count closed merchants
-    //   Merchant.countDocuments({
-    //     $or: [
-    //       { "merchantDetail.availability.type":  "Full-time"  },
-    //       { [`merchantDetail.availability.specificDays.${today}.closedAllDay`]: true },
-    //       { [`merchantDetail.availability.specificDays.${today}.openAllDay`]: false },
-    //       {
-    //         $and: [
-    //           { [`merchantDetail.availability.specificDays.${today}.specificTime`]: true },
-    //           {
-    //             $expr: {
-    //               $or: [
-    //                 { $lt: [new Date(), { $dateFromString: { dateString: `$merchantDetail.availability.specificDays.${today}.startTime` } }] },
-    //                 { $gt: [new Date(), { $dateFromString: { dateString: `$merchantDetail.availability.specificDays.${today}.endTime` } }] },
-    //               ],
-    //             },
-    //           },
-    //         ],
-    //       },
-    //     ],
-    //   }),
-    // ]);
 
     // Counting active and not active merchants
     const [open, closed] = await Promise.all([
@@ -726,7 +675,7 @@ io.on("connection", async (socket) => {
       const eventName = "agentPickupStarted";
 
       const data = {
-        stepperDetail,
+        orderDetailStepper: stepperDetail,
       };
 
       sendSocketData(process.env.ADMIN_ID, eventName, data);
@@ -825,7 +774,7 @@ io.on("connection", async (socket) => {
               orderId: taskFound.orderId,
               agentId: userId,
               agentName: agentFound.fullName,
-              stepperDetail,
+              orderDetailStepper: stepperDetail,
             };
 
             sendSocketData(orderFound.customerId, eventName, socketData);
@@ -932,7 +881,7 @@ io.on("connection", async (socket) => {
       }
 
       const socketData = {
-        stepperDetail,
+        orderDetailStepper: stepperDetail,
       };
 
       sendSocketData(process.env.ADMIN_ID, eventName, socketData);
@@ -1024,7 +973,7 @@ io.on("connection", async (socket) => {
           }
 
           const socketData = {
-            stepperDetail,
+            orderDetailStepper: stepperDetail,
           };
 
           sendSocketData(process.env.ADMIN_ID, eventName, socketData);
@@ -1265,3 +1214,53 @@ module.exports = {
   findRolesToNotify,
   getRealTimeDataCount,
 };
+
+//  const [open, closed] = await Promise.all([
+//   // Count open merchants
+//   Merchant.countDocuments({
+//     $or: [
+//       { "merchantDetail.availability.type": "Full-time" },
+//       {
+//         $and: [
+//           { [`merchantDetail.availability.specificDays.${today}.openAllDay`]: true },
+//           { [`merchantDetail.availability.specificDays.${today}.closedAllDay`]: false },
+//         ],
+//       },
+//       {
+//         $and: [
+//           { [`merchantDetail.availability.specificDays.${today}.specificTime`]: true },
+//           {
+//             $expr: {
+//               $and: [
+//                 { $lte: [new Date(), { $dateFromString: { dateString: `$merchantDetail.availability.specificDays.${today}.endTime` } }] },
+//                 { $gte: [new Date(), { $dateFromString: { dateString: `$merchantDetail.availability.specificDays.${today}.startTime` } }] },
+//               ],
+//             },
+//           },
+//         ],
+//       },
+//     ],
+//   }),
+
+//   // Count closed merchants
+//   Merchant.countDocuments({
+//     $or: [
+//       { "merchantDetail.availability.type":  "Full-time"  },
+//       { [`merchantDetail.availability.specificDays.${today}.closedAllDay`]: true },
+//       { [`merchantDetail.availability.specificDays.${today}.openAllDay`]: false },
+//       {
+//         $and: [
+//           { [`merchantDetail.availability.specificDays.${today}.specificTime`]: true },
+//           {
+//             $expr: {
+//               $or: [
+//                 { $lt: [new Date(), { $dateFromString: { dateString: `$merchantDetail.availability.specificDays.${today}.startTime` } }] },
+//                 { $gt: [new Date(), { $dateFromString: { dateString: `$merchantDetail.availability.specificDays.${today}.endTime` } }] },
+//               ],
+//             },
+//           },
+//         ],
+//       },
+//     ],
+//   }),
+// ]);

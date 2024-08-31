@@ -1191,7 +1191,7 @@ const addOrderDetailsController = async (req, res, next) => {
 
     // Send notification to Customer and Admin
     const data = {
-      socket: stepperDetail,
+      orderDetailStepper: stepperDetail,
     };
 
     const parameters = {
@@ -1412,7 +1412,7 @@ const completeOrderController = async (req, res, next) => {
 
     const socketData = {
       ...data,
-      stepperDetail,
+      orderDetailStepper: stepperDetail,
     };
 
     sendSocketData(process.env.ADMIN_ID, eventName, socketData);
