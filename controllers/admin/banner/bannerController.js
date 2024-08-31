@@ -51,7 +51,9 @@ const editBannerController = async (req, res, next) => {
     const banner = await Banner.findOne({ _id: id });
 
     let imageUrl = banner.imageUrl;
+    console.log("file",req.file)
     if (req.file) {
+      console.log("file inside",req.file)
       await deleteFromFirebase(banner.imageUrl);
       imageUrl = await uploadToFirebase(req.file, "AdBannerImages");
     }

@@ -74,8 +74,8 @@ const sendPushNotificationToUser = async (fcmToken, message, eventName) => {
 
   const mes = {
     notification: {
-      title: notificationSettings?.title,
-      body: notificationSettings?.description,
+      title: notificationSettings?.title || message.title,
+      body: notificationSettings?.description || message.body,
       image: message?.image,
     },
     token: fcmToken,
@@ -153,8 +153,7 @@ const sendNotification = async (userId, eventName, data, role) => {
     notificationSent = await sendPushNotificationToUser(
       fcmToken,
       data.fcm,
-      eventName,
-      role
+      eventName
     );
   }
 
