@@ -618,7 +618,7 @@ const getOrderDetailByAdminController = async (req, res, next) => {
       })
       .populate({
         path: "agentId",
-        select: "fullName workStructure agentImageURL location",
+        select: "fullName workStructure agentImageURL location phoneNumber",
         populate: {
           path: "workStructure.managerId",
           select: "name",
@@ -665,12 +665,13 @@ const getOrderDetailByAdminController = async (req, res, next) => {
         name: orderFound?.merchantId?.merchantDetail?.merchantName || "-",
         instructionsByCustomer:
           orderFound?.orderDetail?.instructionToMerchant || "-",
-        merchantEarnings: orderFound?.commissionDetail?.merchantEarnings || "-",
+        merchantEarnings: orderFound?.commissionDetail?.merchantEarnings || "-", 
         famtoEarnings: orderFound?.commissionDetail?.famtoEarnings || "-",
       },
       deliveryAgentDetail: {
         _id: orderFound?.agentId?._id || "-",
         name: orderFound?.agentId?.fullName,
+        phoneNumber: orderFound?.agentId?.phoneNumber,
         avatar: orderFound?.agentId?.agentImageURL,
         team: orderFound?.agentId?.workStructure?.managerId?.name,
         instructionsByCustomer:

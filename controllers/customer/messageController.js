@@ -57,6 +57,7 @@ const sendMessage = async (req, res) => {
       seen: false, // Assuming the message is not seen when it's just sent
       img: newMessage.img,
       id: newMessage._id,
+      text: newMessage.text,
       createdAt: newMessage.createdAt,
       updatedAt: newMessage.updatedAt,
     };
