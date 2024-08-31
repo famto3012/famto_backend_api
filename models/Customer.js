@@ -115,6 +115,10 @@ const customerDetailSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    loyaltyPointLeftForRedemption: {
+      type: Number,
+      default: 0,
+    },
     totalLoyaltyPointEarned: {
       type: Number,
       default: 0,

@@ -24,9 +24,11 @@ const {
   getAllScheduledOrdersForAdminController,
   downloadOrdersCSVByAdminController,
   downloadInvoiceBillController,
+  downloadOrderBillController,
 } = require("../../../controllers/admin/order/adminOrderController");
 const isAdmin = require("../../../middlewares/isAdmin");
 const { upload } = require("../../../utils/imageOperation");
+const isAdminOrMerchant = require("../../../middlewares/isAdminOrMerchant");
 const orderRoute = express.Router();
 
 // -------------------------------------------------
@@ -81,7 +83,15 @@ orderRoute.post("/create-order", isAuthenticated, createOrderController);
 orderRoute.post(
   "/download-invoice-bill",
   isAuthenticated,
+  isAdminOrMerchant,
   downloadInvoiceBillController
+);
+
+orderRoute.post(
+  "/download-order-bill",
+  isAuthenticated,
+  isAdminOrMerchant,
+  downloadOrderBillController
 );
 
 // -------------------------------------------------

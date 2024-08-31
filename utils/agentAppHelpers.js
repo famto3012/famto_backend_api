@@ -22,7 +22,6 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
     const Agent = require("../models/Agent");
     const agents = await Agent.find({ isApproved: "Approved" });
 
-    // TODO: Check the criteria for getting the guranteed daily wage
     for (const agent of agents) {
       // Calculate the login duration
       const currentTime = new Date();
@@ -70,12 +69,51 @@ const updateLoyaltyPoints = (customer, criteria, orderAmount) => {
       orderAmount * criteria.earningCriteriaPoint,
       criteria.maxEarningPoint - loyaltyPointEarnedToday
     );
+
     customer.customerDetails.loyaltyPointEarnedToday += Number(
       calculatedLoyaltyPoint
     );
+
+    customer.customerDetails.loyaltyPointLeftForRedemption += Number(
+      calculatedLoyaltyPoint
+    );
+
     customer.customerDetails.totalLoyaltyPointEarned += Number(
       calculatedLoyaltyPoint
     );
+
+    if (
+      customer.customerDetails.loyaltyPointLeftForRedemption >=
+      criteria.minLoyaltyPointForRedemption
+    ) {
+      const totalPoints =
+        customer.customerDetails.loyaltyPointLeftForRedemption /
+        criteria.redemptionCriteriaPoint;
+
+      const redeemedAmount = totalPoints * redemptionCriteriaRupee;
+
+      const updatedWalletTransaction = {
+        closingBalance: customer.customerDetails.walletBalance,
+        transactionAmount: redeemedAmount,
+        date: new Date(),
+        type: "Credit",
+      };
+
+      const updatedTransactionDetail = {
+        transactionAmount: redeemedAmount,
+        transactionType: "Loyalty point redemption",
+        madeOn: new Date(),
+        type: "Credit",
+      };
+
+      customer.walletTransactionDetail.push(updatedWalletTransaction);
+      customer.transactionDetail.push(updatedTransactionDetail);
+
+      // TODO: check if it works fine
+      customer.customerDetails.loyaltyPointLeftForRedemption =
+        customer.customerDetails.loyaltyPointLeftForRedemption -
+        totalPoints * criteria.redemptionCriteriaPoint;
+    }
   }
 };
 

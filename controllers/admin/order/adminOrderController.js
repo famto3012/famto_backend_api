@@ -49,6 +49,8 @@ const {
 } = require("../../../socket/socket");
 const path = require("path");
 const csvWriter = require("csv-writer").createObjectCsvWriter;
+const PDFDocument = require("pdfkit");
+const fs = require("fs");
 
 const getAllOrdersForAdminController = async (req, res, next) => {
   try {
@@ -274,7 +276,7 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
       orderId: orderFound._id,
       orderDetail: orderFound.orderDetail,
       billDetail: orderFound.billDetail,
-      stepperDetail: orderFound.orderDetailStepper.accepted,
+      orderDetailStepper: orderFound.orderDetailStepper.accepted,
     };
 
     sendSocketData(orderFound.customerId, eventName, socketData);
@@ -420,7 +422,7 @@ const rejectOrderByAdminController = async (req, res, next) => {
       orderId: orderFound._id,
       orderDetail: orderFound.orderDetail,
       billDetail: orderFound.billDetail,
-      stepperDetail: orderFound.orderDetailStepper.cancelled,
+      orderDetailStepper: orderFound.orderDetailStepper.cancelled,
     };
 
     sendSocketData(orderFound.customerId, eventName, socketData);
@@ -1908,7 +1910,273 @@ const downloadInvoiceBillController = async (req, res, next) => {
       cartFound = await PickAndCustomCart.findById(cartId);
     }
 
-    res.status(200).json({ data: cartFound.billDetail });
+    if (!cartFound || !cartFound.billDetail) {
+      return next(appError("Cart not found or no bill details available"));
+    }
+
+    let populatedCartWithVariantNames = await formattedCartItems(cartFound);
+
+    let formattedItems = populatedCartWithVariantNames.items.map((item) => {
+      return {
+        itemName: item.productId.productName,
+        quantity: item.quantity,
+        price: item.price,
+        variantTypeName: item?.variantTypeId?.variantTypeName,
+      };
+    });
+
+    const billDetails = cartFound.billDetail;
+
+    // Ensure all values are properly converted to numbers
+    const deliveryCharge = Number(
+      billDetails?.discountedDeliveryCharge ||
+        billDetails?.originalDeliveryCharge ||
+        0
+    );
+    const taxAmount = Number(billDetails.taxAmount || 0);
+    const discountedAmount = Number(billDetails?.discountedAmount || 0);
+    const grandTotal = Number(
+      billDetails?.discountedGrandTotal || billDetails?.originalGrandTotal || 0
+    );
+    const itemTotal = Number(billDetails?.itemTotal || 0);
+    const addedTip = Number(billDetails?.addedTip || 0);
+    const subTotal = Number(billDetails?.subTotal || 0);
+    const surgePrice = Number(billDetails?.surgePrice || 0);
+
+    // Check for NaN values after conversion
+    const values = [
+      deliveryCharge,
+      taxAmount,
+      discountedAmount,
+      grandTotal,
+      itemTotal,
+      addedTip,
+      subTotal,
+      surgePrice,
+    ];
+
+    if (values.some((value) => isNaN(value))) {
+      return next(
+        appError("One or more bill details contain invalid numbers.")
+      );
+    }
+
+    // Create a PDF document
+    const doc = new PDFDocument();
+    const filePath = path.join(__dirname, "../../../sample_CSV/invoice.pdf");
+    const stream = fs.createWriteStream(filePath);
+    doc.pipe(stream);
+
+    // Add the Invoice heading
+    doc.fontSize(25).text("Invoice Bill", { align: "center" });
+    doc.moveDown();
+    doc.text("================================", { align: "center" });
+    doc.moveDown();
+
+    // Add Items heading
+    doc.fontSize(18).text("Items:", { align: "left" });
+    doc.moveDown();
+
+    // Set font size for the item details
+    doc.fontSize(12);
+
+    // Add each item from the formattedItems array
+    formattedItems.forEach((item) => {
+      let itemDescription = `${item.itemName} (${item.quantity} x ${item.price})`;
+      if (item.variantTypeName) {
+        itemDescription += ` - ${item.variantTypeName}`;
+      }
+
+      doc.text(itemDescription, { align: "left" });
+      doc.moveDown(0.5);
+    });
+
+    doc.moveDown(); // Add some space after the item list
+
+    // Set the layout for the bill details
+    const pageWidth = doc.page.width - 60;
+    const margin = 50;
+    const labelX = margin;
+    const valueX = pageWidth - margin;
+    doc.fontSize(12);
+
+    const addAlignedTextBill = (label, value) => {
+      const labelWidth = 250; // Set the fixed width for the label
+      const textWidth = doc.widthOfString(value.toString());
+
+      // Set the fixed width for the label and align it to the left
+      doc.text(label, labelX, doc.y, { width: labelWidth, align: "left" });
+
+      // Position the value text on the right side with the remaining space
+      doc.text(value.toFixed(2), valueX - textWidth, doc.y, { align: "right" });
+
+      doc.moveDown();
+    };
+
+    // Adding key-value pairs with alignment and conversion to fixed decimal format
+    addAlignedTextBill("Item Total:", itemTotal);
+    addAlignedTextBill("Delivery Charge:", deliveryCharge);
+    addAlignedTextBill("Added Tip:", addedTip);
+    addAlignedTextBill("Discount:", discountedAmount);
+    addAlignedTextBill("Surge Price:", surgePrice);
+    addAlignedTextBill("Sub Total:", subTotal);
+    addAlignedTextBill("Tax Amount:", taxAmount);
+    addAlignedTextBill("Grand Total:", grandTotal);
+
+    doc.end();
+
+    stream.on("finish", () => {
+      res.download(filePath, "invoice.pdf", (err) => {
+        if (err) {
+          next(appError(err.message));
+        } else {
+          fs.unlink(filePath, (err) => {
+            if (err) {
+              console.error("Failed to delete temporary PDF:", err);
+            }
+          });
+        }
+      });
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const downloadOrderBillController = async (req, res, next) => {
+  try {
+    const { orderId } = req.body;
+
+    console.log(orderId);
+
+    const orderFound = await Order.findById(orderId);
+
+    console.log(orderFound);
+
+    if (!orderFound || !orderFound.billDetail) {
+      return next(appError("Cart not found or no bill details available"));
+    }
+
+    let formattedItems = orderFound.items.map((item) => {
+      return {
+        itemName: item.itemName,
+        quantity: item.quantity,
+        price: item.price,
+        variantTypeName: item?.variantTypeName,
+      };
+    });
+
+    const billDetails = orderFound.billDetail;
+
+    // Ensure all values are properly converted to numbers
+    const deliveryCharge = Number(billDetails?.deliveryCharge || 0);
+    const taxAmount = Number(billDetails.taxAmount || 0);
+    const discountedAmount = Number(billDetails?.discountedAmount || 0);
+    const grandTotal = Number(billDetails?.grandTotal || 0);
+    const itemTotal = Number(billDetails?.itemTotal || 0);
+    const addedTip = Number(billDetails?.addedTip || 0);
+    const subTotal = Number(billDetails?.subTotal || 0);
+    const surgePrice = Number(billDetails?.surgePrice || 0);
+
+    // Check for NaN values after conversion
+    const values = [
+      deliveryCharge,
+      taxAmount,
+      discountedAmount,
+      grandTotal,
+      itemTotal,
+      addedTip,
+      subTotal,
+      surgePrice,
+    ];
+
+    if (values.some((value) => isNaN(value))) {
+      return next(
+        appError("One or more bill details contain invalid numbers.")
+      );
+    }
+
+    // Create a PDF document
+    const doc = new PDFDocument();
+    const filePath = path.join(__dirname, "../../../sample_CSV/invoice.pdf");
+    const stream = fs.createWriteStream(filePath);
+    doc.pipe(stream);
+    const labelWidth = 250; // Set the fixed width for the label
+
+    // Add the Invoice heading
+    doc.fontSize(25).text("Order Bill", { align: "center" });
+    doc.moveDown();
+    doc.text("================================", { align: "center" });
+    doc.moveDown();
+    doc.fontSize(20).text(`Order ID: # ${orderFound._id}`, {
+      width: labelWidth,
+      align: "left",
+    });
+
+    // Add Items heading
+    doc.fontSize(16).text("Items:", { align: "left" });
+    doc.moveDown();
+
+    // Set font size for the item details
+    doc.fontSize(12);
+
+    // Add each item from the formattedItems array
+    formattedItems.forEach((item) => {
+      let itemDescription = `${item.itemName} (${item.quantity} x ${item.price})`;
+      if (item.variantTypeName) {
+        itemDescription += ` - ${item.variantTypeName}`;
+      }
+
+      doc.text(itemDescription, { align: "left" });
+      doc.moveDown(0.5);
+    });
+
+    doc.moveDown(); // Add some space after the item list
+
+    // Set the layout for the bill details
+    const pageWidth = doc.page.width - 60;
+    const margin = 50;
+    const labelX = margin;
+    const valueX = pageWidth - margin;
+    doc.fontSize(12);
+
+    const addAlignedTextBill = (label, value) => {
+      const textWidth = doc.widthOfString(value.toString());
+
+      // Set the fixed width for the label and align it to the left
+      doc.text(label, labelX, doc.y, { width: labelWidth, align: "left" });
+
+      // Position the value text on the right side with the remaining space
+      doc.text(value.toFixed(2), valueX - textWidth, doc.y, { align: "right" });
+
+      doc.moveDown();
+    };
+
+    // Adding key-value pairs with alignment and conversion to fixed decimal format
+    addAlignedTextBill("Item Total:", itemTotal);
+    addAlignedTextBill("Delivery Charge:", deliveryCharge);
+    addAlignedTextBill("Added Tip:", addedTip);
+    addAlignedTextBill("Discount:", discountedAmount);
+    addAlignedTextBill("Surge Price:", surgePrice);
+    addAlignedTextBill("Sub Total:", subTotal);
+    addAlignedTextBill("Tax Amount:", taxAmount);
+    addAlignedTextBill("Grand Total:", grandTotal);
+
+    doc.end();
+
+    stream.on("finish", () => {
+      res.download(filePath, "invoice.pdf", (err) => {
+        if (err) {
+          next(appError(err.message));
+        } else {
+          fs.unlink(filePath, (err) => {
+            if (err) {
+              console.error("Failed to delete temporary PDF:", err);
+            }
+          });
+        }
+      });
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -1926,4 +2194,5 @@ module.exports = {
   createOrderByAdminController,
   downloadOrdersCSVByAdminController,
   downloadInvoiceBillController,
+  downloadOrderBillController,
 };
