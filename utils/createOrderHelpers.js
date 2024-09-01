@@ -1,5 +1,4 @@
 const Customer = require("../models/Customer");
-const Order = require("../models/Order");
 const Product = require("../models/Product");
 const { convertToUTC } = require("./formatters");
 const geoLocation = require("./getGeoLocation");
@@ -11,7 +10,6 @@ const findOrCreateCustomer = async ({
   customerAddress,
   deliveryMode,
 }) => {
-  console.log("customerId", customerId);
   if (customerId) {
     const customer = await Customer.findById(customerId);
     if (!customer) throw new Error("Customer not found");
@@ -124,8 +122,6 @@ const getDeliveryDetails = async ({
       ];
       deliveryAddress = newCustomerAddress;
 
-      console.log("save address book: ", newCustomerAddress.saveAddress);
-
       if (newCustomerAddress.saveAddress) {
         // Update the existing address of the customer
         if (addressType === "home") {
@@ -215,10 +211,6 @@ const calculateItemTotal = (items) =>
 
 // Calculate the total weight of items
 const getTotalItemWeight = (items) => {
-  items.forEach((item) => {
-    console.log(item.weight);
-  });
-
   const weight = items.reduce(
     (total, item) => total + parseFloat(item.weight || 0),
     0
@@ -234,10 +226,6 @@ const calculateAdditionalWeightCharge = (
   fareAfterBaseWeight
 ) => {
   if (totalWeight > vehicleBaseWeight) {
-    console.log("totalWeight", totalWeight);
-    console.log("vehicleBaseWeight", vehicleBaseWeight);
-    console.log("fareAfterBaseWeight", fareAfterBaseWeight);
-
     const fare = (
       (parseFloat(totalWeight) - parseFloat(vehicleBaseWeight)) *
       parseFloat(fareAfterBaseWeight)
@@ -343,9 +331,6 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
 
   // Common function to update customer's address
   const updateCustomerAddress = async (addressType, newAddress) => {
-    console.log("Before saving new Address");
-    console.log("addressType", addressType);
-    console.log("newAddress", newAddress);
     const location = [newAddress.latitude, newAddress.longitude];
     newAddress.coordinates = location;
 
@@ -355,7 +340,8 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
       customer.customerDetails.workAddress = newAddress;
     } else if (addressType === "other") {
       const otherIndex = customer.customerDetails.otherAddress.findIndex(
-        (addr) => addr._id.toString() === customerAddressOtherAddressId
+        (addr) => addr.id.toString() === customerAddressOtherAddressId
+        // TODO : _ removed from id
       );
 
       if (otherIndex !== -1) {
@@ -377,7 +363,8 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
       return customer.customerDetails.workAddress;
     } else if (addressType === "other") {
       return customer.customerDetails.otherAddress.find(
-        (addr) => addr._id.toString() === addressId
+        (addr) => addr.id.toString() === addressId
+        //TODO : removed _id
       );
     }
   };
@@ -408,7 +395,7 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
           customerAddressType,
           customerAddressOtherAddressId
         );
-        console.log("Home Delivery - Existing customer address:", address);
+
         if (!address) throw new Error("Address not found");
         deliveryLocation = address.coordinates;
         deliveryAddress = address;
@@ -504,13 +491,14 @@ const getCustomDeliveryAddressForAdmin = async ({
 
   // Function to retrieve address details based on type
   const getAddressDetails = (addressType, addressId) => {
+    console.log(addressId);
     if (addressType === "home") {
       return customer.customerDetails.homeAddress;
     } else if (addressType === "work") {
       return customer.customerDetails.workAddress;
     } else if (addressType === "other") {
       return customer.customerDetails.otherAddress.find(
-        (addr) => addr._id.toString() === addressId
+        (addr) => addr.id.toString() === addressId
       );
     }
   };
@@ -525,7 +513,9 @@ const getCustomDeliveryAddressForAdmin = async ({
     if (newDeliveryAddress.saveAddress) {
       await updateCustomerAddress(deliveryAddressType, newDeliveryAddress);
     }
-  } else {
+  }
+
+  if (deliveryAddressType) {
     const address = getAddressDetails(
       deliveryAddressType,
       deliveryAddressOtherAddressId
@@ -538,11 +528,6 @@ const getCustomDeliveryAddressForAdmin = async ({
 
   return { deliveryLocation, deliveryAddress };
 };
-
-// const updateOrderStatus = async (orderId, newStatus) => {
-//   await Order.findByIdAndUpdate(orderId, { status: newStatus });
-//   updateRealTimeData();
-// };
 
 module.exports = {
   findOrCreateCustomer,

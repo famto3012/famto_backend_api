@@ -755,12 +755,12 @@ const createInvoiceController = async (req, res, next) => {
       deliveryOption,
       deliveryMode,
       items,
-      instructionToDeliveryAgent,
+      instructionToDeliveryAgent = "",
       customerAddressType,
       customerAddressOtherAddressId,
       newCustomerAddress,
       flatDiscount,
-      addedTip,
+      addedTip = 0,
     } = req.body;
 
     // Extract ifScheduled only if deliveryOption is scheduled
@@ -829,57 +829,67 @@ const createInvoiceController = async (req, res, next) => {
 
     const itemTotal = calculateItemTotal(items);
 
-    const businessCategory = await BusinessCategory.findById(
-      merchantFound.merchantDetail.businessCategoryId
-    );
-
-    if (!businessCategory)
-      return next(appError("Business category not found", 404));
-
-    const customerPricing = await CustomerPricing.findOne({
-      ruleName: businessCategory.title,
-      geofenceId: customer.customerDetails.geofenceId,
-      status: true,
-    });
-
-    if (!customerPricing)
-      return res.status(404).json({ error: "Customer pricing not found" });
-
-    const oneTimeDeliveryCharge = calculateDeliveryCharges(
-      distanceInKM,
-      customerPricing.baseFare,
-      customerPricing.baseDistance,
-      customerPricing.fareAfterBaseDistance
-    );
-
-    const customerSurge = await CustomerSurge.findOne({
-      geofenceId: customer.customerDetails.geofenceId,
-      status: true,
-    });
-
+    let oneTimeDeliveryCharge;
     let surgeCharges;
-    if (customerSurge) {
-      surgeCharges = calculateDeliveryCharges(
+    let deliveryChargeForScheduledOrder;
+    let taxAmount;
+
+    if (deliveryMode === "Home Delivery") {
+      const businessCategory = await BusinessCategory.findById(
+        merchantFound.merchantDetail.businessCategoryId
+      );
+
+      if (!businessCategory)
+        return next(appError("Business category not found", 404));
+
+      console.log(deliveryMode);
+      console.log(businessCategory._id);
+      console.log(customer.customerDetails.geofenceId);
+
+      const customerPricing = await CustomerPricing.findOne({
+        deliveryMode,
+        businessCategoryId: businessCategory._id,
+        geofenceId: customer.customerDetails.geofenceId,
+        status: true,
+      });
+
+      if (!customerPricing)
+        return res.status(404).json({ error: "Customer pricing not found" });
+
+      oneTimeDeliveryCharge = calculateDeliveryCharges(
         distanceInKM,
-        customerSurge.baseFare,
-        customerSurge.baseDistance,
-        customerSurge.fareAfterBaseDistance
+        customerPricing.baseFare,
+        customerPricing.baseDistance,
+        customerPricing.fareAfterBaseDistance
+      );
+
+      const customerSurge = await CustomerSurge.findOne({
+        geofenceId: customer.customerDetails.geofenceId,
+        status: true,
+      });
+
+      if (customerSurge) {
+        surgeCharges = calculateDeliveryCharges(
+          distanceInKM,
+          customerSurge.baseFare,
+          customerSurge.baseDistance,
+          customerSurge.fareAfterBaseDistance
+        );
+      }
+
+      if (startDate && endDate && time) {
+        deliveryChargeForScheduledOrder = (
+          oneTimeDeliveryCharge * numOfDays
+        ).toFixed(2);
+      }
+
+      taxAmount = await getTaxAmount(
+        businessCategory._id,
+        merchantFound.merchantDetail.geofenceId,
+        itemTotal,
+        deliveryChargeForScheduledOrder || oneTimeDeliveryCharge
       );
     }
-
-    let deliveryChargeForScheduledOrder;
-    if (startDate && endDate && time) {
-      deliveryChargeForScheduledOrder = (
-        oneTimeDeliveryCharge * numOfDays
-      ).toFixed(2);
-    }
-
-    const taxAmount = await getTaxAmount(
-      businessCategory._id,
-      merchantFound.merchantDetail.geofenceId,
-      itemTotal,
-      deliveryChargeForScheduledOrder || oneTimeDeliveryCharge
-    );
 
     const discountAmount = parseFloat(flatDiscount || 0);
 

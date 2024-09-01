@@ -44,11 +44,25 @@ const formatTime = (createdAt) => {
 // };
 
 const convertToUTC = (time12hr) => {
+  // // Parse the 12-hour time using a known format
+  // const localTime = moment(time12hr, "hh:mm A");
+
+  // // Convert to UTC
+  // const utcTime = localTime.utc();
+
+  // // Return the UTC time in desired format
+  // return utcTime.format();
+
+  // ===================
+
   // Parse the 12-hour time using a known format
   const localTime = moment(time12hr, "hh:mm A");
 
+  // Subtract one hour
+  const adjustedTime = localTime.subtract(1, "hours");
+
   // Convert to UTC
-  const utcTime = localTime.utc();
+  const utcTime = adjustedTime.utc();
 
   // Return the UTC time in desired format
   return utcTime.format();

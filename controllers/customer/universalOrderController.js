@@ -789,9 +789,9 @@ const addOrUpdateCartItemController = async (req, res, next) => {
         .find((vt) => vt._id.equals(variantTypeId));
 
       if (!variantType) {
-        return res
-          .status(400)
-          .json({ error: "VariantType not found for this product" });
+        return res.status(400).json({
+          error: "VariantType not found for this product",
+        });
       }
     }
 

@@ -204,7 +204,7 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
       userId: process.env.ADMIN_ID,
       date: new Date(),
     };
-    console.log(orderFound);
+
     orderFound.status = "On-going";
     orderFound.orderDetailStepper.accepted = stepperData;
 
@@ -834,7 +834,11 @@ const createInvoiceByAdminController = async (req, res, next) => {
       );
       distanceInKM = parseFloat(distanceData.distanceInKM);
     } else if (deliveryMode === "Custom Order") {
-      if (customPickupLocation) {
+      if (
+        customPickupLocation &&
+        customPickupLocation.length === 2 &&
+        customPickupLocation.every((loc) => loc !== null)
+      ) {
         pickupLocation = customPickupLocation;
       }
 
@@ -847,12 +851,18 @@ const createInvoiceByAdminController = async (req, res, next) => {
           newDeliveryAddress,
         }));
 
-      if (pickupLocation) {
+      if (
+        pickupLocation &&
+        pickupLocation.length === 2 &&
+        pickupLocation.every((loc) => loc !== null)
+      ) {
         const distanceData = await getDistanceFromPickupToDelivery(
           pickupLocation,
           deliveryLocation
         );
         distanceInKM = parseFloat(distanceData.distanceInKM);
+      } else {
+        distanceInKM = 0;
       }
     }
 
@@ -1120,8 +1130,8 @@ const createInvoiceByAdminController = async (req, res, next) => {
       );
       const uniqueVehicleTypes = [...new Set(vehicleTypes)];
 
-      const latitude = pickupLocation.latitude;
-      const longitude = pickupLocation.longitude;
+      const latitude = pickupLocation[0];
+      const longitude = pickupLocation[1];
 
       const geofenceFound = await geoLocation(latitude, longitude, next);
 
@@ -1230,8 +1240,8 @@ const createInvoiceByAdminController = async (req, res, next) => {
       });
       return;
     } else if (deliveryMode === "Custom Order") {
-      const latitude = deliveryLocation.latitude;
-      const longitude = deliveryLocation.longitude;
+      const latitude = deliveryLocation[0];
+      const longitude = deliveryLocation[1];
 
       const geofenceFound = await geoLocation(latitude, longitude, next);
 
@@ -1617,6 +1627,8 @@ const createOrderByAdminController = async (req, res, next) => {
       const newOrder = await Order.findById(newOrderCreated._id).populate(
         "merchantId"
       );
+
+      console.log(newOrder);
 
       // Clear the cart
       if (
@@ -2051,11 +2063,7 @@ const downloadOrderBillController = async (req, res, next) => {
   try {
     const { orderId } = req.body;
 
-    console.log(orderId);
-
     const orderFound = await Order.findById(orderId);
-
-    console.log(orderFound);
 
     if (!orderFound || !orderFound.billDetail) {
       return next(appError("Cart not found or no bill details available"));

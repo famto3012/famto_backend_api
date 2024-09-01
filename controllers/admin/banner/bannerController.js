@@ -48,18 +48,24 @@ const editBannerController = async (req, res, next) => {
     const { id } = req.params;
     const { name, merchantId, geofenceId } = req.body;
 
-    const banner = await Banner.findOne({ _id: id });
+    const banner = await Banner.findById(id);
+
+    // Check if the banner was found and updated
+    if (!banner) {
+      return next(appError("Banner not found", 404));
+    }
 
     let imageUrl = banner.imageUrl;
-    console.log("file",req.file)
+
     if (req.file) {
-      console.log("file inside",req.file)
-      await deleteFromFirebase(banner.imageUrl);
+      if (imageUrl) {
+        await deleteFromFirebase(banner.imageUrl);
+      }
       imageUrl = await uploadToFirebase(req.file, "AdBannerImages");
     }
 
     // Find the banner by ID and update it with the new data
-    const updatedBanner = await Banner.findByIdAndUpdate(
+    let updatedBanner = await Banner.findByIdAndUpdate(
       id,
       {
         name,
@@ -70,14 +76,21 @@ const editBannerController = async (req, res, next) => {
       { new: true } // Return the updated document
     );
 
-    // Check if the banner was found and updated
-    if (!updatedBanner) {
-      return next(appError("Banner not found", 404));
-    }
+    updatedBanner = await updatedBanner.populate("geofenceId", "name");
 
-    res
-      .status(200)
-      .json({ message: "Banner updated successfully!", banner: updatedBanner });
+    const formattedResponse = {
+      _id: updatedBanner?._id,
+      name: updatedBanner?.name || "-",
+      imageUrl: updatedBanner?.imageUrl || "-",
+      merchantId: updatedBanner?.merchantId || "-",
+      geofenceId: updatedBanner?.geofenceId?.name || "-",
+      status: updatedBanner?.status || null,
+    };
+
+    res.status(200).json({
+      message: "Banner updated successfully!",
+      banner: formattedResponse,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -85,15 +98,22 @@ const editBannerController = async (req, res, next) => {
 
 const getAllBannersController = async (req, res, next) => {
   try {
-    const banners = await Banner.find();
+    const banners = await Banner.find({}).populate("geofenceId", "name");
 
-    if (!banners) {
-      return next(appError("No banners found", 404));
-    }
+    const formattedResponse = banners?.map((banner) => {
+      return {
+        _id: banner?._id,
+        name: banner?.name || "-",
+        imageUrl: banner?.imageUrl || "-",
+        merchantId: banner?.merchantId || "-",
+        geofenceId: banner?.geofenceId?.name || "-",
+        status: banner?.status || null,
+      };
+    });
 
     res.status(200).json({
       success: true,
-      data: banners,
+      data: formattedResponse,
     });
   } catch (err) {
     next(appError(err.message));
@@ -106,7 +126,7 @@ const getBannerByIdController = async (req, res, next) => {
     const banners = await Banner.findOne({ _id: id });
 
     if (!banners) {
-      return next(appError("No banners found", 404));
+      return next(appError("No banner found", 404));
     }
 
     res.status(200).json({
@@ -123,7 +143,7 @@ const deleteBannerController = async (req, res, next) => {
     const { id } = req.params;
 
     // Find the banner by ID and delete it
-    const deletedBanner = await Banner.findOne({ _id: id });
+    const deletedBanner = await Banner.findById(id);
 
     // Check if the banner was found and deleted
     if (!deletedBanner) {
@@ -147,16 +167,14 @@ const updateStatusBannerController = async (req, res, next) => {
     const { id } = req.params;
 
     // Find the banner by ID and delete it
-    const updateBanner = await Banner.findOne({ _id: id });
+    const updateBanner = await Banner.findById(id);
 
     // Check if the banner was found and deleted
     if (!updateBanner) {
       return next(appError("Banner not found", 404));
-    } else if (updateBanner.status) {
-      updateBanner.status = false;
-    } else {
-      updateBanner.status = true;
     }
+
+    updateBanner.status = !updateBanner.status;
 
     await updateBanner.save();
 
