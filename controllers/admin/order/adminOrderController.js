@@ -634,11 +634,11 @@ const getOrderDetailByAdminController = async (req, res, next) => {
 
     const formattedResponse = {
       _id: orderFound._id,
-      orderStatus: orderFound.status,
-      paymentStatus: orderFound.paymentStatus,
-      paymentMode: orderFound.paymentMode,
-      deliveryMode: orderFound.orderDetail.deliveryMode,
-      deliveryOption: orderFound.orderDetail.deliveryOption,
+      orderStatus: orderFound.status || "-",
+      paymentStatus: orderFound.paymentStatus || "-",
+      paymentMode: orderFound.paymentMode || "-",
+      deliveryMode: orderFound.orderDetail.deliveryMode || "-",
+      deliveryOption: orderFound.orderDetail.deliveryOption || "-",
       orderTime: `${formatDate(orderFound.createdAt)} | ${formatTime(
         orderFound.createdAt
       )}`,
@@ -649,10 +649,11 @@ const getOrderDetailByAdminController = async (req, res, next) => {
         _id: orderFound.customerId._id,
         name:
           orderFound.customerId.fullName ||
-          orderFound.orderDetail.deliveryAddress.fullName,
+          orderFound.orderDetail.deliveryAddress.fullName ||
+          "-",
         email: orderFound.customerId.email || "-",
-        phone: orderFound.customerId.phoneNumber,
-        address: orderFound.orderDetail.deliveryAddress,
+        phone: orderFound.customerId.phoneNumber || "-",
+        address: orderFound.orderDetail.deliveryAddress || "-",
         ratingsToDeliveryAgent: {
           rating: orderFound?.orderRating?.ratingToDeliveryAgent?.rating || 0,
           review: orderFound.orderRating?.ratingToDeliveryAgent.review || "-",
@@ -667,27 +668,27 @@ const getOrderDetailByAdminController = async (req, res, next) => {
         name: orderFound?.merchantId?.merchantDetail?.merchantName || "-",
         instructionsByCustomer:
           orderFound?.orderDetail?.instructionToMerchant || "-",
-        merchantEarnings: orderFound?.commissionDetail?.merchantEarnings || "-", 
+        merchantEarnings: orderFound?.commissionDetail?.merchantEarnings || "-",
         famtoEarnings: orderFound?.commissionDetail?.famtoEarnings || "-",
       },
       deliveryAgentDetail: {
         _id: orderFound?.agentId?._id || "-",
-        name: orderFound?.agentId?.fullName,
-        phoneNumber: orderFound?.agentId?.phoneNumber,
-        avatar: orderFound?.agentId?.agentImageURL,
-        team: orderFound?.agentId?.workStructure?.managerId?.name,
+        name: orderFound?.agentId?.fullName || "-",
+        phoneNumber: orderFound?.agentId?.phoneNumber || "-",
+        avatar: orderFound?.agentId?.agentImageURL || "-",
+        team: orderFound?.agentId?.workStructure?.managerId?.name || "-",
         instructionsByCustomer:
           orderFound?.orderDetail?.instructionToDeliveryAgent || "-",
         distanceTravelled: orderFound?.orderDetail?.distance,
         timeTaken: formatToHours(orderFound?.orderDetail?.timeTaken) || "-",
         delayedBy: formatToHours(orderFound?.orderDetail?.delayedBy) || "-",
       },
-      items: orderFound.items,
-      billDetail: orderFound.billDetail,
+      items: orderFound.items || null,
+      billDetail: orderFound.billDetail || null,
       pickUpLocation: orderFound?.orderDetail?.pickupLocation || null,
-      deliveryLocation: orderFound.orderDetail.deliveryLocation,
-      agentLocation: orderFound?.agentId?.location,
-      stepperDetail: [orderFound?.orderDetailStepper],
+      deliveryLocation: orderFound?.orderDetail?.deliveryLocation || null,
+      agentLocation: orderFound?.agentId?.location || null,
+      orderDetailStepper: orderFound?.orderDetailStepper || [],
     };
 
     res.status(200).json({
