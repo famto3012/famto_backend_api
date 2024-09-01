@@ -221,17 +221,7 @@ const calculateAgentEarnings = async (agent, order) => {
     }
   }
 
-  if (order.orderDetail.distance <= agentPricing.baseDistance) {
-    return parseFloat(baseFare) - parseFloat(totalPurchaseFare);
-  } else {
-    return parseFloat(
-      totalPurchaseFare +
-        baseFare +
-        (distance - baseDistance) * fareAfterBaseDistance
-    );
-  }
-
-  // return parseFloat(orderSalary + totalPurchaseFare).toFixed(2);
+  return parseFloat(orderSalary + totalPurchaseFare).toFixed(2);
 };
 
 const updateOrderDetails = (order) => {
