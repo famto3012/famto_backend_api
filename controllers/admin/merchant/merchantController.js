@@ -146,6 +146,7 @@ const changeMerchantStatusByMerchantController = async (req, res, next) => {
     }
 
     merchantFound.status = !merchantFound.status;
+    merchantFound.openedToday = true
     await merchantFound.save();
 
     res.status(200).json({ message: "Merchant status changed" });
