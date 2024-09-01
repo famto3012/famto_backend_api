@@ -761,9 +761,9 @@ const searchCustomerByNameForMerchantController = async (req, res, next) => {
 
     // Format customers with necessary fields
     const formattedCustomers = searchResults.map((customer) => {
-      // const homeAddress = customer?.customerDetails?.homeAddress || {};
-      // const workAddress = customer?.customerDetails?.workAddress || {};
-      // const otherAddress = customer?.customerDetails?.otherAddress || [];
+      const homeAddress = customer?.customerDetails?.homeAddress || {};
+      const workAddress = customer?.customerDetails?.workAddress || {};
+      const otherAddress = customer?.customerDetails?.otherAddress || [];
 
       return {
         _id: customer._id,
@@ -774,11 +774,11 @@ const searchCustomerByNameForMerchantController = async (req, res, next) => {
         lastPlatformUsed: customer.lastPlatformUsed,
         registrationDate: formatDate(customer.createdAt),
         averageRating: customer.customerDetails?.averageRating || 0,
-        // address: [
-        //   { type: "home", homeAddress },
-        //   { type: "work", workAddress },
-        //   { type: "other", otherAddress },
-        // ],
+        address: [
+          { type: "home", homeAddress },
+          { type: "work", workAddress },
+          { type: "other", otherAddress },
+        ],
       };
     });
 

@@ -25,7 +25,7 @@ const addAppBannerController = async (req, res, next) => {
       imageUrl = await uploadToFirebase(req.file, "AppBannerImages");
     }
 
-    let newAppBanner = new AppBanner({
+    let newAppBanner = await AppBanner.create({
       name,
       geofenceId,
       imageUrl,
@@ -48,13 +48,18 @@ const editAppBannerController = async (req, res, next) => {
     const { id } = req.params;
     const { name, merchantId, geofenceId } = req.body;
 
-    const appBanner = await AppBanner.findOne({ _id: id });
+    const appBanner = await AppBanner.findById(id);
+
+    if (!appBanner) {
+      return next(appError("Banner not found", 404));
+    }
 
     let imageUrl = appBanner.imageUrl;
-    console.log("file", req.file)
+
     if (req.file) {
-      console.log("file inside", req.file)
-      await deleteFromFirebase(appBanner.imageUrl);
+      if (imageUrl) {
+        await deleteFromFirebase(appBanner.imageUrl);
+      }
       imageUrl = await uploadToFirebase(req.file, "AppBannerImages");
     }
 
@@ -67,12 +72,11 @@ const editAppBannerController = async (req, res, next) => {
         merchantId,
         geofenceId,
       },
-      { new: true } // Return the updated document
+      { new: true }
     );
 
-    // Check if the banner was found and updated
     if (!updatedAppBanner) {
-      return next(appError("App Banner not found", 404));
+      return next(appError("Error in updating banner"));
     }
 
     updatedAppBanner = await updatedAppBanner.populate("geofenceId", "name");
@@ -88,11 +92,7 @@ const editAppBannerController = async (req, res, next) => {
 
 const getAllAppBannersController = async (req, res, next) => {
   try {
-    const appBanners = await AppBanner.find().populate("geofenceId", "name");
-
-    if (!appBanners) {
-      return next(appError("No app banners found", 404));
-    }
+    const appBanners = await AppBanner.find({}).populate("geofenceId", "name");
 
     res.status(200).json({
       success: true,
@@ -106,7 +106,7 @@ const getAllAppBannersController = async (req, res, next) => {
 const getAppBannerByIdController = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const appBanners = await AppBanner.findOne({ _id: id });
+    const appBanners = await AppBanner.findById(id);
 
     if (!appBanners) {
       return next(appError("No app banners found", 404));

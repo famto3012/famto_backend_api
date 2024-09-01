@@ -29,6 +29,9 @@ const {
 const isAdmin = require("../../../middlewares/isAdmin");
 const { upload } = require("../../../utils/imageOperation");
 const isAdminOrMerchant = require("../../../middlewares/isAdminOrMerchant");
+const {
+  adminInvoiceValidations,
+} = require("../../../middlewares/validators/orderValidations");
 const orderRoute = express.Router();
 
 // -------------------------------------------------
@@ -157,6 +160,7 @@ orderRoute.put(
 orderRoute.post(
   "/admin/create-order-invoice",
   upload.any(),
+  adminInvoiceValidations,
   isAuthenticated,
   isAdmin,
   createInvoiceByAdminController
