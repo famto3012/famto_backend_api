@@ -291,7 +291,7 @@ const confirmOrderController = async (req, res, next) => {
         orderId: orderFound._id,
         orderDetail: orderFound.orderDetail,
         billDetail: orderFound.billDetail,
-        stepperDetail: orderFound.orderDetailStepper.accepted,
+        orderDetailStepper: stepperData,
       };
 
       sendSocketData(orderFound.customerId, eventName, socketData);
@@ -449,7 +449,7 @@ const rejectOrderController = async (req, res, next) => {
       orderId: orderFound._id,
       orderDetail: orderFound.orderDetail,
       billDetail: orderFound.billDetail,
-      stepperDetail: orderFound.orderDetailStepper.cancelled,
+      orderDetailStepper: orderFound.orderDetailStepper.cancelled,
     };
 
     sendSocketData(orderFound.customerId, eventName, socketData);
@@ -723,7 +723,9 @@ const getOrderDetailController = async (req, res, next) => {
       pickUpLocation: orderFound?.orderDetail?.pickupLocation || null,
       deliveryLocation: orderFound?.orderDetail?.deliveryLocation || null,
       agentLocation: orderFound?.agentId?.location || null,
-      orderDetailStepper: orderFound?.orderDetailStepper || [],
+      orderDetailStepper: Array.isArray(orderFound?.orderDetailStepper)
+        ? orderFound.orderDetailStepper
+        : [orderFound.orderDetailStepper],
     };
 
     res.status(200).json({

@@ -688,7 +688,9 @@ const getOrderDetailByAdminController = async (req, res, next) => {
       pickUpLocation: orderFound?.orderDetail?.pickupLocation || null,
       deliveryLocation: orderFound?.orderDetail?.deliveryLocation || null,
       agentLocation: orderFound?.agentId?.location || null,
-      orderDetailStepper: orderFound?.orderDetailStepper || [],
+      orderDetailStepper: Array.isArray(orderFound?.orderDetailStepper)
+        ? orderFound.orderDetailStepper
+        : [orderFound.orderDetailStepper],
     };
 
     res.status(200).json({
@@ -718,13 +720,13 @@ const createInvoiceByAdminController = async (req, res, next) => {
       deliveryOption,
       deliveryMode,
       items,
-      instructionToMerchant,
-      instructionToDeliveryAgent,
+      instructionToMerchant = "",
+      instructionToDeliveryAgent = "",
       // For Take Away and Home Delivery
       merchantId,
       customerAddressType,
       customerAddressOtherAddressId,
-      flatDiscount,
+      flatDiscount = 0,
       newCustomerAddress,
       // For Pick and Drop and Custom Order
       pickUpAddressType,
@@ -735,10 +737,10 @@ const createInvoiceByAdminController = async (req, res, next) => {
       newDeliveryAddress,
       vehicleType,
       customPickupLocation,
-      instructionInPickup,
-      instructionInDelivery,
+      instructionInPickup = "",
+      instructionInDelivery = "",
       // For all orders (Optional)
-      addedTip,
+      addedTip = 0,
     } = req.body;
 
     // Extract ifScheduled only if deliveryOption is scheduled

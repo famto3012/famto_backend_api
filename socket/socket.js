@@ -512,7 +512,7 @@ io.on("connection", async (socket) => {
         agentName: agent.fullName,
         agentImgURL: agent.agentImageURL,
         customerId: task.orderId.customerId,
-        stepperDetail,
+        orderDetailStepper: stepperDetail,
       };
 
       sendSocketData(orderFound.customerId, eventName, socketData);
