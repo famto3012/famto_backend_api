@@ -242,74 +242,99 @@ const commissionDetailSchema = mongoose.Schema(
   }
 );
 
-const shopUpdatesSchema = mongoose.Schema({
-  location: {
-    type: [Number],
-    required: true,
+const shopUpdatesSchema = mongoose.Schema(
+  {
+    location: {
+      type: [Number],
+      required: true,
+    },
+    status: {
+      type: String,
+      required: true,
+    },
+    description: {
+      type: String,
+      default: null,
+    },
   },
-  status: {
-    type: String,
-    required: true,
-  },
-  description: {
-    type: String,
-    default: null,
-  },
-});
+  {
+    _id: false,
+  }
+);
 
-const detailAddedByAgentSchema = mongoose.Schema({
-  agentEarning: {
-    type: Number,
-    default: null,
+const detailAddedByAgentSchema = mongoose.Schema(
+  {
+    agentEarning: {
+      type: Number,
+      default: null,
+    },
+    notes: {
+      type: String,
+      default: null,
+    },
+    signatureImageURL: {
+      type: String,
+      default: null,
+    },
+    imageURL: {
+      type: String,
+      default: null,
+    },
+    shopUpdates: [shopUpdatesSchema],
   },
-  notes: {
-    type: String,
-    default: null,
-  },
-  signatureImageURL: {
-    type: String,
-    default: null,
-  },
-  imageURL: {
-    type: String,
-    default: null,
-  },
-  shopUpdates: [shopUpdatesSchema],
-});
+  {
+    _id: false,
+  }
+);
 
-const stepperSchema = mongoose.Schema({
-  by: { type: String, default: null },
-  userId: { type: String, default: null },
-  date: { type: Date, default: null },
-  detailURL: { type: String, default: null },
-  location: { type: [Number], default: null },
-});
-
-const orderDetailStepperSchema = mongoose.Schema({
-  created: stepperSchema,
-  assigned: stepperSchema,
-  accepted: stepperSchema,
-  pickupStarted: stepperSchema,
-  reachedPickupLocation: stepperSchema,
-  deliveryStarted: stepperSchema,
-  reachedDeliveryLocation: stepperSchema,
-  noteAdded: stepperSchema,
-  signatureAdded: stepperSchema,
-  imageAdded: stepperSchema,
-  completed: stepperSchema,
-  cancelled: stepperSchema,
-});
-
-const purchasedItemsSchema = mongoose.Schema({
-  productId: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
+const stepperSchema = mongoose.Schema(
+  {
+    by: { type: String, default: null },
+    userId: { type: String, default: null },
+    date: { type: Date, default: null },
+    detailURL: { type: String, default: null },
+    location: { type: [Number], default: null },
   },
-  quantity: {
-    type: Number,
-    required: true,
+  {
+    _id: false,
+  }
+);
+
+const orderDetailStepperSchema = mongoose.Schema(
+  {
+    created: stepperSchema,
+    assigned: stepperSchema,
+    accepted: stepperSchema,
+    pickupStarted: stepperSchema,
+    reachedPickupLocation: stepperSchema,
+    deliveryStarted: stepperSchema,
+    reachedDeliveryLocation: stepperSchema,
+    noteAdded: stepperSchema,
+    signatureAdded: stepperSchema,
+    imageAdded: stepperSchema,
+    completed: stepperSchema,
+    cancelled: stepperSchema,
   },
-});
+  {
+    _id: false,
+  }
+);
+
+const purchasedItemsSchema = mongoose.Schema(
+  {
+    productId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+    },
+    quantity: {
+      type: Number,
+      required: true,
+    },
+  },
+  {
+    _id: false,
+  }
+);
 
 const orderSchema = mongoose.Schema(
   {
