@@ -81,6 +81,7 @@ const {
   updateRealTimeData,
 } = require("./controllers/admin/order/adminOrderController.js");
 const mapRoute = require("./routes/adminRoute/mapRoute/mapRoute.js");
+const { fetchPerDayRevenue, fetchMerchantDailyRevenue } = require("./utils/createPerDayRevenueHelper.js");
 
 // const app = express();
 
@@ -160,8 +161,10 @@ app.use("/api/v1/token", tokenRoute);
 
 // Schedule the task to run fout times daily for deleting expired plans of Merchants and customer
 cron.schedule("10 11 * * *", async () => {
+  const now = new Date();
   await deleteExpiredSponsorshipPlans();
   await deleteExpiredSubscriptionPlans();
+  fetchPerDayRevenue(now);
 });
 
 cron.schedule("* * * * *", async () => {
@@ -169,9 +172,13 @@ cron.schedule("* * * * *", async () => {
   // await  getRealTimeDataCount();
   console.log("Running scheduled order job...");
   const now = new Date();
-  console.log("Current Date and Time:", now);
+  // const previousDay = new Date(now.setDate(now.getDate() - 1));
+  
   populateUserSocketMap();
   deleteExpiredConversationsAndMessages();
+  // fetchPerDayRevenue(now);
+  // fetchMerchantDailyRevenue(previousDay);
+
 
   // Universal order
   const universalScheduledOrders = await ScheduledOrder.find({

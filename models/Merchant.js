@@ -276,6 +276,10 @@ const merchantSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    openedToday: {
+      type: Boolean,
+      default: false,
+    },
     merchantDetail: merchantDetailSchema,
     sponsorshipDetail: {
       type: [sponsorshipSchema],
