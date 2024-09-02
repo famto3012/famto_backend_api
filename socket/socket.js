@@ -106,18 +106,22 @@ const sendPushNotificationToUser = async (fcmToken, message, eventName) => {
   };
 
   try {
-    let response;
-   
-    const  response1 = await admin1.messaging(app1).send(mes); 
-    const  response2 = await admin2.messaging(app2).send(mes);
-
-    console.log("Successfully sent message:", response1);
-    console.log("Successfully sent message:", response2);
-
-    return true; // Return true if the notification was sent successfully
-  } catch (error) {
-    console.error("Error sending message:", error);
-    return false; // Return false if there was an error
+    // Try sending with the first project
+    const response1 = await admin1.messaging(app1).send(mes);
+    console.log("Successfully sent message with project1:", response1);
+    return true; // Return true if the notification was sent successfully with project1
+  } catch (error1) {
+    console.error("Error sending message with project1:", error1);
+    
+    // If it fails, try with the second project
+    try {
+      const response2 = await admin2.messaging(app2).send(mes);
+      console.log("Successfully sent message with project2:", response2);
+      return true; // Return true if the notification was sent successfully with project2
+    } catch (error2) {
+      console.error("Error sending message with project2:", error2);
+      return false; // Return false if there was an error with both projects
+    }
   }
 };
 
