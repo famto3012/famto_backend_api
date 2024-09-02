@@ -77,7 +77,7 @@ const io = socketio(server, {
       "https://famto-admin-panel-react.vercel.app",
       "*",
     ], // Replace with the correct URL of your React app
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true,
   },
   pingInterval: 10000, // 10 seconds

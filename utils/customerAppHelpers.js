@@ -11,6 +11,8 @@ const CustomerSurge = require("../models/CustomerSurge");
 const Referral = require("../models/Referral");
 const ReferralCode = require("../models/ReferralCode");
 const Product = require("../models/Product");
+const FcmToken = require("../models/fcmToken");
+const MerchantNotificationLogs = require("../models/MerchantNotificationLog");
 
 // Helper function to sort merchants by sponsorship
 const sortMerchantsBySponsorship = (merchants) => {
@@ -58,12 +60,27 @@ const calculateDeliveryCharges = (
   baseDistance,
   fareAfterBaseDistance
 ) => {
-  if (distance <= baseDistance) {
-    return parseFloat(baseFare);
+  console.log("=================================");
+  console.log("distance", distance);
+  console.log("baseFare", baseFare);
+  console.log("baseDistance", baseDistance);
+  console.log("fareAfterBaseDistance", fareAfterBaseDistance);
+  console.log("=================================");
+
+  if (fareAfterBaseDistance) {
+    if (distance <= baseDistance) {
+      return parseFloat(baseFare).toFixed(2);
+    } else {
+      return parseFloat(
+        baseFare + (distance - baseDistance) * fareAfterBaseDistance
+      ).toFixed(2);
+    }
   } else {
-    return parseFloat(
-      baseFare + (distance - baseDistance) * fareAfterBaseDistance
-    );
+    if (distance <= baseDistance) {
+      return parseFloat(baseFare).toFixed(2);
+    } else {
+      return parseFloat(baseFare + (distance - baseDistance)).toFixed(2);
+    }
   }
 };
 
@@ -546,10 +563,36 @@ const reduceProductAvailableQuantity = async (purchasedItems, merchantId) => {
 
       productFound.availableQuantity -= item.quantity;
 
+      if (productFound.availableQuantity <= 0) {
+        productFound.availableQuantity = 0;
+        productFound.status = false;
+      }
+
       await productFound.save();
 
-      // TODO Send notification
       if (productFound.availableQuantity <= productFound.alert) {
+        const { sendPushNotificationToUser } = require("../socket/socket");
+
+        const fcmToken = await FcmToken.findOne({ userId: merchantId });
+
+        const eventName = "alertProductQuantity";
+        const message = {
+          title: "Alert",
+          body: `${productFound.productName}'s quantity is low`,
+        };
+
+        if (fcmToken) {
+          try {
+            sendPushNotificationToUser(fcmToken.token, message, eventName);
+            await MerchantNotificationLogs.create({
+              title: "Alert",
+              description: `${productFound.productName}'s quantity is low`,
+              merchantId,
+            });
+          } catch (err) {
+            throw new Error("Error in processing low product alert");
+          }
+        }
       }
     }
   } catch (err) {

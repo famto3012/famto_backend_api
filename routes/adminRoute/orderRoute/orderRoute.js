@@ -160,7 +160,7 @@ orderRoute.put(
 orderRoute.post(
   "/admin/create-order-invoice",
   upload.any(),
-  adminInvoiceValidations,
+  // adminInvoiceValidations,
   isAuthenticated,
   isAdmin,
   createInvoiceByAdminController

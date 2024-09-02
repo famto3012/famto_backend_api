@@ -15,10 +15,18 @@ const {
   addCustomerFromCSVController,
   downloadCustomerSampleCSVController,
   searchCustomerByNameForMerchantController,
+  downloadCustomerCSVController,
 } = require("../../../controllers/admin/customer/customerController");
 const isAdminOrMerchant = require("../../../middlewares/isAdminOrMerchant");
 const { upload } = require("../../../utils/imageOperation");
 const adminCustomerRoute = express.Router();
+
+adminCustomerRoute.get(
+  "/download-customer-csv",
+  isAuthenticated,
+  isAdminOrMerchant,
+  downloadCustomerCSVController
+);
 
 adminCustomerRoute.get(
   "/download-sample-customer-csv",

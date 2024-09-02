@@ -137,6 +137,8 @@ const filterCustomerByGeofenceController = async (req, res, next) => {
   try {
     let { filter, page = 1, limit = 25 } = req.query;
 
+    console.log(filter);
+
     // Convert to integers
     page = parseInt(page, 10);
     limit = parseInt(limit, 10);
@@ -148,7 +150,7 @@ const filterCustomerByGeofenceController = async (req, res, next) => {
     let query = {};
 
     // If filter is not "all", filter by geofenceId
-    if (filter && filter.trim() !== "all") {
+    if (filter && filter.trim().toLowerCase() !== "all") {
       const geofenceObjectId = new mongoose.Types.ObjectId(filter.trim());
       query = { "customerDetails.geofenceId": geofenceObjectId };
     }
@@ -666,6 +668,78 @@ const downloadCustomerSampleCSVController = async (req, res, next) => {
   }
 };
 
+const downloadCustomerCSVController = async (req, res, next) => {
+  try {
+    const { geofenceId } = req.query;
+
+    // Build query object based on filters
+    const filter = {};
+    if (geofenceId && geofenceId !== "All")
+      filter["customerDetails.geofenceId"] = geofenceId;
+
+    // Fetch the data based on filter
+    let allCustomers = await Customer.find(filter)
+      .populate("customerDetails.geofenceId", "name")
+      .sort({ createdAt: -1 })
+      .exec();
+
+    let formattedResponse = [];
+
+    allCustomers?.forEach((customer) => {
+      formattedResponse.push({
+        customerId: customer?._id || "-",
+        customerName: customer?.fullName || "-",
+        customerEmail: customer?.email || "-",
+        customerPhoneNumber: customer?.phoneNumber || "-",
+        lastPlatformUsed: customer?.lastPlatformUsed || "-",
+        geofence: customer?.customerDetails?.geofenceId?.name || "-",
+        referralCode: customer?.customerDetails?.referralCode || "-",
+        homeAddress:
+          `${customer?.customerDetails?.homeAddress?.fullName}, ${customer?.customerDetails?.homeAddress?.flat}, ${customer?.customerDetails?.homeAddress?.area}, ${customer?.customerDetails?.homeAddress?.landmark}` ||
+          "-",
+        workAddress:
+          `${customer?.customerDetails?.workAddress?.fullName}, ${customer?.customerDetails?.workAddress?.flat}, ${customer?.customerDetails?.workAddress?.area}, ${customer?.customerDetails?.workAddress?.landmark}` ||
+          "-",
+        loyaltyPointEarnedToday:
+          customer?.customerDetails?.loyaltyPointEarnedToday || "-",
+        totalLoyaltyPointEarned:
+          customer?.customerDetails?.totalLoyaltyPointEarned || "-",
+      });
+    });
+
+    const filePath = path.join(__dirname, "../../../sample_CSV/sample_CSV.csv");
+
+    const csvHeaders = [
+      { id: "customerId", title: "Customer ID" },
+      { id: "customerName", title: "Customer name" },
+      { id: "customerEmail", title: "Customer Email" },
+      { id: "customerPhoneNumber", title: "Phone number" },
+      { id: "lastPlatformUsed", title: "Last platform used" },
+      { id: "geofence", title: "Geofence" },
+      { id: "referralCode", title: "Referal code" },
+      { id: "homeAddress", title: "Home address" },
+      { id: "workAddress", title: "Work address" },
+      { id: "loyaltyPointEarnedToday", title: "Loyalty point earned today" },
+      { id: "totalLoyaltyPointEarned", title: "Total loyalty point earned" },
+    ];
+
+    const writer = csvWriter({
+      path: filePath,
+      header: csvHeaders,
+    });
+
+    await writer.writeRecords(formattedResponse);
+
+    res.status(200).download(filePath, "Customer_Data.csv", (err) => {
+      if (err) {
+        next(err);
+      }
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 // ---------------------------------
 // For Merchant
 // ---------------------------------
@@ -815,4 +889,5 @@ module.exports = {
   getCustomersOfMerchant,
   addCustomerFromCSVController,
   downloadCustomerSampleCSVController,
+  downloadCustomerCSVController,
 };
