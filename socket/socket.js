@@ -29,6 +29,7 @@ const Admin = require("../models/Admin");
 
 const admin1 = require("firebase-admin");
 const admin2 = require("firebase-admin");
+const { MessagePort } = require("worker_threads");
 
 const serviceAccount1 = {
   type: process.env.TYPE_1,
@@ -100,7 +101,7 @@ const sendPushNotificationToUser = async (fcmToken, message, eventName) => {
       image: message?.image,
     },
     data: {
-      orderId: message?.orderId,
+      orderId: message?.orderId || "",
     },
     token: fcmToken,
   };
