@@ -3,6 +3,10 @@ const Product = require("../models/Product");
 const { convertToUTC } = require("./formatters");
 const geoLocation = require("./getGeoLocation");
 
+const safeParseFloat = (value, defaultValue = 0) => {
+  return isNaN(parseFloat(value)) ? defaultValue : parseFloat(value);
+};
+
 // Create or return the existing customer
 const findOrCreateCustomer = async ({
   customerId,
@@ -240,12 +244,14 @@ const calculateAdditionalWeightCharge = (
 // Calcula the subTotal in cart
 const calculateSubTotal = ({
   itemTotal,
+  surgeCharge = 0,
   deliveryCharge,
   addedTip = 0,
   totalDiscountAmount = 0,
 }) =>
   (
     parseFloat(itemTotal) +
+    parseFloat(surgeCharge) +
     parseFloat(deliveryCharge) +
     parseFloat(addedTip) -
     parseFloat(totalDiscountAmount)
@@ -254,16 +260,19 @@ const calculateSubTotal = ({
 // Calculate the grandTotal of cart
 const calculateGrandTotal = ({
   itemTotal,
+  surgeCharges = 0,
   deliveryCharge,
   addedTip = 0,
   taxAmount,
-}) =>
-  (
+}) => {
+  return Math.round(
     parseFloat(itemTotal) +
-    parseFloat(deliveryCharge) +
-    parseFloat(addedTip) +
-    parseFloat(taxAmount)
+      parseFloat(surgeCharges) +
+      parseFloat(deliveryCharge) +
+      parseFloat(addedTip) +
+      parseFloat(taxAmount)
   ).toFixed(2);
+};
 
 // Get the number of days betweeb scheduled dates
 const getTotalDaysBetweenDates = (startDate, endDate) =>
@@ -542,5 +551,5 @@ module.exports = {
   formattedCartItems,
   getPickAndDeliveryDetailForAdminOrderCreation,
   getCustomDeliveryAddressForAdmin,
-  // updateOrderStatus,
+  safeParseFloat,
 };

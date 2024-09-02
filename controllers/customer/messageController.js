@@ -102,7 +102,8 @@ const getMessages = async (req, res) => {
       conversationId: message.conversationId,
       sender: message.sender,
       seen: message.seen || false, // Assuming `seen` is false if not present
-      img: message.img || "",
+      img: message?.img || "",
+      text: message?.text || "",
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
       deletionDate: message.deletionDate, // Deletion date set to 7 days after creation
@@ -113,7 +114,6 @@ const getMessages = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
 
 const getConversations = async (req, res) => {
   const userId = req.userAuth;
@@ -142,7 +142,7 @@ const getConversations = async (req, res) => {
         participants: conversation.participants,
         createdAt: conversation.createdAt,
         updatedAt: conversation.updatedAt,
-        deletionDate: conversation.deletionDate, 
+        deletionDate: conversation.deletionDate,
       };
     });
 
@@ -151,6 +151,5 @@ const getConversations = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
 
 module.exports = { sendMessage, getMessages, getConversations };

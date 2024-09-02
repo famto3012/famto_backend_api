@@ -34,6 +34,7 @@ const {
   getTotalItemWeight,
   calculateAdditionalWeightCharge,
   getCustomDeliveryAddressForAdmin,
+  safeParseFloat,
 } = require("../../../utils/createOrderHelpers");
 const Product = require("../../../models/Product");
 const MerchantDiscount = require("../../../models/MerchantDiscount");
@@ -573,7 +574,12 @@ const filterOrdersByAdminController = async (req, res, next) => {
         deliveryMode: order.orderDetail.deliveryMode,
         orderDate: formatDate(order?.orderDetail?.deliveryTime),
         orderTime: formatTime(order.createdAt),
-        deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
+        deliveryDate: order?.orderDetail?.deliveryTime
+          ? formatDate(order.orderDetail.deliveryTime)
+          : "-",
+        deliveryTime: order?.orderDetail?.deliveryTime
+          ? formatTime(order.orderDetail.deliveryTime)
+          : "-",
         paymentMethod: order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
         amount: order.billDetail.grandTotal,
@@ -926,7 +932,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
         status: true,
       });
 
-      let surgeCharges;
+      let surgeCharges = 0;
       if (customerSurge) {
         surgeCharges = calculateDeliveryCharges(
           distanceInKM,
@@ -1038,6 +1044,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
       } else if (deliveryMode === "Home Delivery") {
         subTotal = calculateSubTotal({
           itemTotal,
+          surgeCharges,
           deliveryCharge:
             deliveryChargeForScheduledOrder || oneTimeDeliveryCharge,
           addedTip,
@@ -1046,11 +1053,14 @@ const createInvoiceByAdminController = async (req, res, next) => {
 
         grandTotal = calculateGrandTotal({
           itemTotal,
+          surgeCharges,
           deliveryCharge:
             deliveryChargeForScheduledOrder || oneTimeDeliveryCharge,
           addedTip,
           taxAmount,
         });
+
+        console.log("grandTotal", grandTotal);
 
         discountedGrandTotal = totalDiscountAmount
           ? (grandTotal - totalDiscountAmount).toFixed(2)
@@ -1071,6 +1081,8 @@ const createInvoiceByAdminController = async (req, res, next) => {
         subTotal,
         surgePrice: surgeCharges || null,
       };
+
+      console.log("updatedBill", updatedBill);
 
       if (deliveryMode === "Take Away") {
         updatedBill.taxAmount = null;
@@ -1152,7 +1164,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
         status: true,
       });
 
-      let surgeCharges;
+      let surgeCharges = 0;
 
       if (customerSurge) {
         let surgeBaseFare = customerSurge.baseFare;
@@ -1199,10 +1211,16 @@ const createInvoiceByAdminController = async (req, res, next) => {
         originalDeliveryCharge = deliveryChargePerDay * numOfDays;
       }
 
+      // console.log("originalDeliveryCharge", originalDeliveryCharge);
+      // console.log("addedTip", addedTip);
+      // console.log("surgeCharges", surgeCharges);
+
       const grandTotal =
-        parseFloat(originalDeliveryCharge) +
-        parseFloat(addedTip || 0) +
-        parseFloat(surgeCharges || 0);
+        safeParseFloat(originalDeliveryCharge) +
+        safeParseFloat(addedTip, 0) +
+        safeParseFloat(surgeCharges, 0);
+
+      // console.log("grandTotal", grandTotal);
 
       let updatedBill = {
         deliveryChargePerDay,
@@ -1210,7 +1228,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
         originalGrandTotal: Math.round(grandTotal),
         addedTip: addedTip || null,
         subTotal: Math.round(grandTotal),
-        surgePrice: surgeCharges || null,
+        surgePrice: safeParseFloat(surgeCharges, 0),
       };
 
       updatedCartDetail.instructionInPickup = instructionInPickup;
@@ -1295,8 +1313,8 @@ const createInvoiceByAdminController = async (req, res, next) => {
 
       const grandTotal =
         parseFloat(originalDeliveryCharge || deliveryChargePerDay || 0) +
-        parseFloat(addedTip || 0) +
-        parseFloat(surgeCharges || 0);
+        safeParseFloat(addedTip, 0) +
+        safeParseFloat(surgeCharges, 0);
 
       const updatedBill = {
         deliveryChargePerDay,
@@ -1304,7 +1322,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
         originalGrandTotal: Math.round(grandTotal),
         addedTip: addedTip || null,
         subTotal: Math.round(grandTotal),
-        surgePrice: surgeCharges || null,
+        surgePrice: safeParseFloat(surgeCharges, 0),
       };
 
       const transformedItems = items.map((item) => ({
@@ -1505,6 +1523,10 @@ const createOrderByAdminController = async (req, res, next) => {
         "merchantId"
       );
 
+      console.log("==============================");
+      console.log(newOrder);
+      console.log("==============================");
+
       // Clear the cart
       if (
         cartDeliveryMode === "Take Away" ||
@@ -1649,7 +1671,7 @@ const createOrderByAdminController = async (req, res, next) => {
         if (role === "admin") {
           roleId = process.env.ADMIN_ID;
         } else if (role === "merchant") {
-          roleId = newOrder?.merchantId._id;
+          roleId = newOrder?.merchantId?._id;
         } else if (role === "driver") {
           roleId = newOrder?.agentId;
         } else if (role === "customer") {

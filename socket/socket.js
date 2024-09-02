@@ -55,7 +55,7 @@ const io = socketio(server, {
       "https://famto-admin-panel-react.vercel.app",
       "*",
     ], // Replace with the correct URL of your React app
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true,
   },
   pingInterval: 10000, // 10 seconds
@@ -77,8 +77,8 @@ const sendPushNotificationToUser = async (fcmToken, message, eventName) => {
       body: notificationSettings?.description || message.body,
       image: message?.image,
     },
-    data:{
-      orderId: message?.orderId
+    data: {
+      orderId: message?.orderId,
     },
     token: fcmToken,
   };
@@ -101,7 +101,6 @@ const createNotificationLog = async (notificationSettings, message) => {
     description: notificationSettings?.description,
     ...(!notificationSettings?.customer && { orderId: message?.orderId }),
   };
- 
 
   try {
     if (notificationSettings?.customer) {
@@ -117,11 +116,11 @@ const createNotificationLog = async (notificationSettings, message) => {
 
     if (notificationSettings?.merchant) {
       try {
-        console.log("Data", logData)
+        console.log("Data", logData);
         await MerchantNotificationLogs.create({
           ...logData,
           merchantId: message?.merchantId,
-          orderId: message?.orderId
+          orderId: message?.orderId,
         });
       } catch (err) {
         console.log(`Error in creating Merhant notification log: ${err}`);
@@ -162,8 +161,9 @@ const createNotificationLog = async (notificationSettings, message) => {
     }
 
     if (notificationSettings?.admin) {
-      await AdminNotificationLogs.create({...logData,
-        orderId: message?.orderId
+      await AdminNotificationLogs.create({
+        ...logData,
+        orderId: message?.orderId,
       });
     }
   } catch (err) {
