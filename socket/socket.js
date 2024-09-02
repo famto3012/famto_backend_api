@@ -27,23 +27,45 @@ const {
 const NotificationSetting = require("../models/NotificationSetting");
 const Admin = require("../models/Admin");
 
-const serviceAccount = {
-  type: process.env.TYPE,
-  project_id: process.env.PROJECT_ID,
-  private_key_id: process.env.PRIVATE_KEY_ID,
-  private_key: process.env.PRIVATE_KEY,
-  client_email: process.env.CLIENT_EMAIL,
-  client_id: process.env.CLIENT_ID,
-  auth_uri: process.env.AUTH_URI,
-  token_uri: process.env.TOKEN_URI,
-  auth_provider_x509_cert_url: process.env.AUTH_PROVIDER_X509_CERT_URL,
-  client_x509_cert_url: process.env.CLIENT_X509_CERT_URL,
-  universe_domain: process.env.UNIVERSE_DOMAIN,
+const admin1 = require("firebase-admin");
+const admin2 = require("firebase-admin");
+
+const serviceAccount1 = {
+  type: process.env.TYPE_1,
+  project_id: process.env.PROJECT_ID_1,
+  private_key_id: process.env.PRIVATE_KEY_ID_1,
+  private_key: process.env.PRIVATE_KEY_1,
+  client_email: process.env.CLIENT_EMAIL_1,
+  client_id: process.env.CLIENT_ID_1,
+  auth_uri: process.env.AUTH_URI_1,
+  token_uri: process.env.TOKEN_URI_1,
+  auth_provider_x509_cert_url: process.env.AUTH_PROVIDER_X509_CERT_URL_1,
+  client_x509_cert_url: process.env.CLIENT_X509_CERT_URL_1,
+  universe_domain: process.env.UNIVERSE_DOMAIN_1,
 };
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+const serviceAccount2 = {
+  type: process.env.TYPE_2,
+  project_id: process.env.PROJECT_ID_2,
+  private_key_id: process.env.PRIVATE_KEY_ID_2,
+  private_key: process.env.PRIVATE_KEY_2,
+  client_email: process.env.CLIENT_EMAIL_2,
+  client_id: process.env.CLIENT_ID_2,
+  auth_uri: process.env.AUTH_URI_2,
+  token_uri: process.env.TOKEN_URI_2,
+  auth_provider_x509_cert_url: process.env.AUTH_PROVIDER_X509_CERT_URL_2,
+  client_x509_cert_url: process.env.CLIENT_X509_CERT_URL_2,
+  universe_domain: process.env.UNIVERSE_DOMAIN_2,
+};
+
+const app1 = admin1.initializeApp({
+  credential: admin1.credential.cert(serviceAccount1),
+}, "project1");
+
+const app2 = admin2.initializeApp({
+  credential: admin2.credential.cert(serviceAccount2),
+}, "project2");
+
 
 const app = express();
 const server = http.createServer(app);
@@ -77,15 +99,20 @@ const sendPushNotificationToUser = async (fcmToken, message, eventName) => {
       body: notificationSettings?.description || message.body,
       image: message?.image,
     },
-    data:{
-      orderId: message?.orderId
+    data: {
+      orderId: message?.orderId,
     },
     token: fcmToken,
   };
 
   try {
-    const response = await getMessaging().send(mes);
-    console.log("Successfully sent message:", response);
+    let response;
+   
+    const  response1 = await admin1.messaging(app1).send(mes); 
+    const  response2 = await admin2.messaging(app2).send(mes);
+
+    console.log("Successfully sent message:", response1);
+    console.log("Successfully sent message:", response2);
 
     return true; // Return true if the notification was sent successfully
   } catch (error) {
@@ -101,7 +128,6 @@ const createNotificationLog = async (notificationSettings, message) => {
     description: notificationSettings?.description,
     ...(!notificationSettings?.customer && { orderId: message?.orderId }),
   };
- 
 
   try {
     if (notificationSettings?.customer) {
@@ -117,11 +143,11 @@ const createNotificationLog = async (notificationSettings, message) => {
 
     if (notificationSettings?.merchant) {
       try {
-        console.log("Data", logData)
+        console.log("Data", logData);
         await MerchantNotificationLogs.create({
           ...logData,
           merchantId: message?.merchantId,
-          orderId: message?.orderId
+          orderId: message?.orderId,
         });
       } catch (err) {
         console.log(`Error in creating Merhant notification log: ${err}`);
@@ -162,8 +188,9 @@ const createNotificationLog = async (notificationSettings, message) => {
     }
 
     if (notificationSettings?.admin) {
-      await AdminNotificationLogs.create({...logData,
-        orderId: message?.orderId
+      await AdminNotificationLogs.create({
+        ...logData,
+        orderId: message?.orderId,
       });
     }
   } catch (err) {
@@ -252,31 +279,57 @@ const findRolesToNotify = async (eventName) => {
   }
 };
 
-const getRealTimeDataCount = async () => {
+const getRealTimeDataCount = async (data) => {
   try {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
-
-    const [pending, ongoing, completed, cancelled] = await Promise.all([
-      Order.countDocuments({
-        status: "Pending",
-        createdAt: { $gte: startOfDay, $lte: endOfDay },
-      }),
-      Order.countDocuments({
-        status: "On-going",
-        createdAt: { $gte: startOfDay, $lte: endOfDay },
-      }),
-      Order.countDocuments({
-        status: "Completed",
-        createdAt: { $gte: startOfDay, $lte: endOfDay },
-      }),
-      Order.countDocuments({
-        status: "Cancelled",
-        createdAt: { $gte: startOfDay, $lte: endOfDay },
-      }),
-    ]);
+    let pending, ongoing, completed, cancelled;
+    console.log(data);
+    if (data.id && data.role === "Merchant") {
+      [pending, ongoing, completed, cancelled] = await Promise.all([
+        Order.countDocuments({
+          status: "Pending",
+          createdAt: { $gte: startOfDay, $lte: endOfDay },
+          merchantId: data.id,
+        }),
+        Order.countDocuments({
+          status: "On-going",
+          createdAt: { $gte: startOfDay, $lte: endOfDay },
+          merchantId: data.id,
+        }),
+        Order.countDocuments({
+          status: "Completed",
+          createdAt: { $gte: startOfDay, $lte: endOfDay },
+          merchantId: data.id,
+        }),
+        Order.countDocuments({
+          status: "Cancelled",
+          createdAt: { $gte: startOfDay, $lte: endOfDay },
+          merchantId: data.id,
+        }),
+      ]);
+    } else {
+      [pending, ongoing, completed, cancelled] = await Promise.all([
+        Order.countDocuments({
+          status: "Pending",
+          createdAt: { $gte: startOfDay, $lte: endOfDay },
+        }),
+        Order.countDocuments({
+          status: "On-going",
+          createdAt: { $gte: startOfDay, $lte: endOfDay },
+        }),
+        Order.countDocuments({
+          status: "Completed",
+          createdAt: { $gte: startOfDay, $lte: endOfDay },
+        }),
+        Order.countDocuments({
+          status: "Cancelled",
+          createdAt: { $gte: startOfDay, $lte: endOfDay },
+        }),
+      ]);
+    }
 
     const [free, inActive, busy] = await Promise.all([
       Agent.countDocuments({ status: "Free" }),
@@ -388,8 +441,8 @@ io.on("connection", async (socket) => {
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
   // Get realtime data count for Home page
-  socket.on("getRealTimeDataOnRefresh", () => {
-    getRealTimeDataCount();
+  socket.on("getRealTimeDataOnRefresh", (data) => {
+    getRealTimeDataCount(data);
   });
 
   // User location update socket
