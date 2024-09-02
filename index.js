@@ -53,19 +53,12 @@ const {
   updateOneDayLoyaltyPointEarning,
   createOrdersFromScheduledPickAndDrop,
 } = require("./utils/customerAppHelpers");
-const {
-  app,
-  server,
-  populateUserSocketMap,
-  getRealTimeDataCount,
-} = require("./socket/socket.js");
+const { app, server, populateUserSocketMap } = require("./socket/socket.js");
 const ScheduledOrder = require("./models/ScheduledOrder.js");
-const { orderCreateTaskHelper } = require("./utils/orderCreateTaskHelper.js");
 const {
   resetAllAgentTaskHelper,
 } = require("./utils/resetAllAgentTaskHelper.js");
 const taskRoute = require("./routes/adminRoute/deliveryManagementRoute/taskRoute.js");
-const ScheduledPickAndCustom = require("./models/ScheduledPickAndCustom.js");
 const {
   moveAppDetailToHistoryAndResetForAllAgents,
 } = require("./utils/agentAppHelpers.js");
@@ -77,13 +70,12 @@ const messageRoute = require("./routes/customerRoute/messageRoute.js");
 const deleteExpiredConversationsAndMessages = require("./utils/deleteChatDataHelper.js");
 const scheduledPickAndCustom = require("./models/ScheduledPickAndCustom.js");
 const homeRoute = require("./routes/adminRoute/homeRoute/homeRoute.js");
-const {
-  updateRealTimeData,
-} = require("./controllers/admin/order/adminOrderController.js");
 const mapRoute = require("./routes/adminRoute/mapRoute/mapRoute.js");
-const { fetchPerDayRevenue, fetchMerchantDailyRevenue } = require("./utils/createPerDayRevenueHelper.js");
-
-// const app = express();
+const {
+  fetchPerDayRevenue,
+  fetchMerchantDailyRevenue,
+} = require("./utils/createPerDayRevenueHelper.js");
+const { createSettlement } = require("./utils/razorpayPayment.js");
 
 //middlewares
 app.use(express.json());
@@ -160,25 +152,19 @@ app.use("/api/v1/customers/subscription-payment", subscriptionLogRoute);
 app.use("/api/v1/token", tokenRoute);
 
 // Schedule the task to run fout times daily for deleting expired plans of Merchants and customer
-cron.schedule("10 11 * * *", async () => {
-  const now = new Date();
+cron.schedule("0 6,12,18,0 * * *", async () => {
   await deleteExpiredSponsorshipPlans();
   await deleteExpiredSubscriptionPlans();
-  fetchPerDayRevenue(now);
 });
 
 cron.schedule("* * * * *", async () => {
-  // await updateRealTimeData();
-  // await  getRealTimeDataCount();
+  // await createSettlement();
+
   console.log("Running scheduled order job...");
   const now = new Date();
-  // const previousDay = new Date(now.setDate(now.getDate() - 1));
-  
+
   populateUserSocketMap();
   deleteExpiredConversationsAndMessages();
-  // fetchPerDayRevenue(now);
-  // fetchMerchantDailyRevenue(previousDay);
-
 
   // Universal order
   const universalScheduledOrders = await ScheduledOrder.find({
@@ -236,11 +222,15 @@ cron.schedule("* * * * *", async () => {
   }
 });
 
-cron.schedule("45 15 * * *", async () => {
+cron.schedule("0 0 * * *", async () => {
   await generateMapplsAuthToken();
   await moveAppDetailToHistoryAndResetForAllAgents();
   await updateOneDayLoyaltyPointEarning();
   await resetAllAgentTaskHelper();
+
+  const now = new Date();
+  fetchPerDayRevenue(now);
+  fetchMerchantDailyRevenue(now);
 });
 
 //global errors

@@ -1,6 +1,5 @@
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
-const { default: axios } = require("axios");
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -75,9 +74,32 @@ const createRazorpayQrCode = async (amount) => {
   }
 };
 
+const createSettlement = async () => {
+  try {
+    console.log("Running Razorpay settlement...");
+
+    const settlement = await razorpay.settlements.createOndemandSettlement({
+      settle_full_balance: true,
+      description: "Settling full payments",
+    });
+
+    console.log("Settlement created:", settlement);
+
+    console.log("Finished running Razorpay settlement.");
+
+    return settlement; // Optional: return the settlement if needed
+  } catch (err) {
+    console.error(
+      "Error creating Razorpay settlement:",
+      JSON.stringify(err, null, 2)
+    );
+  }
+};
+
 module.exports = {
   createRazorpayOrderId,
   verifyPayment,
   razorpayRefund,
   createRazorpayQrCode,
+  createSettlement,
 };
