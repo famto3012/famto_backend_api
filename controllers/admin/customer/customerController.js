@@ -694,12 +694,12 @@ const downloadCustomerCSVController = async (req, res, next) => {
         lastPlatformUsed: customer?.lastPlatformUsed || "-",
         geofence: customer?.customerDetails?.geofenceId?.name || "-",
         referralCode: customer?.customerDetails?.referralCode || "-",
-        homeAddress:
-          `${customer?.customerDetails?.homeAddress?.fullName}, ${customer?.customerDetails?.homeAddress?.flat}, ${customer?.customerDetails?.homeAddress?.area}, ${customer?.customerDetails?.homeAddress?.landmark}` ||
-          "-",
-        workAddress:
-          `${customer?.customerDetails?.workAddress?.fullName}, ${customer?.customerDetails?.workAddress?.flat}, ${customer?.customerDetails?.workAddress?.area}, ${customer?.customerDetails?.workAddress?.landmark}` ||
-          "-",
+        homeAddress: customer?.customerDetails?.homeAddress
+          ? `${customer?.customerDetails?.homeAddress?.fullName}, ${customer?.customerDetails?.homeAddress?.flat}, ${customer?.customerDetails?.homeAddress?.area}, ${customer?.customerDetails?.homeAddress?.landmark}`
+          : "-",
+        workAddress: customer?.customerDetails?.workAddress
+          ? `${customer?.customerDetails?.workAddress?.fullName}, ${customer?.customerDetails?.workAddress?.flat}, ${customer?.customerDetails?.workAddress?.area}, ${customer?.customerDetails?.workAddress?.landmark}`
+          : "-",
         loyaltyPointEarnedToday:
           customer?.customerDetails?.loyaltyPointEarnedToday || "-",
         totalLoyaltyPointEarned:

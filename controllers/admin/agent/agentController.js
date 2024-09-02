@@ -10,6 +10,8 @@ const AccountLogs = require("../../../models/AccountLogs");
 const { formatDate } = require("../../../utils/formatters");
 const { formatToHours } = require("../../../utils/agentAppHelpers");
 const { createTransport } = require("nodemailer");
+const csvWriter = require("csv-writer").createObjectCsvWriter;
+const path = require("path");
 
 const addAgentByAdminController = async (req, res, next) => {
   const {
@@ -581,18 +583,18 @@ const filterAgentsController = async (req, res, next) => {
 
     const filterCriteria = {};
 
-    if (status) {
-      filterCriteria.status = { $regex: status.trim(), $options: "i" };
+    if (status && status.trim().toLowerCase() !== "all") {
+      filterCriteria.status = status;
     }
 
-    if (vehicleType) {
+    if (vehicleType && vehicleType.trim().toLowerCase() !== "all") {
       filterCriteria["vehicleDetail.type"] = {
         $regex: vehicleType.trim(),
         $options: "i",
       };
     }
 
-    if (geofence) {
+    if (geofence && geofence.trim().toLowerCase !== "all") {
       try {
         const geofenceObjectId = new mongoose.Types.ObjectId(geofence.trim());
         filterCriteria.geofenceId = geofenceObjectId;
@@ -600,6 +602,8 @@ const filterAgentsController = async (req, res, next) => {
         return res.status(400).json({ message: "Invalid geofence ID" });
       }
     }
+
+    console.log(filterCriteria);
 
     const searchResults = await Agent.find(
       filterCriteria,
@@ -987,6 +991,108 @@ const approvePaymentController = async (req, res, next) => {
   }
 };
 
+const downloadAgentCSVController = async (req, res, next) => {
+  try {
+    const { geofenceFilter, statusFilter, vehicleTypeFilter, searchFilter } =
+      req.query;
+
+    // Build query object based on filters
+    const filter = {};
+    if (geofenceFilter && geofenceFilter !== "All")
+      filter.geofenceId = geofenceFilter?.trim();
+    if (statusFilter && statusFilter !== "All")
+      filter.status = statusFilter?.trim();
+    if (searchFilter) {
+      filter.$or = [{ fullName: { $regex: searchFilter, $options: "i" } }];
+    }
+    if (vehicleTypeFilter) {
+      filter["vehicleDetail.type"] = {
+        $regex: vehicleTypeFilter?.trim(),
+        $options: "i",
+      };
+    }
+
+    // Fetch the data based on filter
+    let allAgents = await Agent.find(filter)
+      .populate("geofenceId", "name")
+      .populate("workStructure.managerId", "name")
+      .populate("workStructure.salaryStructureId", "ruleName")
+      .sort({ createdAt: -1 })
+      .exec();
+
+    let formattedResponse = [];
+
+    allAgents?.forEach((agent) => {
+      agent?.vehicleDetail?.forEach((vehicle) => {
+        formattedResponse.push({
+          agentId: agent?._id || "-",
+          agentName: agent?.fullName || "-",
+          agentEmail: agent?.email || "-",
+          agentPhoneNumber: agent?.phoneNumber || "-",
+          geofence: agent?.geofenceId?.name || "-",
+          registrationStatus: agent?.isApproved || "-",
+          aadharNumber: agent?.governmentCertificateDetail?.aadharNumber || "-",
+          drivingLicenseNumber:
+            agent?.governmentCertificateDetail?.drivingLicenseNumber || "-",
+          accountHolderName: agent?.bankDetail?.accountHolderName || "-",
+          accountNumber: agent?.bankDetail?.accountNumber || "-",
+          IFSCCode: agent?.bankDetail?.IFSCCode || "-",
+          UPIId: agent?.bankDetail?.UPIId || "-",
+          manager: agent?.workStructure?.managerId?.name || "-",
+          salaryStructure:
+            agent?.workStructure?.salaryStructureId?.ruleName || "-",
+          tag: agent?.workStructure?.tag || "-",
+          cashInHand: agent?.workStructure?.cashInHand || "-",
+          vehicleModel: vehicle?.model || "-",
+          vehicleStatus: vehicle?.vehicleStatus ? "True" : "False",
+          vehicleType: vehicle?.type || "-",
+          licensePlate: vehicle?.licensePlate || "-",
+        });
+      });
+    });
+
+    const filePath = path.join(__dirname, "../../../sample_CSV/sample_CSV.csv");
+
+    const csvHeaders = [
+      { id: "agentId", title: "Customer ID" },
+      { id: "agentName", title: "Customer name" },
+      { id: "agentEmail", title: "Customer Email" },
+      { id: "agentPhoneNumber", title: "Phone number" },
+      { id: "geofence", title: "Last platform used" },
+      { id: "registrationStatus", title: "Registration status" },
+      { id: "aadharNumber", title: "Registration status" },
+      { id: "drivingLicenseNumber", title: "Driving license number" },
+      { id: "accountHolderName", title: "Account holder name" },
+      { id: "accountNumber", title: "Account number" },
+      { id: "IFSCCode", title: "IFSC code" },
+      { id: "UPIId", title: "UPI ID" },
+      { id: "manager", title: "Manager" },
+      { id: "salaryStructure", title: "Salary structure" },
+      { id: "tag", title: "Tag" },
+      { id: "cashInHand", title: "Cash in hand" },
+      { id: "vehicleModel", title: "Vehicle model" },
+      { id: "vehicleStatus", title: "Vehicle status" },
+      { id: "vehicleType", title: "Vehicle type" },
+      { id: "licensePlate", title: "License plate" },
+    ];
+
+    const writer = csvWriter({
+      path: filePath,
+      header: csvHeaders,
+    });
+
+    await writer.writeRecords(formattedResponse);
+
+    res.status(200).download(filePath, "Agent_Data.csv", (err) => {
+      if (err) {
+        next(err);
+      }
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   addAgentByAdminController,
   editAgentByAdminController,
@@ -1003,4 +1109,5 @@ module.exports = {
   filterAgentPayoutController,
   approvePaymentController,
   changeAgentStatusController,
+  downloadAgentCSVController,
 };
