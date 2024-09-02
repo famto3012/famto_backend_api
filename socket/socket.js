@@ -284,7 +284,7 @@ const findRolesToNotify = async (eventName) => {
   }
 };
 
-const getRealTimeDataCount = async (data) => {
+const getRealTimeDataCountMerchant = async (data) => {
   try {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -335,6 +335,89 @@ const getRealTimeDataCount = async (data) => {
         }),
       ]);
     }
+
+    const [free, inActive, busy] = await Promise.all([
+      Agent.countDocuments({ status: "Free" }),
+      Agent.countDocuments({ status: "Inactive" }),
+      Agent.countDocuments({ status: "Busy" }),
+    ]);
+
+    const today = new Date()
+      .toLocaleString("en-IN", { weekday: "short" })
+      .toLowerCase();
+
+    // Counting active and not active merchants
+    const [open, closed] = await Promise.all([
+      Merchant.countDocuments({
+        status: true,
+      }),
+
+      Merchant.countDocuments({
+        status: false,
+      }),
+    ]);
+
+    const [active, notActive] = await Promise.all([
+      Merchant.countDocuments({
+        "merchantDetail.pricing.0": { $exists: true },
+      }), // active merchants
+      Merchant.countDocuments({
+        "merchantDetail.pricing.0": { $exists: false },
+      }), // inactive merchants
+    ]);
+
+    const realTimeData = {
+      orderCount: {
+        pending,
+        ongoing,
+        completed,
+        cancelled,
+      },
+      agentCount: {
+        free,
+        inActive,
+        busy,
+      },
+      merchantCount: {
+        open,
+        closed,
+        active,
+        notActive,
+      },
+    };
+
+    console.log("Emitting real-time data:", realTimeData);
+    io.emit("realTimeDataCount", realTimeData);
+  } catch (err) {
+    console.error("Error updating real-time data:", err);
+  }
+};
+const getRealTimeDataCount = async () => {
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+   
+    const  [pending, ongoing, completed, cancelled] = await Promise.all([
+        Order.countDocuments({
+          status: "Pending",
+          createdAt: { $gte: startOfDay, $lte: endOfDay },
+        }),
+        Order.countDocuments({
+          status: "On-going",
+          createdAt: { $gte: startOfDay, $lte: endOfDay },
+        }),
+        Order.countDocuments({
+          status: "Completed",
+          createdAt: { $gte: startOfDay, $lte: endOfDay },
+        }),
+        Order.countDocuments({
+          status: "Cancelled",
+          createdAt: { $gte: startOfDay, $lte: endOfDay },
+        }),
+      ]);
+    
 
     const [free, inActive, busy] = await Promise.all([
       Agent.countDocuments({ status: "Free" }),
@@ -446,8 +529,12 @@ io.on("connection", async (socket) => {
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
   // Get realtime data count for Home page
-  socket.on("getRealTimeDataOnRefresh", (data) => {
-    getRealTimeDataCount(data);
+  socket.on("getRealTimeDataOnRefresh", () => {
+    getRealTimeDataCount();
+  });
+  
+  socket.on("getRealTimeDataOnRefreshMerchant", (data) => {
+    getRealTimeDataCountMerchant(data);
   });
 
   // User location update socket
