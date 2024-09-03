@@ -1,0 +1,88 @@
+config:
+  target: "http://localhost:5000/api/v1"
+  phases:
+    - duration: 30
+      arrivalRate: 5
+      name: "Initial"
+
+  variables:
+    authToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IkMyNDA3MSIsInJvbGUiOiJDdXN0b21lciIsImlhdCI6MTcyNTM2MzQ0NCwiZXhwIjoxNzI1OTY4MjQ0fQ.sczmDQVis2DCOtV_kD9O3GBtW37IpIJ1fXVEl8-2_Fw"
+
+scenarios:
+  - flow:
+      - post:
+          url: "/customers/authenticate"
+          json:
+            phoneNumber: "9778438763"
+            latitude: 8.559349
+            longitude: 76.922327
+          # capture:
+          #   - json: "$.token"
+          #     as: "authToken"
+
+  - flow:
+      - get:
+          url: "/customers/profile"
+          headers:
+            Authorization: "Bearer {{authToken}}"
+
+  - flow:
+      - put:
+          url: "/customers/edit-profile"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            customerImage: "data:image/jpeg;base64,<base64-image-data>"
+            fullName: "Updated Name"
+            email: "example@mail.com"
+
+  - flow:
+      - put:
+          url: "/customers/update-address"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            addresses:
+              [
+                {
+                  type: "home",
+                  fullName: "Sarath",
+                  phoneNumber: "9778438763",
+                  flat: "B-12",
+                  area: "Chanthavila",
+                  landmark: "Near Homeo",
+                  coordinates: [8.589426, 76.877398],
+                },
+                {
+                  type: "work",
+                  fullName: "Sarath",
+                  phoneNumber: "9778438763",
+                  flat: "A-11",
+                  area: "Technopark",
+                  landmark: "Near Park",
+                  coordinates: [8.558426, 76.878398],
+                },
+                {
+                  type: "other",
+                  fullName: "Sarath 3 (Edited) 2",
+                  phoneNumber: "9778438763",
+                  flat: "C-20 2",
+                  area: "Vetturoad 2",
+                  landmark: "Near School 2",
+                  coordinates: [8.570434, 76.879334],
+                },
+              ]
+            fullName: "Updated Name"
+            email: "example@mail.com"
+
+  - flow:
+      - get:
+          url: "/customers/customer-address"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+
+  - flow:
+      - post:
+          url: "/customers/search-home"
+          json:
+            query: "Thakka"

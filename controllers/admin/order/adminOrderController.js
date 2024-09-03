@@ -1550,7 +1550,7 @@ const createOrderByAdminController = async (req, res, next) => {
         if (role === "admin") {
           roleId = process.env.ADMIN_ID;
         } else if (role === "merchant") {
-          roleId = newOrder?.merchantId._id;
+          roleId = newOrder?.merchantId?._id;
         } else if (role === "driver") {
           roleId = newOrder?.agentId;
         } else if (role === "customer") {
@@ -1607,7 +1607,7 @@ const createOrderByAdminController = async (req, res, next) => {
       sendSocketData(process.env.ADMIN_ID, eventName, socketData);
 
       if (newOrder?.merchantId?._id) {
-        sendSocketData(newOrder.merchantId?._id, eventName, socketData);
+        sendSocketData(newOrder?.merchantId?._id, eventName, socketData);
       }
 
       res.status(201).json({
