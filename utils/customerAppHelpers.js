@@ -60,12 +60,12 @@ const calculateDeliveryCharges = (
   baseDistance,
   fareAfterBaseDistance
 ) => {
-  console.log("=================================");
-  console.log("distance", distance);
-  console.log("baseFare", baseFare);
-  console.log("baseDistance", baseDistance);
-  console.log("fareAfterBaseDistance", fareAfterBaseDistance);
-  console.log("=================================");
+  // console.log("=================================");
+  // console.log("distance", distance);
+  // console.log("baseFare", baseFare);
+  // console.log("baseDistance", baseDistance);
+  // console.log("fareAfterBaseDistance", fareAfterBaseDistance);
+  // console.log("=================================");
 
   if (fareAfterBaseDistance) {
     if (distance <= baseDistance) {
@@ -114,6 +114,8 @@ const getTaxAmount = async (
 
 const createOrdersFromScheduled = async (scheduledOrder) => {
   try {
+    console.log("Triggered");
+
     const customer = await Customer.findById(scheduledOrder.customerId);
 
     if (!customer) {
@@ -126,17 +128,42 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
       throw new Error("Merchant not found", 404);
     }
 
+    let calculatedTip = 0;
+    if (scheduledOrder?.billDetail?.addedTip > 0) {
+      calculatedTip =
+        scheduledOrder.billDetail.addedTip /
+        scheduledOrder.orderDetail.numOfDays;
+    }
+
+    // return;
+
     let newOrder = await Order.create({
       customerId: scheduledOrder.customerId,
       merchantId: scheduledOrder.merchantId,
       items: scheduledOrder.items,
       orderDetail: scheduledOrder.orderDetail,
-      billDetail: scheduledOrder.billDetail,
+      billDetail: {
+        ...scheduledOrder.billDetail,
+        addedTip: calculatedTip,
+      },
       totalAmount: scheduledOrder.totalAmount,
       paymentMode: scheduledOrder.paymentMode,
       paymentStatus: scheduledOrder.paymentStatus,
       status: "Pending",
     });
+
+    if (new Date() < new Date(scheduledOrder.endDate)) {
+      const nextTime = new Date();
+      nextTime.setDate(nextTime.getDate() + 1);
+
+      await ScheduledOrder.findByIdAndUpdate(scheduledOrder._id, {
+        time: nextTime,
+      });
+    } else {
+      await ScheduledOrder.findByIdAndUpdate(scheduledOrder._id, {
+        status: "Completed",
+      });
+    }
 
     newOrder = await newOrder.populate(
       "merchantId",
@@ -213,19 +240,6 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
     sendSocketData(newOrder.customerId, eventName, socketData);
     sendSocketData(newOrder.merchantId, eventName, socketData);
     sendSocketData(process.env.ADMIN_ID, eventName, socketData);
-
-    if (new Date() < new Date(scheduledOrder.endDate)) {
-      const nextTime = new Date();
-      nextTime.setDate(nextTime.getDate() + 1);
-
-      await ScheduledOrder.findByIdAndUpdate(scheduledOrder._id, {
-        time: nextTime,
-      });
-    } else {
-      await ScheduledOrder.findByIdAndUpdate(scheduledOrder._id, {
-        status: "Completed",
-      });
-    }
   } catch (err) {
     console.error("Error creating order from scheduled order:", err.message);
   }
@@ -239,16 +253,39 @@ const createOrdersFromScheduledPickAndDrop = async (scheduledOrder) => {
       throw new Error("Customer not found", 404);
     }
 
+    let calculatedTip = 0;
+    if (scheduledOrder?.billDetail?.addedTip > 0) {
+      calculatedTip =
+        scheduledOrder.billDetail.addedTip /
+        scheduledOrder.orderDetail.numOfDays;
+    }
+
     const newOrder = await Order.create({
       customerId: scheduledOrder.customerId,
       items: scheduledOrder.items,
       orderDetail: scheduledOrder.orderDetail,
-      billDetail: scheduledOrder.billDetail,
+      billDetail: {
+        ...scheduledOrder.billDetail,
+        addedTip: calculatedTip,
+      },
       totalAmount: scheduledOrder.totalAmount,
       paymentMode: scheduledOrder.paymentMode,
       paymentStatus: scheduledOrder.paymentStatus,
       status: "Pending",
     });
+
+    if (new Date() < new Date(scheduledOrder.endDate)) {
+      const nextTime = new Date();
+      nextTime.setDate(nextTime.getDate() + 1);
+
+      await ScheduledPickAndCustom.findByIdAndUpdate(scheduledOrder._id, {
+        time: nextTime,
+      });
+    } else {
+      await ScheduledPickAndCustom.findByIdAndUpdate(scheduledOrder._id, {
+        status: "Completed",
+      });
+    }
 
     const { findRolesToNotify, sendSocketData } = require("../socket/socket");
 
@@ -319,19 +356,6 @@ const createOrdersFromScheduledPickAndDrop = async (scheduledOrder) => {
 
     sendSocketData(newOrder.customerId, eventName, socketData);
     sendSocketData(process.env.ADMIN_ID, eventName, socketData);
-
-    if (new Date() < new Date(scheduledOrder.endDate)) {
-      const nextTime = new Date();
-      nextTime.setDate(nextTime.getDate() + 1);
-
-      await ScheduledPickAndCustom.findByIdAndUpdate(scheduledOrder._id, {
-        time: nextTime,
-      });
-    } else {
-      await ScheduledPickAndCustom.findByIdAndUpdate(scheduledOrder._id, {
-        status: "Completed",
-      });
-    }
   } catch (err) {
     next(appError(err.message));
   }

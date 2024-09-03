@@ -827,7 +827,7 @@ const createInvoiceController = async (req, res, next) => {
       updatedCartDetail.distance = distanceInKM;
     }
 
-    const itemTotal = calculateItemTotal(items);
+    const itemTotal = calculateItemTotal(items, numOfDays);
 
     let oneTimeDeliveryCharge;
     let surgeCharges;
