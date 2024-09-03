@@ -102,9 +102,9 @@ app.use(
 // ------------------Routers----------------------------
 // =====================================================
 
-// =====================
-// --------Admin--------
-// =====================
+// ===================================
+// ---------------Admin---------------
+// ===================================
 
 app.use("/api/v1/auth", authRoute); //Login is same for both Admin & Merchant
 app.use("/api/v1/merchants", merchantRoute); //can be used by both admin and merchant
@@ -171,70 +171,57 @@ cron.schedule("0 6,12,18,0 * * *", async () => {
   await deleteExpiredSubscriptionPlans();
 });
 
-cron.schedule("* * * * *", async () => {
-  // await createSettlement();
+// cron.schedule("* * * * *", async () => {
+//   // await createSettlement();
+//   deleteExpiredConversationsAndMessages();
 
-  console.log("Running scheduled order job...");
-  const now = new Date();
+//   console.log("Running scheduled order job...");
+//   const now = new Date();
 
-  populateUserSocketMap();
-  deleteExpiredConversationsAndMessages();
+//   // Universal order
+//   const universalScheduledOrders = await ScheduledOrder.find({
+//     status: "Pending",
+//     $and: [
+//       { startDate: { $lte: now } },
+//       // {
+//       //   $or: [{ startDate: { $lte: now } }, { startDate: { $gte: now } }],
+//       // },
+//       {
+//         $or: [{ endDate: { $lte: now } }, { endDate: { $gte: now } }],
+//       },
+//       { time: { $lte: now } },
+//     ],
+//   });
 
-  // Universal order
-  const universalScheduledOrders = await ScheduledOrder.find({
-    status: "Pending",
-    $and: [
-      { startDate: { $lte: now } },
-      // {
-      //   $or: [{ startDate: { $lte: now } }, { startDate: { $gte: now } }],
-      // },
-      {
-        $or: [{ endDate: { $lte: now } }, { endDate: { $gte: now } }],
-      },
-      { time: { $lte: now } },
-    ],
-  });
+//   if (universalScheduledOrders.length) {
+//     for (const scheduledOrder of universalScheduledOrders) {
+//       console.log("Processing Scheduled Order ID:", scheduledOrder._id);
+//       // await createOrdersFromScheduled(scheduledOrder);
+//     }
+//   }
 
-  console.log("Found Universal scheduled Orders:", universalScheduledOrders);
+//   // Pick and Drop order
+//   const pickAndDropScheduledOrders = await scheduledPickAndCustom.find({
+//     status: "Pending",
+//     $and: [
+//       { startDate: { $lte: now } },
+//       {
+//         $or: [{ endDate: { $lte: now } }, { endDate: { $gte: now } }],
+//       },
+//       { time: { $lte: now } },
+//     ],
+//   });
 
-  if (!universalScheduledOrders.length) {
-    console.log("No scheduled orders to process at this time.");
-  } else {
-    for (const scheduledOrder of universalScheduledOrders) {
-      console.log("Processing Scheduled Order ID:", scheduledOrder._id);
-      await createOrdersFromScheduled(scheduledOrder);
-    }
-  }
-
-  // Pick and Drop order
-  const pickAndDropScheduledOrders = await scheduledPickAndCustom.find({
-    status: "Pending",
-    $and: [
-      { startDate: { $lte: now } },
-      {
-        $or: [{ endDate: { $lte: now } }, { endDate: { $gte: now } }],
-      },
-      { time: { $lte: now } },
-    ],
-  });
-
-  console.log(
-    "Found Pick and Drop scheduled Orders:",
-    pickAndDropScheduledOrders
-  );
-
-  if (!pickAndDropScheduledOrders.length) {
-    console.log("No scheduled pick and drop orders to process at this time.");
-  } else {
-    for (const scheduledOrder of pickAndDropScheduledOrders) {
-      console.log(
-        "Processing Pick and Drop Scheduled Order ID:",
-        scheduledOrder._id
-      );
-      await createOrdersFromScheduledPickAndDrop(scheduledOrder);
-    }
-  }
-});
+//   if (pickAndDropScheduledOrders.length) {
+//     for (const scheduledOrder of pickAndDropScheduledOrders) {
+//       console.log(
+//         "Processing Pick and Drop Scheduled Order ID:",
+//         scheduledOrder._id
+//       );
+//       await createOrdersFromScheduledPickAndDrop(scheduledOrder);
+//     }
+//   }
+// });
 
 cron.schedule("0 0 * * *", async () => {
   await generateMapplsAuthToken();

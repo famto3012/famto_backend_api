@@ -189,6 +189,8 @@ const getDeliveryDetails = async ({
 
 // Get the scheduled details
 const processSchedule = (ifScheduled) => {
+  console.log("ifScheduled", ifScheduled);
+
   let startDate = ifScheduled.startDate;
   let endDate = ifScheduled.endDate;
   let time = ifScheduled.time && convertToUTC(ifScheduled.time);
@@ -208,10 +210,27 @@ const processSchedule = (ifScheduled) => {
 };
 
 // Calculat the item total in cart
-const calculateItemTotal = (items) =>
-  items
-    .reduce((total, item) => total + item.price * item.quantity, 0)
-    .toFixed(2);
+const calculateItemTotal = (items, numOfDays) => {
+  let calculatedTotal;
+
+  console.log("DAYS", numOfDays);
+
+  if (numOfDays) {
+    const amount = items
+      .reduce((total, item) => total + item.price * item.quantity, 0)
+      .toFixed(2);
+
+    calculatedTotal = amount * numOfDays;
+  } else {
+    calculatedTotal = items
+      .reduce((total, item) => total + item.price * item.quantity, 0)
+      .toFixed(2);
+  }
+
+  console.log("calculatedTotal", calculatedTotal);
+
+  return calculatedTotal;
+};
 
 // Calculate the total weight of items
 const getTotalItemWeight = (items) => {

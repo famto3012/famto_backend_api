@@ -135,7 +135,7 @@ const purchasedItemsSchema = mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     required: true,
   },
-  qunatity: {
+  quantity: {
     type: Number,
     required: true,
   },

@@ -163,6 +163,30 @@ const getAllScheduledOrdersForAdminController = async (req, res, next) => {
     // Paginate the sorted orders
     const paginatedOrders = sortedOrders.slice(skip, skip + limit);
 
+    const formattedResponse = paginatedOrders?.map((order) => {
+      return {
+        _id: order._id,
+        orderStatus: order.status,
+        merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
+        customerName:
+          order?.orderDetail?.deliveryAddress?.fullName ||
+          order?.customerId?.fullName ||
+          "-",
+        deliveryMode: order?.orderDetail?.deliveryMode,
+        orderDate: formatDate(order.createdAt),
+        orderTime: formatTime(order.createdAt),
+        deliveryDate: order?.orderDetail?.deliveryTime
+          ? formatDate(order.orderDetail.deliveryTime)
+          : "-",
+        deliveryTime: order?.orderDetail?.deliveryTime
+          ? formatTime(order.orderDetail.deliveryTime)
+          : "-",
+        paymentMethod: order.paymentMode,
+        deliveryOption: order?.orderDetail?.deliveryOption,
+        amount: order?.billDetail?.grandTotal,
+      };
+    });
+
     // Count total documents in both collections
     const totalDocuments =
       (await ScheduledOrder.countDocuments({})) +
@@ -182,7 +206,7 @@ const getAllScheduledOrdersForAdminController = async (req, res, next) => {
 
     res.status(200).json({
       message: "All scheduled orders and custom orders",
-      data: paginatedOrders,
+      data: formattedResponse,
       pagination,
     });
   } catch (err) {
@@ -749,12 +773,17 @@ const createInvoiceByAdminController = async (req, res, next) => {
       addedTip = 0,
     } = req.body;
 
+    console.log("deliveryOption", deliveryOption);
+    console.log("1", req.body.ifScheduled);
+
     // Extract ifScheduled only if deliveryOption is scheduled
     let ifScheduled, startDate, endDate, time, numOfDays;
     if (deliveryOption === "Scheduled") {
       ifScheduled = req.body.ifScheduled;
       ({ startDate, endDate, time, numOfDays } = processSchedule(ifScheduled));
     }
+
+    console.log("numOfDays", numOfDays);
 
     let merchantFound;
     if (
@@ -898,7 +927,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
     }
 
     if (deliveryMode === "Take Away" || deliveryMode === "Home Delivery") {
-      const itemTotal = calculateItemTotal(items);
+      const itemTotal = calculateItemTotal(items, numOfDays);
 
       const businessCategory = await BusinessCategory.findById(
         merchantFound.merchantDetail.businessCategoryId
@@ -988,27 +1017,25 @@ const createInvoiceByAdminController = async (req, res, next) => {
         });
 
         if (merchantDiscount) {
-          if (itemTotal < merchantDiscount.maxCheckoutValue) {
-            return;
-          }
+          if (itemTotal > merchantDiscount.maxCheckoutValue) {
+            const currentDate = new Date();
+            const validFrom = new Date(merchantDiscount.validFrom);
+            const validTo = new Date(merchantDiscount.validTo);
 
-          const currentDate = new Date();
-          const validFrom = new Date(merchantDiscount.validFrom);
-          const validTo = new Date(merchantDiscount.validTo);
+            // Adjusting the validTo date to the end of the day
+            validTo.setHours(23, 59, 59, 999);
 
-          // Adjusting the validTo date to the end of the day
-          validTo.setHours(23, 59, 59, 999);
-
-          if (validFrom <= currentDate && validTo >= currentDate) {
-            if (merchantDiscount.discountType === "Percentage-discount") {
-              let discountValue =
-                (itemTotal * merchantDiscount.discountValue) / 100;
-              if (discountValue > merchantDiscount.maxDiscountValue) {
-                discountValue = merchantDiscount.maxDiscountValue;
+            if (validFrom <= currentDate && validTo >= currentDate) {
+              if (merchantDiscount.discountType === "Percentage-discount") {
+                let discountValue =
+                  (itemTotal * merchantDiscount.discountValue) / 100;
+                if (discountValue > merchantDiscount.maxDiscountValue) {
+                  discountValue = merchantDiscount.maxDiscountValue;
+                }
+                merchantDiscountAmount += discountValue;
+              } else if (merchantDiscount.discountType === "Flat-discount") {
+                merchantDiscountAmount += merchantDiscount.discountValue;
               }
-              merchantDiscountAmount += discountValue;
-            } else if (merchantDiscount.discountType === "Flat-discount") {
-              merchantDiscountAmount += merchantDiscount.discountValue;
             }
           }
         }
@@ -1060,8 +1087,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
           taxAmount,
         });
 
-        console.log("grandTotal", grandTotal);
-
         discountedGrandTotal = totalDiscountAmount
           ? (grandTotal - totalDiscountAmount).toFixed(2)
           : null;
@@ -1081,8 +1106,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
         subTotal,
         surgePrice: surgeCharges || null,
       };
-
-      console.log("updatedBill", updatedBill);
 
       if (deliveryMode === "Take Away") {
         updatedBill.taxAmount = null;
@@ -1765,7 +1788,7 @@ const createOrderByAdminController = async (req, res, next) => {
 
       return res.status(201).json({
         message: "Scheduled order created successfully",
-        data: newOrder,
+        data: newOrderCreated,
       });
     }
 
@@ -1796,7 +1819,7 @@ const createOrderByAdminController = async (req, res, next) => {
 
       res.status(201).json({
         message: "Order created successfully",
-        data: newOrder,
+        data: newOrderCreated,
       });
       return;
     }
