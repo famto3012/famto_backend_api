@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const cron = require("node-cron");
+const morgan = require("morgan");
 
 const globalErrorHandler = require("./middlewares/globalErrorHandler");
 
@@ -75,10 +76,11 @@ const {
   fetchPerDayRevenue,
   fetchMerchantDailyRevenue,
 } = require("./utils/createPerDayRevenueHelper.js");
-const { createSettlement } = require("./utils/razorpayPayment.js");
+// const { createSettlement } = require("./utils/razorpayPayment.js");
 
 //middlewares
 app.use(express.json());
+app.use(morgan("tiny"));
 app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
@@ -96,8 +98,14 @@ app.use(
   })
 );
 
-//routers
-//admin
+// =====================================================
+// ------------------Routers----------------------------
+// =====================================================
+
+// =====================
+// --------Admin--------
+// =====================
+
 app.use("/api/v1/auth", authRoute); //Login is same for both Admin & Merchant
 app.use("/api/v1/merchants", merchantRoute); //can be used by both admin and merchant
 app.use("/api/v1/admin/agents", adminAgentRoute);
@@ -140,15 +148,21 @@ app.use("/api/v1/admin/auto-allocation", autoAllocationRoute);
 app.use("/api/v1/admin/delivery-management", taskRoute);
 app.use("/api/v1/admin/map", mapRoute);
 
-//agent
+// =====================
+// --------Agent--------
+// =====================
 app.use("/api/v1/agents", agentRoute);
 
-//customer
+// ========================
+// --------Customer--------
+// ========================
 app.use("/api/v1/customers", customerRoute);
 app.use("/api/v1/customers/chat", messageRoute);
 app.use("/api/v1/customers/subscription-payment", subscriptionLogRoute);
 
-// Token
+// =====================
+// --------Token--------
+// =====================
 app.use("/api/v1/token", tokenRoute);
 
 // Schedule the task to run fout times daily for deleting expired plans of Merchants and customer

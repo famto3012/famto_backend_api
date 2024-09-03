@@ -147,9 +147,29 @@ const updateBusinessCategoryOrderController = async (req, res, next) => {
       });
     }
 
-    res
-      .status(200)
-      .json({ message: "Service category order updated successfully" });
+    res.status(200).json({
+      message: "Service category order updated successfully",
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const deleteServiceCategoryController = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const serviceFound = await ServiceCategory.findById(id);
+
+    if (!serviceFound) {
+      return next(appError("Service not found", 404));
+    }
+
+    await ServiceCategory.findByIdAndDelete(id);
+
+    res.status(200).json({
+      message: "Service deleted successfully",
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -161,4 +181,5 @@ module.exports = {
   getAllServiceCategoriesController,
   getServiceCategoryByIdController,
   updateBusinessCategoryOrderController,
+  deleteServiceCategoryController,
 };

@@ -59,14 +59,19 @@ const serviceAccount2 = {
   universe_domain: process.env.UNIVERSE_DOMAIN_2,
 };
 
-const app1 = admin1.initializeApp({
-  credential: admin1.credential.cert(serviceAccount1),
-}, "project1");
+const app1 = admin1.initializeApp(
+  {
+    credential: admin1.credential.cert(serviceAccount1),
+  },
+  "project1"
+);
 
-const app2 = admin2.initializeApp({
-  credential: admin2.credential.cert(serviceAccount2),
-}, "project2");
-
+const app2 = admin2.initializeApp(
+  {
+    credential: admin2.credential.cert(serviceAccount2),
+  },
+  "project2"
+);
 
 const app = express();
 const server = http.createServer(app);
@@ -113,7 +118,7 @@ const sendPushNotificationToUser = async (fcmToken, message, eventName) => {
     return true; // Return true if the notification was sent successfully with project1
   } catch (error1) {
     console.error("Error sending message with project1:", error1);
-    
+
     // If it fails, try with the second project
     try {
       const response2 = await admin2.messaging(app2).send(mes);
@@ -398,26 +403,25 @@ const getRealTimeDataCount = async () => {
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
-   
-    const  [pending, ongoing, completed, cancelled] = await Promise.all([
-        Order.countDocuments({
-          status: "Pending",
-          createdAt: { $gte: startOfDay, $lte: endOfDay },
-        }),
-        Order.countDocuments({
-          status: "On-going",
-          createdAt: { $gte: startOfDay, $lte: endOfDay },
-        }),
-        Order.countDocuments({
-          status: "Completed",
-          createdAt: { $gte: startOfDay, $lte: endOfDay },
-        }),
-        Order.countDocuments({
-          status: "Cancelled",
-          createdAt: { $gte: startOfDay, $lte: endOfDay },
-        }),
-      ]);
-    
+
+    const [pending, ongoing, completed, cancelled] = await Promise.all([
+      Order.countDocuments({
+        status: "Pending",
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+      }),
+      Order.countDocuments({
+        status: "On-going",
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+      }),
+      Order.countDocuments({
+        status: "Completed",
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+      }),
+      Order.countDocuments({
+        status: "Cancelled",
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+      }),
+    ]);
 
     const [free, inActive, busy] = await Promise.all([
       Agent.countDocuments({ status: "Free" }),
@@ -532,7 +536,7 @@ io.on("connection", async (socket) => {
   socket.on("getRealTimeDataOnRefresh", () => {
     getRealTimeDataCount();
   });
-  
+
   socket.on("getRealTimeDataOnRefreshMerchant", (data) => {
     getRealTimeDataCountMerchant(data);
   });
@@ -611,13 +615,39 @@ io.on("connection", async (socket) => {
           startTime: new Date(),
           "deliveryDetail.deliveryStatus": "Accepted",
           "pickupDetail.pickupStatus": "Started",
+          "deliveryDetail.deliveryStatus": "Accepted",
         });
+
+        console.log("Outside IF");
+
+        if (orderFound.orderDetail.deliveryMode === "Custom Order") {
+          console.log("Inside IF");
+
+          const data = {
+            location: agent.location,
+            status: "Initial location",
+          };
+
+          // Initialize detailsAddedByAgents if it does not exist
+          if (!orderFound.detailAddedByAgent) {
+            orderFound.detailAddedByAgent = { shopUpdates: [] };
+          }
+
+          // Initialize shopUpdates if it does not exist
+          let shopUpdates = orderFound?.detailAddedByAgent?.shopUpdates || [];
+
+          shopUpdates.push(data);
+
+          console.log("COMPLETED SHOP UPDATE");
+        }
+
+        await orderFound.save();
       } else {
         await Task.findByIdAndUpdate(task._id, {
           agentId,
           taskStatus: "Assigned",
-          "deliveryDetail.deliveryStatus": "Accepted",
           "pickupDetail.pickupStatus": "Accepted",
+          "deliveryDetail.deliveryStatus": "Accepted",
         });
       }
 
@@ -673,6 +703,8 @@ io.on("connection", async (socket) => {
       if (task?.orderId?.merchantId) {
         sendSocketData(task?.orderId?.merchantId, eventName, socketData);
       }
+
+      console.log("agentOrderAccepted completed successfully");
     } catch (err) {
       socket.emit("error", {
         message: err.message,
@@ -1180,16 +1212,22 @@ io.on("connection", async (socket) => {
   // Cancel Custom order
   socket.on(
     "cancelCustomOrderByAgent",
-    async ({ status, description, taskId, latitude, longitude }) => {
+    async ({ status, description, orderId, latitude, longitude }) => {
       try {
-        const taskFound = await Task.findById(taskId);
-        if (!taskFound) {
-          return socket.emit("error", { message: "Task not found" });
-        }
+        console.log(status);
+        console.log(description);
+        console.log(orderId);
+        console.log(latitude);
+        console.log(longitude);
 
-        const orderFound = await Order.findById(taskFound.orderId);
+        const orderFound = await Order.findById(orderId);
         if (!orderFound) {
           return socket.emit("error", { message: "Order not found" });
+        }
+
+        const taskFound = await Task.findOne({ orderId });
+        if (!taskFound) {
+          return socket.emit("error", { message: "Task not found" });
         }
 
         const agentFound = await Agent.findById(orderFound.agentId);
@@ -1202,6 +1240,8 @@ io.on("connection", async (socket) => {
           status,
           description,
         };
+
+        console.log("dataByAgent", dataByAgent);
 
         let oldDistance = orderFound.orderDetail?.distance || 0;
 
@@ -1217,6 +1257,8 @@ io.on("connection", async (socket) => {
           lastLocation
         );
 
+        console.log("distanceInKM", distanceInKM);
+
         const newDistance = parseFloat(distanceInKM);
 
         orderFound.orderDetail.distance = oldDistance + newDistance;
@@ -1227,6 +1269,8 @@ io.on("connection", async (socket) => {
           orderFound.orderDetail.deliveryMode,
           distanceInKM
         );
+
+        console.log("deliveryCharges", deliveryCharges);
 
         let oldDeliveryCharge = orderFound.billDetail?.deliveryCharge || 0;
         let oldGrandTotal = orderFound.billDetail?.grandTotal || 0;
@@ -1247,6 +1291,8 @@ io.on("connection", async (socket) => {
               orderFound.detailAddedByAgent.shopUpdates.length - 1
             ].location;
         }
+
+        console.log("Here");
 
         const currentTime = new Date();
         let delayedBy = null;
@@ -1295,6 +1341,8 @@ io.on("connection", async (socket) => {
           taskFound.save(),
           agentFound.save(),
         ]);
+
+        console.log("Here 2");
 
         const eventName = "cancelCustomOrderByAgent";
 

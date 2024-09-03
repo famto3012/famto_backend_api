@@ -917,17 +917,17 @@ const getTaskPreviewController = async (req, res, next) => {
       const pickupTask = {
         type: "Pickup",
         taskId: task._id,
-        taskStatus:
-          task.pickupDetail.pickupStatus === "Pending" ? "Accepted" : "Started",
+        taskStatus: task.pickupDetail.pickupStatus, // === "Pending" ? "Accepted" : "Started",
         orderId: task.orderId?._id,
+        orderType: task?.orderId?.orderDetail?.deliveryMode || null,
         date: formatDate(task.createdAt),
         time: formatTime(task.createdAt),
         address: {
-          fullName: task.pickupDetail.pickupAddress.fullName,
-          flat: task?.pickupDetail?.pickupAddress?.flat,
-          area: task.pickupDetail.pickupAddress.area,
-          phoneNumber: task.pickupDetail.pickupAddress.phoneNumber,
-          location: task.pickupDetail.pickupLocation,
+          fullName: task?.pickupDetail?.pickupAddress?.fullName || null,
+          flat: task?.pickupDetail?.pickupAddress?.flat || null,
+          area: task?.pickupDetail?.pickupAddress?.area || null,
+          phoneNumber: task?.pickupDetail?.pickupAddress?.phoneNumber || null,
+          location: task?.pickupDetail?.pickupLocation || null,
         },
         agentLocation: agentFound.location,
       };
@@ -935,11 +935,12 @@ const getTaskPreviewController = async (req, res, next) => {
       const deliveryTask = {
         type: "Delivery",
         taskId: task._id,
-        taskStatus:
-          task.deliveryDetail.deliveryStatus === "Pending"
-            ? "Accepted"
-            : "Started",
+        taskStatus: task.deliveryDetail.deliveryStatus,
+        // === "Pending"
+        // ? "Accepted"
+        // : "Started",
         orderId: task.orderId?._id,
+        orderType: task?.orderId?.orderDetail?.deliveryMode || null,
         date: formatDate(task.createdAt),
         time: formatTime(task.orderId.orderDetail.deliveryTime),
         name: task.deliveryDetail.deliveryAddress.fullName,
@@ -988,6 +989,10 @@ const getPickUpDetailController = async (req, res, next) => {
     const formattedResponse = {
       taskId: taskFound._id,
       orderId: taskFound.orderId._id,
+      messageReceiverId:
+        taskFound?.orderId?.merchantId ||
+        taskFound?.orderId?.customerId ||
+        null,
       type: "Pickup",
       date: formatDate(taskFound.orderId.createdAt),
       time: formatTime(taskFound.orderId.createdAt),
@@ -1028,6 +1033,7 @@ const getDeliveryDetailController = async (req, res, next) => {
     const formattedResponse = {
       taskId: taskFound._id,
       orderId: taskFound.orderId._id,
+      messageReceiverId: taskFound?.orderId?.customerId || null,
       type: "Delivery",
       date: formatDate(taskFound.orderId.orderDetail?.deliveryTime),
       time: formatTime(taskFound.orderId.orderDetail?.deliveryTime),

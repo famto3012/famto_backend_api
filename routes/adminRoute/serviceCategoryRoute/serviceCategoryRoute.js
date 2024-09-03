@@ -8,6 +8,7 @@ const {
   getAllServiceCategoriesController,
   getServiceCategoryByIdController,
   updateBusinessCategoryOrderController,
+  deleteServiceCategoryController,
 } = require("../../../controllers/admin/serviceCategory/serviceCategoryController");
 const { body } = require("express-validator");
 
@@ -52,6 +53,13 @@ serviceCategoryRoute.put(
   isAuthenticated,
   isAdmin,
   updateBusinessCategoryOrderController
+);
+
+serviceCategoryRoute.delete(
+  "/delete-service/:id",
+  isAuthenticated,
+  isAdmin,
+  deleteServiceCategoryController
 );
 
 module.exports = serviceCategoryRoute;

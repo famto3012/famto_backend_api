@@ -205,8 +205,9 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
         data: responseData,
       });
     }
-    const merchantLocation = task.orderId.merchantId.merchantDetail.location;
-    geofence = task.orderId.merchantId.merchantDetail.geofenceId;
+    const merchantLocation =
+      task?.orderId?.merchantId?.merchantDetail?.location;
+    geofence = task?.orderId?.merchantId?.merchantDetail?.geofenceId;
     const coordinates = geofence.coordinates;
 
     if (coordinates[0] !== coordinates[coordinates.length - 1]) {
