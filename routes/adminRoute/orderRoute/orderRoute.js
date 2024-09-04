@@ -29,6 +29,7 @@ const {
   downloadInvoiceBillController,
   downloadOrderBillController,
   filterScheduledOrdersByAdminController,
+  searchScheduledOrderByIdByAdminController,
 } = require("../../../controllers/admin/order/adminOrderController");
 const isAdmin = require("../../../middlewares/isAdmin");
 const { upload } = require("../../../utils/imageOperation");
@@ -54,18 +55,6 @@ orderRoute.get(
   getAllScheduledOrdersOfMerchantController
 );
 
-orderRoute.patch(
-  "/confirm-order/:orderId",
-  isAuthenticated,
-  confirmOrderController
-);
-
-orderRoute.put(
-  "/reject-order/:orderId",
-  isAuthenticated,
-  rejectOrderController
-);
-
 orderRoute.get("/search-order", isAuthenticated, searchOrderByIdController);
 
 orderRoute.get(
@@ -89,13 +78,13 @@ orderRoute.get(
   downloadOrdersCSVByMerchantController
 );
 
-orderRoute.get("/:orderId", isAuthenticated, getOrderDetailController);
-
 orderRoute.get(
   "/scheduled-order/:orderId",
   isAuthenticated,
   getScheduledOrderDetailController
 );
+
+orderRoute.get("/:orderId", isAuthenticated, getOrderDetailController);
 
 orderRoute.post(
   "/create-order-invoice",
@@ -119,6 +108,18 @@ orderRoute.post(
   downloadOrderBillController
 );
 
+orderRoute.put(
+  "/reject-order/:orderId",
+  isAuthenticated,
+  rejectOrderController
+);
+
+orderRoute.patch(
+  "/confirm-order/:orderId",
+  isAuthenticated,
+  confirmOrderController
+);
+
 // -------------------------------------------------
 // For Admin
 // -------------------------------------------------
@@ -128,6 +129,13 @@ orderRoute.get(
   isAuthenticated,
   isAdmin,
   searchOrderByIdByAdminController
+);
+
+orderRoute.get(
+  "/admin/search-scheduled-order",
+  isAuthenticated,
+  isAdmin,
+  searchScheduledOrderByIdByAdminController
 );
 
 orderRoute.get(
@@ -172,20 +180,6 @@ orderRoute.get(
   getOrderDetailByAdminController
 );
 
-orderRoute.patch(
-  "/admin/confirm-order/:orderId",
-  isAuthenticated,
-  isAdmin,
-  confirmOrderByAdminContrroller
-);
-
-orderRoute.put(
-  "/admin/reject-order/:orderId",
-  isAuthenticated,
-  isAdmin,
-  rejectOrderByAdminController
-);
-
 orderRoute.post(
   "/admin/create-order-invoice",
   upload.any(),
@@ -200,6 +194,20 @@ orderRoute.post(
   isAuthenticated,
   isAdmin,
   createOrderByAdminController
+);
+
+orderRoute.put(
+  "/admin/reject-order/:orderId",
+  isAuthenticated,
+  isAdmin,
+  rejectOrderByAdminController
+);
+
+orderRoute.patch(
+  "/admin/confirm-order/:orderId",
+  isAuthenticated,
+  isAdmin,
+  confirmOrderByAdminContrroller
 );
 
 module.exports = orderRoute;

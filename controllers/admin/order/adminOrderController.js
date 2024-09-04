@@ -535,6 +535,108 @@ const searchOrderByIdByAdminController = async (req, res, next) => {
   }
 };
 
+const searchScheduledOrderByIdByAdminController = async (req, res, next) => {
+  try {
+    let { query, page = 1, limit = 15 } = req.query;
+
+    if (!query || query.trim() === "") {
+      return res.status(400).json({
+        message: "Search query cannot be empty",
+      });
+    }
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
+    // Define the search criteria for both collections
+    const searchCriteria = {
+      _id: { $regex: query.trim(), $options: "i" },
+    };
+
+    // Search in ScheduledOrder collection
+    const scheduledOrders = await ScheduledOrder.find(searchCriteria)
+      .populate({
+        path: "merchantId",
+        select: "merchantDetail.merchantName merchantDetail.deliveryTime",
+      })
+      .populate({
+        path: "customerId",
+        select: "fullName",
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Search in ScheduledPickAndCustom collection
+    const scheduledPickAndCustomOrders = await scheduledPickAndCustom
+      .find(searchCriteria)
+      .populate({
+        path: "merchantId",
+        select: "merchantDetail.merchantName merchantDetail.deliveryTime",
+      })
+      .populate({
+        path: "customerId",
+        select: "fullName",
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Combine both results
+    const combinedOrders = [
+      ...scheduledOrders,
+      ...scheduledPickAndCustomOrders,
+    ];
+
+    // Count total documents in both collections
+    const totalDocumentsInScheduledOrder = await ScheduledOrder.countDocuments(
+      searchCriteria
+    );
+    const totalDocumentsInScheduledPickAndCustom =
+      await scheduledPickAndCustom.countDocuments(searchCriteria);
+    const totalDocuments =
+      totalDocumentsInScheduledOrder + totalDocumentsInScheduledPickAndCustom;
+
+    // Format the orders
+    const formattedOrders = combinedOrders.map((order) => ({
+      _id: order._id,
+      orderStatus: order.status,
+      merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
+      customerName:
+        order.orderDetail.deliveryAddress.fullName || order.customerId.fullName,
+      deliveryMode: order.orderDetail.deliveryMode,
+      orderDate: formatDate(order?.orderDetail?.deliveryTime),
+      orderTime: formatTime(order.createdAt),
+      deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
+      paymentMethod: order.paymentMode,
+      deliveryOption: order.orderDetail.deliveryOption,
+      amount: order.billDetail.grandTotal,
+    }));
+
+    // Pagination info
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
+    res.status(200).json({
+      message: "Search result of order",
+      data: formattedOrders || [],
+      pagination,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 const filterOrdersByAdminController = async (req, res, next) => {
   try {
     let { status, paymentMode, deliveryMode, page = 1, limit = 15 } = req.query;
@@ -2386,6 +2488,7 @@ module.exports = {
   confirmOrderByAdminContrroller,
   rejectOrderByAdminController,
   searchOrderByIdByAdminController,
+  searchScheduledOrderByIdByAdminController,
   filterOrdersByAdminController,
   filterScheduledOrdersByAdminController,
   getOrderDetailByAdminController,
