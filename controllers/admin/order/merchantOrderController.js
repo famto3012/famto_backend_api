@@ -484,7 +484,7 @@ const searchOrderByIdController = async (req, res, next) => {
     const skip = (page - 1) * limit;
 
     const ordersFound = await Order.find({
-      _id: query,
+      _id: { $regex: query, $options: "i" },
       merchantId: currentMerchant,
     })
       .populate({
@@ -514,6 +514,84 @@ const searchOrderByIdController = async (req, res, next) => {
         orderDate: formatDate(order?.orderDetail?.deliveryTime),
         orderTime: formatTime(order.createdAt),
         deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
+        paymentMethod: order.paymentMode,
+        deliveryOption: order.orderDetail.deliveryOption,
+        amount: order.billDetail.grandTotal,
+      };
+    });
+
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
+    res.status(200).json({
+      message: "Search result of order",
+      data: formattedOrders || [],
+      pagination,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const searchScheduledOrderByIdController = async (req, res, next) => {
+  try {
+    const currentMerchant = req.userAuth;
+
+    if (!currentMerchant) {
+      return next(appError("Merchant is not authenticated", 401));
+    }
+
+    let { query, page = 1, limit = 15 } = req.query;
+
+    if (!query) {
+      return next(appError("Order ID is required", 400));
+    }
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
+    const ordersFound = await ScheduledOrder.find({
+      _id: { $regex: query, $options: "i" },
+      merchantId: currentMerchant,
+    })
+      .populate({
+        path: "merchantId",
+        select: "merchantDetail.merchantName merchantDetail.deliveryTime",
+      })
+      .populate({
+        path: "customerId",
+        select: "fullName",
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Count total documents
+    const totalDocuments = await Order.countDocuments({});
+
+    const formattedOrders = ordersFound.map((order) => {
+      return {
+        _id: order._id,
+        orderStatus: order.status,
+        merchantName: order.merchantId.merchantDetail.merchantName,
+        customerName:
+          order.orderDetail.deliveryAddress.fullName ||
+          order.customerId.fullName,
+        deliveryMode: order.orderDetail.deliveryMode,
+        orderDate: formatDate(order.createdAt),
+        orderTime: formatTime(order.createdAt),
+        deliveryDate: "-",
+        deliveryTime: "-",
         paymentMethod: order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
         amount: order.billDetail.grandTotal,
@@ -631,6 +709,99 @@ const filterOrdersController = async (req, res, next) => {
   }
 };
 
+const filterScheduledOrdersController = async (req, res, next) => {
+  try {
+    const currentMerchant = req.userAuth;
+
+    let { status, paymentMode, deliveryMode, page = 1, limit = 15 } = req.query;
+
+    if (!status && !paymentMode && !deliveryMode) {
+      return res.status(400).json({
+        message: "At least one filter is required",
+      });
+    }
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
+    const filterCriteria = { merchantId: currentMerchant };
+
+    if (status && status.trim().toLowerCase() !== "all") {
+      filterCriteria.status = { $regex: status.trim(), $options: "i" };
+    }
+
+    if (paymentMode && paymentMode.trim().toLowerCase() !== "all") {
+      filterCriteria.paymentMode = {
+        $regex: paymentMode.trim(),
+        $options: "i",
+      };
+    }
+
+    if (deliveryMode && deliveryMode.trim().toLowerCase() !== "all") {
+      filterCriteria["orderDetail.deliveryMode"] = {
+        $regex: deliveryMode.trim(),
+        $options: "i",
+      };
+    }
+
+    const filteredOrderResults = await ScheduledOrder.find(filterCriteria)
+      .populate({
+        path: "merchantId",
+        select: "merchantDetail.merchantName merchantDetail.deliveryTime",
+      })
+      .populate({
+        path: "customerId",
+        select: "fullName",
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Count total documents
+    const totalDocuments = await ScheduledOrder.countDocuments({});
+
+    const formattedOrders = filteredOrderResults.map((order) => {
+      return {
+        _id: order._id,
+        orderStatus: order.status,
+        merchantName: order.merchantId.merchantDetail.merchantName,
+        customerName:
+          order.orderDetail.deliveryAddress.fullName ||
+          order.customerId.fullName,
+        deliveryMode: order.orderDetail.deliveryMode,
+        orderDate: formatDate(order.createdAt),
+        orderTime: formatTime(order.createdAt),
+        deliveryDate: "-",
+        deliveryTime: "-",
+        paymentMethod: order.paymentMode,
+        deliveryOption: order.orderDetail.deliveryOption,
+        amount: order.billDetail.grandTotal,
+      };
+    });
+
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
+    res.status(200).json({
+      message: "Filtered orders",
+      data: formattedOrders,
+      pagination,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 const getOrderDetailController = async (req, res, next) => {
   try {
     const currentMerchant = req.userAuth;
@@ -717,6 +888,111 @@ const getOrderDetailController = async (req, res, next) => {
         distanceTravelled: orderFound?.orderDetail?.distance,
         timeTaken: formatToHours(orderFound?.orderDetail?.timeTaken) || "-",
         delayedBy: formatToHours(orderFound?.orderDetail?.delayedBy) || "-",
+      },
+      items: orderFound.items || null,
+      billDetail: orderFound.billDetail || null,
+      pickUpLocation: orderFound?.orderDetail?.pickupLocation || null,
+      deliveryLocation: orderFound?.orderDetail?.deliveryLocation || null,
+      agentLocation: orderFound?.agentId?.location || null,
+      orderDetailStepper: Array.isArray(orderFound?.orderDetailStepper)
+        ? orderFound.orderDetailStepper
+        : [orderFound.orderDetailStepper],
+    };
+
+    res.status(200).json({
+      message: "Single order detail",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getScheduledOrderDetailController = async (req, res, next) => {
+  try {
+    const currentMerchant = req.userAuth;
+
+    if (!currentMerchant) {
+      return next(appError("Merchant is not authenticated", 401));
+    }
+
+    const { orderId } = req.params;
+
+    const orderFound = await ScheduledOrder.findOne({
+      _id: orderId,
+      merchantId: currentMerchant,
+    })
+      .populate({
+        path: "customerId",
+        select: "fullName phoneNumber email",
+      })
+      .populate({
+        path: "merchantId",
+        select: "merchantDetail",
+      })
+      // .populate({
+      //   path: "agentId",
+      //   select: "fullName workStructure",
+      //   populate: {
+      //     path: "workStructure.managerId",
+      //     select: "name",
+      //   },
+      // })
+      .exec();
+
+    if (!orderFound) {
+      return next(appError("Order not found", 404));
+    }
+
+    const formattedResponse = {
+      _id: orderFound._id,
+      orderStatus: orderFound.status || "-",
+      paymentStatus: orderFound.paymentStatus || "-",
+      paymentMode: orderFound.paymentMode || "-",
+      deliveryMode: orderFound.orderDetail.deliveryMode || "-",
+      deliveryOption: orderFound.orderDetail.deliveryOption || "-",
+      orderTime: `${formatDate(orderFound.createdAt)} | ${formatTime(
+        orderFound.createdAt
+      )}`,
+      deliveryTime: `${formatDate(
+        orderFound.orderDetail.deliveryTime
+      )} | ${formatTime(orderFound.orderDetail.deliveryTime)}`,
+      customerDetail: {
+        _id: orderFound.customerId._id,
+        name:
+          orderFound.customerId.fullName ||
+          orderFound.orderDetail.deliveryAddress.fullName ||
+          "-",
+        email: orderFound.customerId.email || "-",
+        phone: orderFound.customerId.phoneNumber || "-",
+        address: orderFound.orderDetail.deliveryAddress || "-",
+        ratingsToDeliveryAgent: {
+          rating: orderFound?.orderRating?.ratingToDeliveryAgent?.rating || 0,
+          review: orderFound.orderRating?.ratingToDeliveryAgent.review || "-",
+        },
+        ratingsByDeliveryAgent: {
+          rating: orderFound?.orderRating?.ratingByDeliveryAgent?.rating || 0,
+          review: orderFound?.orderRating?.ratingByDeliveryAgent?.review || "-",
+        },
+      },
+      merchantDetail: {
+        _id: orderFound?.merchantId?._id || "-",
+        name: orderFound?.merchantId?.merchantDetail?.merchantName || "-",
+        instructionsByCustomer:
+          orderFound?.orderDetail?.instructionToMerchant || "-",
+        merchantEarnings: orderFound?.commissionDetail?.merchantEarnings || "-",
+        famtoEarnings: orderFound?.commissionDetail?.famtoEarnings || "-",
+      },
+      deliveryAgentDetail: {
+        _id: "-",
+        name: "-",
+        phoneNumber: "-",
+        avatar: "-",
+        team: "-",
+        instructionsByCustomer: "-",
+        distanceTravelled: "-",
+        timeTaken: "-",
+        delayedBy: "-",
       },
       items: orderFound.items || null,
       billDetail: orderFound.billDetail || null,
@@ -1424,8 +1700,11 @@ module.exports = {
   confirmOrderController,
   rejectOrderController,
   searchOrderByIdController,
+  searchScheduledOrderByIdController,
   filterOrdersController,
+  filterScheduledOrdersController,
   getOrderDetailController,
+  getScheduledOrderDetailController,
   createInvoiceController,
   createOrderController,
   downloadOrdersCSVByMerchantController,

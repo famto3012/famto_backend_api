@@ -142,6 +142,9 @@ const billSchema = mongoose.Schema(
 
 const scheduledPickAndCustomSchema = mongoose.Schema(
   {
+    _id: {
+      type: String,
+    },
     customerId: {
       type: String,
       ref: "Customer",
@@ -215,6 +218,7 @@ scheduledPickAndCustomSchema.pre("save", async function (next) {
       }
 
       const customId = `SO${year}${month}${counter.count}`;
+      console.log(`Generated scheduled custom _id: ${customId}`);
       this._id = customId;
     }
     next();

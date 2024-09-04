@@ -114,8 +114,6 @@ const getTaxAmount = async (
 
 const createOrdersFromScheduled = async (scheduledOrder) => {
   try {
-    console.log("Triggered");
-
     const customer = await Customer.findById(scheduledOrder.customerId);
 
     if (!customer) {
@@ -135,13 +133,27 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
         scheduledOrder.orderDetail.numOfDays;
     }
 
-    // return;
+    const deliveryTimeMinutes = parseInt(
+      merchant.merchantDetail.deliveryTime,
+      10
+    );
 
-    let newOrder = await Order.create({
+    const deliveryTime = new Date();
+    deliveryTime.setMinutes(deliveryTime.getMinutes() + deliveryTimeMinutes);
+
+    const stepperData = {
+      by: "Admin",
+      date: new Date(),
+    };
+
+    let options = {
       customerId: scheduledOrder.customerId,
       merchantId: scheduledOrder.merchantId,
       items: scheduledOrder.items,
-      orderDetail: scheduledOrder.orderDetail,
+      orderDetail: {
+        ...scheduledOrder.orderDetail,
+        deliveryTime,
+      },
       billDetail: {
         ...scheduledOrder.billDetail,
         addedTip: calculatedTip,
@@ -150,7 +162,12 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
       paymentMode: scheduledOrder.paymentMode,
       paymentStatus: scheduledOrder.paymentStatus,
       status: "Pending",
-    });
+      "orderDetailStepper.created": stepperData,
+    };
+
+    let newOrderCreated = await Order.create(options);
+
+    options = {};
 
     if (new Date() < new Date(scheduledOrder.endDate)) {
       const nextTime = new Date();
@@ -165,9 +182,8 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
       });
     }
 
-    newOrder = await newOrder.populate(
-      "merchantId",
-      "merchantDetail.merchantName"
+    const newOrder = await Order.findById(newOrderCreated._id).populate(
+      "merchantId"
     );
 
     const { findRolesToNotify, sendSocketData } = require("../socket/socket");
@@ -213,7 +229,7 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
       orderId: newOrder._id,
       orderDetail: newOrder.orderDetail,
       billDetail: newOrder.billDetail,
-      orderDetailStepper: newOrder.orderDetailStepper.created,
+      orderDetailStepper: stepperData,
 
       //? Data for displaying detail in all orders table
       _id: newOrder._id,
@@ -260,10 +276,21 @@ const createOrdersFromScheduledPickAndDrop = async (scheduledOrder) => {
         scheduledOrder.orderDetail.numOfDays;
     }
 
+    const deliveryTime = new Date();
+    deliveryTime.setHours(deliveryTime.getHours() + 1);
+
+    const stepperData = {
+      by: "Admin",
+      date: new Date(),
+    };
+
     const newOrder = await Order.create({
       customerId: scheduledOrder.customerId,
       items: scheduledOrder.items,
-      orderDetail: scheduledOrder.orderDetail,
+      orderDetail: {
+        ...scheduledOrder.orderDetail,
+        deliveryTime,
+      },
       billDetail: {
         ...scheduledOrder.billDetail,
         addedTip: calculatedTip,
@@ -272,6 +299,7 @@ const createOrdersFromScheduledPickAndDrop = async (scheduledOrder) => {
       paymentMode: scheduledOrder.paymentMode,
       paymentStatus: scheduledOrder.paymentStatus,
       status: "Pending",
+      "orderDetailStepper.created": stepperData,
     });
 
     if (new Date() < new Date(scheduledOrder.endDate)) {
@@ -330,7 +358,7 @@ const createOrdersFromScheduledPickAndDrop = async (scheduledOrder) => {
       orderId: newOrder._id,
       orderDetail: newOrder.orderDetail,
       billDetail: newOrder.billDetail,
-      orderDetailStepper: newOrder.orderDetailStepper.created,
+      orderDetailStepper: stepperData,
 
       //? Data for displaying detail in all orders table
       _id: newOrder._id,
