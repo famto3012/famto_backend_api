@@ -13,6 +13,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Create .env file
+        run: |
+          echo "PORT=${{ secrets.PORT }}" >> .env
+          echo "MONGO_URL=${{ secrets.MONGO_URL }}" >> .env
+          echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> .env
+          echo "SEEDER_EMAIL=${{ secrets.SEEDER_EMAIL }}" >> .env
+          echo "SEEDER_PASSWORD=${{ secrets.SEEDER_PASSWORD }}" >> .env
+          echo "SEEDER_PHONENUMBER=${{ secrets.SEEDER_PHONENUMBER }}" >> .env
+          echo "WEBHOOK_SECRET=${{ secrets.WEBHOOK_SECRET }}" >> .env
+          echo "RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}" >> .env
+          echo "RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}" >> .env
+          echo "MapMyIndiaAPIKey=${{ secrets.MapMyIndiaAPIKey }}" >> .env
+          echo "MAPPLS_CLIENT_ID=${{ secrets.MAPPLS_CLIENT_ID }}" >> .env
+          echo "MAPPLS_CLIENT_SECRET=${{ secrets.MAPPLS_CLIENT_SECRET }}" >> .env
+          echo "API_KEY=${{ secrets.API_KEY }}" >> .env
+          echo "AUTH_DOMAIN=${{ secrets.AUTH_DOMAIN }}" >> .env
+          echo "PROJECT_ID=${{ secrets.PROJECT_ID }}" >> .env
+          echo "STORAGE_BUCKET=${{ secrets.STORAGE_BUCKET }}" >> .env
+          echo "MESSAGING_SENDER_ID=${{ secrets.MESSAGING_SENDER_ID }}" >> .env
+          echo "APP_ID=${{ secrets.APP_ID }}" >> .env
+          echo "MEASUREMENT_ID=${{ secrets.MEASUREMENT_ID }}" >> .env
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
@@ -24,7 +46,9 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          docker buildx build --build-arg PORT=${{ secrets.PORT }} --build-arg MONGO_URL=${{ secrets.MONGO_URL }} --build-arg JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }} --build-arg SEEDER_EMAIL=${{ secrets.SEEDER_EMAIL }} --build-arg SEEDER_PASSWORD=${{ secrets.SEEDER_PASSWORD }} --build-arg SEEDER_PHONENUMBER=${{ secrets.SEEDER_PHONENUMBER }} --build-arg WEBHOOK_SECRET=${{ secrets.WEBHOOK_SECRET }} --build-arg RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }} --build-arg RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }} --build-arg MapMyIndiaAPIKey=${{ secrets.MapMyIndiaAPIKey }} --build-arg MAPPLS_CLIENT_ID=${{ secrets.MAPPLS_CLIENT_ID }} --build-arg MAPPLS_CLIENT_SECRET=${{ secrets.MAPPLS_CLIENT_SECRET }} --build-arg API_KEY=${{ secrets.API_KEY }} --build-arg AUTH_DOMAIN=${{ secrets.AUTH_DOMAIN }} --build-arg PROJECT_ID=${{ secrets.PROJECT_ID }} --build-arg STORAGE_BUCKET=${{ secrets.STORAGE_BUCKET }} --build-arg MESSAGING_SENDER_ID=${{ secrets.MESSAGING_SENDER_ID }} --build-arg APP_ID=${{ secrets.APP_ID }} --build-arg MEASUREMENT_ID=${{ secrets.MEASUREMENT_ID }} -t myfamto/famto-api:latest .
+          docker buildx build \
+            --env-file .env \
+            -t myfamto/famto-api:latest .
           docker push myfamto/famto-api:latest
 
       - name: Deploy to DigitalOcean Droplet via SSH
@@ -39,23 +63,5 @@ jobs:
             docker rm famto_api_container || true
             docker run -d --name famto_api_container \
               -p 80:5000 \
-              -e PORT=${{ secrets.PORT }} \
-              -e MONGO_URL=${{ secrets.MONGO_URL }} \
-              -e JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }} \
-              -e SEEDER_EMAIL=${{ secrets.SEEDER_EMAIL }} \
-              -e SEEDER_PASSWORD=${{ secrets.SEEDER_PASSWORD }} \
-              -e SEEDER_PHONENUMBER=${{ secrets.SEEDER_PHONENUMBER }} \
-              -e WEBHOOK_SECRET=${{ secrets.WEBHOOK_SECRET }} \
-              -e RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }} \
-              -e RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }} \
-              -e MapMyIndiaAPIKey=${{ secrets.MapMyIndiaAPIKey }} \
-              -e MAPPLS_CLIENT_ID=${{ secrets.MAPPLS_CLIENT_ID }} \
-              -e MAPPLS_CLIENT_SECRET=${{ secrets.MAPPLS_CLIENT_SECRET }} \
-              -e API_KEY=${{ secrets.API_KEY }} \
-              -e AUTH_DOMAIN=${{ secrets.AUTH_DOMAIN }} \
-              -e PROJECT_ID=${{ secrets.PROJECT_ID }} \
-              -e STORAGE_BUCKET=${{ secrets.STORAGE_BUCKET }} \
-              -e MESSAGING_SENDER_ID=${{ secrets.MESSAGING_SENDER_ID }} \
-              -e APP_ID=${{ secrets.APP_ID }} \
-              -e MEASUREMENT_ID=${{ secrets.MEASUREMENT_ID }} \
+              --env-file .env \
               myfamto/famto-api:latest
