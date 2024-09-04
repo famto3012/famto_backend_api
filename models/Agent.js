@@ -18,6 +18,7 @@ const ratingsByCustomerSchema = mongoose.Schema({
   },
 });
 
+
 const vehicleSchema = mongoose.Schema(
   {
     _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
