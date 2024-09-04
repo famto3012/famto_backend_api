@@ -52,6 +52,7 @@ const path = require("path");
 const csvWriter = require("csv-writer").createObjectCsvWriter;
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
+const mongoose = require("mongoose");
 
 const getAllOrdersForAdminController = async (req, res, next) => {
   try {
@@ -596,7 +597,147 @@ const filterOrdersByAdminController = async (req, res, next) => {
           order.orderDetail.deliveryAddress.fullName ||
           order.customerId.fullName,
         deliveryMode: order.orderDetail.deliveryMode,
-        orderDate: formatDate(order?.orderDetail?.deliveryTime),
+        orderDate: formatDate(order.createdAt),
+        orderTime: formatTime(order.createdAt),
+        deliveryDate: order?.orderDetail?.deliveryTime
+          ? formatDate(order.orderDetail.deliveryTime)
+          : "-",
+        deliveryTime: order?.orderDetail?.deliveryTime
+          ? formatTime(order.orderDetail.deliveryTime)
+          : "-",
+        paymentMethod: order.paymentMode,
+        deliveryOption: order.orderDetail.deliveryOption,
+        amount: order.billDetail.grandTotal,
+      };
+    });
+
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
+    res.status(200).json({
+      message: "Filtered orders",
+      data: formattedOrders,
+      pagination,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const filterScheduledOrdersByAdminController = async (req, res, next) => {
+  try {
+    let { status, paymentMode, deliveryMode, page = 1, limit = 15 } = req.query;
+
+    if (!status && !paymentMode && !deliveryMode) {
+      return res.status(400).json({
+        message: "At least one filter is required",
+      });
+    }
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
+    // Building filter criteria
+    const filterCriteria = {};
+
+    if (status && status.trim().toLowerCase() !== "all") {
+      filterCriteria.status = { $regex: status.trim(), $options: "i" };
+    }
+
+    if (paymentMode && paymentMode.trim().toLowerCase() !== "all") {
+      filterCriteria.paymentMode = {
+        $regex: paymentMode.trim(),
+        $options: "i",
+      };
+    }
+
+    if (deliveryMode && deliveryMode.trim().toLowerCase() !== "all") {
+      filterCriteria["orderDetail.deliveryMode"] = {
+        $regex: deliveryMode.trim(),
+        $options: "i",
+      };
+    }
+
+    // Aggregation pipeline to merge and filter both collections
+    const results = await ScheduledOrder.aggregate([
+      {
+        $match: filterCriteria,
+      },
+      {
+        $unionWith: {
+          coll: "scheduledpickandcustoms", // Name of the second collection
+          pipeline: [{ $match: filterCriteria }],
+        },
+      },
+      // Populate merchantId if available
+      {
+        $lookup: {
+          from: "merchants", // Collection name for merchants
+          localField: "merchantId",
+          foreignField: "_id",
+          as: "merchantData",
+        },
+      },
+      {
+        $unwind: {
+          path: "$merchantData",
+          preserveNullAndEmptyArrays: true, // Keep documents without a merchantId
+        },
+      },
+      // Populate customerId
+      {
+        $lookup: {
+          from: "customers", // Collection name for customers
+          localField: "customerId",
+          foreignField: "_id",
+          as: "customerData",
+        },
+      },
+      {
+        $unwind: {
+          path: "$customerData",
+          preserveNullAndEmptyArrays: true, // Keep documents without a customerId
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: limit,
+      },
+    ]);
+
+    // Count total documents matching the filters in both collections
+    const totalDocuments =
+      (await ScheduledOrder.countDocuments(filterCriteria)) +
+      (await mongoose
+        .model("scheduledPickAndCustom")
+        .countDocuments(filterCriteria));
+
+    // Formatting the results
+    const formattedOrders = results.map((order) => {
+      return {
+        _id: order._id,
+        orderStatus: order.status,
+        merchantName: order?.merchantData?.merchantDetail?.merchantName || "-", // Fallback if no merchantId
+        customerName:
+          order.orderDetail.deliveryAddress.fullName ||
+          order.customerId.fullName,
+        deliveryMode: order.orderDetail.deliveryMode,
+        orderDate: formatDate(order.createdAt),
         orderTime: formatTime(order.createdAt),
         deliveryDate: order?.orderDetail?.deliveryTime
           ? formatDate(order.orderDetail.deliveryTime)
@@ -2246,6 +2387,7 @@ module.exports = {
   rejectOrderByAdminController,
   searchOrderByIdByAdminController,
   filterOrdersByAdminController,
+  filterScheduledOrdersByAdminController,
   getOrderDetailByAdminController,
   createInvoiceByAdminController,
   createOrderByAdminController,

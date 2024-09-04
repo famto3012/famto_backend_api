@@ -165,64 +165,13 @@ app.use("/api/v1/customers/subscription-payment", subscriptionLogRoute);
 // =====================
 app.use("/api/v1/token", tokenRoute);
 
-// Schedule the task to run fout times daily for deleting expired plans of Merchants and customer
+// Schedule the task to run four times daily for deleting expired plans of Merchants and customer
 cron.schedule("0 6,12,18,0 * * *", async () => {
   await deleteExpiredSponsorshipPlans();
   await deleteExpiredSubscriptionPlans();
 });
 
-// cron.schedule("* * * * *", async () => {
-//   // await createSettlement();
-//   deleteExpiredConversationsAndMessages();
-
-//   console.log("Running scheduled order job...");
-//   const now = new Date();
-
-//   // Universal order
-//   const universalScheduledOrders = await ScheduledOrder.find({
-//     status: "Pending",
-//     $and: [
-//       { startDate: { $lte: now } },
-//       // {
-//       //   $or: [{ startDate: { $lte: now } }, { startDate: { $gte: now } }],
-//       // },
-//       {
-//         $or: [{ endDate: { $lte: now } }, { endDate: { $gte: now } }],
-//       },
-//       { time: { $lte: now } },
-//     ],
-//   });
-
-//   if (universalScheduledOrders.length) {
-//     for (const scheduledOrder of universalScheduledOrders) {
-//       console.log("Processing Scheduled Order ID:", scheduledOrder._id);
-//       // await createOrdersFromScheduled(scheduledOrder);
-//     }
-//   }
-
-//   // Pick and Drop order
-//   const pickAndDropScheduledOrders = await scheduledPickAndCustom.find({
-//     status: "Pending",
-//     $and: [
-//       { startDate: { $lte: now } },
-//       {
-//         $or: [{ endDate: { $lte: now } }, { endDate: { $gte: now } }],
-//       },
-//       { time: { $lte: now } },
-//     ],
-//   });
-
-//   if (pickAndDropScheduledOrders.length) {
-//     for (const scheduledOrder of pickAndDropScheduledOrders) {
-//       console.log(
-//         "Processing Pick and Drop Scheduled Order ID:",
-//         scheduledOrder._id
-//       );
-//       await createOrdersFromScheduledPickAndDrop(scheduledOrder);
-//     }
-//   }
-// });
-
+//
 cron.schedule("0 0 * * *", async () => {
   await generateMapplsAuthToken();
   await moveAppDetailToHistoryAndResetForAllAgents();
@@ -232,6 +181,58 @@ cron.schedule("0 0 * * *", async () => {
   const now = new Date();
   fetchPerDayRevenue(now);
   fetchMerchantDailyRevenue(now);
+});
+
+cron.schedule("* * * * *", async () => {
+  // await createSettlement();
+  deleteExpiredConversationsAndMessages();
+
+  console.log("Running scheduled order job...");
+  const now = new Date();
+
+  // Universal order
+  const universalScheduledOrders = await ScheduledOrder.find({
+    status: "Pending",
+    $and: [
+      { startDate: { $lte: now } },
+      // {
+      //   $or: [{ startDate: { $lte: now } }, { startDate: { $gte: now } }],
+      // },
+      {
+        $or: [{ endDate: { $lte: now } }, { endDate: { $gte: now } }],
+      },
+      { time: { $lte: now } },
+    ],
+  });
+
+  if (universalScheduledOrders.length) {
+    for (const scheduledOrder of universalScheduledOrders) {
+      console.log("Processing Scheduled Order ID:", scheduledOrder._id);
+      await createOrdersFromScheduled(scheduledOrder);
+    }
+  }
+
+  // Pick and Drop order
+  const pickAndDropScheduledOrders = await scheduledPickAndCustom.find({
+    status: "Pending",
+    $and: [
+      { startDate: { $lte: now } },
+      {
+        $or: [{ endDate: { $lte: now } }, { endDate: { $gte: now } }],
+      },
+      { time: { $lte: now } },
+    ],
+  });
+
+  if (pickAndDropScheduledOrders.length) {
+    for (const scheduledOrder of pickAndDropScheduledOrders) {
+      console.log(
+        "Processing Pick and Drop Scheduled Order ID:",
+        scheduledOrder._id
+      );
+      await createOrdersFromScheduledPickAndDrop(scheduledOrder);
+    }
+  }
 });
 
 //global errors
