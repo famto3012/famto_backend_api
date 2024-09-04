@@ -119,7 +119,6 @@ const sendPushNotificationToUser = async (fcmToken, message, eventName) => {
   } catch (error1) {
     console.error("Error sending message with project1:", error1);
 
-    // If it fails, try with the second project
     try {
       const response2 = await admin2.messaging(app2).send(mes);
       console.log("Successfully sent message with project2:", response2);
@@ -160,7 +159,7 @@ const createNotificationLog = async (notificationSettings, message) => {
           orderId: message?.orderId,
         });
       } catch (err) {
-        console.log(`Error in creating Merhant notification log: ${err}`);
+        console.log(`Error in creating Merchant notification log: ${err}`);
       }
     }
 
