@@ -81,6 +81,6 @@ jobs:
             docker stop famto_api_container || true
             docker rm famto_api_container || true
             docker run -d --name famto_api_container \
-              -p 80:5000 \
+              -p 80:*** \
               --env-file .env \
               myfamto/famto-api:latest
