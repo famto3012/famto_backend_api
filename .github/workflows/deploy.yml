@@ -66,8 +66,9 @@ jobs:
             --build-arg MESSAGING_SENDER_ID=$MESSAGING_SENDER_ID \
             --build-arg APP_ID=$APP_ID \
             --build-arg MEASUREMENT_ID=$MEASUREMENT_ID \
-            -t myfamto/famto-api:latest .
-          docker push myfamto/famto-api:latest
+            --platform linux/amd64 \
+            -t myfamto/famto-api:latest \
+            --push .
 
       - name: Deploy to DigitalOcean Droplet via SSH
         uses: appleboy/ssh-action@v0.1.3
