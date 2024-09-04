@@ -77,6 +77,12 @@ adminNotificationRoute.get(
 );
 
 adminNotificationRoute.get(
+  "/notification-setting/context",
+  isAuthenticated,
+  getAllNotificationSettingController
+);
+
+adminNotificationRoute.get(
   "/notification-setting-search",
   isAuthenticated,
   isAdmin,
