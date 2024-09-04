@@ -12,6 +12,7 @@ const {
   getDistanceFromPickupToDelivery,
 } = require("../../../utils/customerAppHelpers");
 const { formatDate, formatTime } = require("../../../utils/formatters");
+const AutoAllocation = require("../../../models/AutoAllocation");
 
 const getTaskFilterController = async (req, res, next) => {
   try {
@@ -70,7 +71,7 @@ const assignAgentToTaskController = async (req, res, next) => {
     const task = await Task.findById(taskId);
     const order = await Order.findById(task.orderId);
     const agent = await Agent.findById(agentId);
-
+    const autoAllocation = await AutoAllocation.findOne()
     agent.appDetail.pendingOrder += 1;
 
     await agent.save();
@@ -127,6 +128,7 @@ const assignAgentToTaskController = async (req, res, next) => {
       orderType: order.orderDetail.deliveryOption,
       taskDate: formatDate(new Date()),
       taskTime: formatTime(new Date()),
+      timer: autoAllocation.expireTime,
     };
 
     sendSocketData(agentId, eventName, socketData);
