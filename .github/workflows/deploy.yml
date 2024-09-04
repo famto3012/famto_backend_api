@@ -24,7 +24,7 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          docker build \
+          docker buildx build \
             --build-arg PORT=${{ secrets.PORT }} \
             --build-arg MONGO_URL=${{ secrets.MONGO_URL }} \
             --build-arg JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }} \
