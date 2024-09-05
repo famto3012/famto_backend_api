@@ -77,6 +77,7 @@ jobs:
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
+          debug: true
           script: |
             docker login -u ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }} -p ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }} registry.digitalocean.com
             docker stop famto-api || true
@@ -87,4 +88,4 @@ jobs:
               -p 5000:5000 \
               --env-file .env \
               registry.digitalocean.com/famto/famto-api:$(echo $GITHUB_SHA | head -c7)
-              debug: true
+              
