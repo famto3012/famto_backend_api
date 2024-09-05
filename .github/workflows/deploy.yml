@@ -79,9 +79,11 @@ jobs:
           port: 22
           script: |
             docker login -u ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }} -p ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }} registry.digitalocean.com
-            docker stop famto-api
-            docker rm e famto-api
+            docker stop famto-api || true
+            docker rm famto-api || true
             docker run -d \
-            --restart always \
-            --name  famto-api\
-             registry.digitalocean.com/famto/famto-api:$(echo $GITHUB_SHA | head -c7)
+              --restart always \
+              --name famto-api \
+              -p 5000:5000 \
+              --env-file .env \
+              registry.digitalocean.com/famto/famto-api:$(echo $GITHUB_SHA | head -c7)
