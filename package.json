@@ -4,7 +4,7 @@
   "description": "Famto API",
   "main": "index.js",
   "scripts": {
-    "start": "index.js --host 0.0.0.0",
+    "start": "node index.js --host 0.0.0.0",
     "dev": "nodemon index.js --host 0.0.0.0"
   },
   "author": "",
