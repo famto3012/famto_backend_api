@@ -78,7 +78,10 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           script: |
-            mkdir test 
-            cd test 
-            git clone git@github.com:famto3012/famto_backend_api.git
-            echo 'Deployment successful to digital ocean' 
+            docker login -u ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }} -p ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }} registry.digitalocean.com
+            docker stop $(echo famto-api)
+            docker rm $(echo famto-api)
+            docker run -d \
+            --restart always \
+            --name $(echo famto-api) \
+            $(echo registry.digitalocean.com/famto)/$(echo famto-api):$(echo $GITHUB_SHA | head -c7)
