@@ -78,10 +78,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           script: |
-            docker pull myfamto/famto-api:latest
-            docker stop famto_api_container || true
-            docker rm famto_api_container || true
-            docker run -d --name famto_api_container \
-              -p 5000:22 \
-              --env-file .env \
-              myfamto/famto-api:latest
+            mkdir test 
+            cd test 
+            git clone git@github.com:Mulubwa17/ci-cd-to-digitalocean-with-github-actions.git 
+            echo 'Deployment successful to digital ocean' 
