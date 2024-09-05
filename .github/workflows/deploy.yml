@@ -87,3 +87,4 @@ jobs:
               -p 5000:5000 \
               --env-file .env \
               registry.digitalocean.com/famto/famto-api:$(echo $GITHUB_SHA | head -c7)
+              debug: true
