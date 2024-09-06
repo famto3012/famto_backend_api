@@ -185,9 +185,11 @@ cron.schedule("0 0 * * *", async () => {
   fetchMerchantDailyRevenue(now);
 });
 
+//
 cron.schedule("* * * * *", async () => {
   // await createSettlement();
   deleteExpiredConversationsAndMessages();
+  populateUserSocketMap();
 
   console.log("Running scheduled order job...");
   const now = new Date();
