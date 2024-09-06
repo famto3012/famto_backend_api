@@ -76,6 +76,9 @@ const app2 = admin2.initializeApp(
 const app = express();
 const server = http.createServer(app);
 const io = socketio(server, {
+  path: "/socket",
+  transports: ["websocket", "polling"],
+  wssEngine: ["ws", "wss"],
   cors: {
     origin: [
       "http://localhost:5173",
@@ -90,6 +93,8 @@ const io = socketio(server, {
   pingTimeout: 5000, // 5 seconds
   reconnection: true,
   reconnectionAttempts: Infinity, // Unlimited attempts
+  allowEIO3: true
+
 });
 
 const userSocketMap = {};

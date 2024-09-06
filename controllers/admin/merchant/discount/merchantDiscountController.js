@@ -114,14 +114,8 @@ const getAllDiscountController = async (req, res, next) => {
   try {
     const merchantId = req.userAuth;
 
-    const discounts = await MerchantDiscount.find({ merchantId });
-
-    // if (!discounts || discounts.length === 0) {
-    //   return res
-    //     .status(404)
-    //     .json({ error: "No discounts found for this merchant" });
-    // }
-
+    const discounts = await MerchantDiscount.find({ merchantId })
+  
     res.status(200).json({
       success: "Discounts retrieved successfully",
       data: discounts || [],
