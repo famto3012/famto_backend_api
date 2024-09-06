@@ -308,12 +308,6 @@ const getAllDiscountAdminController = async (req, res, next) => {
 
     const discounts = [...merchantDiscounts, ...productDiscounts];
 
-    // if (!discounts || discounts.length === 0) {
-    //   return res
-    //     .status(404)
-    //     .json({ error: "No discounts found for this merchant" });
-    // }
-
     res.status(200).json({
       success: "Discounts retrieved successfully",
       data: discounts || [],
