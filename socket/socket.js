@@ -1,5 +1,7 @@
 const socketio = require("socket.io");
 const http = require("http");
+const fs = require("fs");
+const https = require("https");
 const express = require("express");
 const Task = require("../models/Task");
 const Agent = require("../models/Agent");
@@ -73,8 +75,21 @@ const app2 = admin2.initializeApp(
   "project2"
 );
 
+// const isProduction = false
+
+// const SSL_CERT = isProduction ? "/etc/letsencrypt/live/api.famto.in/fullchain.pem" : "";
+// const SSL_KEY = isProduction ? "/etc/letsencrypt/live/api.famto.in/privkey.pem" : "";
+
+
 const app = express();
-const server = http.createServer(app);
+const server = http.createServer(
+  {
+    key: process.env.SSL_KEY,
+    cert: process.env.SSL_CERT,
+  },
+  app
+);
+
 const io = socketio(server, {
   path: "/socket",
   transports: ["websocket", "polling"],
@@ -93,7 +108,7 @@ const io = socketio(server, {
   pingTimeout: 5000, // 5 seconds
   reconnection: true,
   reconnectionAttempts: Infinity, // Unlimited attempts
-  allowEIO3: true
+  // allowEIO3: true
 
 });
 
