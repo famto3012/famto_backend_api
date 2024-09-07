@@ -69,11 +69,23 @@ const app2 = admin2.initializeApp(
   "project2"
 );
 
+
+// const isProduction = false
+
+// const SSL_CERT = isProduction ? "/etc/letsencrypt/live/api.famto.in/fullchain.pem" : "";
+// const SSL_KEY = isProduction ? "/etc/letsencrypt/live/api.famto.in/privkey.pem" : "";
+
 const app = express();
-const server = http.createServer( {
+const server = https.createServer(
+  {
     key: process.env.SSL_KEY,
     cert: process.env.SSL_CERT,
-  },app);
+
+    requestCert: false,
+    rejectUnauthorized: false,
+  },
+  app
+);
 
 const io = socketio(server, {
   // path: "/socket",
