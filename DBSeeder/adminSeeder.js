@@ -1,5 +1,9 @@
+const {
+  generateMapplsAuthToken,
+} = require("../controllers/Token/tokenOperation");
 const Admin = require("../models/Admin");
 const bcrypt = require("bcryptjs");
+const Token = require("../models/Token");
 
 const email = process.env.SEEDER_EMAIL;
 const password = process.env.SEEDER_PASSWORD;
@@ -36,4 +40,19 @@ const insertAdmin = async () => {
   }
 };
 
+const insertMapplsToken = async () => {
+  try {
+    const tokenFound = await Token.findOne();
+
+    if (!tokenFound) {
+      generateMapplsAuthToken();
+    } else {
+      console.log(`Mappls token already exists`);
+    }
+  } catch (err) {
+    console.error("Error inserting mappls token:", err.message);
+  }
+};
+
 insertAdmin();
+insertMapplsToken();
