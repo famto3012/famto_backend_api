@@ -81,7 +81,7 @@ const app2 = admin2.initializeApp(
 // const SSL_KEY = isProduction ? "/etc/letsencrypt/live/api.famto.in/privkey.pem" : "";
 
 const app = express();
-const server = http.createServer(
+const server = https.createServer(
   {
     key: process.env.SSL_KEY,
     cert: process.env.SSL_CERT,
