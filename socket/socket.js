@@ -73,7 +73,9 @@ const app = express();
 const server = http.createServer(app);
 
 const io = socketio(server, {
+  // path: "/socket",
   transports: ["websocket"],
+  // wssEngine: ["ws", "wss"],
   cors: {
     origin: ["https://dashboard.famto.in"], // Replace with the correct URL of your React app
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
