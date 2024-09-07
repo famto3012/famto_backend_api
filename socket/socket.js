@@ -1,16 +1,12 @@
 const socketio = require("socket.io");
 const http = require("http");
-const fs = require("fs");
-const https = require("https");
 const express = require("express");
 const Task = require("../models/Task");
 const Agent = require("../models/Agent");
 const Customer = require("../models/Customer");
 const Merchant = require("../models/Merchant");
 const turf = require("@turf/turf");
-const admin = require("firebase-admin");
 const Order = require("../models/Order");
-const { getMessaging } = require("firebase-admin/messaging");
 const FcmToken = require("../models/fcmToken");
 const AgentNotificationLogs = require("../models/AgentNotificationLog");
 const Message = require("../models/Message");
@@ -27,11 +23,9 @@ const {
   updateAgentDetails,
 } = require("../utils/agentAppHelpers");
 const NotificationSetting = require("../models/NotificationSetting");
-const Admin = require("../models/Admin");
 
 const admin1 = require("firebase-admin");
 const admin2 = require("firebase-admin");
-const { MessagePort } = require("worker_threads");
 
 const serviceAccount1 = {
   type: process.env.TYPE_1,
@@ -75,6 +69,7 @@ const app2 = admin2.initializeApp(
   "project2"
 );
 
+
 // const isProduction = false
 
 // const SSL_CERT = isProduction ? "/etc/letsencrypt/live/api.famto.in/fullchain.pem" : "";
@@ -97,15 +92,8 @@ const io = socketio(server, {
   transports: ["websocket"],
   // wssEngine: ["ws", "wss"],
   cors: {
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:8081",
-      "https://famto-admin-panel-react.vercel.app",
-      "*",
-    ], // Replace with the correct URL of your React app
+    origin: ["https://dashboard.famto.in"], // Replace with the correct URL of your React app
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-    credentials: true,
   },
   pingInterval: 10000, // 10 seconds
   pingTimeout: 5000, // 5 seconds
