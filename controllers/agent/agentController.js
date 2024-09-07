@@ -1332,6 +1332,8 @@ const completeOrderController = async (req, res, next) => {
 
     const orderAmount = orderFound.billDetail.grandTotal;
 
+    console.log("orderAmount", orderAmount);
+
     // Calculate loyalty points for customer
     const loyaltyPointCriteria = await LoyaltyPoint.findOne({ status: true });
     if (
@@ -1340,6 +1342,8 @@ const completeOrderController = async (req, res, next) => {
     ) {
       updateLoyaltyPoints(customerFound, loyaltyPointCriteria, orderAmount);
     }
+
+    console.log("Here1 ");
 
     // Calculate referral rewards for customer
     if (!customerFound?.referralDetail?.processed) {
@@ -1352,11 +1356,17 @@ const completeOrderController = async (req, res, next) => {
       orderFound
     );
 
+    console.log("Calculated salary", calculatedSalary);
+
     // Update order details
-    updateOrderDetails(orderFound);
+    updateOrderDetails(orderFound, calculatedSalary);
+
+    console.log("Calculated salary", calculatedSalary);
 
     // Update agent details
     await updateAgentDetails(agentFound, orderFound, calculatedSalary, true);
+
+    console.log("Again");
 
     await Promise.all([
       orderFound.save(),
@@ -1715,11 +1725,11 @@ const getCompleteOrderMessageController = async (req, res, next) => {
   try {
     const { orderId } = req.params;
 
-    const orderFound = await Order.findById(orderId).select("billDetail");
+    const orderFound = await Order.findById(orderId);
 
     res.status(200).json({
       message: "Order amount",
-      data: orderFound.billDetail.grandTotal,
+      data: orderFound.detailAddedByAgent.agentEaring || 0,
     });
   } catch (err) {
     next(appError(err.message));

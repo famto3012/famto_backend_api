@@ -87,13 +87,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
     origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:3000",
-      "https://famto-backend-api.vercel.app",
-      "https://famto-admin-panel-react.vercel.app",
+      "http://localhost:8081",
+      "https://dashboard.famto.in",
       "https://www.famto.in",
-      "*",
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],

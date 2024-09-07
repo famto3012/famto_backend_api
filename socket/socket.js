@@ -76,9 +76,9 @@ const app2 = admin2.initializeApp(
 const app = express();
 const server = http.createServer(app);
 const io = socketio(server, {
-  path: "/socket",
+  // path: "/socket",
   transports: ["websocket", "polling"],
-  wssEngine: ["ws", "wss"],
+  // wssEngine: ["ws", "wss"],
   cors: {
     origin: [
       "http://localhost:5173",
@@ -93,8 +93,7 @@ const io = socketio(server, {
   pingTimeout: 5000, // 5 seconds
   reconnection: true,
   reconnectionAttempts: Infinity, // Unlimited attempts
-  allowEIO3: true
-
+  allowEIO3: true,
 });
 
 const userSocketMap = {};
@@ -240,9 +239,12 @@ const sendSocketData = (userId, eventName, data) => {
   const socketId = userSocketMap[userId]?.socketId;
   console.log("Event", eventName);
   console.log("SocketId", socketId);
+  console.log("data", data);
+
   if (socketId) {
     io.to(socketId).emit(eventName, data);
   }
+
   console.log("socketId", socketId);
   console.log("eventName", eventName);
 };

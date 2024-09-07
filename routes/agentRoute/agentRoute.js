@@ -274,7 +274,7 @@ agentRoute.post(
 );
 
 agentRoute.get(
-  "/get-order-amount/:orderId",
+  "/get-order-earning/:orderId",
   isAuthenticated,
   getCompleteOrderMessageController
 );
