@@ -83,6 +83,6 @@
 #              docker stop famto_api_container || true
 #              docker rm famto_api_container || true
 #              docker run -d --name famto_api_container \
-#               -p 22:5000 \
+#               -p 22:8080 \
 #               --env-file .env \
 #               myfamto/famto-api:latest
