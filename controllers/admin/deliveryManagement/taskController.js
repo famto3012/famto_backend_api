@@ -71,7 +71,7 @@ const assignAgentToTaskController = async (req, res, next) => {
     const task = await Task.findById(taskId);
     const order = await Order.findById(task.orderId);
     const agent = await Agent.findById(agentId);
-    const autoAllocation = await AutoAllocation.findOne()
+    const autoAllocation = await AutoAllocation.findOne();
     agent.appDetail.pendingOrder += 1;
 
     await agent.save();
@@ -155,7 +155,7 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
         },
       },
     });
-    console.log(task);
+
     let geofence;
     const agents = await Agent.find({ isApproved: "Approved" });
 
