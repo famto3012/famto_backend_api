@@ -70,7 +70,10 @@ const app2 = admin2.initializeApp(
 );
 
 const app = express();
-const server = http.createServer(app);
+const server = http.createServer( {
+    key: process.env.SSL_KEY,
+    cert: process.env.SSL_CERT,
+  },app);
 
 const io = socketio(server, {
   // path: "/socket",
