@@ -88,6 +88,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:8081",
+      "http://localhost:5173",
       "https://dashboard.famto.in",
       "https://www.famto.in",
     ],
