@@ -80,16 +80,17 @@ const app2 = admin2.initializeApp(
 // const SSL_CERT = isProduction ? "/etc/letsencrypt/live/api.famto.in/fullchain.pem" : "";
 // const SSL_KEY = isProduction ? "/etc/letsencrypt/live/api.famto.in/privkey.pem" : "";
 
-
 const app = express();
 const server = http.createServer(
   {
     key: process.env.SSL_KEY,
     cert: process.env.SSL_CERT,
+
+    requestCert: false,
+    rejectUnauthorized: false,
   },
   app
 );
-
 
 const io = socketio(server, {
   // path: "/socket",
