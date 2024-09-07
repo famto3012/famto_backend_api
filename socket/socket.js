@@ -93,7 +93,7 @@ const server = http.createServer(
 
 const io = socketio(server, {
   // path: "/socket",
-  transports: ["websocket", "polling"],
+  transports: ["websocket"],
   // wssEngine: ["ws", "wss"],
   cors: {
     origin: [
