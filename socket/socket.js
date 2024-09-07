@@ -92,9 +92,9 @@ const server = http.createServer(
 
 
 const io = socketio(server, {
-  path: "/socket",
+  // path: "/socket",
   transports: ["websocket", "polling"],
-  wssEngine: ["ws", "wss"],
+  // wssEngine: ["ws", "wss"],
   cors: {
     origin: [
       "http://localhost:5173",
@@ -110,7 +110,6 @@ const io = socketio(server, {
   reconnection: true,
   reconnectionAttempts: Infinity, // Unlimited attempts
   // allowEIO3: true
-
 });
 
 const userSocketMap = {};
@@ -256,9 +255,12 @@ const sendSocketData = (userId, eventName, data) => {
   const socketId = userSocketMap[userId]?.socketId;
   console.log("Event", eventName);
   console.log("SocketId", socketId);
+  console.log("data", data);
+
   if (socketId) {
     io.to(socketId).emit(eventName, data);
   }
+
   console.log("socketId", socketId);
   console.log("eventName", eventName);
 };

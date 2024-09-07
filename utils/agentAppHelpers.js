@@ -1,6 +1,7 @@
 const AgentPricing = require("../models/AgentPricing");
 const Customer = require("../models/Customer");
 const Referral = require("../models/Referral");
+const Task = require("../models/Task");
 
 const formatToHours = (milliseconds) => {
   const totalMinutes = Math.floor(milliseconds / 60000);
@@ -224,7 +225,7 @@ const calculateAgentEarnings = async (agent, order) => {
   return parseFloat(orderSalary + totalPurchaseFare).toFixed(2);
 };
 
-const updateOrderDetails = (order) => {
+const updateOrderDetails = (order, calculatedSalary) => {
   const currentTime = new Date();
   let delayedBy = null;
 
@@ -238,6 +239,14 @@ const updateOrderDetails = (order) => {
   order.orderDetail.timeTaken =
     currentTime - new Date(order.orderDetail.agentAcceptedAt);
   order.orderDetail.delayedBy = delayedBy;
+
+  if (!order.detailAddedByAgent) {
+    order.detailAddedByAgent = {};
+  }
+
+  order.detailAddedByAgent.agentEarning = calculatedSalary;
+
+  console.log("Order", order);
 };
 
 const updateAgentDetails = async (
@@ -251,6 +260,9 @@ const updateAgentDetails = async (
   } else {
     agent.appDetail.cancelledOrders += 1;
   }
+
+  console.log("One");
+
   agent.appDetail.totalEarning += parseFloat(calculatedSalary);
   agent.appDetail.totalDistance += order.orderDetail.distance;
 
@@ -262,6 +274,8 @@ const updateAgentDetails = async (
     grandTotal: order?.billDetail?.grandTotal,
   });
 
+  console.log("Two");
+
   const agentTasks = await Task.find({
     taskStatus: "Assigned",
     agentId: agent._id,
@@ -269,12 +283,16 @@ const updateAgentDetails = async (
     createdAt: 1,
   });
 
+  console.log("Three");
+
   if (agentTasks.length > 0) {
     agentTasks[0].pickupDetail.pickupStatus = "Started";
     agentTasks[0].startTime = new Date();
 
-    await agentTasks.save();
+    // await agentTasks.save();
   }
+
+  console.log("Four");
 };
 
 module.exports = {
