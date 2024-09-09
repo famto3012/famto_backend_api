@@ -53,6 +53,7 @@ const csvWriter = require("csv-writer").createObjectCsvWriter;
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const mongoose = require("mongoose");
+const puppeteer = require("puppeteer");
 
 const getAllOrdersForAdminController = async (req, res, next) => {
   try {
@@ -2206,12 +2207,17 @@ const downloadInvoiceBillController = async (req, res, next) => {
     let cartFound;
 
     if (deliveryMode === "Take Away" || deliveryMode === "Home Delivery") {
-      cartFound = await CustomerCart.findById(cartId);
+      cartFound = await CustomerCart.findById(cartId)
+        .populate("merchantId", "merchantDetail.merchantName")
+        .populate("customerId", "fullName, phoneNumber");
     } else if (
       deliveryMode === "Pick and Drop" ||
       deliveryMode === "Custom Order"
     ) {
-      cartFound = await PickAndCustomCart.findById(cartId);
+      cartFound = await PickAndCustomCart.findById(cartId).populate(
+        "customerId",
+        "fullName, phoneNumber"
+      );
     }
 
     if (!cartFound || !cartFound.billDetail) {
@@ -2265,82 +2271,184 @@ const downloadInvoiceBillController = async (req, res, next) => {
       );
     }
 
-    // Create a PDF document
-    const doc = new PDFDocument();
+    // HTML Template for the invoice
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="en">
+
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+              body {
+                  font-family: Arial, sans-serif;
+                  margin: 20px;
+              }
+
+              h1,
+              h2 {
+                  text-align: center;
+              }
+
+              table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  margin-top: 20px;
+              }
+
+              table,
+              th,
+              td {
+                  padding: 10px;
+              }
+
+              th {
+                  background-color: #f2f2f2;
+              }
+
+              .total {
+                  text-align: right;
+                  padding-top: 10px;
+              }
+          </style>
+        </head>
+
+        <body>
+          <h3 style="text-align: center;">${
+            cartFound.merchantId.merchantDetail.merchantName || " "
+          }</h3>
+          <h3 style="text-align: center;">${
+            cartFound.merchantId.phoneNumber || " "
+          }</h3>
+          <h3 style="text-align: center;">${
+            cartFound.cartDetail.deliveryOption || " "
+          } (${cartFound.cartDetail.deliveryMode})</h3>
+          <h2>Order ID: # ${cartFound._id}</h2>
+          <p>${
+            cartFound.cartDetail.deliveryAddress.fullName ||
+            cartFound.customerId.fullName ||
+            ""
+          }</p>
+          <p>${cartFound.customerId.phoneNumber}</p>
+          <p>${cartFound.cartDetail.deliveryAddress.flat || ""}, ${
+      cartFound.cartDetail.deliveryAddress.area || ""
+    }, ${cartFound.cartDetail.deliveryAddress.landmark || ""}</p>
+          <p>Payment mode: ${cartFound.paymentMode || ""}</p>
+          <p>Invoice time: ${formatDate(cartFound.createdAt)} | ${formatTime(
+      cartFound.createdAt
+    )}</p>
+          <h3>Items:</h3>
+          <table style="border: 1px solid black;">
+            <thead>
+                <tr style="border: 1px solid black;">
+                    <th>Item Name</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                    <th>Subtotal</th>
+                </tr>
+            </thead>
+              <tbody>
+                  ${formattedItems
+                    .map((item) => {
+                      let subtotal = item.quantity * item.price;
+                      return `
+                  <tr style="border: 1px solid black;">
+                      <td style="border: 1px solid black;">${item.itemName} ${
+                        item.variantTypeName ? `(${item.variantTypeName})` : ""
+                      }</td>
+                      <td style="border: 1px solid black; text-align: center;">${
+                        item?.quantity || ""
+                      }</td>
+                      <td style="border: 1px solid black; text-align: center;">${
+                        item?.price?.toFixed(2) || ""
+                      }</td>
+                      <td style="text-align: right;">${
+                        subtotal.toFixed(2) || ""
+                      }</td>
+                  </tr>
+                  `;
+                    })
+                    .join("")}
+                  <tr style="border: 1px solid black;">
+                      <td colspan="3">Sub total</td>
+                      <td style="text-align: right; border: 1px solid black;">${
+                        itemTotal?.toFixed(2) || ""
+                      }</td>
+                  </tr>
+                  <tr style="border: 1px solid black;">
+                      <td colspan="3">Delivery charge</td>
+                      <td style="text-align: right; border: 1px solid black;">${deliveryCharge.toFixed(
+                        2
+                      )}</td>
+                  </tr>
+                  <tr style="border: 1px solid black;">
+                      <td colspan="3">Tax</td>
+                      <td style="text-align: right; border: 1px solid black;">${
+                        taxAmount?.toFixed(2) || ""
+                      }</td>
+                  </tr>
+                  <tr style="border: 1px solid black;">
+                      <td colspan="3">Surge charge</td>
+                      <td style="text-align: right; border: 1px solid black;">${
+                        surgePrice.toFixed(2) || ""
+                      }</td>
+                  </tr>
+                  <tr style="border: 1px solid black;">
+                      <td colspan="3">Discount</td>
+                      <td style="text-align: right; border: 1px solid black;">${
+                        discountedAmount.toFixed(2) || ""
+                      }</td>
+                  </tr>
+                  <tr style="border: 1px solid black;">
+                      <td colspan="3">Added Tip</td>
+                      <td style="text-align: right; border: 1px solid black;">${
+                        addedTip.toFixed(2) || ""
+                      }</td>
+                  </tr>
+                  <tr style="border: 1px solid black;">
+                      <td colspan="3">Grand total</td>
+                      <td style="text-align: right; border: 1px solid black;">${
+                        grandTotal.toFixed(2) || ""
+                      }</td>
+                  </tr>
+              </tbody>
+          </table>
+        </body>
+                    
+      </html>
+    `;
+
+    // Launch Puppeteer and generate PDF
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+
+    // Set the HTML content
+    await page.setContent(htmlContent, { waitUntil: "load" });
+
+    // Define file path and PDF options
     const filePath = path.join(__dirname, "../../../sample_CSV/invoice.pdf");
-    const stream = fs.createWriteStream(filePath);
-    doc.pipe(stream);
 
-    // Add the Invoice heading
-    doc.fontSize(25).text("Invoice Bill", { align: "center" });
-    doc.moveDown();
-    doc.text("================================", { align: "center" });
-    doc.moveDown();
-
-    // Add Items heading
-    doc.fontSize(18).text("Items:", { align: "left" });
-    doc.moveDown();
-
-    // Set font size for the item details
-    doc.fontSize(12);
-
-    // Add each item from the formattedItems array
-    formattedItems.forEach((item) => {
-      let itemDescription = `${item.itemName} (${item.quantity} x ${item.price})`;
-      if (item.variantTypeName) {
-        itemDescription += ` - ${item.variantTypeName}`;
-      }
-
-      doc.text(itemDescription, { align: "left" });
-      doc.moveDown(0.5);
+    // Generate the PDF
+    await page.pdf({
+      path: filePath,
+      format: "A4",
+      printBackground: true,
     });
 
-    doc.moveDown(); // Add some space after the item list
+    // Close Puppeteer browser instance
+    await browser.close();
 
-    // Set the layout for the bill details
-    const pageWidth = doc.page.width - 60;
-    const margin = 50;
-    const labelX = margin;
-    const valueX = pageWidth - margin;
-    doc.fontSize(12);
-
-    const addAlignedTextBill = (label, value) => {
-      const labelWidth = 250; // Set the fixed width for the label
-      const textWidth = doc.widthOfString(value.toString());
-
-      // Set the fixed width for the label and align it to the left
-      doc.text(label, labelX, doc.y, { width: labelWidth, align: "left" });
-
-      // Position the value text on the right side with the remaining space
-      doc.text(value.toFixed(2), valueX - textWidth, doc.y, { align: "right" });
-
-      doc.moveDown();
-    };
-
-    // Adding key-value pairs with alignment and conversion to fixed decimal format
-    addAlignedTextBill("Item Total:", itemTotal);
-    addAlignedTextBill("Delivery Charge:", deliveryCharge);
-    addAlignedTextBill("Added Tip:", addedTip);
-    addAlignedTextBill("Discount:", discountedAmount);
-    addAlignedTextBill("Surge Price:", surgePrice);
-    addAlignedTextBill("Sub Total:", subTotal);
-    addAlignedTextBill("Tax Amount:", taxAmount);
-    addAlignedTextBill("Grand Total:", grandTotal);
-
-    doc.end();
-
-    stream.on("finish", () => {
-      res.download(filePath, "invoice.pdf", (err) => {
-        if (err) {
-          next(appError(err.message));
-        } else {
-          fs.unlink(filePath, (err) => {
-            if (err) {
-              console.error("Failed to delete temporary PDF:", err);
-            }
-          });
-        }
-      });
+    // Send the PDF as a download response
+    res.download(filePath, "invoice.pdf", (err) => {
+      if (err) {
+        next(appError(err.message));
+      } else {
+        fs.unlink(filePath, (err) => {
+          if (err) {
+            console.error("Failed to delete temporary PDF:", err);
+          }
+        });
+      }
     });
   } catch (err) {
     next(appError(err.message));
@@ -2351,7 +2459,9 @@ const downloadOrderBillController = async (req, res, next) => {
   try {
     const { orderId } = req.body;
 
-    const orderFound = await Order.findById(orderId);
+    const orderFound = await Order.findById(orderId)
+      .populate("merchantId", "merchantDetail.merchantName")
+      .populate("customerId", "fullName, phoneNumber");
 
     if (!orderFound || !orderFound.billDetail) {
       return next(appError("Cart not found or no bill details available"));
@@ -2396,86 +2506,182 @@ const downloadOrderBillController = async (req, res, next) => {
       );
     }
 
-    // Create a PDF document
-    const doc = new PDFDocument();
+    // HTML Template for the invoice
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="en">
+
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+              body {
+                  font-family: Arial, sans-serif;
+                  margin: 20px;
+              }
+
+              h1,
+              h2 {
+                  text-align: center;
+              }
+
+              table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  margin-top: 20px;
+              }
+
+              table,
+              th,
+              td {
+                  padding: 10px;
+              }
+
+              th {
+                  background-color: #f2f2f2;
+              }
+
+              .total {
+                  text-align: right;
+                  padding-top: 10px;
+              }
+          </style>
+        </head>
+
+        <body>
+          <h3 style="text-align: center;">${
+            orderFound.merchantId.merchantDetail.merchantName || " "
+          }</h3>
+          <h3 style="text-align: center;">${
+            orderFound.merchantId.phoneNumber || " "
+          }</h3>
+          <h3 style="text-align: center;">${
+            orderFound.orderDetail.deliveryOption || " "
+          } (${orderFound.orderDetail.deliveryMode})</h3>
+          <h2>Order ID: # ${orderFound._id}</h2>
+          <p>${
+            orderFound.orderDetail.deliveryAddress.fullName ||
+            orderFound.customerId.fullName ||
+            ""
+          }</p>
+          <p>${orderFound.customerId.phoneNumber}</p>
+          <p>${orderFound.orderDetail.deliveryAddress.flat || ""}, ${
+      orderFound.orderDetail.deliveryAddress.area || ""
+    }, ${orderFound.orderDetail.deliveryAddress.landmark || ""}</p>
+          <p>Payment mode: ${orderFound.paymentMode}</p>
+          <p>Order time: ${formatDate(orderFound.createdAt)} | ${formatTime(
+      orderFound.createdAt
+    )}</p>
+          <h3>Items:</h3>
+          <table style="border: 1px solid black;">
+            <thead>
+                <tr style="border: 1px solid black;">
+                    <th>Item Name</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                    <th>Subtotal</th>
+                </tr>
+            </thead>
+              <tbody>
+                  ${formattedItems
+                    .map((item) => {
+                      let subtotal = item.quantity * item.price;
+                      return `
+                  <tr style="border: 1px solid black;">
+                      <td style="border: 1px solid black;">${item.itemName} ${
+                        item.variantTypeName ? `(${item.variantTypeName})` : ""
+                      }</td>
+                      <td style="border: 1px solid black; text-align: center;">${
+                        item.quantity
+                      }</td>
+                      <td style="border: 1px solid black; text-align: center;">${item.price.toFixed(
+                        2
+                      )}</td>
+                      <td style="text-align: right;">${subtotal.toFixed(2)}</td>
+                  </tr>
+                  `;
+                    })
+                    .join("")}
+                  <tr style="border: 1px solid black;">
+                      <td colspan="3">Sub total</td>
+                      <td style="text-align: right; border: 1px solid black;">${itemTotal.toFixed(
+                        2
+                      )}</td>
+                  </tr>
+                  <tr style="border: 1px solid black;">
+                      <td colspan="3">Delivery charge</td>
+                      <td style="text-align: right; border: 1px solid black;">${deliveryCharge.toFixed(
+                        2
+                      )}</td>
+                  </tr>
+                  <tr style="border: 1px solid black;">
+                      <td colspan="3">Tax</td>
+                      <td style="text-align: right; border: 1px solid black;">${taxAmount.toFixed(
+                        2
+                      )}</td>
+                  </tr>
+                  <tr style="border: 1px solid black;">
+                      <td colspan="3">Surge charge</td>
+                      <td style="text-align: right; border: 1px solid black;">${surgePrice.toFixed(
+                        2
+                      )}</td>
+                  </tr>
+                  <tr style="border: 1px solid black;">
+                      <td colspan="3">Discount</td>
+                      <td style="text-align: right; border: 1px solid black;">${discountedAmount.toFixed(
+                        2
+                      )}</td>
+                  </tr>
+                  <tr style="border: 1px solid black;">
+                      <td colspan="3">Added Tip</td>
+                      <td style="text-align: right; border: 1px solid black;">${addedTip.toFixed(
+                        2
+                      )}</td>
+                  </tr>
+                  <tr style="border: 1px solid black;">
+                      <td colspan="3">Grand total</td>
+                      <td style="text-align: right; border: 1px solid black;">${grandTotal.toFixed(
+                        2
+                      )}</td>
+                  </tr>
+              </tbody>
+          </table>
+        </body>
+                    
+      </html>
+    `;
+
+    // Launch Puppeteer and generate PDF
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+
+    // Set the HTML content
+    await page.setContent(htmlContent, { waitUntil: "load" });
+
+    // Define file path and PDF options
     const filePath = path.join(__dirname, "../../../sample_CSV/invoice.pdf");
-    const stream = fs.createWriteStream(filePath);
-    doc.pipe(stream);
-    const labelWidth = 250; // Set the fixed width for the label
 
-    // Add the Invoice heading
-    doc.fontSize(25).text("Order Bill", { align: "center" });
-    doc.moveDown();
-    doc.text("================================", { align: "center" });
-    doc.moveDown();
-    doc.fontSize(20).text(`Order ID: # ${orderFound._id}`, {
-      width: labelWidth,
-      align: "left",
+    // Generate the PDF
+    await page.pdf({
+      path: filePath,
+      format: "A4",
+      printBackground: true,
     });
 
-    // Add Items heading
-    doc.fontSize(16).text("Items:", { align: "left" });
-    doc.moveDown();
+    // Close Puppeteer browser instance
+    await browser.close();
 
-    // Set font size for the item details
-    doc.fontSize(12);
-
-    // Add each item from the formattedItems array
-    formattedItems.forEach((item) => {
-      let itemDescription = `${item.itemName} (${item.quantity} x ${item.price})`;
-      if (item.variantTypeName) {
-        itemDescription += ` - ${item.variantTypeName}`;
+    // Send the PDF as a download response
+    res.download(filePath, "invoice.pdf", (err) => {
+      if (err) {
+        next(appError(err.message));
+      } else {
+        fs.unlink(filePath, (err) => {
+          if (err) {
+            console.error("Failed to delete temporary PDF:", err);
+          }
+        });
       }
-
-      doc.text(itemDescription, { align: "left" });
-      doc.moveDown(0.5);
-    });
-
-    doc.moveDown(); // Add some space after the item list
-
-    // Set the layout for the bill details
-    const pageWidth = doc.page.width - 60;
-    const margin = 50;
-    const labelX = margin;
-    const valueX = pageWidth - margin;
-    doc.fontSize(12);
-
-    const addAlignedTextBill = (label, value) => {
-      const textWidth = doc.widthOfString(value.toString());
-
-      // Set the fixed width for the label and align it to the left
-      doc.text(label, labelX, doc.y, { width: labelWidth, align: "left" });
-
-      // Position the value text on the right side with the remaining space
-      doc.text(value.toFixed(2), valueX - textWidth, doc.y, { align: "right" });
-
-      doc.moveDown();
-    };
-
-    // Adding key-value pairs with alignment and conversion to fixed decimal format
-    addAlignedTextBill("Item Total:", itemTotal);
-    addAlignedTextBill("Delivery Charge:", deliveryCharge);
-    addAlignedTextBill("Added Tip:", addedTip);
-    addAlignedTextBill("Discount:", discountedAmount);
-    addAlignedTextBill("Surge Price:", surgePrice);
-    addAlignedTextBill("Sub Total:", subTotal);
-    addAlignedTextBill("Tax Amount:", taxAmount);
-    addAlignedTextBill("Grand Total:", grandTotal);
-
-    doc.end();
-
-    stream.on("finish", () => {
-      res.download(filePath, "invoice.pdf", (err) => {
-        if (err) {
-          next(appError(err.message));
-        } else {
-          fs.unlink(filePath, (err) => {
-            if (err) {
-              console.error("Failed to delete temporary PDF:", err);
-            }
-          });
-        }
-      });
     });
   } catch (err) {
     next(appError(err.message));

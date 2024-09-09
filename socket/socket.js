@@ -75,13 +75,8 @@ const app2 = admin2.initializeApp(
   "project2"
 );
 
-// const isProduction = false
-
-// const SSL_CERT = isProduction ? "/etc/letsencrypt/live/api.famto.in/fullchain.pem" : "";
-// const SSL_KEY = isProduction ? "/etc/letsencrypt/live/api.famto.in/privkey.pem" : "";
-
 const app = express();
-const server = https.createServer(
+const server = http.createServer(
   {
     key: process.env.SSL_KEY,
     cert: process.env.SSL_CERT,
@@ -97,13 +92,7 @@ const io = socketio(server, {
   transports: ["websocket"],
   // wssEngine: ["ws", "wss"],
   cors: {
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:8081",
-      "https://famto-admin-panel-react.vercel.app",
-      "*",
-    ], // Replace with the correct URL of your React app
+    origin: ["https://dashboard.famto.in", "*"], // Replace with the correct URL of your React app
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true,
   },
