@@ -7,7 +7,7 @@ const Merchant = require("../../models/Merchant");
 const Manager = require("../../models/Manager");
 const Agent = require("../../models/Agent");
 const nodemailer = require("nodemailer");
-const crypto = require("crypto"); 
+const crypto = require("crypto");
 
 //For Admin and Merchant
 // -----------------------------
@@ -165,7 +165,7 @@ const findUserByEmail = async (email) => {
   return null;
 };
 
-const forgotPassword = async (req, res) => {
+const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
 
@@ -187,7 +187,7 @@ const forgotPassword = async (req, res) => {
     await user.save();
 
     // Send email with reset link
-    const resetURL = `${process.env.BASE_URL}/api/v1/auth/reset-password/?resetToken=${resetToken}&role=${role}`;
+    const resetURL = `${process.env.BASE_URL}/auth/reset-password?resetToken=${resetToken}&role=${role}`;
     const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please make a request to:\n\n${resetURL}`;
 
     // Set up nodemailer transport
@@ -208,12 +208,12 @@ const forgotPassword = async (req, res) => {
     });
 
     res.status(200).json({ message: "Password reset link sent to email" });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+  } catch (err) {
+    next(appError(err.message));
   }
 };
 
-const resetPassword = async (req, res) => {
+const resetPassword = async (req, res, next) => {
   try {
     const { resetToken, role } = req.query;
     const { password } = req.body;
@@ -247,13 +247,13 @@ const resetPassword = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
     // Update the password and clear the token fields
     user.password = hashedPassword;
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpiry = undefined;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpiry = null;
     await user.save();
 
     res.status(200).json({ message: "Password has been reset" });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+  } catch (err) {
+    next(appError(err.message));
   }
 };
 

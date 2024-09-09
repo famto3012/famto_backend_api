@@ -146,7 +146,7 @@ const changeMerchantStatusByMerchantController = async (req, res, next) => {
     }
 
     merchantFound.status = !merchantFound.status;
-    merchantFound.openedToday = true
+    merchantFound.openedToday = true;
     await merchantFound.save();
 
     res.status(200).json({ message: "Merchant status changed" });
@@ -1134,8 +1134,6 @@ const blockMerchant = async (req, res, next) => {
       merchantFound.blockedDate = new Date();
       await merchantFound.save();
 
-      console.log("here");
-
       const accountLogs = await AccountLogs.create({
         userId: merchantFound._id,
         fullName: merchantFound.fullName,
@@ -1183,7 +1181,7 @@ const addMerchantsFromCSVController = async (req, res, next) => {
 
         if (!isRowEmpty) {
           const merchant = {
-            fullName: row["Full name"]?.trim(),
+            fullName: row["Full name of owner"]?.trim(),
             email: row.Email?.toLowerCase().trim(),
             phoneNumber: row["Phone number"]?.trim(),
             password: row.Password?.trim() || "12345678",
@@ -1251,7 +1249,7 @@ const addMerchantsFromCSVController = async (req, res, next) => {
 
           await Promise.all(merchantPromise);
 
-          res.status(201).json({
+          res.status(200).json({
             message: "Merchants added/updated successfully.",
           });
         } catch (err) {
@@ -1276,7 +1274,7 @@ const downloadMerchantSampleCSVController = async (req, res, next) => {
 
     // Define the headers and data for the CSV
     const csvHeaders = [
-      { id: "fullName", title: "Full name" },
+      { id: "fullName", title: "Full name of owner" },
       { id: "email", title: "Email" },
       { id: "phoneNumber", title: "Phone number" },
       { id: "password", title: "Password" },

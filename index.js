@@ -90,7 +90,7 @@ app.use(
       "http://localhost:5173",
       "https://dashboard.famto.in",
       "https://www.famto.in",
-      "*"
+      "*",
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
