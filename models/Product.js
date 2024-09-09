@@ -52,11 +52,11 @@ const productSchema = mongoose.Schema(
     },
     minQuantityToOrder: {
       type: Number,
-      required: true,
+      default: 0,
     },
     maxQuantityPerOrder: {
       type: Number,
-      required: true,
+      default: 0,
     },
     costPrice: {
       type: Number,
@@ -64,7 +64,7 @@ const productSchema = mongoose.Schema(
     },
     sku: {
       type: String,
-      required: true,
+      default: null,
     },
     discountId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -80,7 +80,7 @@ const productSchema = mongoose.Schema(
     ],
     preparationTime: {
       type: String,
-      required: true,
+      default: null,
     },
     searchTags: {
       type: [String],
@@ -88,20 +88,20 @@ const productSchema = mongoose.Schema(
     },
     description: {
       type: String,
-      required: true,
+      default: null,
     },
     longDescription: {
       type: String,
-      required: true,
+      default: null,
     },
     type: {
       type: String,
-      enum: ["Veg", "Non-veg"],
+      enum: ["Veg", "Non-veg", "Other"],
       required: true,
     },
     productImageURL: {
       type: String,
-      // required: true
+      default: null,
     },
     categoryId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -114,11 +114,11 @@ const productSchema = mongoose.Schema(
     },
     availableQuantity: {
       type: Number,
-      required: true,
+      default: null,
     },
     alert: {
       type: Number,
-      required: true,
+      default: null,
     },
     order: {
       type: Number,

@@ -281,7 +281,7 @@ const getSingleCustomerController = async (req, res, next) => {
       walletBalance: customerFound.customerDetails.walletBalance,
       homeAddress: customerFound.customerDetails?.homeAddress || "-",
       workAddress: customerFound.customerDetails?.workAddress || "-",
-      otherAddress: customerFound.customerDetails?.otherAddress || "-",
+      otherAddress: customerFound.customerDetails?.otherAddress || [],
       walletDetails: formattedcustomerTransactions || [],
       orderDetails: formattedCustomerOrders || [],
     };
