@@ -76,7 +76,7 @@ const app2 = admin2.initializeApp(
 );
 
 const app = express();
-const server = http.createServer(
+const server = https.createServer(
   {
     key: process.env.SSL_KEY,
     cert: process.env.SSL_CERT,
