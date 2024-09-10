@@ -20,6 +20,7 @@ const {
   editMerchantProfileController,
   addMerchantsFromCSVController,
   downloadMerchantSampleCSVController,
+  downloadMerchantCSVController,
 } = require("../../../controllers/admin/merchant/merchantController");
 const { upload } = require("../../../utils/imageOperation");
 const isAdmin = require("../../../middlewares/isAdmin");
@@ -66,7 +67,6 @@ merchantRoute.put(
     { name: "FSSAIImage", maxCount: 1 },
     { name: "aadharImage", maxCount: 1 },
   ]),
-  merchantDetailValidations,
   isAuthenticated,
   updateMerchantDetailsByMerchantController
 );
@@ -179,10 +179,17 @@ merchantRoute.put(
     { name: "FSSAIImage", maxCount: 1 },
     { name: "aadharImage", maxCount: 1 },
   ]),
-  // merchantDetailValidations,
   isAuthenticated,
   isAdmin,
   updateMerchantDetailsController
+);
+
+// Download Merchant CSV
+merchantRoute.post(
+  "/admin/download-csv",
+  isAuthenticated,
+  isAdmin,
+  downloadMerchantCSVController
 );
 
 //Sponsorship payment

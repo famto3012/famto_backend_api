@@ -297,14 +297,13 @@ const getSingleCustomerController = async (req, res, next) => {
 
 const blockCustomerController = async (req, res, next) => {
   const { reason } = req.body;
+
   try {
     const customerFound = await Customer.findById(req.params.customerId);
 
     if (!customerFound) {
       return next(appError("Customer not found", 404));
     }
-
-    console.log("Customer", customerFound);
 
     customerFound.isBlocked = true;
     customerFound.reasonForBlockingOrDeleting = reason;
