@@ -124,86 +124,86 @@ const merchantDetailSchema = new mongoose.Schema(
   {
     merchantName: {
       type: String,
-      required: true,
+      default: null,
     },
     merchantImageURL: {
       type: String,
-      required: true,
+      default: null,
     },
     displayAddress: {
       type: String,
-      required: true,
+      default: null,
     },
     description: {
       type: String,
-      required: true,
+      default: null,
     },
     geofenceId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Geofence",
-      required: true,
+      // default: null,
     },
     pricing: [
       {
         type: mongoose.Schema.Types.Mixed,
-        required: true,
         default: [],
       },
     ],
     location: {
       type: [Number],
-      required: true,
+      default: [],
     },
     ratingByCustomers: [ratingByCustomerSchema],
     pancardNumber: {
       type: String,
-      required: true,
+      default: null,
     },
     pancardImageURL: {
       type: String,
-      required: true,
+      default: null,
     },
     GSTINNumber: {
       type: String,
-      required: true,
+      default: null,
     },
     GSTINImageURL: {
       type: String,
-      required: true,
+      default: null,
     },
     FSSAINumber: {
       type: String,
-      required: true,
+      default: null,
     },
     FSSAIImageURL: {
       type: String,
-      required: true,
+      default: null,
     },
     aadharNumber: {
       type: String,
-      required: true,
+      default: null,
     },
     aadharImageURL: {
       type: String,
-      required: true,
+      default: null,
     },
     businessCategoryId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "BusinessCategory",
-      required: true,
+      // default: null,
     },
     merchantFoodType: {
       type: String,
-      enum: ["Veg", "Non-veg", "Both"],
+      enum: ["Veg", "Non-veg", "Both", " "],
+      default: " ",
     },
     deliveryOption: {
       type: String,
-      enum: ["On-demand", "Scheduled", "Both"],
-      required: true,
+      enum: ["On-demand", "Scheduled", "Both", " "],
+      default: " ",
     },
     deliveryTime: {
       type: Number,
-      required: true,
+      // default: null,
     },
     preOrderStatus: {
       type: Boolean,
@@ -211,11 +211,19 @@ const merchantDetailSchema = new mongoose.Schema(
     },
     servingArea: {
       type: String,
-      enum: ["No-restrictions", "Mention-radius"],
-      required: true,
+      enum: ["No-restrictions", "Mention-radius", " "],
+      default: " ",
     },
     servingRadius: {
       type: Number,
+      default: null,
+      validate: {
+        validator: function (v) {
+          // Allow either null or a valid number
+          return v === null || typeof v === "number";
+        },
+        message: (props) => `${props.value} is not a valid number!`,
+      },
     },
     // availability: {
     //   type: availabilitySchema,
@@ -288,15 +296,14 @@ const merchantSchema = new mongoose.Schema(
     resetPasswordToken: {
       type: String,
     },
-    resetPasswordExpiry : {
+    resetPasswordExpiry: {
       type: Date,
     },
   },
   {
     timestamps: true,
     toJSON: { virtuals: true },
-    toObject: { virtuals: true
-    }
+    toObject: { virtuals: true },
   },
   {
     timestamps: true,

@@ -25,6 +25,15 @@ const NotificationSetting = require("../../../models/NotificationSetting");
 const csvWriter = require("csv-writer").createObjectCsvWriter;
 const { createTransport } = require("nodemailer");
 
+// Helper function to handle null or empty string values
+const convertNullValues = (obj) => {
+  Object.keys(obj).forEach((key) => {
+    if (obj[key] === "null" || obj[key] === "") {
+      obj[key] = null;
+    }
+  });
+};
+
 //----------------------------
 //For Merchant
 //-----------------------------
@@ -238,6 +247,11 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
       return next(appError("Merchant not found", 404));
     }
 
+    // Apply the helper function to handle null or empty string values
+    if (merchantDetail) {
+      convertNullValues(merchantDetail);
+    }
+
     let merchantImageURL =
       merchantFound?.merchantDetail?.merchantImageURL || "";
     let pancardImageURL = merchantFound?.merchantDetail?.pancardImageURL || "";
@@ -294,6 +308,8 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
 
     const details = {
       ...merchantDetail,
+      geofenceId: merchantDetail?.geofenceId || null,
+      businessCategoryId: merchantDetail?.businessCategoryId || null,
       merchantImageURL,
       pancardImageURL,
       GSTINImageURL,
@@ -720,9 +736,9 @@ const getAllMerchantsController = async (req, res, next) => {
     const totalDocuments = await Merchant.countDocuments({});
 
     const merchantsWithDetails = merchantsFound.map((merchant) => {
-      const geofenceName = merchant?.merchantDetail?.geofenceId
-        ? merchant.merchantDetail.geofenceId.name
-        : "-";
+      // const geofenceName = merchant?.merchantDetail?.geofenceId
+      //   ? merchant?.merchantDetail?.geofenceId?.name
+      //   : "-";
 
       // Access isServiceableToday directly as it's a virtual field
       const isServiceableToday = merchant.merchantDetail?.isServiceableToday;
@@ -733,7 +749,7 @@ const getAllMerchantsController = async (req, res, next) => {
         phoneNumber: merchant.phoneNumber,
         isApproved: merchant.isApproved,
         status: merchant.status && isServiceableToday === "open" ? true : false,
-        geofence: geofenceName,
+        geofence: merchant?.merchantDetail?.geofenceId?.name || "-",
         averageRating: merchant?.merchantDetail?.averageRating,
         isServiceableToday:
           isServiceableToday === "open" && merchant.status ? "open" : "closed",
@@ -929,7 +945,6 @@ const updateMerchantDetailsController = async (req, res, next) => {
   const { fullName, email, phoneNumber, merchantDetail } = req.body;
 
   const errors = validationResult(req);
-
   let formattedErrors = {};
   if (!errors.isEmpty()) {
     errors.array().forEach((error) => {
@@ -942,9 +957,13 @@ const updateMerchantDetailsController = async (req, res, next) => {
     const { merchantId } = req.params;
 
     const merchantFound = await Merchant.findById(merchantId);
-
     if (!merchantFound) {
       return next(appError("Merchant not found", 404));
+    }
+
+    // Apply the helper function to handle null or empty string values
+    if (merchantDetail) {
+      convertNullValues(merchantDetail);
     }
 
     let merchantImageURL =
@@ -963,7 +982,7 @@ const updateMerchantDetailsController = async (req, res, next) => {
         aadharImage,
       } = req.files;
 
-      if (merchantImage && merchantImage && merchantImage[0]) {
+      if (merchantImage && merchantImage[0]) {
         if (merchantImageURL) {
           await deleteFromFirebase(merchantImageURL);
         }
@@ -1003,6 +1022,8 @@ const updateMerchantDetailsController = async (req, res, next) => {
 
     const details = {
       ...merchantDetail,
+      geofenceId: merchantDetail?.geofenceId || null,
+      businessCategoryId: merchantDetail?.businessCategoryId || null,
       merchantImageURL,
       pancardImageURL,
       GSTINImageURL,
@@ -1017,7 +1038,7 @@ const updateMerchantDetailsController = async (req, res, next) => {
 
     await merchantFound.save();
 
-    res.status(200).json({ message: "Merchant details added successfully" });
+    res.status(200).json({ message: "Merchant details updated successfully" });
   } catch (err) {
     next(appError(err.message));
   }
@@ -1182,6 +1203,7 @@ const addMerchantsFromCSVController = async (req, res, next) => {
         if (!isRowEmpty) {
           const merchant = {
             fullName: row["Full name of owner"]?.trim(),
+            merchantName: row["Merchant name"]?.trim(),
             email: row.Email?.toLowerCase().trim(),
             phoneNumber: row["Phone number"]?.trim(),
             password: row.Password?.trim() || "12345678",
@@ -1213,6 +1235,9 @@ const addMerchantsFromCSVController = async (req, res, next) => {
               // Update only the provided fields
               if (merchantData.fullName)
                 updateData.fullName = merchantData.fullName;
+              if (merchantData.merchantName)
+                updateData["merchantDetail.merchantName"] =
+                  merchantData.merchantName;
               if (merchantData.email) updateData.email = merchantData.email;
               if (merchantData.phoneNumber)
                 updateData.phoneNumber = merchantData.phoneNumber;
@@ -1240,6 +1265,9 @@ const addMerchantsFromCSVController = async (req, res, next) => {
               // Create new merchant
               const merchant = new Merchant({
                 ...merchantData,
+                merchantDetail: {
+                  merchantName: merchantData.merchantName0,
+                },
                 password: hashedPassword,
               });
 
@@ -1267,6 +1295,7 @@ const addMerchantsFromCSVController = async (req, res, next) => {
   }
 };
 
+// Download sample CSV
 const downloadMerchantSampleCSVController = async (req, res, next) => {
   try {
     // Define the path to your sample CSV file
@@ -1275,6 +1304,7 @@ const downloadMerchantSampleCSVController = async (req, res, next) => {
     // Define the headers and data for the CSV
     const csvHeaders = [
       { id: "fullName", title: "Full name of owner" },
+      { id: "merchantName", title: "Merchant name" },
       { id: "email", title: "Email" },
       { id: "phoneNumber", title: "Phone number" },
       { id: "password", title: "Password" },
@@ -1283,12 +1313,14 @@ const downloadMerchantSampleCSVController = async (req, res, next) => {
     const csvData = [
       {
         fullName: "John Doe",
+        merchantName: "Shop name",
         email: "john.doe@example.com",
         phoneNumber: "1234567890",
         password: "12345678",
       },
       {
         fullName: "Jane Smith",
+        merchantName: "Shop name",
         email: "jane.smith@example.com",
         phoneNumber: "1234567890",
         password: "12345678",
@@ -1312,6 +1344,128 @@ const downloadMerchantSampleCSVController = async (req, res, next) => {
     });
   } catch (error) {
     res.status(500).send("Error processing the CSV file");
+  }
+};
+
+const downloadMerchantCSVController = async (req, res, next) => {
+  try {
+    const { serviceable, geofence, businessCategory, searchFilter } = req.query;
+
+    // Build query object based on filters
+    const filter = {};
+    if (serviceable && serviceable !== "All")
+      filter.isServiceableToday = serviceable?.trim();
+    if (geofence && geofence !== "All")
+      filter["merchantDetai.geofenceId"] = geofence?.trim();
+    if (businessCategory && businessCategory !== "All")
+      filter["merchantDetai.businessCategoryId"] = businessCategory?.trim();
+    if (searchFilter) {
+      filter.$or = [
+        {
+          "merchantDetail.merchantName": {
+            $regex: searchFilter,
+            $options: "i",
+          },
+        },
+      ];
+    }
+
+    // Fetch the data based on filter (get both approved and pending agents)
+    let allMerchants = await Merchant.find(filter)
+      .populate("merchantDetail.geofenceId", "name")
+      .populate("merchantDetai.businessCategoryId", "title")
+      .sort({ createdAt: -1 })
+      .exec();
+
+    let formattedResponse = [];
+
+    // Collect all agents in one array
+    allMerchants?.forEach((merchant) => {
+      formattedResponse.push({
+        merchantId: merchant?._id || "-",
+        merchantName: merchant?.merchantDetail?.merchantName || "-",
+        fullName: merchant?.fullName || "-",
+        merchantEmail: merchant?.email || "-",
+        phoneNumber: merchant?.phoneNumber || "-",
+        registrationStatus: agent?.isApproved || "-",
+        currentStatus: agent?.status ? "Open" : "Closed",
+        isBlocked: agent?.isBlocked ? "True" : "False",
+        reasonForBlockingOrDeleting: agent?.reasonForBlockingOrDeleting || "-",
+        blockedDate: formatDate(agent?.blockedDate) || "-",
+        merchantImageURL: merchant?.merchantDetail?.merchantImageURL || "-",
+        displayAddress: merchant?.merchantDetail?.displayAddress || "-",
+        description: merchant?.merchantDetail?.description || "-",
+        geofence: merchant?.merchantDetail?.geofenceId?.name || "-",
+        businessCategory:
+          merchant?.merchantDetail?.businessCategoryId?.title || "-",
+        pancardNumber: merchant?.merchantDetail?.pancardNumber || "-",
+        pancardImageURL: merchant?.merchantDetail?.pancardImageURL || "-",
+        GSTINNumber: merchant?.merchantDetail?.GSTINNumber || "-",
+        GSTINImageURL: merchant?.merchantDetail?.GSTINImageURL || "-",
+        FSSAINumber: merchant?.merchantDetail?.FSSAINumber || "-",
+        FSSAIImageURL: merchant?.merchantDetail?.FSSAIImageURL || "-",
+        aadharNumber: merchant?.merchantDetail?.aadharNumber || "-",
+        aadharImageURL: merchant?.merchantDetail?.aadharImageURL || "-",
+        merchantFoodType: merchant?.merchantDetail?.merchantFoodType || "-",
+        deliveryOption: merchant?.merchantDetail?.deliveryOption || "-",
+        deliveryTime: merchant?.merchantDetail?.deliveryTime || "-",
+        preOrderStatus: merchant?.merchantDetail?.preOrderStatus || "-",
+        servingArea: merchant?.merchantDetail?.servingArea || "-",
+        servingRadius: merchant?.merchantDetail?.servingRadius || "-",
+      });
+    });
+
+    const filePath = path.join(__dirname, "../../../sample_CSV/sample_CSV.csv");
+
+    const csvHeaders = [
+      { id: "merchantId", title: "Merchant ID" },
+      { id: "merchantName", title: "Merchant Name" },
+      { id: "fullName", title: "Full Name" },
+      { id: "merchantEmail", title: "Merchant Email" },
+      { id: "phoneNumber", title: "Phone Number" },
+      { id: "registrationStatus", title: "Registration Status" },
+      { id: "currentStatus", title: "Current Status" },
+      { id: "isBlocked", title: "Is Blocked" },
+      {
+        id: "reasonForBlockingOrDeleting",
+        title: "Reason for Blocking/Deleting",
+      },
+      { id: "blockedDate", title: "Blocked Date" },
+      { id: "merchantImageURL", title: "Merchant Image URL" },
+      { id: "displayAddress", title: "Display Address" },
+      { id: "description", title: "Description" },
+      { id: "geofence", title: "Geofence" },
+      { id: "businessCategory", title: "Business Category" },
+      { id: "pancardNumber", title: "PAN Card Number" },
+      { id: "pancardImageURL", title: "PAN Card Image URL" },
+      { id: "GSTINNumber", title: "GSTIN Number" },
+      { id: "GSTINImageURL", title: "GSTIN Image URL" },
+      { id: "FSSAINumber", title: "FSSAI Number" },
+      { id: "FSSAIImageURL", title: "FSSAI Image URL" },
+      { id: "aadharNumber", title: "Aadhar Number" },
+      { id: "aadharImageURL", title: "Aadhar Image URL" },
+      { id: "merchantFoodType", title: "Merchant Food Type" },
+      { id: "deliveryOption", title: "Delivery Option" },
+      { id: "deliveryTime", title: "Delivery Time" },
+      { id: "preOrderStatus", title: "Pre-Order Status" },
+      { id: "servingArea", title: "Serving Area" },
+      { id: "servingRadius", title: "Serving Radius" },
+    ];
+
+    const writer = csvWriter({
+      path: filePath,
+      header: csvHeaders,
+    });
+
+    await writer.writeRecords(formattedResponse);
+
+    res.status(200).download(filePath, "Merchant_Data.csv", (err) => {
+      if (err) {
+        next(err);
+      }
+    });
+  } catch (err) {
+    next(appError(err.message));
   }
 };
 
@@ -1339,4 +1493,5 @@ module.exports = {
   filterMerchantsController,
   addMerchantsFromCSVController,
   downloadMerchantSampleCSVController,
+  downloadMerchantCSVController,
 };

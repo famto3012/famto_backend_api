@@ -1012,7 +1012,7 @@ const downloadAgentCSVController = async (req, res, next) => {
       };
     }
 
-    // Fetch the data based on filter
+    // Fetch the data based on filter (get both approved and pending agents)
     let allAgents = await Agent.find(filter)
       .populate("geofenceId", "name")
       .populate("workStructure.managerId", "name")
@@ -1022,6 +1022,7 @@ const downloadAgentCSVController = async (req, res, next) => {
 
     let formattedResponse = [];
 
+    // Collect all agents in one array
     allAgents?.forEach((agent) => {
       agent?.vehicleDetail?.forEach((vehicle) => {
         formattedResponse.push({
@@ -1030,7 +1031,7 @@ const downloadAgentCSVController = async (req, res, next) => {
           agentEmail: agent?.email || "-",
           agentPhoneNumber: agent?.phoneNumber || "-",
           geofence: agent?.geofenceId?.name || "-",
-          registrationStatus: agent?.isApproved || "-",
+          registrationStatus: agent?.isApproved || "-", // Keep both "Approved" and "Pending"
           aadharNumber: agent?.governmentCertificateDetail?.aadharNumber || "-",
           drivingLicenseNumber:
             agent?.governmentCertificateDetail?.drivingLicenseNumber || "-",
@@ -1051,16 +1052,16 @@ const downloadAgentCSVController = async (req, res, next) => {
       });
     });
 
-    const filePath = path.join(__dirname, "../../../sample_CSV/sample_CSV.csv");
+    const filePath = path.join(__dirname, "../../../sample_CSV/Agent_Data.csv");
 
     const csvHeaders = [
-      { id: "agentId", title: "Customer ID" },
-      { id: "agentName", title: "Customer name" },
-      { id: "agentEmail", title: "Customer Email" },
+      { id: "agentId", title: "Agent ID" },
+      { id: "agentName", title: "Agent name" },
+      { id: "agentEmail", title: "Email" },
       { id: "agentPhoneNumber", title: "Phone number" },
-      { id: "geofence", title: "Last platform used" },
-      { id: "registrationStatus", title: "Registration status" },
-      { id: "aadharNumber", title: "Registration status" },
+      { id: "geofence", title: "Geofence" },
+      { id: "registrationStatus", title: "Registration status" }, // Both "Approved" and "Pending"
+      { id: "aadharNumber", title: "Aadhar number" },
       { id: "drivingLicenseNumber", title: "Driving license number" },
       { id: "accountHolderName", title: "Account holder name" },
       { id: "accountNumber", title: "Account number" },
