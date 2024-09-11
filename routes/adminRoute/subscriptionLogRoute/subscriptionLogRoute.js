@@ -15,6 +15,7 @@ const {
   getCustomerSubscriptionLogsByStartDate,
 } = require("../../../controllers/admin/commissionAndSubscription/subscriptionLogController");
 const isAdmin = require("../../../middlewares/isAdmin");
+const isAdminOrMerchant = require("../../../middlewares/isAdminOrMerchant");
 
 const subscriptionLogRoute = express.Router();
 
@@ -80,7 +81,7 @@ subscriptionLogRoute.get(
 subscriptionLogRoute.get(
   "/merchant-subscription-log/:merchantId",
   isAuthenticated,
-  isAdmin,
+  isAdminOrMerchant,
   getByMerchantIdSubscriptionLogController
 );
 

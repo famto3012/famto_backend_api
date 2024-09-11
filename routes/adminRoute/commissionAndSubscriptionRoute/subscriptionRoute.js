@@ -44,7 +44,7 @@ subscriptionRoute.put(
 subscriptionRoute.get(
   "/get-merchant-subscription/:id",
   isAuthenticated,
-  isAdmin,
+  isAdminOrMerchant,
   getSingleMerchantSubscriptionPlanController
 );
 
