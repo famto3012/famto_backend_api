@@ -57,7 +57,7 @@ commissionRoute.get(
 commissionRoute.get(
   "/commission-log/:merchantId",
   isAuthenticated,
-  isAdmin,
+  isAdminOrMerchant,
   getCommissionLogsByMerchantId
 );
 

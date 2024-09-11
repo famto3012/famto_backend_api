@@ -153,7 +153,9 @@ const registerOnWebsite = async (req, res, next) => {
 };
 
 const findUserByEmail = async (email) => {
+  console.log(email)
   let user = await Admin.findOne({ email });
+  console.log(user)
   if (user) return { user, role: "Admin" };
 
   user = await Manager.findOne({ email });
@@ -161,7 +163,7 @@ const findUserByEmail = async (email) => {
 
   user = await Merchant.findOne({ email });
   if (user) return { user, role: "Merchant" };
-
+  
   return null;
 };
 
@@ -171,6 +173,7 @@ const forgotPassword = async (req, res) => {
 
     // Find the user in any of the models
     const userResult = await findUserByEmail(email);
+    console.log(userResult)
     if (!userResult) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -187,7 +190,7 @@ const forgotPassword = async (req, res) => {
     await user.save();
 
     // Send email with reset link
-    const resetURL = `${process.env.BASE_URL}/api/v1/auth/reset-password/?resetToken=${resetToken}&role=${role}`;
+    const resetURL = `${process.env.BASE_URL}/auth/reset-password/?resetToken=${resetToken}&role=${role}`;
     const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please make a request to:\n\n${resetURL}`;
 
     // Set up nodemailer transport
