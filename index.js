@@ -87,8 +87,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
     origin: [
-      "http://localhost:5173",
       "https://dashboard.famto.in",
+      "http://localhost:5173",
       "https://www.famto.in",
       "*",
     ],
