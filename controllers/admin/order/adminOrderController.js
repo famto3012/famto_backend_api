@@ -672,7 +672,7 @@ const filterOrdersByAdminController = async (req, res, next) => {
       filterCriteria["orderDetail.deliveryMode"] = {
         $regex: deliveryMode.trim(),
         $options: "i",
-      };
+      }; 
     }
 
     const filteredOrderResults = await Order.find(filterCriteria)
