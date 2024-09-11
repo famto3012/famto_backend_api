@@ -76,21 +76,10 @@ const app2 = admin2.initializeApp(
 );
 
 const app = express();
-const server = http.createServer(
-  // {
-  //   key: process.env.SSL_KEY,
-  //   cert: process.env.SSL_CERT,
-
-  //   requestCert: false,
-  //   rejectUnauthorized: false,
-  // },
-  app
-);
+const server = http.createServer(app);
 
 const io = socketio(server, {
-  // path: "/socket",
   transports: ["websocket"],
-  // wssEngine: ["ws", "wss"],
   cors: {
     origin: ["https://dashboard.famto.in", "*"], // Replace with the correct URL of your React app
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
@@ -100,7 +89,6 @@ const io = socketio(server, {
   pingTimeout: 5000, // 5 seconds
   reconnection: true,
   reconnectionAttempts: Infinity, // Unlimited attempts
-  // allowEIO3: true
 });
 
 const userSocketMap = {};
