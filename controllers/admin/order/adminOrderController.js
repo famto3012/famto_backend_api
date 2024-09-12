@@ -672,7 +672,7 @@ const filterOrdersByAdminController = async (req, res, next) => {
       filterCriteria["orderDetail.deliveryMode"] = {
         $regex: deliveryMode.trim(),
         $options: "i",
-      }; 
+      };
     }
 
     const filteredOrderResults = await Order.find(filterCriteria)
@@ -1181,6 +1181,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
         return next(appError("Business category not found", 404));
 
       let customerPricing;
+      let customerSurge;
       if (deliveryMode === "Home Delivery") {
         customerPricing = await CustomerPricing.findOne({
           deliveryMode: "Home Delivery",
@@ -1191,6 +1192,11 @@ const createInvoiceByAdminController = async (req, res, next) => {
 
         if (!customerPricing)
           return res.status(404).json({ error: "Customer pricing not found" });
+
+        customerSurge = await CustomerSurge.findOne({
+          geofenceId: customer?.customerDetails?.geofenceId,
+          status: true,
+        });
       }
 
       const oneTimeDeliveryCharge = calculateDeliveryCharges(
@@ -1200,20 +1206,19 @@ const createInvoiceByAdminController = async (req, res, next) => {
         customerPricing?.fareAfterBaseDistance
       );
 
-      const customerSurge = await CustomerSurge.findOne({
-        geofenceId: customer?.customerDetails?.geofenceId,
-        status: true,
-      });
+      console.log("customerSurge", customerSurge);
 
       let surgeCharges = 0;
       if (customerSurge) {
         surgeCharges = calculateDeliveryCharges(
           distanceInKM,
           customerSurge.baseFare,
-          customerSurge.baseDistance,
-          customerSurge.fareAfterBaseDistance
+          customerSurge.baseDistance
+          // customerSurge.fareAfterBaseDistance
         );
       }
+
+      console.log("surgeCharges", surgeCharges);
 
       let deliveryChargeForScheduledOrder;
       if (startDate && endDate && time) {

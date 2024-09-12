@@ -16,6 +16,7 @@ const addCustomerPricingController = async (req, res, next) => {
     waitingTime,
     geofenceId,
     vehicleType,
+    businessCategoryId,
   } = req.body;
 
   const errors = validationResult(req);
@@ -47,6 +48,7 @@ const addCustomerPricingController = async (req, res, next) => {
       waitingTime,
       geofenceId,
       vehicleType,
+      businessCategoryId,
     });
 
     if (!newRule) {
@@ -113,6 +115,7 @@ const editCustomerPricingController = async (req, res, next) => {
     waitingTime,
     geofenceId,
     vehicleType,
+    businessCategoryId,
   } = req.body;
 
   const errors = validationResult(req);
@@ -166,6 +169,7 @@ const editCustomerPricingController = async (req, res, next) => {
         waitingTime,
         geofenceId,
         vehicleType,
+        businessCategoryId,
       },
       { new: true }
     );
