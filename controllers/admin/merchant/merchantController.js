@@ -931,6 +931,10 @@ const changeMerchantStatusController = async (req, res, next) => {
       return next(appError("Merchant not found", 404));
     }
 
+    if (merchantFound.isApproved === "Pending") {
+      return next(appError("Please complete the registration", 400));
+    }
+
     merchantFound.status = !merchantFound.status;
     await merchantFound.save();
 
@@ -1143,31 +1147,27 @@ const blockMerchant = async (req, res, next) => {
 
     const merchantFound = await Merchant.findById(merchantId);
 
-    console.log(merchantFound);
-
     if (merchantFound.isBlocked) {
-      res.status(200).json({
-        message: "Merchant is already blocked",
-      });
-    } else {
-      merchantFound.isBlocked = true;
-      merchantFound.reasonForBlockingOrDeleting = reasonForBlocking;
-      merchantFound.blockedDate = new Date();
-      await merchantFound.save();
-
-      const accountLogs = await AccountLogs.create({
-        userId: merchantFound._id,
-        fullName: merchantFound.fullName,
-        role: merchantFound.role,
-        description: reasonForBlocking,
-      });
-
-      await accountLogs.save(accountLogs);
-
-      res.status(200).json({
-        message: "Merchant blocked",
-      });
+      return next(appError("Merchant is already blocked", 400));
     }
+
+    merchantFound.isBlocked = true;
+    merchantFound.reasonForBlockingOrDeleting = reasonForBlocking;
+    merchantFound.blockedDate = new Date();
+    await merchantFound.save();
+
+    const accountLogs = await AccountLogs.create({
+      userId: merchantFound._id,
+      fullName: merchantFound.fullName,
+      role: merchantFound.role,
+      description: reasonForBlocking,
+    });
+
+    await accountLogs.save(accountLogs);
+
+    res.status(200).json({
+      message: "Merchant blocked",
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -1266,7 +1266,7 @@ const addMerchantsFromCSVController = async (req, res, next) => {
               const merchant = new Merchant({
                 ...merchantData,
                 merchantDetail: {
-                  merchantName: merchantData.merchantName0,
+                  merchantName: merchantData.merchantName,
                 },
                 password: hashedPassword,
               });

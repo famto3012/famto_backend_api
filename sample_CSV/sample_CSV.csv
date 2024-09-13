@@ -1,0 +1,3 @@
+Product name,Price,Min Quantity To Order,Max Quantity per Order,Cost price,SKU,Preparation time,Description,Long description,Type,Inventory,Available Quantity,Alert,Variant name,Variant Type name,Variant Type price
+Product 1,100,1,20,100,SKU12345,30,Description,Long description,Veg / Non-veg,TRUE / FALSE,20,10,Size,Medium,150
+Product 2,100,1,20,100,SKU12345,30,Description,Long description,Veg / Non-veg,TRUE / FALSE,20,10,Colour,Black,150
