@@ -2,29 +2,19 @@ const moment = require("moment");
 const momentTimezone = require("moment-timezone");
 
 const formatDate = (date) => {
-  const options = {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  };
-
-  const formatedDate = new Date(date).toLocaleDateString("en-GB", options);
-
-  return formatedDate;
+  try {
+    return momentTimezone(date).tz("Asia/Kolkata").format("DD MMM YYYY");
+  } catch (err) {
+    return "-";
+  }
 };
 
 const formatTime = (createdAt) => {
-  const date = new Date(createdAt);
-
-  let hours = date.getHours();
-  const minutes = ("0" + date.getMinutes()).slice(-2);
-  const ampm = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12;
-  hours = hours ? hours : 12; // Handle midnight (0 hours)
-
-  const formattedTime = `${hours}:${minutes} ${ampm}`;
-
-  return formattedTime;
+  try {
+    return momentTimezone(createdAt).tz("Asia/Kolkata").format("hh:mm A");
+  } catch (err) {
+    return "-";
+  }
 };
 
 // const convertToUTC = (date, time) => {

@@ -495,22 +495,21 @@ const addProductFromCSVController = async (req, res, next) => {
             productsMap.set(productKey, {
               productName: row["Product name"]?.trim(),
               price: parseFloat(row["Price"]?.trim()),
-              minQuantityToOrder: parseInt(
-                row["Min Quantity To Order"]?.trim()
-              ),
-              maxQuantityPerOrder: parseInt(
-                row["Max Quantity per Order"]?.trim()
-              ),
+              minQuantityToOrder:
+                parseInt(row["Min Quantity To Order"]?.trim()) || 0,
+              maxQuantityPerOrder:
+                parseInt(row["Max Quantity per Order"]?.trim()) || 0,
               costPrice: parseFloat(row["Cost price"]?.trim()),
-              sku: row["SKU"]?.trim(),
-              preparationTime: row["Preparation time"]?.trim(),
-              description: row["Description"]?.trim(),
-              longDescription: row["Long description"]?.trim(),
+              sku: row["SKU"]?.trim() || "",
+              preparationTime: row["Preparation time"]?.trim() || "",
+              description: row["Description"]?.trim() || "",
+              longDescription: row["Long description"]?.trim() || "",
               type: row["Type"]?.trim(),
               categoryId,
-              inventory: row["Inventory"]?.trim().toLowerCase(),
-              availableQuantity: parseInt(row["Available Quantity"]?.trim()),
-              alert: parseInt(row["Alert"]?.trim()),
+              inventory: row["Inventory"]?.trim().toLowerCase() || true,
+              availableQuantity:
+                parseInt(row["Available Quantity"]?.trim()) || 0,
+              alert: parseInt(row["Alert"]?.trim()) || 0,
               variants: [],
             });
           }
