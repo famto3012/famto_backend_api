@@ -119,7 +119,7 @@ const getAllProductDiscountController = async (req, res, next) => {
     const discounts = await ProductDiscount.find({ merchantId }).populate(
       "geofenceId",
       "name"
-    );
+    ).populate("productId", "productName");
 
     res.status(200).json({
       success: "Product Discounts retrieved successfully",
