@@ -303,8 +303,8 @@ const updateAllDiscountAdminController = async (req, res, next) => {
 const getAllDiscountAdminController = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const merchantDiscounts = await MerchantDiscount.find({ merchantId: id });
-    const productDiscounts = await ProductDiscount.find({ merchantId: id });
+    const merchantDiscounts = await MerchantDiscount.find({ merchantId: id }).populate("geofenceId", "name");
+    const productDiscounts = await ProductDiscount.find({ merchantId: id }).populate("geofenceId", "name");
 
     const discounts = [...merchantDiscounts, ...productDiscounts];
 

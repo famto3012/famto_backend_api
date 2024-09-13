@@ -9,6 +9,7 @@ const {
   getAgentsAccordingToGeofenceController,
   getOrderByOrderIdController,
   getAgentByNameController,
+  getTaskByDateRangeController,
 } = require("../../../controllers/admin/deliveryManagement/taskController");
 
 taskRoute.get("/task", isAdmin, isAuthenticated, getTaskFilterController);
@@ -41,6 +42,13 @@ taskRoute.get(
   isAdmin,
   isAuthenticated,
   getAgentByNameController
+);
+
+taskRoute.get(
+  "/task-date",
+  isAdmin,
+  isAuthenticated,
+  getTaskByDateRangeController
 );
 
 module.exports = taskRoute;

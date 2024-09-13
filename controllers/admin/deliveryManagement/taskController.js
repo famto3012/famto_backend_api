@@ -314,6 +314,29 @@ const getAgentByNameController = async (req, res, next) => {
   }
 };
 
+const getTaskByDateRangeController = async (req, res, next) => {
+  try {
+    const { startDate, endDate } = req.query;
+    console.log(startDate,endDate)
+    // Convert to ISO strings for querying
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    console.log(start,end)
+    // Fetch data between the startDate and endDate
+    const taskData = await Task.find({
+      createdAt: {
+        $gte: start,
+        $lte: end,
+      },
+    });
+
+    // Send the response
+    res.status(200).json(taskData);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   getTaskFilterController,
   getAgentByStatusController,
@@ -321,4 +344,5 @@ module.exports = {
   getAgentsAccordingToGeofenceController,
   getOrderByOrderIdController,
   getAgentByNameController,
+  getTaskByDateRangeController,
 };
