@@ -281,7 +281,7 @@ agentRoute.get(
 
 agentRoute.post("/generate-qr", generateRazorpayQRController);
 
-agentRoute.post("/verify-qr", verifyQrPaymentController);
+agentRoute.post("/razorpay-webhook", verifyQrPaymentController);
 
 agentRoute.get(
   "/all-notifications",

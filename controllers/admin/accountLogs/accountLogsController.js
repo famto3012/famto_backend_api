@@ -101,40 +101,96 @@ const searchUserByDateController = async (req, res, next) => {
   }
 };
 
+// const unBlockUserController = async (req, res, next) => {
+//   try {
+//     const userFound = await AccountLogs.findById(req.params.id);
+
+//     console.log("userFound", userFound);
+
+//     if (!userFound) {
+//       return next(appError("User not found", 404));
+//     }
+
+//     if (userFound.role === "Merchant") {
+//       console.log("Inside merchant");
+//       await Merchant.findByIdAndUpdate(req.params.id, {
+//         isBlocked: false,
+//         reasonForBlockingOrDeleting: null,
+//         blockedDate: null,
+//       });
+//       await AccountLogs.findByIdAndDelete(req.params.id);
+//     } else if (userFound.role === "Agent") {
+//       console.log("Inside agent");
+//       await Agent.findByIdAndUpdate(req.params.id, {
+//         isBlocked: false,
+//         reasonForBlockingOrDeleting: null,
+//         blockedDate: null,
+//       });
+//       await AccountLogs.findByIdAndDelete(req.params.id);
+//     } else {
+//       console.log("Inside Customer");
+//       await Customer.findByIdAndUpdate(req.params.id, {
+//         isBlocked: false,
+//         reasonForBlockingOrDeleting: null,
+//         blockedDate: null,
+//       });
+//       await AccountLogs.findByIdAndDelete(req.params.id);
+//     }
+
+//     res.status(200).json({ message: "User unblocked successfully" });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
+
 const unBlockUserController = async (req, res, next) => {
   try {
-    const userFound = await AccountLogs.findById(req.params.id);
+    const userLog = await AccountLogs.findById(req.params.id);
 
-    if (!userFound) {
-      return next(appError("User not found", 404));
+    if (!userLog) {
+      return next(appError("User not found in logs", 404));
     }
 
-    if (userFound.role === "Merchant") {
-      await Merchant.findByIdAndUpdate(req.params.id, {
+    let user;
+    if (userLog.role === "Merchant") {
+      console.log("Unblocking Merchant");
+      user = await Merchant.findById(userLog.userId); // Assuming userId stores the Merchant's ID
+      if (!user) return next(appError("Merchant not found", 404));
+
+      await Merchant.findByIdAndUpdate(userLog.userId, {
         isBlocked: false,
         reasonForBlockingOrDeleting: null,
         blockedDate: null,
       });
-      await AccountLogs.findByIdAndDelete(req.params.id);
-    } else if (userFound.role === "Agent") {
-      await Agent.findByIdAndUpdate(req.params.id, {
+    } else if (userLog.role === "Agent") {
+      console.log("Unblocking Agent");
+      user = await Agent.findById(userLog.userId); // Assuming userId stores the Agent's ID
+      if (!user) return next(appError("Agent not found", 404));
+
+      await Agent.findByIdAndUpdate(userLog.userId, {
         isBlocked: false,
         reasonForBlockingOrDeleting: null,
         blockedDate: null,
       });
-      await AccountLogs.findByIdAndDelete(req.params.id);
     } else {
-      await Customer.findByIdAndUpdate(req.params.id, {
+      console.log("Unblocking Customer");
+      user = await Customer.findById(userLog.userId); // Assuming userId stores the Customer's ID
+      if (!user) return next(appError("Customer not found", 404));
+
+      await Customer.findByIdAndUpdate(userLog.userId, {
         isBlocked: false,
         reasonForBlockingOrDeleting: null,
         blockedDate: null,
       });
-      await AccountLogs.findByIdAndDelete(req.params.id);
     }
+
+    // After updating the user, delete the log entry
+    await AccountLogs.findByIdAndDelete(req.params.id);
 
     res.status(200).json({ message: "User unblocked successfully" });
   } catch (err) {
-    next(appError(err.message));
+    console.error("Error unblocking user:", err); // Logs the error for debugging
+    next(appError(err.message, 500)); // Include status code
   }
 };
 

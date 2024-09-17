@@ -357,7 +357,7 @@ const getAllAgentsController = async (req, res, next) => {
     const skip = (page - 1) * limit;
 
     // Fetch agents with pagination
-    const allAgents = await Agent.find({})
+    const allAgents = await Agent.find({ isBlocked: false })
       .populate("geofenceId", "name")
       .populate("workStructure.managerId", "name")
       .select(

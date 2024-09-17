@@ -24,6 +24,7 @@ const { sendNotification, sendSocketData } = require("../../../socket/socket");
 const NotificationSetting = require("../../../models/NotificationSetting");
 const csvWriter = require("csv-writer").createObjectCsvWriter;
 const { createTransport } = require("nodemailer");
+const { formatDate } = require("../../../utils/formatters");
 
 // Helper function to handle null or empty string values
 const convertNullValues = (obj) => {
@@ -1202,7 +1203,7 @@ const addMerchantsFromCSVController = async (req, res, next) => {
 
         if (!isRowEmpty) {
           const merchant = {
-            fullName: row["Full name of owner"]?.trim(),
+            fullName: row["Full name of owner"]?.trim() || "-",
             merchantName: row["Merchant name"]?.trim(),
             email: row.Email?.toLowerCase().trim(),
             phoneNumber: row["Phone number"]?.trim(),
@@ -1373,7 +1374,7 @@ const downloadMerchantCSVController = async (req, res, next) => {
     // Fetch the data based on filter (get both approved and pending agents)
     let allMerchants = await Merchant.find(filter)
       .populate("merchantDetail.geofenceId", "name")
-      .populate("merchantDetai.businessCategoryId", "title")
+      .populate("merchantDetail.businessCategoryId", "title")
       .sort({ createdAt: -1 })
       .exec();
 
@@ -1387,11 +1388,14 @@ const downloadMerchantCSVController = async (req, res, next) => {
         fullName: merchant?.fullName || "-",
         merchantEmail: merchant?.email || "-",
         phoneNumber: merchant?.phoneNumber || "-",
-        registrationStatus: agent?.isApproved || "-",
-        currentStatus: agent?.status ? "Open" : "Closed",
-        isBlocked: agent?.isBlocked ? "True" : "False",
-        reasonForBlockingOrDeleting: agent?.reasonForBlockingOrDeleting || "-",
-        blockedDate: formatDate(agent?.blockedDate) || "-",
+        registrationStatus: merchant?.isApproved || "-",
+        currentStatus: merchant?.status ? "Open" : "Closed",
+        isBlocked: merchant?.isBlocked ? "True" : "False",
+        reasonForBlockingOrDeleting:
+          merchant?.reasonForBlockingOrDeleting || "-",
+        blockedDate: merchant?.blockedDate
+          ? formatDate(merchant?.blockedDate)
+          : "-",
         merchantImageURL: merchant?.merchantDetail?.merchantImageURL || "-",
         displayAddress: merchant?.merchantDetail?.displayAddress || "-",
         description: merchant?.merchantDetail?.description || "-",

@@ -160,6 +160,8 @@ const homeSearchController = async (req, res, next) => {
 const listRestaurantsController = async (req, res, next) => {
   const { latitude, longitude, customerId, businessCategoryId } = req.body;
 
+  console.log(req.body);
+
   try {
     // Fetch the authenticated customer to get their favorite merchants, if they exist
     let currentCustomer = null;
@@ -172,6 +174,8 @@ const listRestaurantsController = async (req, res, next) => {
     const customerLocation = [latitude, longitude]; // [latitude, longitude]
 
     const foundGeofence = await geoLocation(latitude, longitude, next);
+
+    console.log(foundGeofence);
 
     if (!foundGeofence) {
       return next(appError("Geofence not found", 404));

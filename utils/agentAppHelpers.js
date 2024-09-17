@@ -24,9 +24,22 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
     const agents = await Agent.find({ isApproved: "Approved" });
 
     for (const agent of agents) {
+      // Initialize appDetail if it's undefined
+      if (!agent.appDetail) {
+        agent.appDetail = {
+          totalEarning: 0,
+          orders: 0,
+          pendingOrder: 0,
+          totalDistance: 0,
+          cancelledOrders: 0,
+          loginDuration: 0,
+        };
+      }
+
       // Calculate the login duration
       const currentTime = new Date();
-      const loginDuration = currentTime - new Date(agent?.loginStartTime); // in milliseconds
+      const loginDuration =
+        currentTime - new Date(agent?.loginStartTime || currentTime); // in milliseconds
 
       // Update the agent's login duration
       agent.appDetail.loginDuration += loginDuration;
@@ -47,8 +60,10 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
         loginDuration: 0,
       };
 
-      // Update loginStartTime to the current time
-      agent.loginStartTime = currentTime;
+      if (agent.status !== "Inactive") {
+        // Update loginStartTime to the current time
+        agent.loginStartTime = currentTime;
+      }
 
       await agent.save();
     }
