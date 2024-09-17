@@ -144,10 +144,6 @@ const merchantDetailSchema = new mongoose.Schema(
       // default: null,
     },
     pricing: [
-      // {
-      //   type: mongoose.Schema.Types.Mixed,
-      //   default: [],
-      // },
       {
         modelType: { type: String, required: true }, // Model name: "Product" or "Service"
         modelId: { type: mongoose.Schema.Types.ObjectId, required: true },

@@ -809,7 +809,6 @@ const getSingleMerchantController = async (req, res, next) => {
         subscription,
       };
     }
-    console.log("merchantpricing", merchantPricing)
     const formattedResponse = {
       _id: merchantFound._id,
       fullName: merchantFound.fullName,
@@ -822,11 +821,11 @@ const getSingleMerchantController = async (req, res, next) => {
         {
           ...merchantFound?.merchantDetail,
           pricing: merchantPricing || {},
-          geofenceId: merchantFound?.merchantDetail?.geofenceId?._id || "", // Extract name
+          geofenceId: merchantFound?.merchantDetail?.geofenceId?._id || "",
           businessCategoryId:
             merchantFound?.merchantDetail?.businessCategoryId?._id || "",
         } || {},
-      sponsorshipDetail: merchantFound?.sponsorshipDetail[0] || [],  
+      sponsorshipDetail: merchantFound?.sponsorshipDetail[0] || [],
     };
 
     res.status(200).json({

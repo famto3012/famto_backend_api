@@ -129,6 +129,8 @@ const homeSearchController = async (req, res, next) => {
     const merchants = await Merchant.find({
       "merchantDetail.merchantName": { $regex: query, $options: "i" },
       "merchantDetail.pricing.0": { $exists: true },
+      "merchantDetail.pricing.modelType": { $exists: true }, // Ensures modelType exists
+      "merchantDetail.pricing.modelId": { $exists: true },
     })
       .select(
         "merchantDetail.merchantName merchantDetail.merchantImageURL merchantDetail.displayAddress"
@@ -186,6 +188,8 @@ const listRestaurantsController = async (req, res, next) => {
       "merchantDetail.geofenceId": foundGeofence._id,
       "merchantDetail.businessCategoryId": businessCategoryId,
       "merchantDetail.pricing.0": { $exists: true },
+      "merchantDetail.pricing.modelType": { $exists: true }, // Ensures modelType exists
+      "merchantDetail.pricing.modelId": { $exists: true },
       isBlocked: false,
       isApproved: "Approved",
     }).exec();
@@ -414,6 +418,8 @@ const filterMerchantController = async (req, res, next) => {
       isBlocked: false,
       isApproved: "Approved",
       "merchantDetail.pricing.0": { $exists: true },
+      "merchantDetail.pricing.modelType": { $exists: true }, // Ensures modelType exists
+      "merchantDetail.pricing.modelId": { $exists: true },
     };
 
     if (filterType === "Veg") {

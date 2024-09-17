@@ -366,9 +366,13 @@ const getRealTimeDataCountMerchant = async (data) => {
     const [active, notActive] = await Promise.all([
       Merchant.countDocuments({
         "merchantDetail.pricing.0": { $exists: true },
+        "merchantDetail.pricing.modelType": { $exists: true }, // Ensures modelType exists
+        "merchantDetail.pricing.modelId": { $exists: true },
       }), // active merchants
       Merchant.countDocuments({
         "merchantDetail.pricing.0": { $exists: false },
+        "merchantDetail.pricing.modelType": { $exists: true }, // Ensures modelType exists
+        "merchantDetail.pricing.modelId": { $exists: true },
       }), // inactive merchants
     ]);
 
@@ -448,9 +452,13 @@ const getRealTimeDataCount = async () => {
     const [active, notActive] = await Promise.all([
       Merchant.countDocuments({
         "merchantDetail.pricing.0": { $exists: true },
+        "merchantDetail.pricing.modelType": { $exists: true }, // Ensures modelType exists
+        "merchantDetail.pricing.modelId": { $exists: true },
       }), // active merchants
       Merchant.countDocuments({
         "merchantDetail.pricing.0": { $exists: false },
+        "merchantDetail.pricing.modelType": { $exists: true }, // Ensures modelType exists
+        "merchantDetail.pricing.modelId": { $exists: true },
       }), // inactive merchants
     ]);
 
