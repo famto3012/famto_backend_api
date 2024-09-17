@@ -1,16 +1,14 @@
 const { validationResult } = require("express-validator");
-const Agent = require("../../models/Agent");
+const mongoose = require("mongoose");
+
 const {
   uploadToFirebase,
   deleteFromFirebase,
 } = require("../../utils/imageOperation");
-const Geofence = require("../../models/Geofence");
 const generateToken = require("../../utils/generateToken");
 const geoLocation = require("../../utils/getGeoLocation");
 const appError = require("../../utils/appError");
-const mongoose = require("mongoose");
-const Customer = require("../../models/Customer");
-const Order = require("../../models/Order");
+
 const {
   formatToHours,
   updateLoyaltyPoints,
@@ -21,8 +19,17 @@ const {
   updateNotificationStatus,
 } = require("../../utils/agentAppHelpers");
 const { formatDate, formatTime } = require("../../utils/formatters");
+
+const Agent = require("../../models/Agent");
+const Geofence = require("../../models/Geofence");
 const Task = require("../../models/Task");
 const LoyaltyPoint = require("../../models/LoyaltyPoint");
+const NotificationSetting = require("../../models/NotificationSetting");
+const AgentNotificationLogs = require("../../models/AgentNotificationLog");
+const AgentAnnouncementLogs = require("../../models/AgentAnnouncementLog");
+const Customer = require("../../models/Customer");
+const Order = require("../../models/Order");
+
 const {
   getDistanceFromPickupToDelivery,
   getDeliveryAndSurgeCharge,
@@ -32,14 +39,12 @@ const {
   verifyPayment,
   createRazorpayQrCode,
 } = require("../../utils/razorpayPayment");
+
 const {
   sendSocketData,
   sendNotification,
   findRolesToNotify,
 } = require("../../socket/socket");
-const NotificationSetting = require("../../models/NotificationSetting");
-const AgentNotificationLogs = require("../../models/AgentNotificationLog");
-const AgentAnnouncementLogs = require("../../models/AgentAnnouncementLog");
 
 //Function for getting agent's manager from geofence
 const getManager = async (geofenceId) => {
