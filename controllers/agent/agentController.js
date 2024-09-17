@@ -1738,7 +1738,19 @@ const getCompleteOrderMessageController = async (req, res, next) => {
 
 const generateRazorpayQRController = async (req, res, next) => {
   try {
-    const { amount } = req.body;
+    const { orderId } = req.body;
+
+    if (!orderId) {
+      return next(appError("Order ID is required", 400));
+    }
+
+    const orderFound = await Order.findById(orderId);
+
+    if (!orderFound) {
+      return next(appError("Order not found", 404));
+    }
+
+    const amount = orderFound.billDetail.grandTotal;
 
     const qrCode = await createRazorpayQrCode(amount);
 
@@ -1751,6 +1763,22 @@ const generateRazorpayQRController = async (req, res, next) => {
 
 const verifyQrPaymentController = async (req, res, next) => {
   try {
+    const { orderId } = req.body;
+
+    if (!orderId) {
+      return next(appError("Order ID is required", 400));
+    }
+
+    const orderFound = await Order.findById(orderId);
+
+    if (!orderFound) {
+      return next(appError("Order not found", 404));
+    }
+
+    if (orderFound.paymentStatus === "Completed") {
+      return res.status(200).json({ message: "Payment already processed" });
+    }
+
     const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
     const receivedSignature = req.headers["x-razorpay-signature"];
@@ -1770,13 +1798,17 @@ const verifyQrPaymentController = async (req, res, next) => {
       console.log("Amount:", paymentData.amount);
       console.log("Currency:", paymentData.currency);
 
-      // You can now store the payment ID or take further action
-      // e.g., update the order status in your database
+      orderFound.paymentStatus = "Completed";
+      orderFound.paymentId = paymentData.id;
 
-      res.status(200).send("Webhook received and verified");
+      await orderFound.save();
+
+      return res.status(200).json({ message: "QR Code payment verified" });
     } else {
-      console.log("Webhook verification failed");
-      res.status(400).send("Invalid signature");
+      console.log("Webhook verification failed for order:", orderId);
+      return res.status(400).json({
+        message: "QR Code payment verification  failed",
+      });
     }
   } catch (err) {
     next(appError(err.message));

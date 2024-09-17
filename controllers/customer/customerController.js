@@ -34,6 +34,7 @@ const { formatToHours } = require("../../utils/agentAppHelpers");
 const NotificationSetting = require("../../models/NotificationSetting");
 const { sendNotification, sendSocketData } = require("../../socket/socket");
 const CustomerNotificationLogs = require("../../models/CustomerNotificationLog");
+const AppBanner = require("../../models/AppBanner");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -972,7 +973,7 @@ const getSpalshScreenImageController = async (req, res, next) => {
 
 const getCustomerAppBannerController = async (req, res, next) => {
   try {
-    const allBanners = await Banner.find({ status: true }).select(
+    const allBanners = await AppBanner.find({ status: true }).select(
       "name imageUrl"
     );
 

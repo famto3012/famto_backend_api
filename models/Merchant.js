@@ -245,7 +245,7 @@ const merchantSchema = new mongoose.Schema(
     },
     fullName: {
       type: String,
-      required: true,
+      default: null,
     },
     email: {
       type: String,

@@ -22,7 +22,9 @@ const getAllCustomersController = async (req, res, next) => {
     const skip = (page - 1) * limit;
 
     // Fetch customers with pagination
-    const allCustomers = await Customer.find()
+    const allCustomers = await Customer.find({
+      "customerDetails.isBlocked": false,
+    })
       .select(
         "fullName email phoneNumber lastPlatformUsed createdAt customerDetails averageRating"
       )
