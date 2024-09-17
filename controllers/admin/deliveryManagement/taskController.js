@@ -159,8 +159,8 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
     let geofence;
     const agents = await Agent.find({ isApproved: "Approved" });
 
-    if (task.orderId.orderDetail.deliveryMode === "Custom Order") {
-      const deliveryLocation = task.orderId.orderDetail.pickupLocation;
+    if (task?.orderId?.orderDetail?.deliveryMode === "Custom Order") {
+      const deliveryLocation = task?.orderId?.orderDetail?.pickupLocation;
       const responseData = await Promise.all(
         agents.map(async (agent) => {
           console.log("agent", agent.location);
@@ -169,10 +169,10 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
             deliveryLocation
           );
           return {
-            _id: agent._id,
-            name: agent.fullName,
-            workStructure: agent.workStructure.tag,
-            status: agent.status,
+            _id: agent?._id,
+            name: agent?.fullName,
+            workStructure: agent?.workStructure?.tag,
+            status: agent?.status,
             distance: distanceInKM, // distance in kilometers, rounded to 2 decimal places
           };
         })
@@ -184,8 +184,8 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
       });
     }
 
-    if (task.orderId.orderDetail.deliveryMode === "Pick and Drop") {
-      const deliveryLocation = task.orderId.orderDetail.pickupLocation;
+    if (task?.orderId?.orderDetail?.deliveryMode === "Pick and Drop") {
+      const deliveryLocation = task?.orderId?.orderDetail?.pickupLocation;
       const responseData = await Promise.all(
         agents.map(async (agent) => {
           const { distanceInKM } = await getDistanceFromPickupToDelivery(
@@ -193,10 +193,10 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
             deliveryLocation
           );
           return {
-            _id: agent._id,
-            name: agent.fullName,
-            workStructure: agent.workStructure.tag,
-            status: agent.status,
+            _id: agent?._id,
+            name: agent?.fullName,
+            workStructure: agent?.workStructure?.tag,
+            status: agent?.status,
             distance: distanceInKM, // distance in kilometers, rounded to 2 decimal places
           };
         })
@@ -210,9 +210,9 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
     const merchantLocation =
       task?.orderId?.merchantId?.merchantDetail?.location;
     geofence = task?.orderId?.merchantId?.merchantDetail?.geofenceId;
-    const coordinates = geofence.coordinates;
+    const coordinates = geofence?.coordinates;
 
-    if (coordinates[0] !== coordinates[coordinates.length - 1]) {
+    if (coordinates[0] !== coordinates[coordinates?.length - 1]) {
       coordinates.push(coordinates[0]);
     }
 
@@ -233,7 +233,7 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
           return {
             _id: agent._id,
             name: agent.fullName,
-            workStructure: agent.workStructure.tag,
+            workStructure: agent?.workStructure?.tag,
             status: agent.status,
             distance: distanceInKM, // distance in kilometers, rounded to 2 decimal places
           };
@@ -255,7 +255,7 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
           return {
             _id: agent._id,
             name: agent.fullName,
-            workStructure: agent.workStructure.tag,
+            workStructure: agent?.workStructure?.tag,
             status: agent.status,
             distance: distanceInKM, // distance in kilometers, rounded to 2 decimal places
           };

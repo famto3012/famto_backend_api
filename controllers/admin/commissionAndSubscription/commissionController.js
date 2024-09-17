@@ -48,7 +48,7 @@ const addAndEditCommissionController = async (req, res, next) => {
       await savedCommission.save();
 
       const merchantFound = await Merchant.findById(merchantId);
-      merchantFound.merchantDetail.pricing.push(savedCommission._id);
+      merchantFound.merchantDetail.pricing.push({modelType: "Commission", modelId: savedCommission._id});
       await merchantFound.save();
 
       res.status(200).json({

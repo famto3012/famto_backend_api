@@ -206,7 +206,7 @@ const verifyRazorpayPayment = async (req, res, next) => {
 
     if (typeOfUser === "Merchant") {
       const merchantFound = await Merchant.findById(userId);
-      merchantFound.merchantDetail.pricing.push(subscriptionLog._id);
+      merchantFound.merchantDetail.pricing.push({modelType: "Subscription", modelId: subscriptionLog._id});
       await merchantFound.save();
     } else {
       const customerFound = await Customer.findById(userId);
@@ -332,7 +332,7 @@ const setAsPaidController = async (req, res, next) => {
     const typeOfUser = subscriptionLog.typeOfUser;
     if (typeOfUser === "Merchant") {
       const merchantFound = await Merchant.findById(subscriptionLog.userId);
-      merchantFound.merchantDetail.pricing.push(subscriptionLog._id);
+      merchantFound.merchantDetail.pricing.push({modelType: "Subscription", modelId: subscriptionLog._id});
       await merchantFound.save();
     }
     if (!subscriptionLog) {
