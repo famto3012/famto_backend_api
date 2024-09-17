@@ -25,6 +25,8 @@ const NotificationSetting = require("../../../models/NotificationSetting");
 const csvWriter = require("csv-writer").createObjectCsvWriter;
 const { createTransport } = require("nodemailer");
 const { formatDate } = require("../../../utils/formatters");
+const Commission = require("../../../models/Commission");
+const SubscriptionLog = require("../../../models/SubscriptionLog");
 
 // Helper function to handle null or empty string values
 const convertNullValues = (obj) => {
@@ -770,7 +772,25 @@ const getSingleMerchantController = async (req, res, next) => {
     if (!merchantFound) {
       return next(appError("Merchant not found", 404));
     }
-
+    let merchantPricing;
+    if (merchantFound?.merchantDetail?.pricing[0]?.modelType === "Commission") {
+      const commission = await Commission.findById(
+        merchantFound?.merchantDetail?.pricing[0]?.modelId
+      );
+      merchantPricing = {
+        modelType: "Commission",
+        commission,
+      };
+    } else {
+      const subscription = await SubscriptionLog.findById(
+        merchantFound?.merchantDetail?.pricing[0]?.modelId
+      );
+      merchantPricing = {
+        modelType: "Subscription",
+        subscription,
+      };
+    }
+    console.log("merchantpricing", merchantPricing)
     const formattedResponse = {
       _id: merchantFound._id,
       fullName: merchantFound.fullName,
@@ -782,12 +802,12 @@ const getSingleMerchantController = async (req, res, next) => {
       merchantDetail:
         {
           ...merchantFound?.merchantDetail,
-          geofenceId: merchantFound?.merchantDetail?.geofenceId?._id || "",
+          pricing: merchantPricing || {},
+          geofenceId: merchantFound?.merchantDetail?.geofenceId?._id || "", // Extract name
           businessCategoryId:
             merchantFound?.merchantDetail?.businessCategoryId?._id || "",
         } || {},
-      sponsorshipDetail: merchantFound?.sponsorshipDetail[0] || [],
-      pricing: merchantFound?.merchantDetail?.pricing?.[0] || {},
+      sponsorshipDetail: merchantFound?.sponsorshipDetail[0] || [],  
     };
 
     res.status(200).json({
