@@ -480,9 +480,7 @@ const searchMerchantController = async (req, res, next) => {
           averageRating: merchantDetail // && merchantDetail?.merchantDetail
             ? merchantDetail?.merchantDetail?.averageRating
             : 0,
-          isServiceableToday: merchantDetail // && merchantDetail.merchantDetail
-            ? merchantDetail.merchantDetail.isServiceableToday
-            : "-",
+          isServiceableToday: merchant.status ? "Open" : "Closed",
         };
       })
     );
@@ -519,9 +517,9 @@ const filterMerchantsController = async (req, res, next) => {
 
     // Validate query parameters
     if (!serviceable && !businessCategory && !geofence) {
-      return res
-        .status(400)
-        .json({ message: "At least one filter is required" });
+      return res.status(400).json({
+        message: "At least one filter is required",
+      });
     }
 
     // Convert to integers
@@ -535,9 +533,10 @@ const filterMerchantsController = async (req, res, next) => {
 
     // Add filters based on query parameters
     if (serviceable && serviceable.toLowerCase() !== "all") {
-      if (!["open", "closed"].includes(serviceable.toLowerCase())) {
+      if (!["true", "false"].includes(serviceable.toLowerCase())) {
         return res.status(400).json({ message: "Invalid serviceable value" });
       }
+      filterCriteria.status = serviceable.toLowerCase();
     }
 
     if (businessCategory && businessCategory.toLowerCase() !== "all") {
@@ -561,7 +560,7 @@ const filterMerchantsController = async (req, res, next) => {
     }
 
     // Fetch merchants based on the constructed filter criteria
-    const merchants = await Merchant.find(filterCriteria)
+    const filteredMerchants = await Merchant.find(filterCriteria)
       .populate("merchantDetail.geofenceId")
       .populate("merchantDetail.businessCategoryId")
       .skip(skip)
@@ -569,16 +568,6 @@ const filterMerchantsController = async (req, res, next) => {
 
     // Count total documents
     const totalDocuments = await Merchant.countDocuments({});
-
-    // Filter merchants based on the serviceable virtual field if specified
-    const filteredMerchants = serviceable
-      ? merchants.filter((merchant) => {
-          return (
-            merchant?.merchantDetail?.isServiceableToday ===
-            serviceable.toLowerCase()
-          );
-        })
-      : merchants;
 
     const merchantsWithDetails = filteredMerchants.map((merchant) => {
       const merchantDetail = merchant.merchantDetail;
@@ -595,7 +584,7 @@ const filterMerchantsController = async (req, res, next) => {
             ? merchantDetail.geofenceId.name
             : null,
         averageRating: merchantDetail ? merchantDetail.averageRating : 0,
-        isServiceableToday: merchant.merchantDetail?.isServiceableToday || "-",
+        isServiceableToday: merchant.status ? "Open" : "Closed",
       };
     });
 
@@ -739,23 +728,15 @@ const getAllMerchantsController = async (req, res, next) => {
     const totalDocuments = await Merchant.countDocuments({});
 
     const merchantsWithDetails = merchantsFound.map((merchant) => {
-      // const geofenceName = merchant?.merchantDetail?.geofenceId
-      //   ? merchant?.merchantDetail?.geofenceId?.name
-      //   : "-";
-
-      // Access isServiceableToday directly as it's a virtual field
-      const isServiceableToday = merchant.merchantDetail?.isServiceableToday;
-
       return {
         _id: merchant._id,
         merchantName: merchant?.merchantDetail?.merchantName || "-",
         phoneNumber: merchant.phoneNumber,
         isApproved: merchant.isApproved,
-        status: merchant.status && isServiceableToday === "open" ? true : false,
+        status: merchant.status,
         geofence: merchant?.merchantDetail?.geofenceId?.name || "-",
         averageRating: merchant?.merchantDetail?.averageRating,
-        isServiceableToday:
-          isServiceableToday === "open" && merchant.status ? "open" : "closed",
+        isServiceableToday: merchant.status ? "Open" : "Closed",
       };
     });
 
@@ -1368,6 +1349,7 @@ const downloadMerchantSampleCSVController = async (req, res, next) => {
   }
 };
 
+// Download merchant CSV
 const downloadMerchantCSVController = async (req, res, next) => {
   try {
     const { serviceable, geofence, businessCategory, searchFilter } = req.query;

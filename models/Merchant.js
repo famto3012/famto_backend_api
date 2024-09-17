@@ -360,47 +360,7 @@ merchantDetailSchema.virtual("averageRating").get(function () {
   return total / this?.ratingByCustomers?.length;
 });
 
-// Virtual field for checking if the merchant is serviceable today and returning "open" or "closed"
-merchantDetailSchema.virtual("isServiceableToday").get(function () {
-  if (this.availability?.type === "Full-time") {
-    return "open";
-  }
-
-  const today = new Date()
-    .toLocaleString("en-IN", { weekday: "long" })
-    .toLowerCase();
-  const todayAvailability = this.availability?.specificDays[today];
-  if (!todayAvailability) return "closed";
-
-  if (todayAvailability.openAllDay) return "open";
-  if (todayAvailability.closedAllDay) return "closed";
-
-  if (
-    todayAvailability.specificTime &&
-    todayAvailability.startTime &&
-    todayAvailability.endTime
-  ) {
-    const now = new Date();
-    const [startHour, startMinute] = todayAvailability.startTime
-      .split(":")
-      .map(Number);
-    const [endHour, endMinute] = todayAvailability.endTime
-      .split(":")
-      .map(Number);
-
-    const startTime = new Date(now.getTime());
-    startTime.setHours(startHour, startMinute, 0, 0);
-
-    const endTime = new Date(now.getTime());
-    endTime.setHours(endHour, endMinute, 0, 0);
-
-    return now >= startTime && now <= endTime ? "open" : "closed";
-  }
-
-  return "closed";
-});
-// });
-
+// day schema validation before saving the document
 daySchema.pre("save", function (next) {
   if (this.openAllDay) {
     this.startTime = null;
