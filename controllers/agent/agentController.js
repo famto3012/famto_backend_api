@@ -18,6 +18,7 @@ const {
   calculateAgentEarnings,
   updateOrderDetails,
   updateAgentDetails,
+  updateNotificationStatus,
 } = require("../../utils/agentAppHelpers");
 const { formatDate, formatTime } = require("../../utils/formatters");
 const Task = require("../../models/Task");
@@ -1332,8 +1333,6 @@ const completeOrderController = async (req, res, next) => {
 
     const orderAmount = orderFound.billDetail.grandTotal;
 
-    console.log("orderAmount", orderAmount);
-
     // Calculate loyalty points for customer
     const loyaltyPointCriteria = await LoyaltyPoint.findOne({ status: true });
     if (
@@ -1342,8 +1341,6 @@ const completeOrderController = async (req, res, next) => {
     ) {
       updateLoyaltyPoints(customerFound, loyaltyPointCriteria, orderAmount);
     }
-
-    console.log("Here1 ");
 
     // Calculate referral rewards for customer
     if (!customerFound?.referralDetail?.processed) {
@@ -1356,17 +1353,13 @@ const completeOrderController = async (req, res, next) => {
       orderFound
     );
 
-    console.log("Calculated salary", calculatedSalary);
-
     // Update order details
     updateOrderDetails(orderFound, calculatedSalary);
 
-    console.log("Calculated salary", calculatedSalary);
+    await updateNotificationStatus(orderId);
 
     // Update agent details
     await updateAgentDetails(agentFound, orderFound, calculatedSalary, true);
-
-    console.log("Again");
 
     await Promise.all([
       orderFound.save(),
@@ -1729,13 +1722,14 @@ const getCompleteOrderMessageController = async (req, res, next) => {
 
     res.status(200).json({
       message: "Order amount",
-      data: orderFound.detailAddedByAgent.agentEaring || 0,
+      data: orderFound?.detailAddedByAgent?.agentEarning || 0,
     });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
+// Generate QR Code for customer payment
 const generateRazorpayQRController = async (req, res, next) => {
   try {
     const { orderId } = req.body;
@@ -1761,6 +1755,7 @@ const generateRazorpayQRController = async (req, res, next) => {
   }
 };
 
+// Verify QR Code payment
 const verifyQrPaymentController = async (req, res, next) => {
   try {
     const { orderId } = req.body;
@@ -1815,6 +1810,7 @@ const verifyQrPaymentController = async (req, res, next) => {
   }
 };
 
+// Get all notifications for agent
 const getAllNotificationsController = async (req, res, next) => {
   try {
     const agentId = req.userAuth;
@@ -1847,6 +1843,7 @@ const getAllNotificationsController = async (req, res, next) => {
   }
 };
 
+// Get all announcements for agent
 const getAllAnnouncementsController = async (req, res, next) => {
   try {
     const agentId = req.userAuth;
