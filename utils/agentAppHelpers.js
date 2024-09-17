@@ -1,3 +1,4 @@
+const AgentNotificationLogs = require("../models/AgentNotificationLog");
 const AgentPricing = require("../models/AgentPricing");
 const Customer = require("../models/Customer");
 const Referral = require("../models/Referral");
@@ -310,6 +311,25 @@ const updateAgentDetails = async (
   console.log("Four");
 };
 
+const updateNotificationStatus = async (orderId) => {
+  try {
+    const notificationFound = await AgentNotificationLogs.findOne({
+      orderId,
+      status: "Accepted",
+    });
+
+    if (!notificationFound) {
+      throw new Error("Notification not found");
+    }
+
+    notificationFound.status = "Completed";
+
+    await notificationFound.save();
+  } catch (err) {
+    throw new Error(`Error in updating notification: ${err}`);
+  }
+};
+
 module.exports = {
   formatToHours,
   moveAppDetailToHistoryAndResetForAllAgents,
@@ -318,4 +338,5 @@ module.exports = {
   calculateAgentEarnings,
   updateOrderDetails,
   updateAgentDetails,
+  updateNotificationStatus,
 };
