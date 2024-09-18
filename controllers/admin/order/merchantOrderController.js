@@ -845,6 +845,7 @@ const getOrderDetailController = async (req, res, next) => {
       paymentMode: orderFound.paymentMode || "-",
       deliveryMode: orderFound.orderDetail.deliveryMode || "-",
       deliveryOption: orderFound.orderDetail.deliveryOption || "-",
+      vehicleType: "-",
       orderTime: `${formatDate(orderFound.createdAt)} | ${formatTime(
         orderFound.createdAt
       )}`,
@@ -872,6 +873,7 @@ const getOrderDetailController = async (req, res, next) => {
       merchantDetail: {
         _id: orderFound?.merchantId?._id || "-",
         name: orderFound?.merchantId?.merchantDetail?.merchantName || "-",
+        phoneNumber: orderFound?.merchantId?.phoneNumber || "-",
         instructionsByCustomer:
           orderFound?.orderDetail?.instructionToMerchant || "-",
         merchantEarnings: orderFound?.commissionDetail?.merchantEarnings || "-",
