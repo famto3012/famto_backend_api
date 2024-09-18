@@ -1,18 +1,21 @@
 const axios = require("axios");
+
 const Tax = require("../models/Tax");
-const appError = require("./appError");
-const Customer = require("../models/Customer");
-const Merchant = require("../models/Merchant");
 const Order = require("../models/Order");
-const ScheduledOrder = require("../models/ScheduledOrder");
-const ScheduledPickAndCustom = require("../models/ScheduledPickAndCustom");
-const CustomerPricing = require("../models/CustomerPricing");
-const CustomerSurge = require("../models/CustomerSurge");
-const Referral = require("../models/Referral");
-const ReferralCode = require("../models/ReferralCode");
 const Product = require("../models/Product");
+const Merchant = require("../models/Merchant");
+const Customer = require("../models/Customer");
+const Referral = require("../models/Referral");
 const FcmToken = require("../models/fcmToken");
+const ReferralCode = require("../models/ReferralCode");
+const CustomerSurge = require("../models/CustomerSurge");
+const ScheduledOrder = require("../models/ScheduledOrder");
+const CustomerPricing = require("../models/CustomerPricing");
+const MerchantDiscount = require("../models/MerchantDiscount");
+const ScheduledPickAndCustom = require("../models/ScheduledPickAndCustom");
 const MerchantNotificationLogs = require("../models/MerchantNotificationLog");
+
+const appError = require("./appError");
 
 // Helper function to sort merchants by sponsorship
 const sortMerchantsBySponsorship = (merchants) => {
@@ -652,6 +655,68 @@ const reduceProductAvailableQuantity = async (purchasedItems, merchantId) => {
   }
 };
 
+const calculateMerchantDiscount = async (cartItems, itemTotal, merchantId) => {
+  try {
+    let calculatedMerchantDiscount = 0;
+
+    for (const item of cartItems) {
+      const product = await Product.findById(item.productId)
+        .populate("discountId")
+        .exec();
+
+      if (!product) continue;
+
+      if (product.discountId && product.discountId.status) {
+        const currentDate = new Date();
+        const validFrom = new Date(product.discountId.validFrom);
+        const validTo = new Date(product.discountId.validTo);
+
+        // Adjusting the validTo date to the end of the day
+        validTo.setHours(23, 59, 59, 999);
+
+        if (validFrom <= currentDate && validTo >= currentDate) {
+          // Product has a valid discount, skip applying merchant discount
+          continue;
+        }
+      }
+
+      // Apply merchant discount to the product's price
+      const merchantDiscount = await MerchantDiscount.findOne({
+        merchantId,
+        status: true,
+      });
+
+      if (merchantDiscount) {
+        if (itemTotal > merchantDiscount.maxCheckoutValue) {
+          const currentDate = new Date();
+          const validFrom = new Date(merchantDiscount.validFrom);
+          const validTo = new Date(merchantDiscount.validTo);
+
+          // Adjusting the validTo date to the end of the day
+          validTo.setHours(23, 59, 59, 999);
+
+          if (validFrom <= currentDate && validTo >= currentDate) {
+            if (merchantDiscount.discountType === "Percentage-discount") {
+              let discountValue =
+                (itemTotal * merchantDiscount.discountValue) / 100;
+              if (discountValue > merchantDiscount.maxDiscountValue) {
+                discountValue = merchantDiscount.maxDiscountValue;
+              }
+              calculatedMerchantDiscount += discountValue;
+            } else if (merchantDiscount.discountType === "Flat-discount") {
+              calculatedMerchantDiscount += merchantDiscount.discountValue;
+            }
+          }
+        }
+      }
+    }
+
+    return calculatedMerchantDiscount;
+  } catch (err) {
+    throw new Error(`Error in calculating merchant discount: ${err}`);
+  }
+};
+
 module.exports = {
   sortMerchantsBySponsorship,
   getDistanceFromPickupToDelivery,
@@ -665,4 +730,5 @@ module.exports = {
   completeReferralDetail,
   filterProductIdAndQuantity,
   reduceProductAvailableQuantity,
+  calculateMerchantDiscount,
 };

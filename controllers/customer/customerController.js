@@ -1,9 +1,25 @@
+const { validationResult } = require("express-validator");
+const crypto = require("crypto");
+const os = require("os");
+const mongoose = require("mongoose");
+
+const Customer = require("../../models/Customer");
+const PromoCode = require("../../models/PromoCode");
+const Order = require("../../models/Order");
+const Agent = require("../../models/Agent");
+const CustomerSubscription = require("../../models/CustomerSubscription");
+const CustomerAppCustomization = require("../../models/CustomerAppCustomization");
+const PickAndDropBanner = require("../../models/PickAndDropBanner");
+const CustomOrderBanner = require("../../models/CustomOrderBanner");
+const ServiceCategory = require("../../models/ServiceCategory");
+const ReferralCode = require("../../models/ReferralCode");
+const NotificationSetting = require("../../models/NotificationSetting");
+const CustomerNotificationLogs = require("../../models/CustomerNotificationLog");
+const AppBanner = require("../../models/AppBanner");
+const CustomerCart = require("../../models/CustomerCart");
+
 const appError = require("../../utils/appError");
 const generateToken = require("../../utils/generateToken");
-const os = require("os");
-const crypto = require("crypto");
-const Customer = require("../../models/Customer");
-const { validationResult } = require("express-validator");
 const geoLocation = require("../../utils/getGeoLocation");
 const {
   deleteFromFirebase,
@@ -13,28 +29,14 @@ const {
   getDistanceFromPickupToDelivery,
   completeReferralDetail,
 } = require("../../utils/customerAppHelpers");
-const CustomerCart = require("../../models/CustomerCart");
-const mongoose = require("mongoose");
-const PromoCode = require("../../models/PromoCode");
 const {
   createRazorpayOrderId,
   verifyPayment,
 } = require("../../utils/razorpayPayment");
-const Order = require("../../models/Order");
-const Agent = require("../../models/Agent");
 const { formatDate, formatTime } = require("../../utils/formatters");
-const CustomerSubscription = require("../../models/CustomerSubscription");
-const CustomerAppCustomization = require("../../models/CustomerAppCustomization");
-const PickAndDropBanner = require("../../models/PickAndDropBanner");
-const CustomOrderBanner = require("../../models/CustomOrderBanner");
-const Banner = require("../../models/Banner");
-const ServiceCategory = require("../../models/ServiceCategory");
-const ReferralCode = require("../../models/ReferralCode");
 const { formatToHours } = require("../../utils/agentAppHelpers");
-const NotificationSetting = require("../../models/NotificationSetting");
+
 const { sendNotification, sendSocketData } = require("../../socket/socket");
-const CustomerNotificationLogs = require("../../models/CustomerNotificationLog");
-const AppBanner = require("../../models/AppBanner");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -150,6 +152,7 @@ const getCustomerProfileController = async (req, res, next) => {
     const formattedCustomer = {
       id: currentCustomer._id,
       fullName: currentCustomer.fullName || "-",
+      imageURL: currentCustomer?.customerDetails?.customerImageURL || null,
       email: currentCustomer.email || "-",
       phoneNumber: currentCustomer.phoneNumber,
       walletBalance: currentCustomer?.customerDetails?.walletBalance || 0.0,

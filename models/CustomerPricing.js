@@ -16,35 +16,35 @@ const customerPricingSchema = new mongoose.Schema({
   },
   baseFare: {
     type: Number,
-    required: true,
+    default: null,
   },
   baseDistance: {
     type: Number,
-    required: true,
+    default: null,
   },
   fareAfterBaseDistance: {
     type: Number,
-    required: true,
+    default: null,
   },
   baseWeightUpto: {
     type: Number,
-    required: true,
+    default: null,
   },
   fareAfterBaseWeight: {
     type: Number,
-    required: true,
+    default: null,
   },
   purchaseFarePerHour: {
     type: Number,
-    required: true,
+    default: null,
   },
   waitingFare: {
     type: Number,
-    required: true,
+    default: null,
   },
   waitingTime: {
     type: Number,
-    required: true,
+    default: null,
   },
   geofenceId: {
     type: mongoose.Schema.Types.ObjectId,

@@ -17,6 +17,7 @@ const {
   updateOrderDetails,
   updateAgentDetails,
   updateNotificationStatus,
+  updateCustomerSubscriptionCount,
 } = require("../../utils/agentAppHelpers");
 const { formatDate, formatTime } = require("../../utils/formatters");
 
@@ -1360,6 +1361,8 @@ const completeOrderController = async (req, res, next) => {
 
     // Update order details
     updateOrderDetails(orderFound, calculatedSalary);
+
+    await updateCustomerSubscriptionCount(customerFound._id);
 
     await updateNotificationStatus(orderId);
 

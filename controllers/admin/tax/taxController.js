@@ -38,7 +38,7 @@ const addTaxController = async (req, res, next) => {
       tax,
       taxType,
       geofences,
-      assignToBusinessCategory,
+      assignToBusinessCategory: assignToBusinessCategory || null,
     });
 
     if (!newTax) {
@@ -57,7 +57,7 @@ const addTaxController = async (req, res, next) => {
       geofences: newTax.geofences.map((geofence) => {
         return geofence.name;
       }),
-      assignToBusinessCategory: newTax.assignToBusinessCategory.title,
+      assignToBusinessCategory: newTax?.assignToBusinessCategory?.title || "-",
       status: newTax.status,
     };
 
@@ -89,7 +89,7 @@ const getAllTaxController = async (req, res, next) => {
         geofences: tax.geofences.map((geofence) => {
           return geofence.name;
         }),
-        assignToBusinessCategory: tax.assignToBusinessCategory.title,
+        assignToBusinessCategory: tax?.assignToBusinessCategory?.title || "-",
         status: tax.status,
       };
     });
@@ -167,7 +167,7 @@ const editTaxController = async (req, res, next) => {
         tax,
         taxType,
         geofences,
-        assignToBusinessCategory,
+        assignToBusinessCategory: assignToBusinessCategory || null,
       },
       { new: true }
     );
@@ -191,7 +191,8 @@ const editTaxController = async (req, res, next) => {
       geofences: updatedTax.geofences.map((geofence) => {
         return geofence.name;
       }),
-      assignToBusinessCategory: updatedTax.assignToBusinessCategory.title,
+      assignToBusinessCategory:
+        updatedTax?.assignToBusinessCategory?.title || "-",
       status: updatedTax.status,
     };
 

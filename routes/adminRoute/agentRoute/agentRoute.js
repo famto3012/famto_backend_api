@@ -16,6 +16,7 @@ const {
   changeAgentStatusController,
   searchAgentInPayoutController,
   downloadAgentCSVController,
+  downloadAgentPaymentCSVController,
 } = require("../../../controllers/admin/agent/agentController");
 const { upload } = require("../../../utils/imageOperation");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
@@ -26,6 +27,13 @@ const {
 } = require("../../../middlewares/validators/agentValidation");
 
 const adminAgentRoute = express.Router();
+
+adminAgentRoute.post(
+  "/download-payment-csv",
+  isAuthenticated,
+  isAdmin,
+  downloadAgentPaymentCSVController
+);
 
 // Filter agent payout
 adminAgentRoute.get(

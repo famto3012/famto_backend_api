@@ -1,19 +1,26 @@
-const appError = require("../../utils/appError");
+const mongoose = require("mongoose");
+
 const Customer = require("../../models/Customer");
+const CustomerPricing = require("../../models/CustomerPricing");
+const PromoCode = require("../../models/PromoCode");
+const Order = require("../../models/Order");
+const Agent = require("../../models/Agent");
+const PickAndCustomCart = require("../../models/PickAndCustomCart");
+const ScheduledPickAndCustom = require("../../models/ScheduledPickAndCustom");
+const CustomerSurge = require("../../models/CustomerSurge");
+const TemperoryOrder = require("../../models/TemperoryOrders");
+const NotificationSetting = require("../../models/NotificationSetting");
+
+const appError = require("../../utils/appError");
 const {
   getDistanceFromPickupToDelivery,
   calculateDeliveryCharges,
 } = require("../../utils/customerAppHelpers");
-const mongoose = require("mongoose");
-const CustomerPricing = require("../../models/CustomerPricing");
-const PromoCode = require("../../models/PromoCode");
 const {
   createRazorpayOrderId,
   verifyPayment,
   razorpayRefund,
 } = require("../../utils/razorpayPayment");
-const Order = require("../../models/Order");
-const Agent = require("../../models/Agent");
 const {
   convertToUTC,
   convertStartDateToUTC,
@@ -21,16 +28,12 @@ const {
   formatDate,
   formatTime,
 } = require("../../utils/formatters");
-const PickAndCustomCart = require("../../models/PickAndCustomCart");
-const ScheduledPickAndCustom = require("../../models/ScheduledPickAndCustom");
-const CustomerSurge = require("../../models/CustomerSurge");
 const {
   deleteFromFirebase,
   uploadToFirebase,
 } = require("../../utils/imageOperation");
-const TemperoryOrder = require("../../models/TemperoryOrders");
+
 const { sendNotification, sendSocketData } = require("../../socket/socket");
-const NotificationSetting = require("../../models/NotificationSetting");
 
 const addPickUpAddressController = async (req, res, next) => {
   try {

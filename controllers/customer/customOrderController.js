@@ -1,6 +1,11 @@
 const mongoose = require("mongoose");
+
 const Customer = require("../../models/Customer");
 const PickAndCustomCart = require("../../models/PickAndCustomCart");
+const PromoCode = require("../../models/PromoCode");
+const Order = require("../../models/Order");
+const TemperoryOrder = require("../../models/TemperoryOrders");
+
 const appError = require("../../utils/appError");
 const {
   getDistanceFromPickupToDelivery,
@@ -10,18 +15,13 @@ const {
   uploadToFirebase,
   deleteFromFirebase,
 } = require("../../utils/imageOperation");
-const PromoCode = require("../../models/PromoCode");
-const Order = require("../../models/Order");
-const TemperoryOrder = require("../../models/TemperoryOrders");
-const { razorpayRefund } = require("../../utils/razorpayPayment");
+const { formatDate, formatTime } = require("../../utils/formatters");
+
 const {
   sendNotification,
   sendSocketData,
   findRolesToNotify,
 } = require("../../socket/socket");
-const { formatDate, formatTime } = require("../../utils/formatters");
-const NotificationSetting = require("../../models/NotificationSetting");
-const { updateOrderStatus } = require("../../utils/createOrderHelpers");
 
 const addShopController = async (req, res, next) => {
   try {

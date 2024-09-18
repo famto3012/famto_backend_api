@@ -25,7 +25,7 @@ const taxSchema = new mongoose.Schema(
     assignToBusinessCategory: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "BusinessCategory",
-      required: true,
+      default: null,
     },
     status: {
       type: Boolean,

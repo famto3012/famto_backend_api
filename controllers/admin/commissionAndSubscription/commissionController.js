@@ -1,9 +1,11 @@
 const { validationResult } = require("express-validator");
-const Commission = require("../../../models/Commission");
-const appError = require("../../../utils/appError");
-const CommissionLogs = require("../../../models/CommissionLog");
 const moment = require("moment");
+
+const Commission = require("../../../models/Commission");
+const CommissionLogs = require("../../../models/CommissionLog");
 const Merchant = require("../../../models/Merchant");
+
+const appError = require("../../../utils/appError");
 
 const addAndEditCommissionController = async (req, res, next) => {
   const errors = validationResult(req);
@@ -48,7 +50,10 @@ const addAndEditCommissionController = async (req, res, next) => {
       await savedCommission.save();
 
       const merchantFound = await Merchant.findById(merchantId);
-      merchantFound.merchantDetail.pricing.push({modelType: "Commission", modelId: savedCommission._id});
+      merchantFound.merchantDetail.pricing.push({
+        modelType: "Commission",
+        modelId: savedCommission._id,
+      });
       await merchantFound.save();
 
       res.status(200).json({

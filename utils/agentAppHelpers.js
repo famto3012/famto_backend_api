@@ -2,6 +2,7 @@ const AgentNotificationLogs = require("../models/AgentNotificationLog");
 const AgentPricing = require("../models/AgentPricing");
 const Customer = require("../models/Customer");
 const Referral = require("../models/Referral");
+const SubscriptionLog = require("../models/SubscriptionLog");
 const Task = require("../models/Task");
 
 const formatToHours = (milliseconds) => {
@@ -45,9 +46,11 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
       // Update the agent's login duration
       agent.appDetail.loginDuration += loginDuration;
 
+      const today = new Date();
+
       // Move current appDetail to appDetailHistory
       agent.appDetailHistory.push({
-        date: new Date(),
+        date: today,
         details: { ...agent?.appDetail },
       });
 
@@ -221,6 +224,7 @@ const calculateAgentEarnings = async (agent, order) => {
     status: true,
     geofenceId: agent.geofenceId,
   });
+
   if (!agentPricing) throw new Error("Agent pricing not found");
 
   let orderSalary =
@@ -228,7 +232,7 @@ const calculateAgentEarnings = async (agent, order) => {
 
   let totalPurchaseFare = 0;
 
-  if (order.orderDetail === "Custom Order") {
+  if (order.orderDetail.deliveryMode === "Custom Order") {
     const taskFound = await Task.findOne({ orderId: order._id });
     if (taskFound) {
       const durationInHours =
@@ -330,6 +334,28 @@ const updateNotificationStatus = async (orderId) => {
   }
 };
 
+const updateCustomerSubscriptionCount = async (customerId) => {
+  try {
+    const subscriptionOfCustomer = await Customer.findById(customerId).select(
+      "customerDetails.pricing"
+    );
+
+    if (subscriptionOfCustomer?.customerDetails?.pricing?.length > 0) {
+      const subscriptionLog = await SubscriptionLog.findById(
+        subscriptionOfCustomer.customerDetails.pricing[0]
+      );
+
+      if (subscriptionLog) {
+        subscriptionLog.currentNumberOfOrders += 1;
+
+        await subscriptionLog.save();
+      }
+    }
+  } catch (err) {
+    throw new Error("Error in updating subscription count of customer");
+  }
+};
+
 module.exports = {
   formatToHours,
   moveAppDetailToHistoryAndResetForAllAgents,
@@ -339,4 +365,5 @@ module.exports = {
   updateOrderDetails,
   updateAgentDetails,
   updateNotificationStatus,
+  updateCustomerSubscriptionCount,
 };

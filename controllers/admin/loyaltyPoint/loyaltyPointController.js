@@ -1,5 +1,7 @@
 const { validationResult } = require("express-validator");
+
 const LoyaltyPoint = require("../../../models/LoyaltyPoint");
+
 const appError = require("../../../utils/appError");
 
 //Create / Update loyalty point criteria
@@ -68,7 +70,7 @@ const addLoyaltyPointController = async (req, res, next) => {
   }
 };
 
-//get loyalty point criteria
+// Get loyalty point criteria
 const getLoyaltyPointController = async (req, res, next) => {
   try {
     const loyaltyPointCriteriaFound = await LoyaltyPoint.findOne({});
@@ -88,7 +90,7 @@ const getLoyaltyPointController = async (req, res, next) => {
   }
 };
 
-//Enable / Disable status
+// Enable / Disable status
 const updateStatusController = async (req, res, next) => {
   try {
     let existingCriteria = await LoyaltyPoint.findOne({});

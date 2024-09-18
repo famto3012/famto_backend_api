@@ -1,6 +1,8 @@
-const appError = require("../../../utils/appError");
-const Geofence = require("../../../models/Geofence");
 const { validationResult } = require("express-validator");
+
+const appError = require("../../../utils/appError");
+
+const Geofence = require("../../../models/Geofence");
 
 const addGeofence = async (req, res, next) => {
   const errors = validationResult(req);

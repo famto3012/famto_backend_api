@@ -16,11 +16,11 @@ const agentSurgeSchema = new mongoose.Schema(
     },
     waitingFare: {
       type: Number,
-      required: true,
+      default: null,
     },
     waitingTime: {
       type: Number,
-      required: true,
+      default: null,
     },
     geofenceId: {
       type: mongoose.Schema.Types.ObjectId,

@@ -1,18 +1,21 @@
+const turf = require("@turf/turf");
+
 const Agent = require("../../../models/Agent");
 const Order = require("../../../models/Order");
 const Task = require("../../../models/Task");
+const AutoAllocation = require("../../../models/AutoAllocation");
+
 const {
   sendNotification,
   findRolesToNotify,
   sendSocketData,
 } = require("../../../socket/socket");
-const turf = require("@turf/turf");
+
 const appError = require("../../../utils/appError");
 const {
   getDistanceFromPickupToDelivery,
 } = require("../../../utils/customerAppHelpers");
 const { formatDate, formatTime } = require("../../../utils/formatters");
-const AutoAllocation = require("../../../models/AutoAllocation");
 
 const getTaskFilterController = async (req, res, next) => {
   try {
@@ -207,6 +210,7 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
         data: responseData,
       });
     }
+
     const merchantLocation =
       task?.orderId?.merchantId?.merchantDetail?.location;
     geofence = task?.orderId?.merchantId?.merchantDetail?.geofenceId;
@@ -317,11 +321,11 @@ const getAgentByNameController = async (req, res, next) => {
 const getTaskByDateRangeController = async (req, res, next) => {
   try {
     const { startDate, endDate } = req.query;
-    console.log(startDate,endDate)
+    console.log(startDate, endDate);
     // Convert to ISO strings for querying
     const start = new Date(startDate);
     const end = new Date(endDate);
-    console.log(start,end)
+    console.log(start, end);
     // Fetch data between the startDate and endDate
     const taskData = await Task.find({
       createdAt: {

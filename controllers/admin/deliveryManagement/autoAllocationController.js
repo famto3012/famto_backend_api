@@ -1,4 +1,5 @@
 const AutoAllocation = require("../../../models/AutoAllocation");
+
 const appError = require("../../../utils/appError");
 
 const addAndUpdateAutoAllocationController = async (req, res, next) => {

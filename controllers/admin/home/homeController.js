@@ -1,7 +1,7 @@
 const HomeScreenRealTimeData = require("../../../models/HomeScreenRealTimeData");
 const HomeScreenRevenueData = require("../../../models/HomeScreenRevenueData");
 
-const getHomeScreenRealTimeData = async (req, res) => {
+const getHomeScreenRealTimeData = async (req, res, next) => {
   try {
     // Fetch the most recent HomeScreenRealTimeData entry
     const realTimeData = await HomeScreenRealTimeData.findOne();
@@ -11,13 +11,12 @@ const getHomeScreenRealTimeData = async (req, res) => {
     }
 
     res.status(200).json(realTimeData);
-  } catch (error) {
-    console.error("Error fetching real-time data:", error);
-    res.status(500).json({ message: "Server error" });
+  } catch (err) {
+    next(appError(err.message));
   }
 };
 
-const createHomeScreenRealTimeData = async (req, res) => {
+const createHomeScreenRealTimeData = async (req, res, next) => {
   try {
     // Extract data from the request body
     const { order, merchants, deliveryAgent } = req.body;
@@ -36,19 +35,18 @@ const createHomeScreenRealTimeData = async (req, res) => {
       message: "Home screen real-time data created successfully",
       data: newRealTimeData,
     });
-  } catch (error) {
-    console.error("Error creating real-time data:", error);
-    res.status(500).json({ message: "Server error" });
+  } catch (err) {
+    next(appError(err.message));
   }
 };
 
-const getRevenueDataByDateRange = async (req, res) => {
+const getRevenueDataByDateRange = async (req, res, next) => {
   try {
     const { startDate, endDate } = req.query;
 
     // Convert to ISO strings for querying
-    const start = new Date(startDate)
-    const end = new Date(endDate)
+    const start = new Date(startDate);
+    const end = new Date(endDate);
 
     // Fetch data between the startDate and endDate
     const revenueData = await HomeScreenRevenueData.find({
@@ -60,33 +58,32 @@ const getRevenueDataByDateRange = async (req, res) => {
 
     // Send the response
     res.status(200).json(revenueData);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    next(appError(err.message));
   }
 };
 
-const getRevenueDataByDateRangeForMerchant = async (req, res) => {
+const getRevenueDataByDateRangeForMerchant = async (req, res, next) => {
   try {
     const { startDate, endDate } = req.query;
 
     // Convert to ISO strings for querying
-    const start = new Date(startDate)
-    const end = new Date(endDate)
-    console.log("user", req.userAuth)
-    console.log("Start", start, "End",end)
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
     // Fetch data between the startDate and endDate
     const revenueData = await HomeScreenRevenueData.find({
       createdAt: {
         $gte: start,
         $lte: end,
       },
-      userId: req.userAuth
+      userId: req.userAuth,
     });
 
     // Send the response
     res.status(200).json(revenueData);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    next(appError(err.message));
   }
 };
 
@@ -94,5 +91,5 @@ module.exports = {
   getHomeScreenRealTimeData,
   createHomeScreenRealTimeData,
   getRevenueDataByDateRange,
-  getRevenueDataByDateRangeForMerchant
+  getRevenueDataByDateRangeForMerchant,
 };
