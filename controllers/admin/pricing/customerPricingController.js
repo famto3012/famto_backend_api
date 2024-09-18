@@ -48,7 +48,7 @@ const addCustomerPricingController = async (req, res, next) => {
       waitingTime,
       geofenceId,
       vehicleType,
-      businessCategoryId,
+      businessCategoryId: businessCategoryId || null,
     });
 
     if (!newRule) {
@@ -169,7 +169,7 @@ const editCustomerPricingController = async (req, res, next) => {
         waitingTime,
         geofenceId,
         vehicleType,
-        businessCategoryId,
+        businessCategoryId: businessCategoryId || null,
       },
       { new: true }
     );

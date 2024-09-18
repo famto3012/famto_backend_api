@@ -7,7 +7,7 @@ const subscriptionValidationRules = [
     .optional()
     .isNumeric()
     .withMessage("Duration must be a number"),
-  body("taxId").optional().notEmpty().withMessage("Tax ID is required"),
+  body("taxId").optional().trim(),
   body("renewalReminder")
     .optional()
     .isNumeric()

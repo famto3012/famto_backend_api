@@ -103,36 +103,11 @@ const customerPricingValidations = [
     .withMessage("Fare after base distance is required")
     .isNumeric()
     .withMessage("Fare after base distance must be a number"),
-  body("baseWeightUpto")
-    .trim()
-    .notEmpty()
-    .withMessage("Base weight upto is required")
-    .isNumeric()
-    .withMessage("Base weight upto must be a number"),
-  body("fareAfterBaseWeight")
-    .trim()
-    .notEmpty()
-    .withMessage("Fare after base weight upto is required")
-    .isNumeric()
-    .withMessage("Fare after base weight upto must be a number"),
-  body("purchaseFarePerHour")
-    .trim()
-    .notEmpty()
-    .withMessage("Purchase fare per hour is required")
-    .isNumeric()
-    .withMessage("Purchase fare per hour must be a number"),
-  body("waitingFare")
-    .trim()
-    .notEmpty()
-    .withMessage("Waiting fare is required")
-    .isNumeric()
-    .withMessage("Waiting fare must be a number"),
-  body("waitingTime")
-    .trim()
-    .notEmpty()
-    .withMessage("Waiting time is required")
-    .isNumeric()
-    .withMessage("Waiting time must be a number"),
+  body("baseWeightUpto").optional().trim(),
+  body("fareAfterBaseWeight").optional().trim(),
+  body("purchaseFarePerHour").optional().trim(),
+  body("waitingFare").optional().trim(),
+  body("waitingTime").optional().trim(),
   body("geofenceId").trim().notEmpty().withMessage("Geofence is required"),
 ];
 
@@ -144,39 +119,26 @@ const agentPricingValidations = [
     .withMessage("Base fare is required")
     .isNumeric()
     .withMessage("Base fare must be a number"),
-  body("baseDistanceFare")
-    .optional()
-    .trim()
-    .isNumeric()
-    .withMessage("Base distance fare must be a number"),
-  body("extraFarePerDay")
-    .optional()
-    .trim()
-    .isNumeric()
-    .withMessage("Extra fare per day must be a number"),
   body("baseDistanceFarePerKM")
     .optional()
     .trim()
     .isNumeric()
     .withMessage("Base distance fare per KM must be a number"),
-  body("purchaseFarePerHour")
+  body("waitingFare").optional().trim(),
+  body("waitingTime").optional().trim(),
+  body("purchaseFarePerHour").optional().trim(),
+  body("minLoginHours")
+    .optional()
     .trim()
-    .notEmpty()
-    .withMessage("Purchase fare per hour is required")
     .isNumeric()
-    .withMessage("Purchase fare per hour must be a number"),
-  body("waitingFare")
+    .withMessage("Minimum login hours must be a number"),
+  body("minOrderNumber")
+    .optional()
     .trim()
-    .notEmpty()
-    .withMessage("Waiting fare is required")
     .isNumeric()
-    .withMessage("Waiting fare must be a number"),
-  body("waitingTime")
-    .trim()
-    .notEmpty()
-    .withMessage("Waiting time is required")
-    .isNumeric()
-    .withMessage("Waiting time must be a number"),
+    .withMessage("Minimum order number must be a number"),
+  body("fareAfterMinLoginHours").optional().trim(),
+  body("fareAfterMinOrderNumber").optional().trim(),
   body("geofenceId").trim().notEmpty().withMessage("Geofence is required"),
 ];
 

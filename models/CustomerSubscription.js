@@ -21,6 +21,7 @@ const customerSubscriptionSchema = new mongoose.Schema(
     taxId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Tax",
+      default: null,
     },
     renewalReminder: {
       type: Number,

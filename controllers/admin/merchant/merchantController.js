@@ -733,6 +733,10 @@ const getAllMerchantsController = async (req, res, next) => {
         merchantName: merchant?.merchantDetail?.merchantName || "-",
         phoneNumber: merchant.phoneNumber,
         isApproved: merchant.isApproved,
+        subscriptionStatus:
+          merchant?.merchantDetail?.pricing.length === 0
+            ? "Inactive"
+            : "Active",
         status: merchant.status,
         geofence: merchant?.merchantDetail?.geofenceId?.name || "-",
         averageRating: merchant?.merchantDetail?.averageRating,

@@ -10,38 +10,46 @@ const agentPricingSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
-    baseDistanceFare: {
-      type: Number,
-      default: null,
-    },
-    extraFarePerDay: {
-      type: Number,
-      default: null,
-    },
     baseDistanceFarePerKM: {
       type: Number,
-      default: null,
+      required: true,
     },
     waitingFare: {
       type: Number,
-      required: true,
+      default: null,
     },
     waitingTime: {
       type: Number,
-      required: true,
+      default: null,
     },
     purchaseFarePerHour: {
       type: Number,
+      default: null,
+    },
+    minLoginHours: {
+      type: Number,
       required: true,
+    },
+    minOrderNumber: {
+      type: Number,
+      required: true,
+    },
+    fareAfterMinLoginHours: {
+      type: Number,
+      default: null,
+    },
+    fareAfterMinOrderNumber: {
+      type: Number,
+      default: null,
+    },
+    status: {
+      type: Boolean,
+      default: true,
     },
     geofenceId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Geofence",
       required: true,
-    },
-    status: {
-      type: Boolean,
-      default: true,
     },
   },
   {

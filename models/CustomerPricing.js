@@ -8,6 +8,7 @@ const customerPricingSchema = new mongoose.Schema({
   },
   businessCategoryId: {
     type: mongoose.Schema.Types.ObjectId,
+    ref: "BusinessCategory",
     default: null,
   },
   ruleName: {
