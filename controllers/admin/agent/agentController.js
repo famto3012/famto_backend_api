@@ -1,17 +1,21 @@
+const { createTransport } = require("nodemailer");
+const mongoose = require("mongoose");
+const csvWriter = require("csv-writer").createObjectCsvWriter;
+const path = require("path");
 const { validationResult } = require("express-validator");
+const { isValidObjectId } = require("mongoose");
+
 const appError = require("../../../utils/appError");
 const {
   uploadToFirebase,
   deleteFromFirebase,
 } = require("../../../utils/imageOperation");
+
 const Agent = require("../../../models/Agent");
-const mongoose = require("mongoose");
 const AccountLogs = require("../../../models/AccountLogs");
 const { formatDate } = require("../../../utils/formatters");
 const { formatToHours } = require("../../../utils/agentAppHelpers");
-const { createTransport } = require("nodemailer");
-const csvWriter = require("csv-writer").createObjectCsvWriter;
-const path = require("path");
+const AgentPricing = require("../../../models/AgentPricing");
 
 const addAgentByAdminController = async (req, res, next) => {
   const {
@@ -156,8 +160,6 @@ const editAgentByAdminController = async (req, res, next) => {
     bankDetail,
     workStructure,
   } = req.body;
-
-  console.log("workStructure", workStructure);
 
   const errors = validationResult(req);
 
@@ -670,44 +672,77 @@ const getDeliveryAgentPayoutController = async (req, res, next) => {
   try {
     // Get page and limit from query parameters with default values
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit) || 50;
     const skip = (page - 1) * limit;
 
     // Fetch agents who are approved with pagination
     const payoutOfAllAgents = await Agent.find({
       isApproved: "Approved",
     })
-      .select("fullName phoneNumber appDetailHistory workStructure.cashInHand")
+      .select(
+        "fullName phoneNumber appDetailHistory workStructure.cashInHand workStructure.salaryStructure"
+      )
       .skip(skip)
       .limit(limit)
       .lean(); // Convert MongoDB documents to plain JavaScript objects
 
     // Format the response data
-    const formattedResponse = payoutOfAllAgents
-      .filter((agent) => agent.appDetailHistory.length >= 1)
-      .map((agent) => {
-        const historyLength = agent.appDetailHistory.length;
-        const lastHistory = agent.appDetailHistory[historyLength - 1] || {
-          details: {},
-        };
+    const formattedResponse = await Promise.all(
+      payoutOfAllAgents
+        .filter((agent) => agent.appDetailHistory.length >= 1)
+        .map(async (agent) => {
+          const historyLength = agent.appDetailHistory.length;
+          const lastHistory = agent.appDetailHistory[historyLength - 1] || {
+            details: {},
+          };
 
-        return {
-          _id: agent._id,
-          fullName: agent.fullName,
-          phoneNumber: agent.phoneNumber,
-          workedDate: lastHistory.date ? formatDate(lastHistory.date) : null,
-          orders: lastHistory.details.orders || 0,
-          cancelledOrders: lastHistory.details.cancelledOrders || 0,
-          totalDistance: lastHistory.details.totalDistance || 0,
-          loginHours: lastHistory.details.loginDuration
-            ? formatToHours(lastHistory.details.loginDuration)
-            : "0:00 hr",
-          cashInHand: agent.workStructure?.cashInHand || 0,
-          totalEarnings: lastHistory.details.totalEarning || 0,
-          paymentSettled: lastHistory.details.paymentSettled,
-          detailId: lastHistory._id,
-        };
-      });
+          let calculatedPayment = 0; // Initialize calculatedPayment
+
+          // Calculate payment based on certain conditions
+          if (
+            lastHistory?.details?.orders >= 6 &&
+            lastHistory?.details?.loginDuration >= 21600000
+          ) {
+            const agentPricing = await AgentPricing.findById(
+              agent.workStructure.salaryStructureId
+            );
+
+            if (
+              agentPricing &&
+              lastHistory?.details?.totalEarning < agentPricing.baseFare
+            ) {
+              const balanceAmount =
+                agentPricing.baseFare - lastHistory?.details?.totalEarning;
+
+              // Add balance amount to calculatedPayment
+              calculatedPayment += balanceAmount;
+            }
+          }
+
+          // Deduct cashInHand from calculatedPayment
+          const cashInHand = agent?.workStructure?.cashInHand || 0;
+          calculatedPayment -= cashInHand;
+
+          // Return the formatted response regardless of orders
+          return {
+            _id: agent?._id,
+            fullName: agent?.fullName,
+            phoneNumber: agent?.phoneNumber,
+            workedDate: lastHistory?.date ? formatDate(lastHistory?.date) : "-",
+            orders: lastHistory?.details?.orders || 0,
+            cancelledOrders: lastHistory?.details?.cancelledOrders || 0,
+            totalDistance: lastHistory?.details?.totalDistance || 0,
+            loginHours: lastHistory?.details?.loginDuration
+              ? formatToHours(lastHistory?.details?.loginDuration)
+              : "0:00 hr",
+            cashInHand,
+            totalEarnings: lastHistory?.details?.totalEarning || 0,
+            calculatedPayment,
+            paymentSettled: lastHistory?.details?.paymentSettled,
+            detailId: lastHistory?._id,
+          };
+        })
+    );
 
     // Count total approved agents with app detail history
     const totalDocuments = await Agent.countDocuments({
@@ -750,45 +785,65 @@ const searchAgentInPayoutController = async (req, res, next) => {
 
     // Find agents matching the regex for agentId
     const agents = await Agent.find({ _id: { $regex: agentId, $options: "i" } })
-      .select("fullName phoneNumber appDetailHistory workStructure.cashInHand")
+      .select(
+        "fullName phoneNumber appDetailHistory workStructure.cashInHand workStructure.salaryStructureId"
+      )
       .exec();
 
-    if (agents.length === 0) {
-      return res.status(404).json({ message: "No agents found" });
-    }
-
     // Filter agents that have at least one valid workedDate
-    const validAgents = agents.filter((agent) =>
+    const validAgents = agents?.filter((agent) =>
       agent.appDetailHistory.some((history) => history.date)
     );
 
-    if (validAgents.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No agents with valid workedDate found" });
-    }
-
     // Process each agent to find the most recent appDetailHistory
-    const formattedResponse = validAgents.map((agent) => {
+    const formattedResponse = validAgents?.map(async (agent) => {
       // Ensure appDetailHistory exists before sorting
       const latestHistory = agent.appDetailHistory
         ?.filter((history) => history.date) // Filter histories with a valid date
         .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
 
+      const agentPricing = await AgentPricing.findById(agent._id).select(
+        "baseFare"
+      );
+
+      if (!agentPricing) {
+        return next(appError("Agent pricing not found", 400));
+      }
+
+      let calculatedEarning = latestHistory?.details.totalEarning;
+      if (agentPricing) {
+        if (
+          latestHistory?.details.orders >= 6 &&
+          latestHistory?.details.loginDuration >= 36000
+        ) {
+          if (latestHistory?.details.totalEarning < agentPricing.baseFare) {
+            const currentEarning = latestHistory?.details.totalEarning;
+            const remainingAmount = agentPricing.baseFare - currentEarning;
+
+            calculatedEarning += remainingAmount;
+          }
+        }
+      }
+
+      if (agent.workStructure.cashInHand) {
+        calculatedEarning -= agent.workStructure.cashInHand;
+      }
+
       return {
-        _id: agent._id,
-        fullName: agent.fullName,
-        phoneNumber: agent.phoneNumber,
-        workedDate: latestHistory ? formatDate(latestHistory.date) : null,
+        _id: agent?._id || "-",
+        fullName: agent?.fullName || "-",
+        phoneNumber: agent?.phoneNumber || "-",
+        workedDate: latestHistory?.date ? formatDate(latestHistory?.date) : "-",
         orders: latestHistory?.details.orders || 0,
-        cancelledOrders: latestHistory?.details.cancelledOrders || 0,
-        totalDistance: latestHistory?.details.totalDistance || 0,
-        loginHours: latestHistory?.details.loginDuration
-          ? formatToHours(latestHistory.details.loginDuration)
+        cancelledOrders: latestHistory?.details?.cancelledOrders || 0,
+        totalDistance: latestHistory?.details?.totalDistance || 0,
+        loginHours: latestHistory?.details?.loginDuration
+          ? formatToHours(latestHistory?.details?.loginDuration)
           : "0:00 hr",
-        cashInHand: agent.workStructure?.cashInHand || 0,
-        totalEarnings: latestHistory?.details.totalEarning || 0,
-        paymentSettled: latestHistory?.details.paymentSettled,
+        cashInHand: agent?.workStructure?.cashInHand || 0,
+        totalEarnings: latestHistory?.details?.totalEarning || 0,
+        calculatedEarning,
+        paymentSettled: latestHistory?.details?.paymentSettled,
         detailId: latestHistory?._id,
       };
     });
@@ -806,140 +861,121 @@ const filterAgentPayoutController = async (req, res, next) => {
   try {
     const { paymentStatus, agentId, geofence, date } = req.query;
 
-    const filterCriteria = {};
+    // Initialize filter criteria
+    const filterCriteria = { isApproved: "Approved" };
 
+    // Check if at least one filter is provided
+    if (!paymentStatus && !agentId && !geofence && !date) {
+      return next(appError("At least one filter is required", 400));
+    }
+
+    // Filter by payment status, but skip if "all" is selected
     if (paymentStatus && paymentStatus.trim().toLowerCase() !== "all") {
       filterCriteria["appDetailHistory.details.paymentSettled"] =
-        paymentStatus === "true";
+        paymentStatus.trim().toLowerCase() === "true";
     }
 
+    // Filter by geofence, skip if "all" is selected
     if (geofence && geofence.trim().toLowerCase() !== "all") {
-      try {
-        const geofenceObjectId = new mongoose.Types.ObjectId(geofence.trim());
-        filterCriteria.geofenceId = geofenceObjectId;
-      } catch (err) {
-        return res.status(400).json({ message: "Invalid geofence ID" });
-      }
+      filterCriteria["geofenceId"] = geofence;
     }
 
+    // Filter by date range, using the provided date (removing time portion)
+    let startDate;
+    let endDate;
+    if (date) {
+      startDate = new Date(date);
+      endDate = new Date(date);
+      endDate.setHours(23, 59, 59, 999); // End of the day
+
+      filterCriteria["appDetailHistory"] = {
+        $elemMatch: {
+          date: { $gte: startDate, $lte: endDate },
+        },
+      };
+    }
+
+    // Filter by agent ID, skip if "all" is selected
     if (agentId && agentId.trim().toLowerCase() !== "all") {
-      try {
-        const agent = await Agent.findById(agentId)
-          .select(
-            "fullName phoneNumber appDetailHistory workStructure.cashInHand"
-          )
-          .exec();
-
-        if (!agent) {
-          return res.status(404).json({ message: "Agent not found" });
-        }
-
-        let filteredHistory = agent.appDetailHistory.filter((history) => {
-          if (paymentStatus !== undefined) {
-            return (
-              history.details.paymentSettled === (paymentStatus === "true")
-            );
-          }
-          return true;
-        });
-
-        if (date) {
-          const targetDate = new Date(date);
-          filteredHistory = filteredHistory.filter((history) => {
-            return (
-              new Date(history.date).toDateString() ===
-              targetDate.toDateString()
-            );
-          });
-        }
-
-        const formattedResponse = filteredHistory
-          .filter((history) => history.details.totalEarning > 0)
-          .map((history) => ({
-            _id: agent._id,
-            fullName: agent.fullName,
-            phoneNumber: agent.phoneNumber,
-            workedDate: history.date ? formatDate(history.date) : null,
-            orders: history.details.orders || 0,
-            cancelledOrders: history.details.cancelledOrders || 0,
-            totalDistance: history.details.totalDistance || 0,
-            loginHours: history.details.loginDuration
-              ? formatToHours(history.details.loginDuration)
-              : "0:00 hr",
-            cashInHand: agent.workStructure?.cashInHand || 0,
-            totalEarnings: history.details.totalEarning || 0,
-            paymentSettled: history.details.paymentSettled,
-            detailId: history._id,
-          }));
-
-        return res.status(200).json({
-          message: "Agent payout detail",
-          data: formattedResponse,
-        });
-      } catch (err) {
-        return res.status(400).json({ message: "Invalid agent ID" });
-      }
-    } else {
-      const agents = await Agent.find({
-        isApproved: "Approved",
-        ...filterCriteria,
-      })
-        .select(
-          "fullName phoneNumber appDetailHistory workStructure.cashInHand"
-        )
-        .exec();
-
-      let formattedResponse = [];
-
-      agents.forEach((agent) => {
-        let filteredHistory = agent.appDetailHistory.filter((history) => {
-          if (paymentStatus !== undefined) {
-            return (
-              history.details.paymentSettled === (paymentStatus === "true")
-            );
-          }
-          return true;
-        });
-
-        if (date) {
-          const targetDate = new Date(date);
-          filteredHistory = filteredHistory.filter((history) => {
-            return (
-              new Date(history.date).toDateString() ===
-              targetDate.toDateString()
-            );
-          });
-        }
-
-        const response = filteredHistory
-          .filter((history) => history.details.totalEarning > 0)
-          .map((history) => ({
-            _id: agent._id,
-            fullName: agent.fullName,
-            phoneNumber: agent.phoneNumber,
-            workedDate: history.date ? formatDate(history.date) : null,
-            orders: history.details.orders || 0,
-            cancelledOrders: history.details.cancelledOrders || 0,
-            totalDistance: history.details.totalDistance || 0,
-            loginHours: history.details.loginDuration
-              ? formatToHours(history.details.loginDuration)
-              : "0:00 hr",
-            cashInHand: agent.workStructure?.cashInHand || 0,
-            totalEarnings: history.details.totalEarning || 0,
-            paymentSettled: history.details.paymentSettled,
-            detailId: history._id,
-          }));
-
-        formattedResponse = formattedResponse.concat(response);
-      });
-
-      res.status(200).json({
-        message: "Agent payout detail",
-        data: formattedResponse,
-      });
+      filterCriteria["_id"] = agentId;
     }
+
+    // Fetch agents from the database based on the constructed filter criteria
+    const agents = await Agent.find(filterCriteria).select(
+      "fullName phoneNumber appDetailHistory workStructure.cashInHand workStructure.salaryStructureId bankDetail"
+    );
+
+    // Prepare the response structure
+    const responseData = await Promise.all(
+      agents.map(async (agent) => {
+        // Fetch the agent's pricing details
+        const agentPricing = await AgentPricing.findById(
+          agent.workStructure.salaryStructureId
+        );
+
+        // Initialize the base fare (assuming it exists in `agentPricing.baseFare`)
+        const baseFare = agentPricing ? agentPricing.baseFare : 0;
+
+        // Filter and format the appDetailHistory
+        const filteredHistory = agent.appDetailHistory
+          .filter((history) => {
+            const historyDate = new Date(history.date);
+            return historyDate >= startDate && historyDate <= endDate;
+          })
+          .map((history) => {
+            const { totalEarning, orders, loginDuration } = history.details;
+
+            let updatedEarning = totalEarning;
+            let extraAmount = 0;
+
+            // Check if the agent completed at least 6 orders and logged in for 360,000 milliseconds (6 minutes)
+            if (orders >= 6 && loginDuration >= 360000) {
+              // Calculate the difference to the base fare
+              if (totalEarning < baseFare) {
+                extraAmount = baseFare - totalEarning;
+                updatedEarning = baseFare; // Add the extra amount to reach the base fare
+              }
+            }
+
+            return {
+              date: formatDate(history.date),
+              details: {
+                detailId: history.details._id,
+                totalEarning: updatedEarning || 0,
+                orders: orders || 0,
+                pendingOrder: history.details.pendingOrder || 0,
+                totalDistance: history.details.totalDistance || 0,
+                cancelledOrders: history.details.cancelledOrders || 0,
+                loginDuration: history.details.loginDuration || "-",
+                paymentSettled: history.details.paymentSettled,
+                extraAmount, // Store the extra amount required to reach base fare
+              },
+            };
+          });
+
+        // Calculate `calculatedEarning` by subtracting cashInHand from totalEarning
+        const totalEarning = filteredHistory.reduce(
+          (acc, history) => acc + history.details.totalEarning,
+          0
+        );
+        const calculatedEarning = totalEarning - agent.workStructure.cashInHand;
+
+        return {
+          ...agent.toObject(),
+          appDetailHistory: filteredHistory,
+          totalEarning,
+          calculatedEarning, // Calculated by subtracting cashInHand from totalEarning
+        };
+      })
+    );
+
+    // Send the response with the filtered and formatted agent data
+    res.status(200).json({
+      message: "Agent payout filter",
+      data: responseData,
+    });
   } catch (err) {
-    next(appError(err.message));
+    next(appError(err.message, 500));
   }
 };
 
@@ -1094,6 +1130,134 @@ const downloadAgentCSVController = async (req, res, next) => {
   }
 };
 
+const downloadAgentPaymentCSVController = async (req, res, next) => {
+  try {
+    const { paymentStatus, agent, search, date, geofence } = req.query;
+
+    // Build query object based on filters
+    const filter = {};
+    if (paymentStatus && paymentStatus.trim().toLowerCase() !== "all")
+      filter["appDetailHistory.details.paymentSettled"] = paymentStatus;
+
+    // If agent is not 'All', apply filter for agent ID
+    if (agent && agent.trim().toLowerCase() !== "all") filter["_id"] = agent;
+
+    if (geofence && geofence.trim().toLowerCase() !== "all")
+      filter["geofenceId"] = geofence?.trim();
+
+    if (search) {
+      filter.$or = [
+        { fullName: { $regex: search, $options: "i" } },
+        { phoneNumber: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    if (date) {
+      const startDate = new Date(date);
+      const endDate = new Date(date);
+      endDate.setHours(23, 59, 59, 999); // Set to the end of the day
+
+      filter["appDetailHistory.date"] = { $gte: startDate, $lt: endDate };
+    }
+
+    // Fetch agents based on filters
+    let allAgents = await Agent.find(filter)
+      .populate("geofenceId", "name")
+      .populate("workStructure.salaryStructureId")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    let formattedResponse = [];
+
+    // Collect all agents in one array and calculate payment
+    for (const agent of allAgents) {
+      for (const history of agent.appDetailHistory) {
+        // Only include history entries that match the specified date
+        if (new Date(history.date).toISOString().split("T")[0] === date) {
+          let calculatedPayment = 0; // Initialize calculatedPayment
+
+          // Calculate payment based on conditions
+          if (
+            history?.details?.orders >= 6 &&
+            history?.details?.loginDuration >= 21600000
+          ) {
+            const agentPricing = agent.workStructure?.salaryStructureId;
+
+            if (
+              agentPricing &&
+              history?.details?.totalEarning < agentPricing.baseFare
+            ) {
+              const balanceAmount =
+                agentPricing.baseFare - history?.details?.totalEarning;
+
+              // Add balance amount to calculatedPayment
+              calculatedPayment += balanceAmount;
+            }
+          }
+
+          // Deduct cashInHand from calculatedPayment
+          const cashInHand = agent?.workStructure?.cashInHand || 0;
+          calculatedPayment -= cashInHand;
+
+          // Add the agent details to the CSV response
+          formattedResponse.push({
+            agentId: agent._id || "-",
+            fullName: agent.fullName || "-",
+            phoneNumber: agent.phoneNumber || "-",
+            workedDate: history?.date ? formatDate(history?.date) : "-",
+            orders: history?.details?.orders || 0,
+            cancelledOrders: history?.details?.cancelledOrders || 0,
+            totalDistance: history?.details?.totalDistance || 0,
+            loginHours: history?.details?.loginDuration
+              ? formatToHours(history?.details?.loginDuration)
+              : "0:00 hr",
+            cashInHand,
+            totalEarning: history.details?.totalEarning || 0,
+            calculatedPayment, // Add calculated payment to the response
+            paymentSettled: history.details?.paymentSettled ? "Yes" : "No",
+            geofence: agent.geofenceId?.name || "-",
+          });
+        }
+      }
+    }
+
+    return res.status(200).json(formattedResponse);
+
+    // Define file path for CSV
+    const filePath = path.join(__dirname, "../../../sample_CSV/sample_CSV.csv");
+
+    // Define CSV headers
+    const csvHeaders = [
+      { id: "agentId", title: "Agent ID" },
+      { id: "fullName", title: "Full Name" },
+      { id: "phoneNumber", title: "Phone Number" },
+      { id: "totalEarning", title: "Total Earning" },
+      { id: "cashInHand", title: "Cash In Hand" },
+      { id: "calculatedPayment", title: "Calculated Payment" }, // Add calculatedPayment to CSV headers
+      { id: "paymentSettled", title: "Payment Settled" },
+      { id: "geofence", title: "Geofence" },
+    ];
+
+    // Create CSV writer
+    const writer = csvWriter({
+      path: filePath,
+      header: csvHeaders,
+    });
+
+    // Write records to CSV
+    await writer.writeRecords(formattedResponse);
+
+    // Send the CSV file to the client
+    res.status(200).download(filePath, "Agent_Payments.csv", (err) => {
+      if (err) {
+        next(err);
+      }
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   addAgentByAdminController,
   editAgentByAdminController,
@@ -1111,4 +1275,5 @@ module.exports = {
   approvePaymentController,
   changeAgentStatusController,
   downloadAgentCSVController,
+  downloadAgentPaymentCSVController,
 };

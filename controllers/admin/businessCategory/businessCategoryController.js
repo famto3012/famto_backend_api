@@ -1,5 +1,7 @@
 const { validationResult } = require("express-validator");
+
 const BusinessCategory = require("../../../models/BusinessCategory");
+
 const appError = require("../../../utils/appError");
 const {
   uploadToFirebase,

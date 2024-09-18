@@ -99,6 +99,10 @@ const orderDetailSchema = mongoose.Schema(
       type: Date,
       default: null,
     },
+    agentStartedAt: {
+      type: Date,
+      default: null,
+    },
     timeTaken: {
       type: Number, // Storing in milliseconds
       default: null,
@@ -187,6 +191,10 @@ const billSchema = mongoose.Schema(
       default: 0,
     },
     surgePrice: {
+      type: Number,
+      default: null,
+    },
+    waitingCharge: {
       type: Number,
       default: null,
     },

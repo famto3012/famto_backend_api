@@ -1,9 +1,11 @@
-const Customer = require("../../../models/Customer");
 const moment = require("moment");
+
+const Customer = require("../../../models/Customer");
 const CustomerSubscription = require("../../../models/CustomerSubscription");
 const Merchant = require("../../../models/Merchant");
 const MerchantSubscription = require("../../../models/MerchantSubscription");
 const SubscriptionLog = require("../../../models/SubscriptionLog");
+
 const appError = require("../../../utils/appError");
 const {
   createRazorpayOrderId,
@@ -206,7 +208,10 @@ const verifyRazorpayPayment = async (req, res, next) => {
 
     if (typeOfUser === "Merchant") {
       const merchantFound = await Merchant.findById(userId);
-      merchantFound.merchantDetail.pricing.push({modelType: "Subscription", modelId: subscriptionLog._id});
+      merchantFound.merchantDetail.pricing.push({
+        modelType: "Subscription",
+        modelId: subscriptionLog._id,
+      });
       await merchantFound.save();
     } else {
       const customerFound = await Customer.findById(userId);
@@ -332,7 +337,10 @@ const setAsPaidController = async (req, res, next) => {
     const typeOfUser = subscriptionLog.typeOfUser;
     if (typeOfUser === "Merchant") {
       const merchantFound = await Merchant.findById(subscriptionLog.userId);
-      merchantFound.merchantDetail.pricing.push({modelType: "Subscription", modelId: subscriptionLog._id});
+      merchantFound.merchantDetail.pricing.push({
+        modelType: "Subscription",
+        modelId: subscriptionLog._id,
+      });
       await merchantFound.save();
     }
     if (!subscriptionLog) {
@@ -347,19 +355,6 @@ const setAsPaidController = async (req, res, next) => {
   }
 };
 
-// const getAllMerchantSubscriptionLogController = async (req, res, next) => {
-//   try {
-//     const subscriptionLogs = await SubscriptionLog.find({
-//       typeOfUser: "Merchant",
-//     });
-//     res.status(200).json({
-//       message: "Subscription logs fetched successfully",
-//       subscriptionLogs,
-//     });
-//   } catch (err) {
-//     next(appError(err.message));
-//   }
-// };
 const getAllMerchantSubscriptionLogController = async (req, res, next) => {
   try {
     // Step 1: Fetch all subscription logs for Merchants

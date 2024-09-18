@@ -1,11 +1,20 @@
-const appError = require("../../utils/appError");
+const mongoose = require("mongoose");
 const turf = require("@turf/turf");
+const { validationResult } = require("express-validator");
+
 const Customer = require("../../models/Customer");
 const Product = require("../../models/Product");
-const { validationResult } = require("express-validator");
 const BusinessCategory = require("../../models/BusinessCategory");
 const Merchant = require("../../models/Merchant");
 const Category = require("../../models/Category");
+const CustomerCart = require("../../models/CustomerCart");
+const PromoCode = require("../../models/PromoCode");
+const Order = require("../../models/Order");
+const ScheduledOrder = require("../../models/ScheduledOrder");
+const SubscriptionLog = require("../../models/SubscriptionLog");
+const TemperoryOrder = require("../../models/TemperoryOrders");
+const NotificationSetting = require("../../models/NotificationSetting");
+
 const {
   sortMerchantsBySponsorship,
   getDistanceFromPickupToDelivery,
@@ -13,31 +22,26 @@ const {
   getDeliveryAndSurgeCharge,
   calculateDiscountedPrice,
   filterProductIdAndQuantity,
+  calculateMerchantDiscount,
 } = require("../../utils/customerAppHelpers");
-const CustomerCart = require("../../models/CustomerCart");
-const mongoose = require("mongoose");
-const PromoCode = require("../../models/PromoCode");
 const {
   createRazorpayOrderId,
   verifyPayment,
   razorpayRefund,
 } = require("../../utils/razorpayPayment");
-const Order = require("../../models/Order");
-const ScheduledOrder = require("../../models/ScheduledOrder");
 const {
   convertToUTC,
   formatDate,
   formatTime,
 } = require("../../utils/formatters");
-const SubscriptionLog = require("../../models/SubscriptionLog");
 const {
   deleteFromFirebase,
   uploadToFirebase,
 } = require("../../utils/imageOperation");
-const TemperoryOrder = require("../../models/TemperoryOrders");
+const appError = require("../../utils/appError");
 const geoLocation = require("../../utils/getGeoLocation");
+
 const { sendNotification, sendSocketData } = require("../../socket/socket");
-const NotificationSetting = require("../../models/NotificationSetting");
 
 // Get all available business categories according to the order
 const getAllBusinessCategoryController = async (req, res, next) => {
@@ -251,6 +255,7 @@ const listRestaurantsController = async (req, res, next) => {
   }
 };
 
+// Get all categories of merchant
 const getAllCategoriesOfMerchants = async (rea, res, next) => {
   try {
     const { merchantId } = rea.params;
@@ -279,6 +284,7 @@ const getAllCategoriesOfMerchants = async (rea, res, next) => {
   }
 };
 
+// Get all product of a category
 const getAllProductsOfMerchantController = async (req, res, next) => {
   try {
     const { categoryId, customerId } = req.params;
@@ -1099,6 +1105,7 @@ const addCartDetailsController = async (req, res, next) => {
     );
 
     let discountedAmount = 0;
+    // ? Subscription count is increasing only after the successful completion of order
     if (subscriptionOfCustomer?.customerDetails?.pricing?.length > 0) {
       const subscriptionLog = await SubscriptionLog.findById(
         subscriptionOfCustomer.customerDetails.pricing[0]
@@ -1112,9 +1119,16 @@ const addCartDetailsController = async (req, res, next) => {
         subscriptionLog.currentNumberOfOrders < subscriptionLog.maxOrders
       ) {
         discountedAmount = subscriptionLog.amount;
-        // TODO: Increase the count
       }
     }
+
+    const merchantDiscount = await calculateMerchantDiscount(
+      cart?.items,
+      itemTotal,
+      merchant._id
+    );
+
+    discountedAmount += merchantDiscount;
 
     let updatedBill = {
       addedTip,

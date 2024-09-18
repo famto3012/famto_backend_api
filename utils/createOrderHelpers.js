@@ -1,6 +1,8 @@
 const Customer = require("../models/Customer");
 const Product = require("../models/Product");
+
 const { convertToUTC } = require("./formatters");
+
 const geoLocation = require("./getGeoLocation");
 
 const safeParseFloat = (value, defaultValue = 0) => {
@@ -189,8 +191,6 @@ const getDeliveryDetails = async ({
 
 // Get the scheduled details
 const processSchedule = (ifScheduled) => {
-  console.log("ifScheduled", ifScheduled);
-
   let startDate = ifScheduled.startDate;
   let endDate = ifScheduled.endDate;
   let time = ifScheduled.time && convertToUTC(ifScheduled.time);
@@ -213,8 +213,6 @@ const processSchedule = (ifScheduled) => {
 const calculateItemTotal = (items, numOfDays) => {
   let calculatedTotal;
 
-  console.log("DAYS", numOfDays);
-
   if (numOfDays) {
     const amount = items
       .reduce((total, item) => total + item.price * item.quantity, 0)
@@ -226,8 +224,6 @@ const calculateItemTotal = (items, numOfDays) => {
       .reduce((total, item) => total + item.price * item.quantity, 0)
       .toFixed(2);
   }
-
-  console.log("calculatedTotal", calculatedTotal);
 
   return calculatedTotal;
 };
@@ -369,7 +365,6 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
     } else if (addressType === "other") {
       const otherIndex = customer.customerDetails.otherAddress.findIndex(
         (addr) => addr.id.toString() === customerAddressOtherAddressId
-        // TODO : _ removed from id
       );
 
       if (otherIndex !== -1) {
@@ -392,7 +387,6 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
     } else if (addressType === "other") {
       return customer.customerDetails.otherAddress.find(
         (addr) => addr.id.toString() === addressId
-        //TODO : removed _id
       );
     }
   };
@@ -519,7 +513,6 @@ const getCustomDeliveryAddressForAdmin = async ({
 
   // Function to retrieve address details based on type
   const getAddressDetails = (addressType, addressId) => {
-    console.log(addressId);
     if (addressType === "home") {
       return customer.customerDetails.homeAddress;
     } else if (addressType === "work") {

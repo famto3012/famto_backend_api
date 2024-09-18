@@ -1,5 +1,7 @@
 const { validationResult } = require("express-validator");
+
 const Banner = require("../../../models/Banner");
+
 const {
   uploadToFirebase,
   deleteFromFirebase,

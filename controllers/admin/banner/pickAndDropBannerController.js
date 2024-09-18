@@ -1,5 +1,7 @@
 const { validationResult } = require("express-validator");
+
 const PickAndDropBanner = require("../../../models/PickAndDropBanner");
+
 const {
   uploadToFirebase,
   deleteFromFirebase,

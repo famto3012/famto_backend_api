@@ -1,4 +1,4 @@
-const { default: axios } = require("axios");
+const axios = require("axios");
 
 const getPolylineController = async (req, res) => {
   const { pickupLat, pickupLng, deliveryLat, deliveryLng } = req.body;

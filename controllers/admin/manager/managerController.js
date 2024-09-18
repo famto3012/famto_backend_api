@@ -1,8 +1,10 @@
 const bcrypt = require("bcryptjs");
+const mongoose = require("mongoose");
 const { validationResult } = require("express-validator");
+
 const appError = require("../../../utils/appError");
+
 const Manager = require("../../../models/Manager");
-const { default: mongoose } = require("mongoose");
 
 //Add manager
 const addManagerController = async (req, res, next) => {

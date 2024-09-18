@@ -32,6 +32,7 @@ const Admin = require("../models/Admin");
 const admin1 = require("firebase-admin");
 const admin2 = require("firebase-admin");
 const { MessagePort } = require("worker_threads");
+const CustomerPricing = require("../models/CustomerPricing");
 
 const serviceAccount1 = {
   type: process.env.TYPE_1,
@@ -627,11 +628,7 @@ io.on("connection", async (socket) => {
           "deliveryDetail.deliveryStatus": "Accepted",
         });
 
-        console.log("Outside IF");
-
         if (orderFound.orderDetail.deliveryMode === "Custom Order") {
-          console.log("Inside IF");
-
           const data = {
             location: agent.location,
             status: "Initial location",
@@ -843,6 +840,7 @@ io.on("connection", async (socket) => {
       }
 
       orderFound.orderDetailStepper.pickupStarted = stepperDetail;
+      orderFound.orderDetail.agentStartedAt = new Date();
 
       if (orderFound.orderDetail.deliveryMode === "Custom Order") {
         const data = {
@@ -1018,13 +1016,53 @@ io.on("connection", async (socket) => {
         return socket.emit("error", { message: "Task not found" });
       }
 
-      const orderFound = await Order.findById(taskFound.orderId);
+      const orderFound = await Order.findById(taskFound.orderId).populate(
+        "customerId",
+        "customerDetails.geofenceId"
+      );
       if (!orderFound) {
         return socket.emit("error", { message: "Order not found" });
       }
 
       taskFound.pickupDetail.pickupStatus = "Completed";
       taskFound.deliveryDetail.deliveryStatus = "Started";
+
+      if (orderFound?.orderDetail?.deliveryMode === "Custom Order") {
+        const customerPricing = await CustomerPricing.findOne({
+          deliveryMode: "Custom Order",
+          geofenceId: orderFound?.customerId?.customerDetails?.geofendeId,
+          status: true,
+        });
+
+        if (!customerPricing) {
+          return socket.emit("error", {
+            message: `Customer pricing for custom order not found`,
+          });
+        }
+
+        const waitingFare = customerPricing.waitingFare;
+        const waitingTime = customerPricing.waitingTime;
+
+        const now = new Date();
+        const reachedTime = taskFound?.pickupDetail?.completedTime;
+
+        const diffInMs = now - reachedTime;
+
+        // Convert the difference to minutes
+        const diffInMinutes = Math.floor(diffInMs / 60000);
+
+        if (diffInMinutes - waitingTime > 0) {
+          let calculatedWaitingFare = 0;
+
+          calculatedWaitingFare = parseFloat(
+            waitingFare * (diffInMinutes - waitingTime)
+          );
+
+          orderFound.billDetail.waitingCharges = calculatedWaitingFare;
+
+          await orderFound.save();
+        }
+      }
 
       await taskFound.save();
 
@@ -1103,7 +1141,10 @@ io.on("connection", async (socket) => {
         return socket.emit("error", { message: "Task not found" });
       }
 
-      const orderFound = await Order.findById(taskFound.orderId);
+      const orderFound = await Order.findById(taskFound.orderId).populate(
+        "customerId",
+        "customerDetails.geofenceId"
+      );
       if (!orderFound) {
         return socket.emit("error", { message: "Order not found" });
       }
@@ -1124,6 +1165,40 @@ io.on("connection", async (socket) => {
         );
 
         if (distance < maxRadius) {
+          if (orderFound?.orderDetail?.deliveryMode === "Custom Order") {
+            const customerPricing = await CustomerPricing.findOne({
+              deliveryMode: "Custom Order",
+              geofenceId: orderFound?.customerId?.customerDetails?.geofendeId,
+              status: true,
+            });
+
+            if (!customerPricing) {
+              return socket.emit("error", {
+                message: `Customer pricing for custom order not found`,
+              });
+            }
+
+            const startTime = orderFound?.orderDetail?.agentStartedAt;
+            const now = new Date();
+
+            const diffInMs = now - startTime;
+
+            // Convert the difference to minutes
+            const diffInHours = Math.celi(diffInMs / 3600000);
+
+            if (diffInHours > 0) {
+              let calculatedDeliveryFare = 0;
+
+              calculatedDeliveryFare = parseFloat(
+                diffInHours * customerPricing.purchaseFarePerHour
+              );
+
+              orderFound.billDetail.deliveryCharge = calculatedDeliveryFare;
+
+              await orderFound.save();
+            }
+          }
+
           const stepperDetail = {
             by: agentFound.fullName,
             userId: agentId,

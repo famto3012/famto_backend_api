@@ -37,21 +37,6 @@ const searchUserByNameController = async (req, res, next) => {
   }
 };
 
-// const searchUserByDateController = async(req,res,next)=>{
-//     try{
-//         const {date} = req.query
-
-//         let user = await AccountLogs.find({createdAt: date})
-
-//         res.status(200).json({
-//             message: "Data fetched successfully",
-//             data: user
-//         })
-//     }catch(err){
-//         next(appError(err.message))
-//     }
-// }
-
 const searchUserByDateController = async (req, res, next) => {
   try {
     const { date } = req.query;
@@ -100,48 +85,6 @@ const searchUserByDateController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
-
-// const unBlockUserController = async (req, res, next) => {
-//   try {
-//     const userFound = await AccountLogs.findById(req.params.id);
-
-//     console.log("userFound", userFound);
-
-//     if (!userFound) {
-//       return next(appError("User not found", 404));
-//     }
-
-//     if (userFound.role === "Merchant") {
-//       console.log("Inside merchant");
-//       await Merchant.findByIdAndUpdate(req.params.id, {
-//         isBlocked: false,
-//         reasonForBlockingOrDeleting: null,
-//         blockedDate: null,
-//       });
-//       await AccountLogs.findByIdAndDelete(req.params.id);
-//     } else if (userFound.role === "Agent") {
-//       console.log("Inside agent");
-//       await Agent.findByIdAndUpdate(req.params.id, {
-//         isBlocked: false,
-//         reasonForBlockingOrDeleting: null,
-//         blockedDate: null,
-//       });
-//       await AccountLogs.findByIdAndDelete(req.params.id);
-//     } else {
-//       console.log("Inside Customer");
-//       await Customer.findByIdAndUpdate(req.params.id, {
-//         isBlocked: false,
-//         reasonForBlockingOrDeleting: null,
-//         blockedDate: null,
-//       });
-//       await AccountLogs.findByIdAndDelete(req.params.id);
-//     }
-
-//     res.status(200).json({ message: "User unblocked successfully" });
-//   } catch (err) {
-//     next(appError(err.message));
-//   }
-// };
 
 const unBlockUserController = async (req, res, next) => {
   try {

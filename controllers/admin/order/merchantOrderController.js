@@ -1557,7 +1557,7 @@ const createOrderController = async (req, res, next) => {
 
     await customerFound.save();
 
-    res.status(200).json({
+    res.status(201).json({
       message: "Order created successfully",
       data: newOrder,
     });

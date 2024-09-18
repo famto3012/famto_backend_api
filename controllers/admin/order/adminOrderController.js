@@ -50,7 +50,6 @@ const {
 } = require("../../../socket/socket");
 const path = require("path");
 const csvWriter = require("csv-writer").createObjectCsvWriter;
-const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const mongoose = require("mongoose");
 const puppeteer = require("puppeteer");
@@ -1017,17 +1016,12 @@ const createInvoiceByAdminController = async (req, res, next) => {
       addedTip = 0,
     } = req.body;
 
-    console.log("deliveryOption", deliveryOption);
-    console.log("1", req.body.ifScheduled);
-
     // Extract ifScheduled only if deliveryOption is scheduled
     let ifScheduled, startDate, endDate, time, numOfDays;
     if (deliveryOption === "Scheduled") {
       ifScheduled = req.body.ifScheduled;
       ({ startDate, endDate, time, numOfDays } = processSchedule(ifScheduled));
     }
-
-    console.log("numOfDays", numOfDays);
 
     let merchantFound;
     if (
@@ -1206,8 +1200,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
         customerPricing?.fareAfterBaseDistance
       );
 
-      console.log("customerSurge", customerSurge);
-
       let surgeCharges = 0;
       if (customerSurge) {
         surgeCharges = calculateDeliveryCharges(
@@ -1217,8 +1209,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
           // customerSurge.fareAfterBaseDistance
         );
       }
-
-      console.log("surgeCharges", surgeCharges);
 
       let deliveryChargeForScheduledOrder;
       if (startDate && endDate && time) {
