@@ -17,28 +17,10 @@ const daySchema = new mongoose.Schema(
     },
     startTime: {
       type: String,
-      // validate: {
-      //   validator: function (v) {
-      //     if (this.specificTime) {
-      //       return /^([01]\d|2[0-3]):?([0-5]\d)$/.test(v);
-      //     }
-      //     return v === null;
-      //   },
-      //   message: (props) => `${props.value} is not a valid time format!`,
-      // },
       default: null,
     },
     endTime: {
       type: String,
-      // validate: {
-      //   validator: function (v) {
-      //     if (this.specificTime) {
-      //       return /^([01]\d|2[0-3]):?([0-5]\d)$/.test(v);
-      //     }
-      //     return v === null;
-      //   },
-      //   message: (props) => `${props.value} is not a valid time format!`,
-      // },
       default: null,
     },
   },
@@ -145,8 +127,8 @@ const merchantDetailSchema = new mongoose.Schema(
     },
     pricing: [
       {
-        modelType: { type: String, required: true }, // Model name: "Product" or "Service"
-        modelId: { type: mongoose.Schema.Types.ObjectId, required: true },
+        modelType: { type: String, default: null },
+        modelId: { type: mongoose.Schema.Types.ObjectId },
       },
     ],
     location: {

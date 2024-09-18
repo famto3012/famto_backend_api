@@ -21,11 +21,11 @@ const addMerchantSubscriptionPlanController = async (req, res, next) => {
     const { name, amount, duration, taxId, renewalReminder, description } =
       req.body;
 
-    let totalAmount = "";
+    let totalAmount = amount;
     if (taxId) {
       const tax = await Tax.findById(taxId);
       const taxAmount = amount * (tax.tax / 100);
-      totalAmount = amount + taxAmount;
+      totalAmount = parseFloat(amount) + taxAmount;
     }
 
     const subscriptionPlan = new MerchantSubscription({
@@ -50,7 +50,10 @@ const addMerchantSubscriptionPlanController = async (req, res, next) => {
 
 const getAllMerchantSubscriptionPlansController = async (req, res, next) => {
   try {
-    const subscriptionPlans = await MerchantSubscription.find();
+    const subscriptionPlans = await MerchantSubscription.find().populate(
+      "taxId",
+      "taxName"
+    );
 
     res.status(200).json({
       message: "Subscription plans retrieved successfully",
@@ -167,12 +170,11 @@ const addCustomerSubscriptionPlanController = async (req, res, next) => {
       description,
     } = req.body;
 
-    let totalAmount = "";
-
+    let totalAmount = amount;
     if (taxId) {
       const tax = await Tax.findById(taxId);
       const taxAmount = amount * (tax.tax / 100);
-      totalAmount = amount + taxAmount;
+      totalAmount = parseFloat(amount) + taxAmount;
     }
 
     const subscriptionPlan = new CustomerSubscription({
@@ -198,7 +200,10 @@ const addCustomerSubscriptionPlanController = async (req, res, next) => {
 
 const getAllCustomerSubscriptionPlansController = async (req, res, next) => {
   try {
-    const subscriptionPlans = await CustomerSubscription.find();
+    const subscriptionPlans = await CustomerSubscription.find().populate(
+      "taxId",
+      "taxName"
+    );
 
     res.status(200).json({
       message: "Subscription plans retrieved successfully",
@@ -233,32 +238,37 @@ const editCustomerSubscriptionPlanController = async (req, res, next) => {
     } = req.body;
 
     const subscriptionPlan = await CustomerSubscription.findById(id);
+
     if (!subscriptionPlan) {
       return res.status(404).json({ message: "Subscription plan not found" });
     }
 
-    subscriptionPlan.name = name !== undefined ? name : subscriptionPlan.name;
-    subscriptionPlan.amount =
-      amount !== undefined ? amount : subscriptionPlan.amount;
-    subscriptionPlan.duration =
-      duration !== undefined ? duration : subscriptionPlan.duration;
-    subscriptionPlan.taxId =
-      taxId !== undefined ? taxId : subscriptionPlan.taxId;
-    subscriptionPlan.renewalReminder =
-      renewalReminder !== undefined
-        ? renewalReminder
-        : subscriptionPlan.renewalReminder;
-    subscriptionPlan.noOfOrder =
-      noOfOrder !== undefined ? noOfOrder : subscriptionPlan.noOfOrder;
-    subscriptionPlan.description =
-      description !== undefined ? description : subscriptionPlan.description;
+    let totalAmount = amount;
+    if (taxId) {
+      const tax = await Tax.findById(taxId);
+      const taxAmount = amount * (tax.tax / 100);
+      totalAmount = parseFloat(amount) + taxAmount;
+    }
 
-    // Save the updated subscription plan
-    const updatedSubscriptionPlan = await subscriptionPlan.save();
+    let updatedSubPlan = await CustomerSubscription.findOneAndUpdate(
+      id,
+      {
+        name,
+        amount: totalAmount,
+        duration,
+        taxId: taxId || null,
+        renewalReminder,
+        noOfOrder,
+        description,
+      },
+      { new: true }
+    );
+
+    updatedSubPlan = await updatedSubPlan.populate("taxId", "taxName");
 
     res.status(200).json({
       message: "Subscription plan updated successfully",
-      data: updatedSubscriptionPlan,
+      data: updatedSubPlan,
     });
   } catch (err) {
     next(appError(err.message));

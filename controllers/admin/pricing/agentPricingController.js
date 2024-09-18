@@ -6,13 +6,14 @@ const addAgentPricingController = async (req, res, next) => {
   const {
     ruleName,
     baseFare,
-    baseDistanceFare,
-    extraFarePerDay,
     baseDistanceFarePerKM,
     waitingFare,
     waitingTime,
     purchaseFarePerHour,
-    addedTip,
+    minLoginHours,
+    minOrderNumber,
+    fareAfterMinLoginHours,
+    fareAfterMinOrderNumber,
     geofenceId,
   } = req.body;
 
@@ -44,13 +45,14 @@ const addAgentPricingController = async (req, res, next) => {
     let newRule = await AgentPricing.create({
       ruleName,
       baseFare,
-      baseDistanceFare,
-      extraFarePerDay,
       baseDistanceFarePerKM,
       waitingFare,
       waitingTime,
       purchaseFarePerHour,
-      addedTip,
+      minLoginHours,
+      minOrderNumber,
+      fareAfterMinLoginHours,
+      fareAfterMinOrderNumber,
       geofenceId,
     });
 
@@ -108,13 +110,14 @@ const editAgentPricingController = async (req, res, next) => {
   const {
     ruleName,
     baseFare,
-    baseDistanceFare,
-    extraFarePerDay,
     baseDistanceFarePerKM,
     waitingFare,
     waitingTime,
     purchaseFarePerHour,
-    addedTip,
+    minLoginHours,
+    minOrderNumber,
+    fareAfterMinLoginHours,
+    fareAfterMinOrderNumber,
     geofenceId,
   } = req.body;
 
@@ -157,13 +160,14 @@ const editAgentPricingController = async (req, res, next) => {
       {
         ruleName,
         baseFare,
-        baseDistanceFare,
-        extraFarePerDay,
         baseDistanceFarePerKM,
         waitingFare,
         waitingTime,
         purchaseFarePerHour,
-        addedTip,
+        minLoginHours,
+        minOrderNumber,
+        fareAfterMinLoginHours,
+        fareAfterMinOrderNumber,
         geofenceId,
       },
       { new: true }
