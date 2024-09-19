@@ -47,7 +47,7 @@ const getRevenueDataByDateRange = async (req, res, next) => {
     // Convert to ISO strings for querying
     const start = new Date(startDate);
     const end = new Date(endDate);
-
+   console.log("start", start, "end", end)
     // Fetch data between the startDate and endDate
     const revenueData = await HomeScreenRevenueData.find({
       createdAt: {
