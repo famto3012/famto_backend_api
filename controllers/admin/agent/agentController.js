@@ -680,7 +680,7 @@ const getDeliveryAgentPayoutController = async (req, res, next) => {
       isApproved: "Approved",
     })
       .select(
-        "fullName phoneNumber appDetailHistory workStructure.cashInHand workStructure.salaryStructure"
+        "fullName phoneNumber appDetailHistory workStructure.cashInHand workStructure.salaryStructureId"
       )
       .skip(skip)
       .limit(limit)
@@ -697,16 +697,18 @@ const getDeliveryAgentPayoutController = async (req, res, next) => {
           };
 
           let calculatedPayment = 0; // Initialize calculatedPayment
-
+          console.log("Agent", agent);
           // Calculate payment based on certain conditions
-          if (
-            lastHistory?.details?.orders >= 6 &&
-            lastHistory?.details?.loginDuration >= 21600000
-          ) {
-            const agentPricing = await AgentPricing.findById(
-              agent.workStructure.salaryStructureId
-            );
+          const agentPricing = await AgentPricing.findById(
+            agent.workStructure.salaryStructureId
+          );
 
+          const loginHours = agentPricing.minLoginHours * 60 * 60 * 1000;
+          console.log("loginHours", loginHours);
+          if (
+            lastHistory?.details?.orders >= agentPricing.minOrderNumber &&
+            lastHistory?.details?.loginDuration >= loginHours
+          ) {
             if (
               agentPricing &&
               lastHistory?.details?.totalEarning < agentPricing.baseFare
@@ -762,7 +764,7 @@ const getDeliveryAgentPayoutController = async (req, res, next) => {
       hasNextPage: page < totalPages,
       hasPrevPage: page > 1,
     };
-
+    console.log("formattedResponse", formattedResponse);
     // Send the response with the formatted data and pagination
     res.status(200).json({
       message: "Agent payout detail",
@@ -784,7 +786,10 @@ const searchAgentInPayoutController = async (req, res, next) => {
     }
 
     // Find agents matching the regex for agentId
-    const agents = await Agent.find({ _id: { $regex: agentId, $options: "i" } })
+    const agents = await Agent.find({
+      _id: { $regex: agentId, $options: "i" },
+      isApproved: "Approved",
+    })
       .select(
         "fullName phoneNumber appDetailHistory workStructure.cashInHand workStructure.salaryStructureId"
       )
@@ -794,60 +799,69 @@ const searchAgentInPayoutController = async (req, res, next) => {
     const validAgents = agents?.filter((agent) =>
       agent.appDetailHistory.some((history) => history.date)
     );
-
+    console.log("validAgents", validAgents);
     // Process each agent to find the most recent appDetailHistory
-    const formattedResponse = validAgents?.map(async (agent) => {
-      // Ensure appDetailHistory exists before sorting
-      const latestHistory = agent.appDetailHistory
-        ?.filter((history) => history.date) // Filter histories with a valid date
-        .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+    const formattedResponse = await Promise.all(
+      validAgents
+        .filter((agent) => agent.appDetailHistory.length >= 1)
+        .map(async (agent) => {
+          // Ensure appDetailHistory exists before sorting
+          const latestHistory = agent.appDetailHistory
+            ?.filter((history) => history.date) // Filter histories with a valid date
+            .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+          console.log("Agent", agent);
+          console.log("latestHistory", latestHistory);
+          const agentPricing = await AgentPricing.findById(
+            agent.workStructure.salaryStructureId
+          );
 
-      const agentPricing = await AgentPricing.findById(agent._id).select(
-        "baseFare"
-      );
-
-      if (!agentPricing) {
-        return next(appError("Agent pricing not found", 400));
-      }
-
-      let calculatedEarning = latestHistory?.details.totalEarning;
-      if (agentPricing) {
-        if (
-          latestHistory?.details.orders >= 6 &&
-          latestHistory?.details.loginDuration >= 36000
-        ) {
-          if (latestHistory?.details.totalEarning < agentPricing.baseFare) {
-            const currentEarning = latestHistory?.details.totalEarning;
-            const remainingAmount = agentPricing.baseFare - currentEarning;
-
-            calculatedEarning += remainingAmount;
+          if (!agentPricing) {
+            return next(appError("Agent pricing not found", 400));
           }
-        }
-      }
 
-      if (agent.workStructure.cashInHand) {
-        calculatedEarning -= agent.workStructure.cashInHand;
-      }
+          let calculatedEarning = latestHistory?.details.totalEarning;
+          if (agentPricing) {
+            const loginHours = agentPricing.minLoginHours * 60 * 60 * 1000;
+            console.log("loginHours", loginHours);
+            if (
+              latestHistory?.details?.orders >= agentPricing.minOrderNumber &&
+              latestHistory?.details?.loginDuration >= loginHours
+            ) {
+              if (latestHistory?.details.totalEarning < agentPricing.baseFare) {
+                const currentEarning = latestHistory?.details.totalEarning;
+                const remainingAmount = agentPricing.baseFare - currentEarning;
 
-      return {
-        _id: agent?._id || "-",
-        fullName: agent?.fullName || "-",
-        phoneNumber: agent?.phoneNumber || "-",
-        workedDate: latestHistory?.date ? formatDate(latestHistory?.date) : "-",
-        orders: latestHistory?.details.orders || 0,
-        cancelledOrders: latestHistory?.details?.cancelledOrders || 0,
-        totalDistance: latestHistory?.details?.totalDistance || 0,
-        loginHours: latestHistory?.details?.loginDuration
-          ? formatToHours(latestHistory?.details?.loginDuration)
-          : "0:00 hr",
-        cashInHand: agent?.workStructure?.cashInHand || 0,
-        totalEarnings: latestHistory?.details?.totalEarning || 0,
-        calculatedEarning,
-        paymentSettled: latestHistory?.details?.paymentSettled,
-        detailId: latestHistory?._id,
-      };
-    });
+                calculatedEarning += remainingAmount;
+              }
+            }
+          }
+          console.log("Calculated earnings", calculatedEarning);
+          if (agent.workStructure.cashInHand) {
+            calculatedEarning -= agent.workStructure.cashInHand;
+          }
 
+          return {
+            _id: agent?._id || "-",
+            fullName: agent?.fullName || "-",
+            phoneNumber: agent?.phoneNumber || "-",
+            workedDate: latestHistory?.date
+              ? formatDate(latestHistory?.date)
+              : "-",
+            orders: latestHistory?.details.orders || 0,
+            cancelledOrders: latestHistory?.details?.cancelledOrders || 0,
+            totalDistance: latestHistory?.details?.totalDistance || 0,
+            loginHours: latestHistory?.details?.loginDuration
+              ? formatToHours(latestHistory?.details?.loginDuration)
+              : "0:00 hr",
+            cashInHand: agent?.workStructure?.cashInHand || 0,
+            totalEarnings: latestHistory?.details?.totalEarning || 0,
+            calculatedPayment: calculatedEarning,
+            paymentSettled: latestHistory?.details?.paymentSettled,
+            detailId: latestHistory?._id,
+          };
+        })
+    );
+    console.log("Formatted response", formattedResponse);
     res.status(200).json({
       message: "Agent history details",
       data: formattedResponse,
@@ -870,11 +884,6 @@ const filterAgentPayoutController = async (req, res, next) => {
     }
 
     // Filter by payment status, but skip if "all" is selected
-    if (paymentStatus && paymentStatus.trim().toLowerCase() !== "all") {
-      filterCriteria["appDetailHistory.details.paymentSettled"] =
-        paymentStatus.trim().toLowerCase() === "true";
-    }
-
     // Filter by geofence, skip if "all" is selected
     if (geofence && geofence.trim().toLowerCase() !== "all") {
       filterCriteria["geofenceId"] = geofence;
@@ -883,28 +892,35 @@ const filterAgentPayoutController = async (req, res, next) => {
     // Filter by date range, using the provided date (removing time portion)
     let startDate;
     let endDate;
+    const convertToIST = (date) => {
+      // Convert the date to IST by adding 5 hours 30 minutes
+      const istOffset = 5 * 60 + 30; // IST is UTC + 5 hours 30 minutes
+      const dateInIST = new Date(date.getTime() + istOffset * 60 * 1000);
+      return dateInIST;
+    };
     if (date) {
       startDate = new Date(date);
       endDate = new Date(date);
-      endDate.setHours(23, 59, 59, 999); // End of the day
+      startDate = convertToIST(startDate);
+      endDate = convertToIST(endDate);
 
-      filterCriteria["appDetailHistory"] = {
-        $elemMatch: {
-          date: { $gte: startDate, $lte: endDate },
-        },
-      };
+      // Set startDate to 12:00 AM IST
+      startDate.setHours(0, 0, 0, 0);
+
+      // Set endDate to 11:59 PM IST
+      endDate.setHours(23, 59, 59, 999); // End of the day
     }
 
     // Filter by agent ID, skip if "all" is selected
     if (agentId && agentId.trim().toLowerCase() !== "all") {
       filterCriteria["_id"] = agentId;
     }
-
+    console.log("filterCriteria", filterCriteria);
     // Fetch agents from the database based on the constructed filter criteria
     const agents = await Agent.find(filterCriteria).select(
       "fullName phoneNumber appDetailHistory workStructure.cashInHand workStructure.salaryStructureId bankDetail"
     );
-
+    console.log("agents", agents);
     // Prepare the response structure
     const responseData = await Promise.all(
       agents.map(async (agent) => {
@@ -912,47 +928,69 @@ const filterAgentPayoutController = async (req, res, next) => {
         const agentPricing = await AgentPricing.findById(
           agent.workStructure.salaryStructureId
         );
+        const loginHours = agentPricing.minLoginHours * 60 * 60 * 1000;
 
         // Initialize the base fare (assuming it exists in `agentPricing.baseFare`)
         const baseFare = agentPricing ? agentPricing.baseFare : 0;
-
         // Filter and format the appDetailHistory
-        const filteredHistory = agent.appDetailHistory
-          .filter((history) => {
-            const historyDate = new Date(history.date);
-            return historyDate >= startDate && historyDate <= endDate;
-          })
-          .map((history) => {
-            const { totalEarning, orders, loginDuration } = history.details;
+        const filteredHistory = await Promise.all(
+          agent.appDetailHistory
+            .filter((history) => {
+              const historyDate = new Date(history.date);
+              const isWithinDateRange =
+                historyDate >= startDate && historyDate <= endDate;
 
-            let updatedEarning = totalEarning;
-            let extraAmount = 0;
-
-            // Check if the agent completed at least 6 orders and logged in for 360,000 milliseconds (6 minutes)
-            if (orders >= 6 && loginDuration >= 360000) {
-              // Calculate the difference to the base fare
-              if (totalEarning < baseFare) {
-                extraAmount = baseFare - totalEarning;
-                updatedEarning = baseFare; // Add the extra amount to reach the base fare
+              // Filter by payment status
+              let isPaymentStatusMatch = true;
+              if (
+                paymentStatus &&
+                paymentStatus.trim().toLowerCase() !== "all"
+              ) {
+                const paymentSettled = history.details?.paymentSettled; // Assuming this is the correct field
+                const paymentStatusBoolean =
+                  paymentStatus.trim().toLowerCase() === "true";
+                isPaymentStatusMatch = paymentSettled === paymentStatusBoolean;
               }
-            }
 
-            return {
-              date: formatDate(history.date),
-              details: {
-                detailId: history.details._id,
-                totalEarning: updatedEarning || 0,
-                orders: orders || 0,
-                pendingOrder: history.details.pendingOrder || 0,
-                totalDistance: history.details.totalDistance || 0,
-                cancelledOrders: history.details.cancelledOrders || 0,
-                loginDuration: history.details.loginDuration || "-",
-                paymentSettled: history.details.paymentSettled,
-                extraAmount, // Store the extra amount required to reach base fare
-              },
-            };
-          });
+              // Return true only if both date range and payment status match
+              return isWithinDateRange && isPaymentStatusMatch;
+            })
+            .map((history) => {
+              // console.log("historyM", history)
+              const { totalEarning, orders, loginDuration } = history.details;
 
+              let updatedEarning = totalEarning;
+              let extraAmount = 0;
+
+              // Check if the agent completed at least 6 orders and logged in for 360,000 milliseconds (6 minutes)
+              if (
+                orders >= agentPricing.minOrderNumber &&
+                loginDuration >= loginHours
+              ) {
+                // Calculate the difference to the base fare
+                if (totalEarning < baseFare) {
+                  extraAmount = baseFare - totalEarning;
+                  updatedEarning = baseFare; // Add the extra amount to reach the base fare
+                }
+              }
+
+              return {
+                date: formatDate(history.date),
+                details: {
+                  detailId: history._id,
+                  totalEarning: updatedEarning || 0,
+                  orders: orders || 0,
+                  pendingOrder: history.details.pendingOrder || 0,
+                  totalDistance: history.details.totalDistance || 0,
+                  cancelledOrders: history.details.cancelledOrders || 0,
+                  loginDuration: history.details.loginDuration || "-",
+                  paymentSettled: history.details.paymentSettled,
+                  extraAmount,
+                  agentId: agent?._id || "-", // Store the extra amount required to reach base fare
+                },
+              };
+            })
+        );
         // Calculate `calculatedEarning` by subtracting cashInHand from totalEarning
         const totalEarning = filteredHistory.reduce(
           (acc, history) => acc + history.details.totalEarning,
@@ -961,21 +999,55 @@ const filterAgentPayoutController = async (req, res, next) => {
         const calculatedEarning = totalEarning - agent.workStructure.cashInHand;
 
         return {
-          ...agent.toObject(),
-          appDetailHistory: filteredHistory,
-          totalEarning,
-          calculatedEarning, // Calculated by subtracting cashInHand from totalEarning
+          _id: agent?._id || "-",
+          fullName: agent?.fullName || "-",
+          phoneNumber: agent?.phoneNumber || "-",
+          workedDate: filteredHistory[0]?.date
+            ? formatDate(filteredHistory[0]?.date)
+            : "-",
+          orders: filteredHistory[0]?.details?.orders || 0,
+          cancelledOrders: filteredHistory[0]?.details?.cancelledOrders || 0,
+          totalDistance: filteredHistory[0]?.details?.totalDistance || 0,
+          loginHours: filteredHistory[0]?.details?.loginDuration
+            ? formatToHours(filteredHistory[0]?.details?.loginDuration)
+            : "0:00 hr",
+          cashInHand: agent?.workStructure?.cashInHand || 0,
+          totalEarnings: filteredHistory[0]?.details?.totalEarning || 0,
+          calculatedPayment: calculatedEarning,
+          paymentSettled: filteredHistory[0]?.details?.paymentSettled,
+          detailId: filteredHistory[0]?.details?.detailId,
         };
       })
     );
 
+    console.log("responseData", responseData);
+    const data = responseData.filter((resp) => {
+      let isWithinDateRange = true;
+      if (resp.workedDate === "-") {
+        isWithinDateRange = false;
+      }
+
+      console.log("isWithinDateRange", isWithinDateRange);
+      // Filter by payment status
+      let isPaymentStatusMatch = true;
+      if (paymentStatus && paymentStatus.trim().toLowerCase() !== "all") {
+        const paymentSettled = resp?.paymentSettled; // Assuming this is the correct field
+        const paymentStatusBoolean =
+          paymentStatus.trim().toLowerCase() === "true";
+        isPaymentStatusMatch = paymentSettled === paymentStatusBoolean;
+      }
+      console.log("isPaymentStatusMatch", isPaymentStatusMatch);
+      // Return true only if both date range and payment status match
+      return isWithinDateRange && isPaymentStatusMatch;
+    });
+    console.log("Data", data);
     // Send the response with the filtered and formatted agent data
     res.status(200).json({
       message: "Agent payout filter",
-      data: responseData,
+      data: data,
     });
   } catch (err) {
-    next(appError(err.message, 500));
+    next(appError(err.message));
   }
 };
 
@@ -1135,9 +1207,7 @@ const downloadAgentPaymentCSVController = async (req, res, next) => {
     const { paymentStatus, agent, search, date, geofence } = req.query;
 
     // Build query object based on filters
-    const filter = {};
-    if (paymentStatus && paymentStatus.trim().toLowerCase() !== "all")
-      filter["appDetailHistory.details.paymentSettled"] = paymentStatus;
+    const filter = {isApproved: "Approved"};
 
     // If agent is not 'All', apply filter for agent ID
     if (agent && agent.trim().toLowerCase() !== "all") filter["_id"] = agent;
@@ -1146,95 +1216,183 @@ const downloadAgentPaymentCSVController = async (req, res, next) => {
       filter["geofenceId"] = geofence?.trim();
 
     if (search) {
-      filter.$or = [
-        { fullName: { $regex: search, $options: "i" } },
-        { phoneNumber: { $regex: search, $options: "i" } },
-      ];
+      filter.$or = [{ _id: { $regex: search, $options: "i" } }];
     }
 
+    let startDate;
+    let endDate;
+    const convertToIST = (date) => {
+      // Convert the date to IST by adding 5 hours 30 minutes
+      const istOffset = 5 * 60 + 30; // IST is UTC + 5 hours 30 minutes
+      const dateInIST = new Date(date.getTime() + istOffset * 60 * 1000);
+      return dateInIST;
+    };
     if (date) {
-      const startDate = new Date(date);
-      const endDate = new Date(date);
-      endDate.setHours(23, 59, 59, 999); // Set to the end of the day
+      startDate = new Date(date);
+      endDate = new Date(date);
+      startDate = convertToIST(startDate);
+      endDate = convertToIST(endDate);
 
-      filter["appDetailHistory.date"] = { $gte: startDate, $lt: endDate };
+      // Set startDate to 12:00 AM IST
+      startDate.setHours(0, 0, 0, 0);
+
+      // Set endDate to 11:59 PM IST
+      endDate.setHours(23, 59, 59, 999); // End of the day
     }
 
     // Fetch agents based on filters
     let allAgents = await Agent.find(filter)
+      .select(
+        "fullName phoneNumber appDetailHistory workStructure.cashInHand workStructure.salaryStructureId bankDetail"
+      )
       .populate("geofenceId", "name")
       .populate("workStructure.salaryStructureId")
       .sort({ createdAt: -1 })
       .lean();
 
-    let formattedResponse = [];
+    const responseData = await Promise.all(
+      allAgents.map(async (agent) => {
+        // Fetch the agent's pricing details
+        const agentPricing = await AgentPricing.findById(
+          agent.workStructure.salaryStructureId
+        );
+        const loginHours = agentPricing.minLoginHours * 60 * 60 * 1000;
 
-    // Collect all agents in one array and calculate payment
-    for (const agent of allAgents) {
-      for (const history of agent.appDetailHistory) {
-        // Only include history entries that match the specified date
-        if (new Date(history.date).toISOString().split("T")[0] === date) {
-          let calculatedPayment = 0; // Initialize calculatedPayment
+        // Initialize the base fare (assuming it exists in `agentPricing.baseFare`)
+        const baseFare = agentPricing ? agentPricing.baseFare : 0;
+        const filteredHistory = await Promise.all(
+          agent.appDetailHistory
+            .filter((history) => {
+              const historyDate = new Date(history.date);
+              const isWithinDateRange =
+                historyDate >= startDate && historyDate <= endDate;
 
-          // Calculate payment based on conditions
-          if (
-            history?.details?.orders >= 6 &&
-            history?.details?.loginDuration >= 21600000
-          ) {
-            const agentPricing = agent.workStructure?.salaryStructureId;
+              // Filter by payment status
+              let isPaymentStatusMatch = true;
+              if (
+                paymentStatus &&
+                paymentStatus.trim().toLowerCase() !== "all"
+              ) {
+                const paymentSettled = history.details?.paymentSettled; // Assuming this is the correct field
+                const paymentStatusBoolean =
+                  paymentStatus.trim().toLowerCase() === "true";
+                isPaymentStatusMatch = paymentSettled === paymentStatusBoolean;
+              }
 
-            if (
-              agentPricing &&
-              history?.details?.totalEarning < agentPricing.baseFare
-            ) {
-              const balanceAmount =
-                agentPricing.baseFare - history?.details?.totalEarning;
+              // Return true only if both date range and payment status match
+              return isWithinDateRange && isPaymentStatusMatch;
+            })
+            .map((history) => {
+              const { totalEarning, orders, loginDuration } = history.details;
 
-              // Add balance amount to calculatedPayment
-              calculatedPayment += balanceAmount;
-            }
-          }
+              let updatedEarning = totalEarning;
+              let extraAmount = 0;
 
-          // Deduct cashInHand from calculatedPayment
-          const cashInHand = agent?.workStructure?.cashInHand || 0;
-          calculatedPayment -= cashInHand;
+              // Check if the agent completed at least 6 orders and logged in for 360,000 milliseconds (6 minutes)
+              if (
+                orders >= agentPricing.minOrderNumber &&
+                loginDuration >= loginHours
+              ) {
+                // Calculate the difference to the base fare
+                if (totalEarning < baseFare) {
+                  extraAmount = baseFare - totalEarning;
+                  updatedEarning = baseFare; // Add the extra amount to reach the base fare
+                }
+              }
 
-          // Add the agent details to the CSV response
-          formattedResponse.push({
-            agentId: agent._id || "-",
-            fullName: agent.fullName || "-",
-            phoneNumber: agent.phoneNumber || "-",
-            workedDate: history?.date ? formatDate(history?.date) : "-",
-            orders: history?.details?.orders || 0,
-            cancelledOrders: history?.details?.cancelledOrders || 0,
-            totalDistance: history?.details?.totalDistance || 0,
-            loginHours: history?.details?.loginDuration
-              ? formatToHours(history?.details?.loginDuration)
-              : "0:00 hr",
-            cashInHand,
-            totalEarning: history.details?.totalEarning || 0,
-            calculatedPayment, // Add calculated payment to the response
-            paymentSettled: history.details?.paymentSettled ? "Yes" : "No",
-            geofence: agent.geofenceId?.name || "-",
-          });
-        }
+              return {
+                date: formatDate(history.date),
+                details: {
+                  detailId: history._id,
+                  totalEarning: updatedEarning || 0,
+                  orders: orders || 0,
+                  pendingOrder: history.details.pendingOrder || 0,
+                  totalDistance: history.details.totalDistance || 0,
+                  cancelledOrders: history.details.cancelledOrders || 0,
+                  loginDuration: history.details.loginDuration || "-",
+                  paymentSettled: history.details.paymentSettled,
+                  extraAmount,
+                  agentId: agent?._id || "-", // Store the extra amount required to reach base fare
+                },
+              };
+            })
+        );
+        // Calculate `calculatedEarning` by subtracting cashInHand from totalEarning
+        const totalEarning = filteredHistory.reduce(
+          (acc, history) => acc + history.details.totalEarning,
+          0
+        );
+        const calculatedEarning = totalEarning - agent.workStructure.cashInHand;
+
+        return {
+          _id: agent?._id || "-",
+          fullName: agent?.fullName || "-",
+          phoneNumber: agent?.phoneNumber || "-",
+          workedDate: filteredHistory[0]?.date
+            ? formatDate(filteredHistory[0]?.date)
+            : "-",
+          orders: filteredHistory[0]?.details?.orders || 0,
+          cancelledOrders: filteredHistory[0]?.details?.cancelledOrders || 0,
+          totalDistance: filteredHistory[0]?.details?.totalDistance || 0,
+          loginHours: filteredHistory[0]?.details?.loginDuration
+            ? formatToHours(filteredHistory[0]?.details?.loginDuration)
+            : "0:00 hr",
+          cashInHand: agent?.workStructure?.cashInHand || 0,
+          totalEarnings: filteredHistory[0]?.details?.totalEarning || 0,
+          calculatedPayment: calculatedEarning,
+          paymentSettled: filteredHistory[0]?.details?.paymentSettled,
+          detailId: filteredHistory[0]?.details?.detailId,
+          accountHolderName: agent?.bankDetail?.accountHolderName,
+          accountNumber: agent?.bankDetail?.accountNumber,
+          IFSCCode: agent?.bankDetail?.IFSCCode,
+          UPIId: agent?.bankDetail?.UPIId,
+          geofence: agent?.geofenceId?.name,
+        };
+      })
+    );
+
+    console.log("responseData", responseData);
+    const data = responseData.filter((resp) => {
+      let isWithinDateRange = true;
+      if (resp.workedDate === "-") {
+        isWithinDateRange = false;
       }
-    }
 
-    return res.status(200).json(formattedResponse);
-
+      console.log("isWithinDateRange", isWithinDateRange);
+      // Filter by payment status
+      let isPaymentStatusMatch = true;
+      if (paymentStatus && paymentStatus.trim().toLowerCase() !== "all") {
+        const paymentSettled = resp?.paymentSettled; // Assuming this is the correct field
+        const paymentStatusBoolean =
+          paymentStatus.trim().toLowerCase() === "true";
+        isPaymentStatusMatch = paymentSettled === paymentStatusBoolean;
+      }
+      console.log("isPaymentStatusMatch", isPaymentStatusMatch);
+      // Return true only if both date range and payment status match
+      return isWithinDateRange && isPaymentStatusMatch;
+    });
+    console.log("Data", data);
     // Define file path for CSV
     const filePath = path.join(__dirname, "../../../sample_CSV/sample_CSV.csv");
 
     // Define CSV headers
     const csvHeaders = [
-      { id: "agentId", title: "Agent ID" },
+      { id: "_id", title: "Agent ID" },
       { id: "fullName", title: "Full Name" },
       { id: "phoneNumber", title: "Phone Number" },
-      { id: "totalEarning", title: "Total Earning" },
+      { id: "workedDate", title: "Worked Date" },
+      { id: "orders", title: "Orders" },
+      { id: "cancelledOrders", title: "Cancelled Orders" }, // Add calculatedPayment to CSV headers
+      { id: "totalDistance", title: "Total Distance" },
+      { id: "loginHours", title: "Login Hours" },
       { id: "cashInHand", title: "Cash In Hand" },
-      { id: "calculatedPayment", title: "Calculated Payment" }, // Add calculatedPayment to CSV headers
+      { id: "totalEarnings", title: "Total Earnings" },
+      { id: "calculatedPayment", title: "Calculated Payment" },
       { id: "paymentSettled", title: "Payment Settled" },
+      { id: "accountHolderName", title: "Account Holder Name" },
+      { id: "accountNumber", title: "Account Number" },
+      { id: "IFSCCode", title: "IFSC Code" },
+      { id: "UPIId", title: "UPI Id" },
       { id: "geofence", title: "Geofence" },
     ];
 
@@ -1245,7 +1403,7 @@ const downloadAgentPaymentCSVController = async (req, res, next) => {
     });
 
     // Write records to CSV
-    await writer.writeRecords(formattedResponse);
+    await writer.writeRecords(data);
 
     // Send the CSV file to the client
     res.status(200).download(filePath, "Agent_Payments.csv", (err) => {
