@@ -734,7 +734,7 @@ const getAllMerchantsController = async (req, res, next) => {
         phoneNumber: merchant.phoneNumber,
         isApproved: merchant.isApproved,
         subscriptionStatus:
-          merchant?.merchantDetail?.pricing.length === 0
+          merchant?.merchantDetail?.pricing?.length === 0
             ? "Inactive"
             : "Active",
         status: merchant.status,
@@ -783,15 +783,23 @@ const getSingleMerchantController = async (req, res, next) => {
       );
       merchantPricing = {
         modelType: "Commission",
-        commission,
+        detail: {
+          type: commission?.commissionType || "-",
+          value: commission?.commissionValue || "-",
+        },
       };
-    } else {
+    } else if (
+      merchantFound?.merchantDetail?.pricing[0]?.modelType === "Subscription"
+    ) {
       const subscription = await SubscriptionLog.findById(
         merchantFound?.merchantDetail?.pricing[0]?.modelId
       );
       merchantPricing = {
         modelType: "Subscription",
-        subscription,
+        detail: {
+          type: subscription?.type || "-",
+          value: subscription?.amount || "-",
+        },
       };
     }
     const formattedResponse = {
@@ -805,7 +813,7 @@ const getSingleMerchantController = async (req, res, next) => {
       merchantDetail:
         {
           ...merchantFound?.merchantDetail,
-          pricing: merchantPricing || {},
+          pricing: merchantPricing ? merchantPricing : null,
           geofenceId: merchantFound?.merchantDetail?.geofenceId?._id || "",
           businessCategoryId:
             merchantFound?.merchantDetail?.businessCategoryId?._id || "",

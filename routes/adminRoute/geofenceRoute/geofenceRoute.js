@@ -54,8 +54,8 @@ geofenceRoute.delete(
 
 geofenceRoute.get(
   "/get-geofence",
-  isAuthenticated,
-  isAdminOrMerchant,
+  // isAuthenticated,
+  // isAdminOrMerchant,
   getAllGeofences
 );
 

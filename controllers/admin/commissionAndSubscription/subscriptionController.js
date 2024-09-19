@@ -250,7 +250,7 @@ const editCustomerSubscriptionPlanController = async (req, res, next) => {
       totalAmount = parseFloat(amount) + taxAmount;
     }
 
-    let updatedSubPlan = await CustomerSubscription.findOneAndUpdate(
+    let updatedSubPlan = await CustomerSubscription.findByIdAndUpdate(
       id,
       {
         name,
