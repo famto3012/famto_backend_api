@@ -181,8 +181,6 @@ const listRestaurantsController = async (req, res, next) => {
 
     const foundGeofence = await geoLocation(latitude, longitude, next);
 
-    console.log(foundGeofence);
-
     if (!foundGeofence) {
       return next(appError("Geofence not found", 404));
     }
