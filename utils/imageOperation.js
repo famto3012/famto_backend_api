@@ -13,14 +13,19 @@ const firebaseApp = require("../config/firebase");
 const storage = getStorage(firebaseApp);
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 1 * 1024 * 1024 }, // 1 MB limit
+  limits: { fileSize: 1 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    // TODO: Confirm final decision for checking the file  size for input
-    if (file.size > 1 * 1024 * 1024) {
-      // Check if file size exceeds 1 MB
+    // Allow any size for CSV files
+    if (
+      file.mimetype === "text/csv" ||
+      file.mimetype === "application/vnd.ms-excel"
+    ) {
+      cb(null, true); // Accept CSV files
+    } else if (file.size > 1 * 1024 * 1024) {
+      // Check if file size exceeds 1 MB for other file types
       cb(new Error("File size exceeds 1 MB"), false);
     } else {
-      cb(null, true);
+      cb(null, true); // Accept files below 1 MB
     }
   },
 });

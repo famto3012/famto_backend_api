@@ -313,6 +313,7 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
       ...merchantDetail,
       geofenceId: merchantDetail?.geofenceId || null,
       businessCategoryId: merchantDetail?.businessCategoryId || null,
+      pricing: merchantDetail?.pricing ? merchantDetail.pricing : [],
       merchantImageURL,
       pancardImageURL,
       GSTINImageURL,
@@ -802,6 +803,7 @@ const getSingleMerchantController = async (req, res, next) => {
         },
       };
     }
+
     const formattedResponse = {
       _id: merchantFound._id,
       fullName: merchantFound.fullName,
@@ -1041,6 +1043,7 @@ const updateMerchantDetailsController = async (req, res, next) => {
       ...merchantDetail,
       geofenceId: merchantDetail?.geofenceId || null,
       businessCategoryId: merchantDetail?.businessCategoryId || null,
+      pricing: merchantDetail?.pricing ? merchantDetail.pricing : [],
       merchantImageURL,
       pancardImageURL,
       GSTINImageURL,

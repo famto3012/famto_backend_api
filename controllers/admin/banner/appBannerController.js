@@ -58,6 +58,10 @@ const editAppBannerController = async (req, res, next) => {
 
     let imageUrl = appBanner.imageUrl;
 
+    console.log("+++++++++++++++++++++++++++++");
+    console.log("File", req.file);
+    console.log("+++++++++++++++++++++++++++++");
+
     if (req.file) {
       if (imageUrl) {
         await deleteFromFirebase(appBanner.imageUrl);
