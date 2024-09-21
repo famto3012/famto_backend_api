@@ -125,12 +125,15 @@ const merchantDetailSchema = new mongoose.Schema(
       ref: "Geofence",
       // default: null,
     },
-    pricing: [
-      {
-        modelType: { type: String, default: null },
-        modelId: { type: mongoose.Schema.Types.ObjectId },
-      },
-    ],
+    pricing: {
+      type: [
+        {
+          modelType: { type: String, default: null },
+          modelId: { type: mongoose.Schema.Types.ObjectId },
+        },
+      ],
+      default: [],
+    },
     location: {
       type: [Number],
       default: [],

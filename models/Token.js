@@ -8,7 +8,7 @@ const tokenSchema = mongoose.Schema(
     },
   },
   {
-    timeStamp: true,
+    timestamps: true,
   }
 );
 

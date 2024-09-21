@@ -546,11 +546,13 @@ const getCustomerOrdersController = async (req, res, next) => {
         id: order._id,
         merchantName: order?.merchantId?.merchantDetail?.merchantName || null,
         displayAddress:
-          order?.merchantId?.merchantDetail?.displayAddress || null,
+          order?.merchantId?.merchantDetail?.displayAddress ||
+          order?.orderDetail?.pickupAddress?.area ||
+          null,
+        deliveryMode: order?.orderDetail?.deliveryMode || null,
         orderStatus,
-        orderDate: `${formatDate(order.createdAt)} | ${formatTime(
-          order.createdAt
-        )}`,
+        orderDate: formatDate(order.createdAt),
+        orderTime: formatTime(order.createdAt),
         items: order.items,
         grandTotal: order.billDetail.grandTotal,
       };
@@ -587,32 +589,33 @@ const getsingleOrderDetailController = async (req, res, next) => {
       return next(appError("Order not found", 404));
     }
 
-    const customer = await Customer.findById(currentCustomer).select(
-      "customerDetails.location"
-    );
+    let distance;
 
-    const distance = await getDistanceFromPickupToDelivery(
-      singleOrderDetail.merchantId.merchantDetail.location,
-      customer.customerDetails.location
-    );
+    if (singleOrderDetail?.orderDetail?.pickupLocation) {
+      distance = await getDistanceFromPickupToDelivery(
+        singleOrderDetail?.orderDetail?.pickupLocation,
+        singleOrderDetail?.orderDetail?.deliveryLocation
+      );
+    }
 
     const formattedResponse = {
-      id: singleOrderDetail._id,
+      id: singleOrderDetail?._id,
       merchantName:
         singleOrderDetail?.merchantId?.merchantDetail?.merchantName || null,
       displayAddress:
         singleOrderDetail?.merchantId?.merchantDetail?.displayAddress || null,
-      deliveryTime: singleOrderDetail.merchantId.merchantDetail.deliveryTime,
-      distance,
-      items: singleOrderDetail.items,
-      billDetail: singleOrderDetail.billDetail,
-      deliveryAddress: singleOrderDetail.orderDetail.deliveryAddress,
-      orderDate: `${formatDate(singleOrderDetail.createdAt)}`,
-      orderTime: `${formatTime(singleOrderDetail.createdAt)}`,
-      paymentMode: singleOrderDetail.paymentMode,
-      merchantPhone: singleOrderDetail?.merchantId?.phoneNumber || null,
-      fssaiNumber:
-        singleOrderDetail?.merchantId?.merchantDetail?.FSSAINumber || null,
+      deliveryTime:
+        singleOrderDetail?.merchantId?.merchantDetail?.deliveryTime || null,
+      distance: distance || null,
+      items: singleOrderDetail?.items || null,
+      billDetail: singleOrderDetail?.billDetail || null,
+      deliveryAddress: singleOrderDetail?.orderDetail?.deliveryAddress || null,
+      orderDate: `${formatDate(singleOrderDetail?.createdAt)}` || null,
+      orderTime: `${formatTime(singleOrderDetail?.createdAt)}` || null,
+      paymentMode: singleOrderDetail?.paymentMode || null,
+      // merchantPhone: singleOrderDetail?.merchantId?.phoneNumber || null,
+      // fssaiNumber:
+      //   singleOrderDetail?.merchantId?.merchantDetail?.FSSAINumber || null,
     };
 
     res.status(200).json({

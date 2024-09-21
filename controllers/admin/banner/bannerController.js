@@ -27,18 +27,18 @@ const addBannerController = async (req, res, next) => {
       imageUrl = await uploadToFirebase(req.file, "AdBannerImages");
     }
 
-    const newBanner = new Banner({
+    let newBanner = await Banner.create({
       name,
       geofenceId,
       imageUrl,
       merchantId,
     });
 
-    const savedBanner = await newBanner.save();
+    newBanner = await newBanner.populate("geofenceId", "name");
 
     res.status(201).json({
       success: "Banner created successfully",
-      data: savedBanner,
+      data: newBanner,
     });
   } catch (err) {
     next(appError(err.message));

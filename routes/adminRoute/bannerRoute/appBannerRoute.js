@@ -16,7 +16,7 @@ const appBannerRoute = express.Router();
 
 appBannerRoute.post(
   "/add-app-banner",
-  upload.single("appBannerImage"),
+  upload.single("bannerImage"),
   [
     body("name").notEmpty().withMessage("Name is required"),
     body("merchantId").notEmpty().withMessage("Merchant Id is required"),
