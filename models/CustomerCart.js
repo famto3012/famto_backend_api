@@ -117,6 +117,10 @@ const billSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
+    merchantDiscount: {
+      type: Number,
+      default: null,
+    },
     discountedAmount: {
       type: Number,
       default: null,

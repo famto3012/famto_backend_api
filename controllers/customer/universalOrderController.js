@@ -1043,6 +1043,22 @@ const addCartDetailsController = async (req, res, next) => {
       return res.status(404).json({ error: "Merchant not found" });
     }
 
+    if (
+      merchant?.merchantDetail?.deliveryOption === "On-demand" &&
+      startDate &&
+      endDate &&
+      time
+    ) {
+      return next(appError("Merchant only accepts On-demand orders", 400));
+    } else if (
+      merchant?.merchantDetail?.deliveryOption === "Scheduled" &&
+      !startDate &&
+      !endDate &&
+      !time
+    ) {
+      return next(appError("Merchant only accepts Scheduled orders", 400));
+    }
+
     const pickupCoordinates = merchant.merchantDetail.location;
 
     // Calculate itemTotal in the controller
@@ -1103,22 +1119,6 @@ const addCartDetailsController = async (req, res, next) => {
     );
 
     let discountedAmount = 0;
-    // ? Subscription count is increasing only after the successful completion of order
-    if (subscriptionOfCustomer?.customerDetails?.pricing?.length > 0) {
-      const subscriptionLog = await SubscriptionLog.findById(
-        subscriptionOfCustomer.customerDetails.pricing[0]
-      );
-
-      const now = new Date();
-
-      if (
-        (new Date(subscriptionLog.startDate) < now ||
-          new Date(subscriptionLog.endDate) > now) &&
-        subscriptionLog.currentNumberOfOrders < subscriptionLog.maxOrders
-      ) {
-        discountedAmount = subscriptionLog.amount;
-      }
-    }
 
     const merchantDiscount = await calculateMerchantDiscount(
       cart?.items,
@@ -1131,7 +1131,8 @@ const addCartDetailsController = async (req, res, next) => {
     let updatedBill = {
       addedTip,
       itemTotal: parseFloat(itemTotal).toFixed(2),
-      discountedAmount: discountedAmount || null,
+      // discountedAmount: discountedAmount || null,
+      merchantDiscount: discountedAmount || null,
     };
 
     let subTotal;
@@ -1190,6 +1191,25 @@ const addCartDetailsController = async (req, res, next) => {
 
       const businessCategoryId = merchant.merchantDetail.businessCategoryId;
 
+      // ? Subscription count is increasing only after the successful completion of order
+      if (subscriptionOfCustomer?.customerDetails?.pricing?.length > 0) {
+        const subscriptionLog = await SubscriptionLog.findById(
+          subscriptionOfCustomer.customerDetails.pricing[0]
+        );
+
+        if (subscriptionLog) {
+          const now = new Date();
+
+          if (
+            (new Date(subscriptionLog.startDate) < now ||
+              new Date(subscriptionLog.endDate) > now) &&
+            subscriptionLog.currentNumberOfOrders < subscriptionLog.maxOrders
+          ) {
+            discountedAmount = subscriptionLog.amount;
+          }
+        }
+      }
+
       const { deliveryCharges, surgeCharges } = await getDeliveryAndSurgeCharge(
         customerId,
         "Home Delivery",
@@ -1240,7 +1260,8 @@ const addCartDetailsController = async (req, res, next) => {
           parseFloat(addedTip) -
           parseFloat(discountedAmount);
       } else {
-        updatedBill.originalDeliveryCharge = deliveryCharges.toFixed(2);
+        updatedBill.originalDeliveryCharge =
+          parseFloat(deliveryCharges).toFixed(2);
 
         const taxAmount = await getTaxAmount(
           businessCategoryId,
@@ -1369,7 +1390,7 @@ const applyPromocodeController = async (req, res, next) => {
     }
 
     // Check if total cart price meets minimum order amount
-    const totalCartPrice = cart.billDetail.itemTotal;
+    let totalCartPrice = cart.billDetail.itemTotal;
     if (totalCartPrice < promoCodeFound.minOrderAmount) {
       return next(
         appError(
@@ -1390,17 +1411,61 @@ const applyPromocodeController = async (req, res, next) => {
       return next(appError("Promo code usage limit reached", 400));
     }
 
+    let perDayAmount = 0;
+    let eligibleDates;
+
+    if (cart.cartDetail.deliveryOption === "Scheduled") {
+      const { itemTotal, originalDeliveryCharge } = cart?.billDetail;
+      const { startDate, endDate, numOfDays } = cart?.cartDetail;
+
+      const promoStartDate = new Date(promoCodeFound.fromDate); // Promo start date
+      const promoEndDate = new Date(promoCodeFound.toDate); // Promo end date
+      const now = new Date(); // Current date
+      const deliveryStartDate = new Date(startDate); // Convert startDate to Date object
+      const deliveryEndDate = new Date(endDate); // Convert endDate to Date object
+
+      // Check if promo start date is in the future
+      const effectiveStartDate =
+        deliveryStartDate > promoStartDate ? deliveryStartDate : promoStartDate;
+      const effectiveEndDate =
+        deliveryEndDate < promoEndDate ? deliveryEndDate : promoEndDate;
+
+      // Only apply promo if current date is past promo start date
+      if (now <= promoEndDate && promoStartDate <= deliveryEndDate) {
+        // Calculate the number of eligible days within the promo period
+        eligibleDates =
+          Math.ceil(
+            (effectiveEndDate - effectiveStartDate) / (1000 * 60 * 60 * 24)
+          ) + 1;
+
+        // Apply promo based on eligibility
+        if (promoCodeFound.appliedOn === "Cart-value") {
+          const amount = itemTotal / numOfDays;
+          perDayAmount = amount * eligibleDates;
+        } else if (promoCodeFound.appliedOn === "Delivery-charge") {
+          const amount = originalDeliveryCharge / numOfDays;
+          perDayAmount = amount * eligibleDates;
+        }
+      }
+
+      totalCartPrice = perDayAmount;
+    }
+
     // Calculate discount amount
     let discountAmount = cart.billDetail.discountedAmount || 0;
     if (promoCodeFound.promoType === "Flat-discount") {
-      discountAmount += promoCodeFound.discount;
+      discountAmount =
+        discount +
+        Math.min(promoCodeFound?.discount, promoCodeFound?.maxDiscountValue);
     } else if (promoCodeFound.promoType === "Percentage-discount") {
-      discountAmount += (
-        (totalCartPrice * promoCodeFound.discount) /
-        100
-      ).toFixed(2);
-      if (discountAmount > promoCodeFound.maxDiscountValue) {
+      // Calculate discount, keep it as a number
+      let calculatedDiscount = (totalCartPrice * promoCodeFound.discount) / 100;
+
+      // Apply the max discount value if calculatedDiscount exceeds it
+      if (calculatedDiscount > promoCodeFound.maxDiscountValue) {
         discountAmount += promoCodeFound.maxDiscountValue;
+      } else {
+        discountAmount += calculatedDiscount;
       }
     }
 
@@ -1423,22 +1488,32 @@ const applyPromocodeController = async (req, res, next) => {
       updatedTotal = 0;
     }
 
+    let discountedDeliveryCharge;
+    let discountedGrandTotal;
+
+    if (promoCodeFound.appliedOn === "Cart-value") {
+      discountedGrandTotal =
+        cart.billDetail.originalGrandTotal - discountAmount;
+    } else if (promoCodeFound.appliedOn === "Delivery-charge") {
+      discountedDeliveryCharge =
+        parseFloat(cart.billDetail.originalDeliveryCharge) -
+        parseFloat(discountAmount);
+    }
+
     // Update cart and save
-    const discountedDeliveryCharge =
-      parseFloat(cart.billDetail.originalDeliveryCharge) -
-      parseFloat(discountAmount);
-
-    const discountedGrandTotal =
-      cart.billDetail.originalGrandTotal - discountAmount;
-
     const discountedAmount = discountAmount;
 
     const subTotal =
-      updatedTotal + discountedDeliveryCharge + (cart.billDetail.addedTip || 0);
+      updatedTotal -
+      (discountedGrandTotal || discountedDeliveryCharge) +
+      (cart.billDetail.addedTip || 0);
 
-    cart.billDetail.discountedDeliveryCharge =
-      discountedDeliveryCharge.toFixed(2);
-    cart.billDetail.discountedGrandTotal = Math.round(discountedGrandTotal);
+    cart.billDetail.discountedDeliveryCharge = discountedDeliveryCharge
+      ? discountedDeliveryCharge.toFixed(2)
+      : null;
+    cart.billDetail.discountedGrandTotal = discountedGrandTotal
+      ? Math.round(discountedGrandTotal)
+      : null;
     cart.billDetail.discountedAmount = discountedAmount;
     cart.billDetail.subTotal = Math.round(subTotal);
 
