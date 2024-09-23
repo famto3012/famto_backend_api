@@ -245,7 +245,7 @@ const editAgentProfileController = async (req, res, next) => {
       return next(appError("Agent not Found", 404));
     }
 
-    let agentImageURL = agentToUpdate.agentImageURL;
+    let agentImageURL = agentToUpdate?.agentImageURL;
 
     if (req.file) {
       await deleteFromFirebase(agentImageURL);
@@ -1818,6 +1818,26 @@ const verifyQrPaymentController = async (req, res, next) => {
   }
 };
 
+const checkPaymentStatusOfOrder = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+
+    const orderFound = await Order.findById(orderId);
+
+    if (!orderFound) {
+      return next(appError("Order not found", 400));
+    }
+
+    if (orderFound?.paymentStatus === "Completed") {
+      return res.status(200).json({ message: "Payment completed" });
+    }
+
+    res.status(400).json({ message: "Payment is not completed yet" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 // Get all notifications for agent
 const getAllNotificationsController = async (req, res, next) => {
   try {
@@ -1940,6 +1960,7 @@ module.exports = {
   getCompleteOrderMessageController,
   generateRazorpayQRController,
   verifyQrPaymentController,
+  checkPaymentStatusOfOrder,
   getAllNotificationsController,
   getAllAnnouncementsController,
 };

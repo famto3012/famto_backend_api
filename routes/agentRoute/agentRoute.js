@@ -40,6 +40,7 @@ const {
   verifyQrPaymentController,
   getAllNotificationsController,
   getAllAnnouncementsController,
+  checkPaymentStatusOfOrder,
 } = require("../../controllers/agent/agentController");
 const { upload } = require("../../utils/imageOperation");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
@@ -282,6 +283,12 @@ agentRoute.get(
 agentRoute.post("/generate-qr", generateRazorpayQRController);
 
 agentRoute.post("/razorpay-webhook", verifyQrPaymentController);
+
+agentRoute.get(
+  "/check-payment-status/:orderId",
+  isAuthenticated,
+  checkPaymentStatusOfOrder
+);
 
 agentRoute.get(
   "/all-notifications",
