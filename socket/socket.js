@@ -110,6 +110,7 @@ const sendPushNotificationToUser = async (fcmToken, message, eventName) => {
     },
     token: fcmToken,
   };
+  console.log(mes)
 
   try {
     // Try sending with the first project

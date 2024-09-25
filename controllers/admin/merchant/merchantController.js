@@ -744,6 +744,7 @@ const getAllMerchantsController = async (req, res, next) => {
       };
     });
 
+
     let pagination = {
       totalDocuments: totalDocuments || 0,
       totalPages: Math.ceil(totalDocuments / limit),
