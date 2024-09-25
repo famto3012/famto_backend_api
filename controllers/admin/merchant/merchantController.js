@@ -120,6 +120,34 @@ const getMerchantProfileController = async (req, res, next) => {
       return next(appError("Merchant not found", 404));
     }
 
+    let merchantPricing;
+    if (merchantFound?.merchantDetail?.pricing[0]?.modelType === "Commission") {
+      const commission = await Commission.findById(
+        merchantFound?.merchantDetail?.pricing[0]?.modelId
+      );
+      merchantPricing = {
+        modelType: "Commission",
+        detail: {
+          type: commission?.commissionType || "-",
+          value: commission?.commissionValue || "-",
+        },
+      };
+    } else if (
+      merchantFound?.merchantDetail?.pricing[0]?.modelType === "Subscription"
+    ) {
+      const subscription = await SubscriptionLog.findById(
+        merchantFound?.merchantDetail?.pricing[0]?.modelId
+      );
+      merchantPricing = {
+        modelType: "Subscription",
+        modelId: subscription?._id,
+        detail: {
+          type: subscription?.type || "-",
+          value: subscription?.amount || "-",
+        },
+      };
+    }
+
     const formattedResponse = {
       _id: merchantFound._id,
       fullName: merchantFound.fullName,
@@ -131,12 +159,12 @@ const getMerchantProfileController = async (req, res, next) => {
       merchantDetail:
         {
           ...merchantFound?.merchantDetail,
+          pricing: merchantPricing ? merchantPricing : null,
           geofenceId: merchantFound?.merchantDetail?.geofenceId?._id || "",
           businessCategoryId:
             merchantFound?.merchantDetail?.businessCategoryId?._id || "",
         } || {},
       sponsorshipDetail: merchantFound?.sponsorshipDetail[0] || [],
-      pricing: merchantFound?.merchantDetail?.pricing?.[0] || {},
     };
 
     res.status(200).json({
@@ -313,7 +341,9 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
       ...merchantDetail,
       geofenceId: merchantDetail?.geofenceId || null,
       businessCategoryId: merchantDetail?.businessCategoryId || null,
-      pricing: merchantDetail?.pricing ? merchantDetail.pricing : [],
+      pricing: merchantFound?.merchantDetail?.pricing
+        ? merchantFound?.merchantDetail.pricing
+        : [],
       merchantImageURL,
       pancardImageURL,
       GSTINImageURL,
@@ -470,17 +500,16 @@ const searchMerchantController = async (req, res, next) => {
 
         return {
           _id: merchant._id,
-          merchantName:
-            merchant?.merchantDetail?.merchantName || merchant.fullName || "-",
+          merchantName: merchant?.merchantDetail?.merchantName || "-",
           phoneNumber: merchant.phoneNumber,
           isApproved: merchant.isApproved,
-          status: merchantDetail ? merchantDetail.status : "-",
-          geofence: merchantDetail //&& merchantDetail?.merchantDetail?.geofenceId
-            ? merchantDetail.merchantDetail?.geofenceId.name
-            : "-",
-          averageRating: merchantDetail // && merchantDetail?.merchantDetail
-            ? merchantDetail?.merchantDetail?.averageRating
-            : 0,
+          subscriptionStatus:
+            merchant?.merchantDetail?.pricing?.length === 0
+              ? "Inactive"
+              : "Active",
+          status: merchant.status,
+          geofence: merchant?.merchantDetail?.geofenceId?.name || "-",
+          averageRating: merchant?.merchantDetail?.averageRating,
           isServiceableToday: merchant.status ? "Open" : "Closed",
         };
       })
@@ -574,17 +603,16 @@ const filterMerchantsController = async (req, res, next) => {
       const merchantDetail = merchant.merchantDetail;
       return {
         _id: merchant._id,
-        merchantName: merchantDetail?.merchantName || "-",
+        merchantName: merchant?.merchantDetail?.merchantName || "-",
         phoneNumber: merchant.phoneNumber,
-        status: merchant.status,
         isApproved: merchant.isApproved,
         subscriptionStatus:
-          merchant?.sponsorshipDetail?.length > 0 ? "Active" : "Inactive",
-        geofence:
-          merchantDetail && merchantDetail.geofenceId
-            ? merchantDetail.geofenceId.name
-            : null,
-        averageRating: merchantDetail ? merchantDetail.averageRating : 0,
+          merchant?.merchantDetail?.pricing?.length === 0
+            ? "Inactive"
+            : "Active",
+        status: merchant.status,
+        geofence: merchant?.merchantDetail?.geofenceId?.name || "-",
+        averageRating: merchant?.merchantDetail?.averageRating,
         isServiceableToday: merchant.status ? "Open" : "Closed",
       };
     });
@@ -777,6 +805,7 @@ const getSingleMerchantController = async (req, res, next) => {
     if (!merchantFound) {
       return next(appError("Merchant not found", 404));
     }
+
     let merchantPricing;
     if (merchantFound?.merchantDetail?.pricing[0]?.modelType === "Commission") {
       const commission = await Commission.findById(
@@ -797,6 +826,7 @@ const getSingleMerchantController = async (req, res, next) => {
       );
       merchantPricing = {
         modelType: "Subscription",
+        modelId: subscription?._id,
         detail: {
           type: subscription?.type || "-",
           value: subscription?.amount || "-",
@@ -975,6 +1005,10 @@ const updateMerchantDetailsController = async (req, res, next) => {
   try {
     const { merchantId } = req.params;
 
+    console.log("===========================");
+    console.log(merchantDetail?.pricing);
+    console.log("===========================");
+
     const merchantFound = await Merchant.findById(merchantId);
     if (!merchantFound) {
       return next(appError("Merchant not found", 404));
@@ -1043,7 +1077,9 @@ const updateMerchantDetailsController = async (req, res, next) => {
       ...merchantDetail,
       geofenceId: merchantDetail?.geofenceId || null,
       businessCategoryId: merchantDetail?.businessCategoryId || null,
-      pricing: merchantDetail?.pricing ? merchantDetail.pricing : [],
+      pricing: merchantFound?.merchantDetail?.pricing
+        ? merchantFound?.merchantDetail?.pricing
+        : [],
       merchantImageURL,
       pancardImageURL,
       GSTINImageURL,

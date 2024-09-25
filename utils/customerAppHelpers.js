@@ -39,7 +39,7 @@ const getDistanceFromPickupToDelivery = async (
   // distance_matrix_traffic;
 
   const { data } = await axios.get(
-    `https://apis.mapmyindia.com/advancedmaps/v1/${process.env.MapMyIndiaAPIKey}/distance_matrix/${profile}/${pickupCoordinates[1]},${pickupCoordinates[0]};${deliveryCoordinates[1]},${deliveryCoordinates[0]}`
+    `https://apis.mapmyindia.com/advancedmaps/v1/${process.env.MapMyIndiaAPIKey}/distance_matrix_eta/${profile}/${pickupCoordinates[1]},${pickupCoordinates[0]};${deliveryCoordinates[1]},${deliveryCoordinates[0]}`
   );
 
   if (
@@ -655,11 +655,17 @@ const reduceProductAvailableQuantity = async (purchasedItems, merchantId) => {
   }
 };
 
-const calculateMerchantDiscount = async (cartItems, itemTotal, merchantId) => {
+const calculateMerchantDiscount = async (
+  cart,
+  itemTotal,
+  merchantId,
+  startDate,
+  endDate
+) => {
   try {
     let calculatedMerchantDiscount = 0;
 
-    for (const item of cartItems) {
+    for (const item of cart?.items) {
       const product = await Product.findById(item.productId)
         .populate("discountId")
         .exec();
@@ -686,6 +692,8 @@ const calculateMerchantDiscount = async (cartItems, itemTotal, merchantId) => {
         status: true,
       });
 
+      console.log("itemTotal", itemTotal);
+
       if (merchantDiscount) {
         if (itemTotal > merchantDiscount.maxCheckoutValue) {
           const currentDate = new Date();
@@ -696,14 +704,37 @@ const calculateMerchantDiscount = async (cartItems, itemTotal, merchantId) => {
           validTo.setHours(23, 59, 59, 999);
 
           if (validFrom <= currentDate && validTo >= currentDate) {
+            let eligibleDates = calculateEligibleDates(
+              currentDate,
+              validFrom,
+              validTo,
+              startDate,
+              endDate
+            );
+
+            // console.log("eligibleDates", eligibleDates);
+
+            const startDateTime = new Date(startDate);
+            const endDateTime = new Date(endDate);
+
+            const diffTime = Math.abs(endDateTime - startDateTime);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+            const perDayAmount = itemTotal / diffDays;
+            const calculatedAmount = perDayAmount * diffDays;
+
             if (merchantDiscount.discountType === "Percentage-discount") {
+              // console.log("Inside Percentage");
               let discountValue =
-                (itemTotal * merchantDiscount.discountValue) / 100;
+                (calculatedAmount * merchantDiscount.discountValue) / 100;
+
               if (discountValue > merchantDiscount.maxDiscountValue) {
                 discountValue = merchantDiscount.maxDiscountValue;
               }
+
               calculatedMerchantDiscount += discountValue;
             } else if (merchantDiscount.discountType === "Flat-discount") {
+              // console.log("Inside Flat");
               calculatedMerchantDiscount += merchantDiscount.discountValue;
             }
           }
@@ -711,10 +742,47 @@ const calculateMerchantDiscount = async (cartItems, itemTotal, merchantId) => {
       }
     }
 
+    console.log("calculatedMerchantDiscount", calculatedMerchantDiscount);
+
     return calculatedMerchantDiscount;
   } catch (err) {
     throw new Error(`Error in calculating merchant discount: ${err}`);
   }
+};
+
+const calculateEligibleDates = (
+  currentDate,
+  validFrom,
+  validTo,
+  startDate,
+  endDate
+) => {
+  // console.log("===================================");
+  // console.log("Start", startDate);
+  // console.log("End", endDate);
+  // console.log("===================================");
+
+  const deliveryStartDate = new Date(startDate || currentDate);
+  const deliveryEndDate = new Date(endDate || currentDate);
+
+  // console.log("currentDate", currentDate);
+  // console.log("validFrom", validFrom);
+  // console.log("validTo", validTo);
+  // console.log("deliveryStartDate", deliveryStartDate);
+  // console.log("deliveryEndDate", deliveryEndDate);
+
+  // Determine the effective start and end dates for applying the discount
+  const effectiveStartDate =
+    deliveryStartDate > validFrom ? deliveryStartDate : validFrom;
+  const effectiveEndDate =
+    deliveryEndDate < validTo ? deliveryEndDate : validTo;
+
+  // Calculate the number of eligible days within the valid promo period
+  const eligibleDates =
+    Math.ceil((effectiveEndDate - effectiveStartDate) / (1000 * 60 * 60 * 24)) +
+    1;
+
+  return eligibleDates;
 };
 
 module.exports = {

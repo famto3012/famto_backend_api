@@ -459,8 +459,9 @@ const addCategoryByMerchantController = async (req, res, next) => {
       return next(appError("Error in creating new category"));
     }
 
-    res.status(200).json({
+    res.status(201).json({
       message: "Category created successfully",
+      data: newCategory,
     });
   } catch (err) {
     next(appError(err.message));
@@ -543,7 +544,7 @@ const editCategoryByMerchantController = async (req, res, next) => {
       categoryImageURL = await uploadToFirebase(req.file, "CategoryImages");
     }
 
-    await Category.findByIdAndUpdate(
+    const updatedCategory = await Category.findByIdAndUpdate(
       req.params.categoryId,
       {
         businessCategoryId,
@@ -558,6 +559,7 @@ const editCategoryByMerchantController = async (req, res, next) => {
 
     res.status(200).json({
       message: "Category updated successfully",
+      data: updatedCategory,
     });
   } catch (err) {
     next(appError(err.message));

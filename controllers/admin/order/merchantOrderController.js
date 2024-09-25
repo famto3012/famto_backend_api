@@ -1694,6 +1694,73 @@ const downloadOrdersCSVByMerchantController = async (req, res, next) => {
   }
 };
 
+// const createInvoiceController = async (req, res, next) => {
+//   const errors = validationResult(req);
+
+//   let formattedErrors = {};
+//   if (!errors.isEmpty()) {
+//     errors.array().forEach((error) => {
+//       formattedErrors[error.path] = error.msg;
+//     });
+//     return res.status(500).json({ errors: formattedErrors });
+//   }
+
+//   try {
+//     const {
+//       customerId,
+//       newCustomer,
+//       deliveryOption,
+//       deliveryMode,
+//       items,
+//       instructionToDeliveryAgent = "",
+//       customerAddressType,
+//       customerAddressOtherAddressId,
+//       newCustomerAddress,
+//       flatDiscount,
+//       addedTip = 0,
+//     } = req.body;
+
+//     const merchantId = req.userAuth;
+//     const merchantFound = await Merchant.findById(merchantId);
+//     if (!merchantFound) return next(appError("Merchant not found", 404));
+
+//     const customerAddress = newCustomerAddress;
+//     let customer = await findOrCreateCustomer({
+//       customerId,
+//       newCustomer,
+//       customerAddress,
+//     });
+//     if (!customer)
+//       return res.status(409).json({ errors: "Customer not found" });
+
+//     const { startDate, endDate, time, numOfDays } = processScheduledDelivery(
+//       deliveryOption,
+//       req.body
+//     );
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
+
+// const findOrCreateCustomer = async ({
+//   customerId,
+//   newCustomer,
+//   customerAddress,
+// }) => {
+//   let customer;
+//   try {
+//     customer = await Customer.findById(customerId);
+//     if (!customer && newCustomer) {
+//       customer = new Customer({ address: customerAddress });
+//       await customer.save();
+//     }
+//   } catch (err) {
+//     formattedErrors["customer"] = "Customer not found or could not be created";
+//     return null;
+//   }
+//   return customer;
+// };
+
 module.exports = {
   getAllOrdersOfMerchantController,
   getAllScheduledOrdersOfMerchantController,

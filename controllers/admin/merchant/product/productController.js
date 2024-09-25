@@ -47,8 +47,6 @@ const addProductController = async (req, res, next) => {
     alert,
   } = req.body;
 
-  console.log(req.body.searchTags);
-
   try {
     const existingProduct = await Product.findOne({ productName, categoryId });
 
@@ -162,6 +160,8 @@ const editProductController = async (req, res, next) => {
     longDescription,
     type,
     vaiantStatus,
+    availableQuantity,
+    alert,
   } = req.body;
 
   const errors = validationResult(req);
@@ -196,22 +196,24 @@ const editProductController = async (req, res, next) => {
     await Product.findByIdAndUpdate(
       productId,
       {
-        productName,
-        productStatus,
-        price,
-        minQuantityToOrder,
-        maxQuantityPerOrder,
-        costPrice,
-        sku,
+        productName: productName || null,
+        productStatus: productStatus || null,
+        price: price || null,
+        minQuantityToOrder: minQuantityToOrder || null,
+        maxQuantityPerOrder: maxQuantityPerOrder || null,
+        costPrice: costPrice || null,
+        sku: sku || null,
         discountId: discountId || null,
-        oftenBoughtTogetherId,
-        preparationTime,
-        searchTags,
-        description,
-        longDescription,
-        type,
-        productImageURL,
-        vaiantStatus,
+        oftenBoughtTogetherId: oftenBoughtTogetherId || null,
+        preparationTime: preparationTime || null,
+        searchTags: searchTags || null,
+        description: description || null,
+        longDescription: longDescription || null,
+        type: type || null,
+        productImageURL: productImageURL || null,
+        vaiantStatus: vaiantStatus || null,
+        availableQuantity: availableQuantity || null,
+        alert: alert || null,
       },
       { new: true }
     );
