@@ -30,6 +30,8 @@ const {
   downloadOrderBillController,
   filterScheduledOrdersByAdminController,
   searchScheduledOrderByIdByAdminController,
+  orderMarkAsReadyController,
+  markTakeAwayOrderCompletedController,
 } = require("../../../controllers/admin/order/adminOrderController");
 const isAdmin = require("../../../middlewares/isAdmin");
 const { upload } = require("../../../utils/imageOperation");
@@ -106,6 +108,20 @@ orderRoute.post(
   isAuthenticated,
   isAdminOrMerchant,
   downloadOrderBillController
+);
+
+orderRoute.put(
+  "/mark-as-ready/:orderId",
+  isAuthenticated,
+  isAdminOrMerchant,
+  orderMarkAsReadyController
+);
+
+orderRoute.put(
+  "/mark-as-completed/:orderId",
+  isAuthenticated,
+  isAdminOrMerchant,
+  markTakeAwayOrderCompletedController
 );
 
 orderRoute.put(

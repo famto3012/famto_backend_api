@@ -172,10 +172,11 @@ cron.schedule("0 6,12,18,0 * * *", async () => {
 
 //
 cron.schedule("0 0 * * *", async () => {
-  await generateMapplsAuthToken();
+ 
   await moveAppDetailToHistoryAndResetForAllAgents();
   await updateOneDayLoyaltyPointEarning();
   await resetAllAgentTaskHelper();
+  await generateMapplsAuthToken();
 
   const now = new Date();
   fetchPerDayRevenue(now);
