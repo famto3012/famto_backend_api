@@ -1,4 +1,5 @@
 const CustomerAppCustomization = require("../../../models/CustomerAppCustomization");
+const appError = require("../../../utils/appError");
 
 const {
   deleteFromFirebase,

@@ -74,6 +74,7 @@ const {
   confirmCustomOrderController,
   cancelCustomBeforeOrderCreationController,
 } = require("../../controllers/customer/customOrderController");
+// const addCartDetailsControllers = require("../../addDetailController");
 
 const customerRoute = express.Router();
 

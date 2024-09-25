@@ -196,7 +196,7 @@ const listRestaurantsController = async (req, res, next) => {
       isBlocked: false,
       isApproved: "Approved",
     }).exec();
-   
+
     // Filter merchants based on serving radius
     const filteredMerchants = merchants?.filter((merchant) => {
       const servingRadius = merchant.merchantDetail.servingRadius || 0;
@@ -213,13 +213,16 @@ const listRestaurantsController = async (req, res, next) => {
     });
     
 
+    console.log("Here 2");
+
     // Sort merchants by sponsorship status (sponsored merchants first)
     const sortedMerchants = await sortMerchantsBySponsorship(filteredMerchants);
-   
+
     // Extracting required fields from filtered merchants including distance and favorite status
     const simplifiedMerchants = await Promise.all(
       sortedMerchants.map(async (merchant) => {
         const merchantLocation = merchant.merchantDetail.location;
+
         const { distanceInKM } = await getDistanceFromPickupToDelivery(
           merchantLocation,
           customerLocation
@@ -245,7 +248,7 @@ const listRestaurantsController = async (req, res, next) => {
         };
       })
     );
-    console.log("simplifiedMerchants found", simplifiedMerchants )
+
     res.status(200).json({
       message: "Available merchants",
       data: simplifiedMerchants,
@@ -975,6 +978,34 @@ const addCartDetailsController = async (req, res, next) => {
       return res.status(404).json({ error: "Customer not found" });
     }
 
+    const cart = await CustomerCart.findOne({ customerId });
+
+    if (!cart) {
+      return res.status(404).json({ error: "Cart not found" });
+    }
+
+    const merchant = await Merchant.findById(cart.merchantId);
+
+    if (!merchant) {
+      return res.status(404).json({ error: "Merchant not found" });
+    }
+
+    if (
+      merchant?.merchantDetail?.deliveryOption === "On-demand" &&
+      startDate &&
+      endDate &&
+      time
+    ) {
+      return next(appError("Merchant only accepts On-demand orders", 400));
+    } else if (
+      merchant?.merchantDetail?.deliveryOption === "Scheduled" &&
+      !startDate &&
+      !endDate &&
+      !time
+    ) {
+      return next(appError("Merchant only accepts Scheduled orders", 400));
+    }
+
     // Retrieve the specified address coordinates from the customer data
     let deliveryCoordinates;
     let deliveryAddress = {};
@@ -1031,34 +1062,6 @@ const addCartDetailsController = async (req, res, next) => {
           }
         }
       }
-    }
-
-    const cart = await CustomerCart.findOne({ customerId });
-
-    if (!cart) {
-      return res.status(404).json({ error: "Cart not found" });
-    }
-
-    const merchant = await Merchant.findById(cart.merchantId);
-
-    if (!merchant) {
-      return res.status(404).json({ error: "Merchant not found" });
-    }
-
-    if (
-      merchant?.merchantDetail?.deliveryOption === "On-demand" &&
-      startDate &&
-      endDate &&
-      time
-    ) {
-      return next(appError("Merchant only accepts On-demand orders", 400));
-    } else if (
-      merchant?.merchantDetail?.deliveryOption === "Scheduled" &&
-      !startDate &&
-      !endDate &&
-      !time
-    ) {
-      return next(appError("Merchant only accepts Scheduled orders", 400));
     }
 
     const pickupCoordinates = merchant.merchantDetail.location;
@@ -1123,10 +1126,14 @@ const addCartDetailsController = async (req, res, next) => {
     let discountedAmount = 0;
 
     const merchantDiscount = await calculateMerchantDiscount(
-      cart?.items,
+      cart,
       itemTotal,
-      merchant._id
+      merchant._id,
+      startDate,
+      endDate
     );
+
+    // return;
 
     discountedAmount += merchantDiscount;
 
@@ -1193,6 +1200,15 @@ const addCartDetailsController = async (req, res, next) => {
 
       const businessCategoryId = merchant.merchantDetail.businessCategoryId;
 
+      const { deliveryCharges, surgeCharges } = await getDeliveryAndSurgeCharge(
+        customerId,
+        "Home Delivery",
+        distanceInKM,
+        businessCategoryId
+      );
+
+      let actualDeliveryCharge = 0;
+
       // ? Subscription count is increasing only after the successful completion of order
       if (subscriptionOfCustomer?.customerDetails?.pricing?.length > 0) {
         const subscriptionLog = await SubscriptionLog.findById(
@@ -1207,17 +1223,12 @@ const addCartDetailsController = async (req, res, next) => {
               new Date(subscriptionLog.endDate) > now) &&
             subscriptionLog.currentNumberOfOrders < subscriptionLog.maxOrders
           ) {
-            discountedAmount = subscriptionLog.amount;
+            actualDeliveryCharge = 0;
           }
         }
+      } else {
+        actualDeliveryCharge = deliveryCharges;
       }
-
-      const { deliveryCharges, surgeCharges } = await getDeliveryAndSurgeCharge(
-        customerId,
-        "Home Delivery",
-        distanceInKM,
-        businessCategoryId
-      );
 
       updatedBill.surgeCharges = surgeCharges;
 
@@ -1228,11 +1239,13 @@ const addCartDetailsController = async (req, res, next) => {
         const diffTime = Math.abs(endDateTime - startDateTime);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
-        const scheduledDeliveryCharge = (deliveryCharges * diffDays).toFixed(2);
+        const scheduledDeliveryCharge = (
+          actualDeliveryCharge * diffDays
+        ).toFixed(2);
         const cartTotal = (itemTotal * diffDays).toFixed(2);
 
         updatedBill.originalDeliveryCharge = scheduledDeliveryCharge;
-        updatedBill.deliveryChargePerDay = deliveryCharges;
+        updatedBill.deliveryChargePerDay = actualDeliveryCharge;
         updatedCartDetail.numOfDays = diffDays;
 
         // Update the itemTotal with multiplied value
@@ -1263,20 +1276,20 @@ const addCartDetailsController = async (req, res, next) => {
           parseFloat(discountedAmount);
       } else {
         updatedBill.originalDeliveryCharge =
-          parseFloat(deliveryCharges).toFixed(2);
+          parseFloat(actualDeliveryCharge).toFixed(2);
 
         const taxAmount = await getTaxAmount(
           businessCategoryId,
           merchant.merchantDetail.geofenceId,
           parseFloat(itemTotal),
-          parseFloat(deliveryCharges)
+          parseFloat(actualDeliveryCharge)
         );
 
         updatedBill.taxAmount = taxAmount.toFixed(2);
 
         subTotal =
           parseFloat(itemTotal) +
-          parseFloat(deliveryCharges) +
+          parseFloat(actualDeliveryCharge) +
           parseFloat(addedTip) -
           parseFloat(discountedAmount);
 
@@ -1416,7 +1429,10 @@ const applyPromocodeController = async (req, res, next) => {
     let perDayAmount = 0;
     let eligibleDates;
 
+    // console.log("Cart price Before", totalCartPrice);
+
     if (cart.cartDetail.deliveryOption === "Scheduled") {
+      // console.log("Inside scheduler condition");
       const { itemTotal, originalDeliveryCharge } = cart?.billDetail;
       const { startDate, endDate, numOfDays } = cart?.cartDetail;
 
@@ -1451,12 +1467,15 @@ const applyPromocodeController = async (req, res, next) => {
       }
 
       totalCartPrice = perDayAmount;
+      // console.log("Cart price in scheduled", totalCartPrice);
     }
 
+    // console.log("Cart price After", totalCartPrice);
+
     // Calculate discount amount
-    let discountAmount = cart.billDetail.discountedAmount || 0;
+    let promoCodeDiscount = 0;
     if (promoCodeFound.promoType === "Flat-discount") {
-      discountAmount =
+      promoCodeDiscount =
         discount +
         Math.min(promoCodeFound?.discount, promoCodeFound?.maxDiscountValue);
     } else if (promoCodeFound.promoType === "Percentage-discount") {
@@ -1465,20 +1484,20 @@ const applyPromocodeController = async (req, res, next) => {
 
       // Apply the max discount value if calculatedDiscount exceeds it
       if (calculatedDiscount > promoCodeFound.maxDiscountValue) {
-        discountAmount += promoCodeFound.maxDiscountValue;
+        promoCodeDiscount += promoCodeFound.maxDiscountValue;
       } else {
-        discountAmount += calculatedDiscount;
+        promoCodeDiscount += calculatedDiscount;
       }
     }
 
     // Apply discount based on where it should be applied
-    let updatedTotal = totalCartPrice;
+    let updatedTotal = cart.billDetail.itemTotal; //totalCartPrice;
     if (promoCodeFound.appliedOn === "Cart-value") {
-      updatedTotal -= discountAmount;
+      updatedTotal -= promoCodeDiscount;
     } else if (promoCodeFound.appliedOn === "Delivery-charge") {
       if (cart.billDetail.originalDeliveryCharge) {
         const discountedDeliveryCharge =
-          cart.billDetail.originalDeliveryCharge - discountAmount;
+          cart.billDetail.originalDeliveryCharge - promoCodeDiscount;
 
         cart.billDetail.discountedDeliveryCharge =
           discountedDeliveryCharge < 0 ? 0 : discountedDeliveryCharge;
@@ -1495,20 +1514,23 @@ const applyPromocodeController = async (req, res, next) => {
 
     if (promoCodeFound.appliedOn === "Cart-value") {
       discountedGrandTotal =
-        cart.billDetail.originalGrandTotal - discountAmount;
+        cart.billDetail.originalGrandTotal - promoCodeDiscount;
     } else if (promoCodeFound.appliedOn === "Delivery-charge") {
       discountedDeliveryCharge =
         parseFloat(cart.billDetail.originalDeliveryCharge) -
-        parseFloat(discountAmount);
+        parseFloat(promoCodeDiscount);
     }
 
     // Update cart and save
-    const discountedAmount = discountAmount;
+    const discountedAmount = cart?.billDetail?.merchantDiscount;
+
+    // console.log("Updated TOtal", updatedTotal);
 
     const subTotal =
       updatedTotal -
-      (discountedGrandTotal || discountedDeliveryCharge) +
-      (cart.billDetail.addedTip || 0);
+      discountedAmount +
+      (cart.billDetail.addedTip || 0) +
+      (discountedDeliveryCharge || cart?.billDetail?.originalDeliveryCharge);
 
     cart.billDetail.discountedDeliveryCharge = discountedDeliveryCharge
       ? discountedDeliveryCharge.toFixed(2)
@@ -1516,6 +1538,7 @@ const applyPromocodeController = async (req, res, next) => {
     cart.billDetail.discountedGrandTotal = discountedGrandTotal
       ? Math.round(discountedGrandTotal)
       : null;
+    cart.billDetail.promoCodeDiscount = promoCodeDiscount;
     cart.billDetail.discountedAmount = discountedAmount;
     cart.billDetail.subTotal = Math.round(subTotal);
 
