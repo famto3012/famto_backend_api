@@ -186,6 +186,7 @@ const listRestaurantsController = async (req, res, next) => {
     }
 
     // Query merchants based on geofence and other conditions
+    console.log("Finding")
     const merchants = await Merchant.find({
       "merchantDetail.geofenceId": foundGeofence._id,
       "merchantDetail.businessCategoryId": businessCategoryId,
@@ -195,8 +196,6 @@ const listRestaurantsController = async (req, res, next) => {
       isBlocked: false,
       isApproved: "Approved",
     }).exec();
-
-    console.log("Here 1");
 
     // Filter merchants based on serving radius
     const filteredMerchants = merchants?.filter((merchant) => {
@@ -212,13 +211,12 @@ const listRestaurantsController = async (req, res, next) => {
       }
       return true;
     });
+    
 
     console.log("Here 2");
 
     // Sort merchants by sponsorship status (sponsored merchants first)
     const sortedMerchants = await sortMerchantsBySponsorship(filteredMerchants);
-
-    console.log("Here 3");
 
     // Extracting required fields from filtered merchants including distance and favorite status
     const simplifiedMerchants = await Promise.all(
@@ -250,8 +248,6 @@ const listRestaurantsController = async (req, res, next) => {
         };
       })
     );
-
-    console.log("Here 4");
 
     res.status(200).json({
       message: "Available merchants",

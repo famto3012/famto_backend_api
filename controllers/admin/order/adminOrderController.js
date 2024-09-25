@@ -53,6 +53,8 @@ const csvWriter = require("csv-writer").createObjectCsvWriter;
 const fs = require("fs");
 const mongoose = require("mongoose");
 const puppeteer = require("puppeteer");
+const AgentAnnouncementLogs = require("../../../models/AgentAnnouncementLog");
+const Task = require("../../../models/Task");
 
 const getAllOrdersForAdminController = async (req, res, next) => {
   try {
@@ -90,6 +92,7 @@ const getAllOrdersForAdminController = async (req, res, next) => {
           order?.customerId?.fullName ||
           "-",
         deliveryMode: order?.orderDetail?.deliveryMode,
+        isReady: order?.orderDetail?.isReady ? true : false,
         orderDate: formatDate(order.createdAt),
         orderTime: formatTime(order.createdAt),
         deliveryDate: order?.orderDetail?.deliveryTime
@@ -2683,6 +2686,143 @@ const downloadOrderBillController = async (req, res, next) => {
   }
 };
 
+const orderMarkAsReadyController = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+
+    const orderFound = await Order.findById(orderId);
+    if (!orderFound) {
+      return next(appError("Order not found.", 400));
+    }
+
+    if (orderFound.orderDetail.deliveryMode === "Take Away") {
+      orderFound.orderDetail.isReady = true;
+      await orderFound.save();
+
+      const eventName = "orderReadyCustomer";
+
+      const { rolesToNotify, data } = await findRolesToNotify(eventName);
+
+      // Send notifications to each role dynamically
+      for (const role of rolesToNotify) {
+        let roleId;
+
+        if (role === "admin") {
+          roleId = process.env.ADMIN_ID;
+        } else if (role === "merchant") {
+          roleId = orderFound?.merchantId;
+        } else if (role === "driver") {
+          roleId = orderFound.agentId;
+        } else if (role === "customer") {
+          roleId = orderFound?.customerId;
+        }
+
+        if (roleId) {
+          const notificationData = {
+            fcm: {
+              customerId: orderFound.customerId,
+            },
+          };
+
+          await sendNotification(
+            roleId,
+            eventName,
+            notificationData,
+            role.charAt(0).toUpperCase() + role.slice(1)
+          );
+        }
+      }
+      const socketData = {
+        ...data,
+      };
+
+      sendSocketData(orderFound.customerId, eventName, socketData);
+    } else {
+      if (orderFound.agentId === null) {
+        return next(appError("Order not assigned to any agent.", 400));
+      } else {
+        orderFound.orderDetail.isReady = true;
+        await orderFound.save();
+
+        const eventName = "orderReadyAgent";
+
+        const { rolesToNotify, data } = await findRolesToNotify(eventName);
+
+        // Send notifications to each role dynamically
+        for (const role of rolesToNotify) {
+          let roleId;
+
+          if (role === "admin") {
+            roleId = process.env.ADMIN_ID;
+          } else if (role === "merchant") {
+            roleId = orderFound?.merchantId;
+          } else if (role === "driver") {
+            roleId = orderFound.agentId;
+          } else if (role === "customer") {
+            roleId = orderFound?.customerId;
+          }
+
+          if (roleId) {
+            await sendNotification(
+              roleId,
+              eventName,
+              "",
+              role.charAt(0).toUpperCase() + role.slice(1)
+            );
+          }
+        }
+        await AgentAnnouncementLogs.create({
+          agentId: orderFound.agentId,
+          title: data.title,
+          description: data.description,
+        });
+
+        const socketData = {
+          ...data,
+        };
+
+        sendSocketData(orderFound.agentId, eventName, socketData);
+      }
+    }
+    res.status(200).json({ message: "Order marked as ready." });
+  } catch (err) {
+    return next(appError(err.message));
+  }
+};
+
+const markTakeAwayOrderCompletedController = async (req, res, next) => {
+  const { orderId } = req.params;
+  try {
+    const orderFound = await Order.findById(orderId);
+    const taskFound = await Task.findOne({orderId})
+    if (!orderFound) {
+      return next(appError("Order not found.", 400));
+    }
+
+    if (orderFound.orderDetail.deliveryMode === "Take Away") {
+      const stepperDetail = {
+        by: orderFound.orderDetail.pickupAddress.fullName,
+        userId: orderFound.merchantId,
+        date: new Date(),
+        location: orderFound.orderDetail.pickupLocation,
+      };
+      orderFound.status = "Completed";
+      orderFound.orderDetailStepper.completed = stepperDetail;
+      await orderFound.save();
+
+      taskFound.taskStatus = "Completed"
+      taskFound.pickupDetail.pickupStatus = "Completed"
+      await taskFound.save()
+
+      res.status(200).json({ message: "Order marked as completed." });
+    } else {
+      res.status(400).json({ message: "Order cannot be marked as ready." });
+    }
+  } catch (err) {
+     return next( appError(err.message));
+  }
+};
+
 module.exports = {
   getAllOrdersForAdminController,
   getAllScheduledOrdersForAdminController,
@@ -2698,4 +2838,6 @@ module.exports = {
   downloadOrdersCSVByAdminController,
   downloadInvoiceBillController,
   downloadOrderBillController,
+  orderMarkAsReadyController,
+  markTakeAwayOrderCompletedController,
 };

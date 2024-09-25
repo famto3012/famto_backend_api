@@ -150,6 +150,10 @@ const orderDetailSchema = mongoose.Schema(
       type: Number,
       default: null,
     },
+    isReady: {
+      type: Boolean,
+      default: false,
+    }
   },
   {
     _id: false,
