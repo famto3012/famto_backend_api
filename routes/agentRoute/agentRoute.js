@@ -41,6 +41,7 @@ const {
   getAllNotificationsController,
   getAllAnnouncementsController,
   checkPaymentStatusOfOrder,
+  getAppDrawerDetailsController,
 } = require("../../controllers/agent/agentController");
 const { upload } = require("../../utils/imageOperation");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
@@ -68,6 +69,13 @@ agentRoute.post(
 
 //Agent login
 agentRoute.post("/login", agentLoginValidation, agentLoginController);
+
+//Get agent's drawer data
+agentRoute.get(
+  "/get-drawer-data",
+  isAuthenticated,
+  getAppDrawerDetailsController
+);
 
 //Get agent's profile data
 agentRoute.get(

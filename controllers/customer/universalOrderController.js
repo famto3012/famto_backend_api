@@ -166,8 +166,6 @@ const homeSearchController = async (req, res, next) => {
 const listRestaurantsController = async (req, res, next) => {
   const { latitude, longitude, customerId, businessCategoryId } = req.body;
 
-  console.log(req.body);
-
   try {
     // Fetch the authenticated customer to get their favorite merchants, if they exist
     let currentCustomer = null;
@@ -186,7 +184,7 @@ const listRestaurantsController = async (req, res, next) => {
     }
 
     // Query merchants based on geofence and other conditions
-    console.log("Finding")
+    console.log("Finding");
     const merchants = await Merchant.find({
       "merchantDetail.geofenceId": foundGeofence._id,
       "merchantDetail.businessCategoryId": businessCategoryId,
@@ -196,6 +194,8 @@ const listRestaurantsController = async (req, res, next) => {
       isBlocked: false,
       isApproved: "Approved",
     }).exec();
+
+    console.log("Found");
 
     // Filter merchants based on serving radius
     const filteredMerchants = merchants?.filter((merchant) => {
@@ -211,7 +211,6 @@ const listRestaurantsController = async (req, res, next) => {
       }
       return true;
     });
-    
 
     console.log("Here 2");
 
@@ -221,12 +220,12 @@ const listRestaurantsController = async (req, res, next) => {
     // Extracting required fields from filtered merchants including distance and favorite status
     const simplifiedMerchants = await Promise.all(
       sortedMerchants.map(async (merchant) => {
-        const merchantLocation = merchant.merchantDetail.location;
+        // const merchantLocation = merchant.merchantDetail.location;
 
-        const { distanceInKM } = await getDistanceFromPickupToDelivery(
-          merchantLocation,
-          customerLocation
-        );
+        // const { distanceInKM } = await getDistanceFromPickupToDelivery(
+        //   merchantLocation,
+        //   customerLocation
+        // );
 
         // Determine if the merchant is a favorite
         const isFavorite =
@@ -237,11 +236,11 @@ const listRestaurantsController = async (req, res, next) => {
         return {
           id: merchant._id,
           merchantName: merchant.merchantDetail.merchantName,
-          deliveryTime: merchant.merchantDetail.deliveryTime,
+          // deliveryTime: merchant.merchantDetail.deliveryTime,
           description: merchant.merchantDetail.description,
           averageRating: merchant.merchantDetail.averageRating,
           status: merchant.status,
-          distanceInKM: parseFloat(distanceInKM),
+          // distanceInKM: parseFloat(distanceInKM),
           restaurantType: merchant.merchantDetail.merchantFoodType || "-",
           merchantImageURL: merchant.merchantDetail.merchantImageURL,
           isFavorite,
@@ -259,9 +258,39 @@ const listRestaurantsController = async (req, res, next) => {
 };
 
 // Get all categories of merchant
-const getAllCategoriesOfMerchants = async (rea, res, next) => {
+const getAllCategoriesOfMerchants = async (req, res, next) => {
   try {
-    const { merchantId } = rea.params;
+    const { merchantId } = req.params;
+    const { latitude, longitude } = req.query;
+
+    const merchantFound = await Merchant.findById(merchantId);
+
+    if (!merchantFound) {
+      return next(appError("Merchant not found", 404));
+    }
+
+    const merchantLocation = merchantFound.merchantDetail.location;
+    const customerLocation = [latitude, longitude];
+
+    let distanceInKM;
+    if (latitude && longitude) {
+      console.log("Inside");
+      const distance = await getDistanceFromPickupToDelivery(
+        merchantLocation,
+        customerLocation
+      );
+
+      distanceInKM = distance.distanceInKM;
+    }
+
+    const merchantData = {
+      merchantName: merchantFound.merchantDetail.merchantName,
+      distanceInKM: distanceInKM || null,
+      deliveryTime: merchantFound.merchantDetail.deliveryTime,
+      merchantImageURL: merchantFound.merchantDetail.merchantImageURL,
+      description: merchantFound.merchantDetail.description,
+      displayAddress: merchantFound.merchantDetail.displayAddress,
+    };
 
     const allCategories = await Category.find({ merchantId }).sort({
       order: 1,
@@ -280,7 +309,10 @@ const getAllCategoriesOfMerchants = async (rea, res, next) => {
 
     res.status(200).json({
       message: "All categories",
-      data: formattedResponse,
+      data: {
+        merchantData,
+        categoryData: formattedResponse,
+      },
     });
   } catch (err) {
     next(appError(err.message));

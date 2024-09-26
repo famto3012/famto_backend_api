@@ -164,7 +164,7 @@ const getMerchantProfileController = async (req, res, next) => {
           businessCategoryId:
             merchantFound?.merchantDetail?.businessCategoryId?._id || "",
         } || {},
-      sponsorshipDetail: merchantFound?.sponsorshipDetail[0] || [],
+      sponsorshipDetail: merchantFound?.sponsorshipDetail[0] || {},
     };
 
     res.status(200).json({
@@ -773,7 +773,6 @@ const getAllMerchantsController = async (req, res, next) => {
       };
     });
 
-
     let pagination = {
       totalDocuments: totalDocuments || 0,
       totalPages: Math.ceil(totalDocuments / limit),
@@ -851,7 +850,7 @@ const getSingleMerchantController = async (req, res, next) => {
           businessCategoryId:
             merchantFound?.merchantDetail?.businessCategoryId?._id || "",
         } || {},
-      sponsorshipDetail: merchantFound?.sponsorshipDetail[0] || [],
+      sponsorshipDetail: merchantFound?.sponsorshipDetail[0] || {},
     };
 
     res.status(200).json({
@@ -1254,12 +1253,21 @@ const addMerchantsFromCSVController = async (req, res, next) => {
         );
 
         if (!isRowEmpty) {
+          const location = row["Location"] ? row["Location"].split(",") : null;
+
+          let latitude, longitude;
+          if (location && location.length === 2) {
+            latitude = parseFloat(location[0].trim());
+            longitude = parseFloat(location[1].trim());
+          }
+
           const merchant = {
             fullName: row["Full name of owner"]?.trim() || "-",
             merchantName: row["Merchant name"]?.trim(),
             email: row.Email?.toLowerCase().trim(),
             phoneNumber: row["Phone number"]?.trim(),
             password: row.Password?.trim() || "12345678",
+            location: latitude && longitude ? [latitude, longitude] : [],
           };
 
           // Validate required fields
@@ -1294,6 +1302,8 @@ const addMerchantsFromCSVController = async (req, res, next) => {
               if (merchantData.email) updateData.email = merchantData.email;
               if (merchantData.phoneNumber)
                 updateData.phoneNumber = merchantData.phoneNumber;
+              if (merchantData.location)
+                updateData["merchantDetail.location"] = merchantData.location;
 
               const salt = await bcrypt.genSalt(10);
               updateData.password = await bcrypt.hash(
@@ -1320,6 +1330,7 @@ const addMerchantsFromCSVController = async (req, res, next) => {
                 ...merchantData,
                 merchantDetail: {
                   merchantName: merchantData.merchantName,
+                  location: merchantData.location,
                 },
                 password: hashedPassword,
               });
@@ -1361,6 +1372,7 @@ const downloadMerchantSampleCSVController = async (req, res, next) => {
       { id: "email", title: "Email" },
       { id: "phoneNumber", title: "Phone number" },
       { id: "password", title: "Password" },
+      { id: "location", title: "Location" },
     ];
 
     const csvData = [
@@ -1370,6 +1382,7 @@ const downloadMerchantSampleCSVController = async (req, res, next) => {
         email: "john.doe@example.com",
         phoneNumber: "1234567890",
         password: "12345678",
+        location: "x.xxxxx, xx.xxxxx",
       },
       {
         fullName: "Jane Smith",
@@ -1377,6 +1390,7 @@ const downloadMerchantSampleCSVController = async (req, res, next) => {
         email: "jane.smith@example.com",
         phoneNumber: "1234567890",
         password: "12345678",
+        location: "x.xxxxx, xx.xxxxx",
       },
     ];
 

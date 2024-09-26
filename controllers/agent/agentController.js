@@ -207,6 +207,41 @@ const agentLoginController = async (req, res, next) => {
   }
 };
 
+// Get agent drawer detail
+const getAppDrawerDetailsController = async (req, res, next) => {
+  try {
+    const agentId = req.userAuth;
+
+    const agentFound = await Agent.findById(agentId);
+
+    if (!agentFound) {
+      return next(appError("Agent not found", 400));
+    }
+
+    let status;
+    let statusTitle;
+    if (agentFound.status === "Free" || agentFound.status === "Busy") {
+      statusTitle = "Online";
+      status = true;
+    } else {
+      statusTitle = "Offline";
+      status = false;
+    }
+
+    const formattedResponse = {
+      agentId: agentFound._id,
+      agentImageURL: agentFound.agentImageURL,
+      agentName: agentFound.fullName,
+      status,
+      statusTitle,
+    };
+
+    res.status(200).json(formattedResponse);
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 //Get Agent's profile
 const getAgentProfileDetailsController = async (req, res, next) => {
   try {
@@ -1926,6 +1961,7 @@ module.exports = {
   registerAgentController,
   agentLoginController,
   deleteAgentProfileController,
+  getAppDrawerDetailsController,
   getAgentProfileDetailsController,
   editAgentProfileController,
   updateAgentBankDetailController,
