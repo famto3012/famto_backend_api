@@ -164,7 +164,7 @@ const getMerchantProfileController = async (req, res, next) => {
           businessCategoryId:
             merchantFound?.merchantDetail?.businessCategoryId?._id || "",
         } || {},
-      sponsorshipDetail: merchantFound?.sponsorshipDetail[0] || [],
+      sponsorshipDetail: merchantFound?.sponsorshipDetail[0] || {},
     };
 
     res.status(200).json({
@@ -850,7 +850,7 @@ const getSingleMerchantController = async (req, res, next) => {
           businessCategoryId:
             merchantFound?.merchantDetail?.businessCategoryId?._id || "",
         } || {},
-      sponsorshipDetail: merchantFound?.sponsorshipDetail[0] || [],
+      sponsorshipDetail: merchantFound?.sponsorshipDetail[0] || {},
     };
 
     res.status(200).json({
