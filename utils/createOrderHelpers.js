@@ -15,6 +15,7 @@ const findOrCreateCustomer = async ({
   newCustomer,
   customerAddress,
   deliveryMode,
+  res,
 }) => {
   if (customerId) {
     const customer = await Customer.findById(customerId);
@@ -98,95 +99,6 @@ const findOrCreateCustomer = async ({
       phoneNumber: newCustomer.phoneNumber,
     });
   }
-};
-
-// Get the delivery address and coordinates (For merchant order creation)
-const getDeliveryDetails = async ({
-  customer,
-  customerAddressType,
-  customerAddressOtherAddressId,
-  newCustomer,
-  newCustomerAddress,
-}) => {
-  let deliveryLocation, deliveryAddress;
-
-  if (newCustomer) {
-    deliveryLocation = [
-      newCustomerAddress.latitude,
-      newCustomerAddress.longitude,
-    ];
-    deliveryAddress = newCustomerAddress;
-  } else {
-    const addressType = customerAddressType;
-
-    if (newCustomerAddress) {
-      const addressType = newCustomerAddress.addressType;
-
-      deliveryLocation = [
-        newCustomerAddress.latitude,
-        newCustomerAddress.longitude,
-      ];
-      deliveryAddress = newCustomerAddress;
-
-      if (newCustomerAddress.saveAddress) {
-        // Update the existing address of the customer
-        if (addressType === "home") {
-          customer.customerDetails.homeAddress = {
-            ...newCustomerAddress,
-            coordinates: deliveryLocation,
-          };
-        } else if (addressType === "work") {
-          customer.customerDetails.workAddress = {
-            ...newCustomerAddress,
-            coordinates: deliveryLocation,
-          };
-        } else if (addressType === "other") {
-          const otherIndex = customer.customerDetails.otherAddress.findIndex(
-            (addr) => addr._id.toString() === customerAddressOtherAddressId
-          );
-
-          if (otherIndex !== -1) {
-            customer.customerDetails.otherAddress[otherIndex] = {
-              ...newCustomerAddress,
-              coordinates: deliveryLocation,
-            };
-          } else {
-            // If not found, add the new address
-            customer.customerDetails.otherAddress.push({
-              ...newCustomerAddress,
-              coordinates: deliveryLocation,
-            });
-          }
-        }
-
-        // Save the updated customer details
-        await customer.save();
-      }
-    } else {
-      if (addressType === "home") {
-        deliveryLocation = customer.customerDetails.homeAddress.coordinates;
-        deliveryAddress = { ...customer.customerDetails.homeAddress };
-      } else if (addressType === "work") {
-        deliveryLocation = customer.customerDetails.workAddress.coordinates;
-        deliveryAddress = { ...customer.customerDetails.workAddress };
-      } else if (addressType === "other") {
-        const otherAddress = customer.customerDetails.otherAddress.find(
-          (addr) => addr._id.toString() === customerAddressOtherAddressId
-        );
-
-        if (otherAddress) {
-          deliveryLocation = otherAddress.coordinates;
-          deliveryAddress = { ...otherAddress };
-        } else {
-          throw new Error("Address not found");
-        }
-      } else {
-        throw new Error("Invalid address type");
-      }
-    }
-  }
-
-  return { deliveryLocation, deliveryAddress };
 };
 
 // Get the scheduled details
@@ -335,63 +247,97 @@ const formattedCartItems = async (cart) => {
   return populatedCart;
 };
 
-const getPickAndDeliveryDetailForAdminOrderCreation = async ({
+// Helper function to update customer address
+const updateCustomerAddress = async (
+  addressType,
+  newAddress,
+  customer,
+  customerAddressOtherAddressId
+) => {
+  const location = [newAddress.latitude, newAddress.longitude];
+  newAddress.coordinates = location;
+
+  if (addressType === "home") {
+    customer.customerDetails.homeAddress = newAddress;
+  } else if (addressType === "work") {
+    customer.customerDetails.workAddress = newAddress;
+  } else if (addressType === "other") {
+    const otherIndex = customer.customerDetails.otherAddress.findIndex(
+      (addr) => addr.id.toString() === customerAddressOtherAddressId
+    );
+
+    if (otherIndex !== -1) {
+      customer.customerDetails.otherAddress[otherIndex] = newAddress;
+    } else {
+      customer.customerDetails.otherAddress.push(newAddress);
+    }
+  }
+
+  await customer.save();
+  return location;
+};
+
+// Helper function to retrieve address details based on type
+const getAddressDetails = (customer, addressType, addressId) => {
+  if (addressType === "home") {
+    return customer.customerDetails.homeAddress;
+  } else if (addressType === "work") {
+    return customer.customerDetails.workAddress;
+  } else if (addressType === "other") {
+    return customer.customerDetails.otherAddress.find(
+      (addr) => addr.id.toString() === addressId
+    );
+  }
+  return null;
+};
+
+// Main function to handle address details
+const handleAddressDetails = async (
+  deliveryMode,
   customer,
   customerAddressType,
   customerAddressOtherAddressId,
   newCustomer,
   newCustomerAddress,
   merchantFound,
-  deliveryMode,
   pickUpAddressType,
   pickUpAddressOtherAddressId,
   deliveryAddressType,
   deliveryAddressOtherAddressId,
   newPickupAddress,
-  newDeliveryAddress,
-  formattedErrors,
-}) => {
+  newDeliveryAddress
+) => {
+  console.log("deliveryMode", deliveryMode);
+  console.log("customer", customer);
+  console.log("customerAddressType", customerAddressType);
+  console.log("customerAddressOtherAddressId", customerAddressOtherAddressId);
+  console.log("newCustomer", newCustomer);
+  console.log("newCustomerAddress", newCustomerAddress);
+  console.log("merchantFound", merchantFound);
+  console.log("pickUpAddressType", pickUpAddressType);
+  console.log("pickUpAddressOtherAddressId", pickUpAddressOtherAddressId);
+  console.log("deliveryAddressType", deliveryAddressType);
+  console.log("deliveryAddressOtherAddressId", deliveryAddressOtherAddressId);
+  console.log("newPickupAddress", newPickupAddress);
+  console.log("newDeliveryAddress", newDeliveryAddress);
+
   let pickupLocation, pickupAddress, deliveryLocation, deliveryAddress;
 
-  // Common function to update customer's address
-  const updateCustomerAddress = async (addressType, newAddress) => {
-    const location = [newAddress.latitude, newAddress.longitude];
-    newAddress.coordinates = location;
+  if (deliveryMode === "Take Away") {
+    pickupLocation = merchantFound.merchantDetail.location;
+    pickupAddress = {
+      fullName: merchantFound.merchantDetail.merchantName,
+      area: merchantFound.merchantDetail.displayAddress,
+      phoneNumber: merchantFound.phoneNumber,
+    };
+    deliveryLocation = merchantFound.merchantDetail.location;
+    deliveryAddress = null;
+  }
 
-    if (addressType === "home") {
-      customer.customerDetails.homeAddress = newAddress;
-    } else if (addressType === "work") {
-      customer.customerDetails.workAddress = newAddress;
-    } else if (addressType === "other") {
-      const otherIndex = customer.customerDetails.otherAddress.findIndex(
-        (addr) => addr.id.toString() === customerAddressOtherAddressId
-      );
-
-      if (otherIndex !== -1) {
-        customer.customerDetails.otherAddress[otherIndex] = newAddress;
-      } else {
-        customer.customerDetails.otherAddress.push(newAddress);
-      }
-    }
-
-    await customer.save();
-    return location;
-  };
-
-  // Function to retrieve address details based on type
-  const getAddressDetails = (addressType, addressId) => {
-    if (addressType === "home") {
-      return customer.customerDetails.homeAddress;
-    } else if (addressType === "work") {
-      return customer.customerDetails.workAddress;
-    } else if (addressType === "other") {
-      return customer.customerDetails.otherAddress.find(
-        (addr) => addr.id.toString() === addressId
-      );
-    }
-  };
-
+  // Handling Home Delivery
   if (deliveryMode === "Home Delivery") {
+    console.log(merchantFound);
+
     pickupLocation = merchantFound.merchantDetail.location;
     pickupAddress = {
       fullName: merchantFound.merchantDetail.merchantName,
@@ -409,11 +355,14 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
       if (newCustomerAddress) {
         deliveryLocation = await updateCustomerAddress(
           newCustomerAddress.type,
-          newCustomerAddress
+          newCustomerAddress,
+          customer,
+          customerAddressOtherAddressId
         );
         deliveryAddress = newCustomerAddress;
       } else {
         const address = getAddressDetails(
+          customer,
           customerAddressType,
           customerAddressOtherAddressId
         );
@@ -423,14 +372,16 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
         deliveryAddress = address;
       }
     }
-  } else if (deliveryMode === "Pick and Drop") {
+  }
+
+  // Handling Pick and Drop
+  else if (deliveryMode === "Pick and Drop") {
     if (newPickupAddress) {
       pickupLocation = [newPickupAddress.latitude, newPickupAddress.longitude];
       pickupAddress = newPickupAddress;
-    }
-
-    if (pickUpAddressType) {
+    } else if (pickUpAddressType) {
       const address = getAddressDetails(
+        customer,
         pickUpAddressType,
         pickUpAddressOtherAddressId
       );
@@ -446,10 +397,9 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
         newDeliveryAddress.longitude,
       ];
       deliveryAddress = newDeliveryAddress;
-    }
-
-    if (deliveryAddressType) {
+    } else if (deliveryAddressType) {
       const address = getAddressDetails(
+        customer,
         deliveryAddressType,
         customerAddressOtherAddressId || deliveryAddressOtherAddressId
       );
@@ -460,11 +410,40 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
     }
   }
 
+  // Handling Custom Order
+  else if (deliveryMode === "Custom Order") {
+    if (newDeliveryAddress) {
+      deliveryLocation = [
+        newDeliveryAddress.latitude,
+        newDeliveryAddress.longitude,
+      ];
+      deliveryAddress = newDeliveryAddress;
+
+      if (newDeliveryAddress.saveAddress) {
+        await updateCustomerAddress(
+          deliveryAddressType,
+          newDeliveryAddress,
+          customer,
+          deliveryAddressOtherAddressId
+        );
+      }
+    } else if (deliveryAddressType) {
+      const address = getAddressDetails(
+        customer,
+        deliveryAddressType,
+        deliveryAddressOtherAddressId
+      );
+
+      if (!address) throw new Error("Delivery address not found");
+      deliveryLocation = address.coordinates;
+      deliveryAddress = address;
+    }
+  }
+
+  // Check if required details are present
   if (
-    !pickupLocation ||
-    !pickupAddress ||
-    !deliveryLocation ||
-    !deliveryAddress
+    (deliveryMode === "Home Delivery" || deliveryMode === "Pick and Drop") &&
+    (!pickupLocation || !pickupAddress || !deliveryLocation || !deliveryAddress)
   ) {
     throw new Error("Incomplete address details");
   }
@@ -474,94 +453,19 @@ const getPickAndDeliveryDetailForAdminOrderCreation = async ({
     pickupAddress,
     deliveryLocation,
     deliveryAddress,
-    formattedErrors,
   };
-};
-
-const getCustomDeliveryAddressForAdmin = async ({
-  customer,
-  deliveryAddressType,
-  deliveryAddressOtherAddressId,
-  newDeliveryAddress,
-}) => {
-  let deliveryLocation, deliveryAddress;
-
-  // Common function to update customer's address
-  const updateCustomerAddress = async (addressType, newAddress) => {
-    const location = [newAddress.latitude, newAddress.longitude];
-    newAddress.coordinates = location;
-
-    if (addressType === "home") {
-      customer.customerDetails.homeAddress = newAddress;
-    } else if (addressType === "work") {
-      customer.customerDetails.workAddress = newAddress;
-    } else if (addressType === "other") {
-      const otherIndex = customer.customerDetails.otherAddress.findIndex(
-        (addr) => addr._id.toString() === deliveryAddressOtherAddressId
-      );
-
-      if (otherIndex !== -1) {
-        customer.customerDetails.otherAddress[otherIndex] = newAddress;
-      } else {
-        customer.customerDetails.otherAddress.push(newAddress);
-      }
-    }
-
-    await customer.save();
-    return location;
-  };
-
-  // Function to retrieve address details based on type
-  const getAddressDetails = (addressType, addressId) => {
-    if (addressType === "home") {
-      return customer.customerDetails.homeAddress;
-    } else if (addressType === "work") {
-      return customer.customerDetails.workAddress;
-    } else if (addressType === "other") {
-      return customer.customerDetails.otherAddress.find(
-        (addr) => addr.id.toString() === addressId
-      );
-    }
-  };
-
-  if (newDeliveryAddress) {
-    deliveryLocation = [
-      newDeliveryAddress.latitude,
-      newDeliveryAddress.longitude,
-    ];
-    deliveryAddress = newDeliveryAddress;
-
-    if (newDeliveryAddress.saveAddress) {
-      await updateCustomerAddress(deliveryAddressType, newDeliveryAddress);
-    }
-  }
-
-  if (deliveryAddressType) {
-    const address = getAddressDetails(
-      deliveryAddressType,
-      deliveryAddressOtherAddressId
-    );
-
-    if (!address) throw new Error("Delivery address not found");
-    deliveryLocation = address.coordinates;
-    deliveryAddress = address;
-  }
-
-  return { deliveryLocation, deliveryAddress };
 };
 
 module.exports = {
+  safeParseFloat,
   findOrCreateCustomer,
-  getDeliveryDetails,
   processSchedule,
   calculateItemTotal,
   getTotalItemWeight,
-  calculateSubTotal,
   calculateAdditionalWeightCharge,
+  calculateSubTotal,
   calculateGrandTotal,
   getTotalDaysBetweenDates,
   formattedCartItems,
-  getPickAndDeliveryDetailForAdminOrderCreation,
-  getCustomDeliveryAddressForAdmin,
-  safeParseFloat,
+  handleAddressDetails,
 };

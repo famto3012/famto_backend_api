@@ -3,7 +3,7 @@ const appError = require("./appError");
 const { point, polygon, booleanPointInPolygon, area } = require("@turf/turf");
 
 // Function to find the appropriate geofence for given coordinates
-const geoLocation = async (latitude, longitude, next) => {
+const geoLocation = async (latitude, longitude) => {
   try {
     // Retrieve all geofences (assuming you have a Geofence model)
     const geofences = await Geofence.find({}); // Adjust this based on your actual model name
@@ -39,7 +39,7 @@ const geoLocation = async (latitude, longitude, next) => {
     // Return the geofence with the largest area or null if no matching geofence is found
     return largestGeofence || null;
   } catch (err) {
-    next(appError(err.message));
+    throw new Error(err.message);
   }
 };
 

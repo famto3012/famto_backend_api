@@ -55,6 +55,19 @@ const mongoose = require("mongoose");
 const puppeteer = require("puppeteer");
 const AgentAnnouncementLogs = require("../../../models/AgentAnnouncementLog");
 const Task = require("../../../models/Task");
+const {
+  fetchMerchantDetails,
+  validateCustomerAddress,
+  processScheduledDelivery,
+  getCartDetailsForAdmin,
+  calculateTotalBillAdmin,
+  validateDeliveryOption,
+  handleDeliveryModeForAdmin,
+  calculateDeliveryChargeHelperForAdmin,
+  applyDiscounts,
+  calculateBill,
+  saveCustomerCart,
+} = require("../../../utils/serviceHelpers");
 
 const getAllOrdersForAdminController = async (req, res, next) => {
   try {
@@ -973,653 +986,6 @@ const getOrderDetailByAdminController = async (req, res, next) => {
       message: "Single order detail",
       data: formattedResponse,
     });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
-const createInvoiceByAdminController = async (req, res, next) => {
-  const errors = validationResult(req);
-
-  let formattedErrors = {};
-  if (!errors.isEmpty()) {
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
-    return res.status(500).json({ errors: formattedErrors });
-  }
-
-  try {
-    const {
-      customerId,
-      newCustomer,
-      deliveryOption,
-      deliveryMode,
-      items,
-      instructionToMerchant = "",
-      instructionToDeliveryAgent = "",
-      // For Take Away and Home Delivery
-      merchantId,
-      customerAddressType,
-      customerAddressOtherAddressId,
-      flatDiscount = 0,
-      newCustomerAddress,
-      // For Pick and Drop and Custom Order
-      pickUpAddressType,
-      pickUpAddressOtherAddressId,
-      deliveryAddressType,
-      deliveryAddressOtherAddressId,
-      newPickupAddress,
-      newDeliveryAddress,
-      vehicleType,
-      customPickupLocation,
-      instructionInPickup = "",
-      instructionInDelivery = "",
-      // For all orders (Optional)
-      addedTip = 0,
-    } = req.body;
-
-    // Extract ifScheduled only if deliveryOption is scheduled
-    let ifScheduled, startDate, endDate, time, numOfDays;
-    if (deliveryOption === "Scheduled") {
-      ifScheduled = req.body.ifScheduled;
-      ({ startDate, endDate, time, numOfDays } = processSchedule(ifScheduled));
-    }
-
-    let merchantFound;
-    if (
-      merchantId &&
-      (deliveryMode === "Take Away" || deliveryMode === "Home Delivery")
-    ) {
-      merchantFound = await Merchant.findById(merchantId);
-      if (!merchantFound) return next(appError("Merchant not found", 404));
-    }
-
-    const customerAddress =
-      newCustomerAddress || newPickupAddress || newDeliveryAddress;
-
-    if (
-      newCustomer &&
-      deliveryMode !== "Take Away" &&
-      newCustomer &&
-      deliveryMode !== "Custom Order"
-    ) {
-      if (!customerAddress) {
-        if (deliveryMode === "Home Delivery") {
-          formattedErrors.customerAddress = "Customer address is required";
-        } else if (deliveryMode === "Pick and Drop") {
-          if (!newPickupAddress) {
-            formattedErrors.pickupAddress = "Pickup address is required";
-          }
-          if (!newDeliveryAddress) {
-            formattedErrors.deliveryAddress = "Delivery address is required";
-          }
-        }
-
-        return res.status(400).json({ errors: formattedErrors });
-      }
-    }
-
-    let customer = await findOrCreateCustomer({
-      customerId,
-      newCustomer,
-      customerAddress,
-      deliveryMode,
-      formattedErrors,
-    });
-
-    if (!customer) return res.status(409).json({ errors: formattedErrors });
-
-    let pickupLocation,
-      pickupAddress,
-      deliveryLocation,
-      deliveryAddress,
-      distanceInKM;
-
-    if (deliveryMode === "Take Away") {
-      pickupLocation = merchantFound.merchantDetail.location;
-      pickupAddress = {
-        fullName: merchantFound.merchantDetail.merchantName,
-        area: merchantFound.merchantDetail.displayAddress,
-        phoneNumber: merchantFound.phoneNumber,
-      };
-    } else if (
-      deliveryMode === "Home Delivery" ||
-      deliveryMode === "Pick and Drop"
-    ) {
-      ({ pickupLocation, pickupAddress, deliveryLocation, deliveryAddress } =
-        await getPickAndDeliveryDetailForAdminOrderCreation({
-          customer,
-          customerAddressType,
-          customerAddressOtherAddressId,
-          newCustomer,
-          newCustomerAddress,
-          merchantFound,
-          deliveryMode,
-          pickUpAddressType,
-          pickUpAddressOtherAddressId,
-          deliveryAddressType,
-          deliveryAddressOtherAddressId,
-          newPickupAddress,
-          newDeliveryAddress,
-        }));
-
-      const distanceData = await getDistanceFromPickupToDelivery(
-        pickupLocation,
-        deliveryLocation
-      );
-      distanceInKM = parseFloat(distanceData.distanceInKM);
-    } else if (deliveryMode === "Custom Order") {
-      if (
-        customPickupLocation &&
-        customPickupLocation.length === 2 &&
-        customPickupLocation.every((loc) => loc !== null)
-      ) {
-        pickupLocation = customPickupLocation;
-      }
-
-      ({ deliveryLocation, deliveryAddress } =
-        await getCustomDeliveryAddressForAdmin({
-          customer,
-          newCustomer,
-          deliveryAddressType,
-          deliveryAddressOtherAddressId,
-          newDeliveryAddress,
-        }));
-
-      if (
-        pickupLocation &&
-        pickupLocation.length === 2 &&
-        pickupLocation.every((loc) => loc !== null)
-      ) {
-        const distanceData = await getDistanceFromPickupToDelivery(
-          pickupLocation,
-          deliveryLocation
-        );
-        distanceInKM = parseFloat(distanceData.distanceInKM);
-      } else {
-        distanceInKM = 0;
-      }
-    }
-
-    let updatedCartDetail = {
-      pickupLocation,
-      pickupAddress,
-      deliveryMode,
-      deliveryOption,
-      startDate,
-      endDate,
-      time,
-      numOfDays,
-    };
-
-    if (deliveryMode === "Take Away") {
-      updatedCartDetail.distance = 0;
-    } else if (
-      deliveryMode === "Home Delivery" ||
-      deliveryMode === "Pick and Drop" ||
-      deliveryMode === "Custom Order"
-    ) {
-      updatedCartDetail.deliveryLocation = deliveryLocation;
-      updatedCartDetail.deliveryAddress = deliveryAddress;
-      updatedCartDetail.instructionToDeliveryAgent = instructionToDeliveryAgent;
-      updatedCartDetail.instructionToMerchant = instructionToMerchant;
-      updatedCartDetail.distance = distanceInKM || 0;
-    }
-
-    if (deliveryMode === "Take Away" || deliveryMode === "Home Delivery") {
-      const itemTotal = calculateItemTotal(items, numOfDays);
-
-      const businessCategory = await BusinessCategory.findById(
-        merchantFound.merchantDetail.businessCategoryId
-      );
-
-      if (!businessCategory)
-        return next(appError("Business category not found", 404));
-
-      let customerPricing;
-      let customerSurge;
-      if (deliveryMode === "Home Delivery") {
-        customerPricing = await CustomerPricing.findOne({
-          deliveryMode: "Home Delivery",
-          businessCategoryId: businessCategory._id,
-          geofenceId: customer.customerDetails.geofenceId,
-          status: true,
-        });
-
-        if (!customerPricing)
-          return res.status(404).json({ error: "Customer pricing not found" });
-
-        customerSurge = await CustomerSurge.findOne({
-          geofenceId: customer?.customerDetails?.geofenceId,
-          status: true,
-        });
-      }
-
-      const oneTimeDeliveryCharge = calculateDeliveryCharges(
-        distanceInKM,
-        customerPricing?.baseFare,
-        customerPricing?.baseDistance,
-        customerPricing?.fareAfterBaseDistance
-      );
-
-      let surgeCharges = 0;
-      if (customerSurge) {
-        surgeCharges = calculateDeliveryCharges(
-          distanceInKM,
-          customerSurge.baseFare,
-          customerSurge.baseDistance
-          // customerSurge.fareAfterBaseDistance
-        );
-      }
-
-      let deliveryChargeForScheduledOrder;
-      if (startDate && endDate && time) {
-        deliveryChargeForScheduledOrder = (
-          oneTimeDeliveryCharge * numOfDays
-        ).toFixed(2);
-      }
-
-      const taxAmount = await getTaxAmount(
-        businessCategory._id,
-        merchantFound.merchantDetail.geofenceId,
-        itemTotal,
-        deliveryChargeForScheduledOrder || oneTimeDeliveryCharge
-      );
-
-      const discountAmount = parseFloat(flatDiscount || 0);
-
-      let merchantDiscountAmount = 0;
-
-      for (const item of items) {
-        const product = await Product.findById(item.productId)
-          .populate("discountId")
-          .exec();
-
-        if (!product) continue;
-
-        if (product.discountId && product.discountId.status) {
-          const currentDate = new Date();
-          const validFrom = new Date(product.discountId.validFrom);
-          const validTo = new Date(product.discountId.validTo);
-
-          // Adjusting the validTo date to the end of the day
-          validTo.setHours(23, 59, 59, 999);
-
-          if (validFrom <= currentDate && validTo >= currentDate) {
-            // Product has a valid discount, skip applying merchant discount
-            continue;
-          }
-        }
-
-        // Apply merchant discount to the product's price
-        const merchantDiscount = await MerchantDiscount.findOne({
-          merchantId,
-          status: true,
-        });
-
-        if (merchantDiscount) {
-          if (itemTotal > merchantDiscount.maxCheckoutValue) {
-            const currentDate = new Date();
-            const validFrom = new Date(merchantDiscount.validFrom);
-            const validTo = new Date(merchantDiscount.validTo);
-
-            // Adjusting the validTo date to the end of the day
-            validTo.setHours(23, 59, 59, 999);
-
-            if (validFrom <= currentDate && validTo >= currentDate) {
-              if (merchantDiscount.discountType === "Percentage-discount") {
-                let discountValue =
-                  (itemTotal * merchantDiscount.discountValue) / 100;
-                if (discountValue > merchantDiscount.maxDiscountValue) {
-                  discountValue = merchantDiscount.maxDiscountValue;
-                }
-                merchantDiscountAmount += discountValue;
-              } else if (merchantDiscount.discountType === "Flat-discount") {
-                merchantDiscountAmount += merchantDiscount.discountValue;
-              }
-            }
-          }
-        }
-      }
-
-      const totalDiscountAmount = discountAmount + merchantDiscountAmount;
-
-      // Calculate grandTotal without tax and deliveryCharge for Take Away
-      let subTotal;
-      let grandTotal;
-      let discountedGrandTotal;
-
-      if (deliveryMode === "Take Away") {
-        if (deliveryOption === "On-demand") {
-          subTotal = calculateSubTotal({
-            itemTotal,
-            deliveryCharge: 0,
-            addedTip,
-          });
-
-          grandTotal = subTotal;
-        } else if (deliveryOption === "Scheduled") {
-          subTotal = calculateSubTotal({
-            itemTotal,
-            deliveryCharge: 0,
-            addedTip,
-          });
-
-          subTotal *= numOfDays;
-
-          grandTotal = subTotal;
-        }
-      } else if (deliveryMode === "Home Delivery") {
-        subTotal = calculateSubTotal({
-          itemTotal,
-          surgeCharges,
-          deliveryCharge:
-            deliveryChargeForScheduledOrder || oneTimeDeliveryCharge,
-          addedTip,
-          totalDiscountAmount,
-        });
-
-        grandTotal = calculateGrandTotal({
-          itemTotal,
-          surgeCharges,
-          deliveryCharge:
-            deliveryChargeForScheduledOrder || oneTimeDeliveryCharge,
-          addedTip,
-          taxAmount,
-        });
-
-        discountedGrandTotal = totalDiscountAmount
-          ? (grandTotal - totalDiscountAmount).toFixed(2)
-          : null;
-      }
-
-      let updatedBill = {
-        discountedDeliveryCharge: null,
-        discountedAmount:
-          deliveryMode !== "Take Away"
-            ? parseFloat(totalDiscountAmount) || null
-            : null,
-        originalGrandTotal: Math.round(grandTotal),
-        discountedGrandTotal:
-          Math.round(discountedGrandTotal) || parseFloat(grandTotal),
-        itemTotal,
-        addedTip,
-        subTotal,
-        surgePrice: surgeCharges || null,
-      };
-
-      if (deliveryMode === "Take Away") {
-        updatedBill.taxAmount = null;
-        updatedBill.originalDeliveryCharge = null;
-      } else if (deliveryMode === "Home Delivery") {
-        updatedBill.taxAmount = taxAmount;
-        updatedBill.deliveryChargePerDay = parseFloat(oneTimeDeliveryCharge);
-        updatedBill.originalDeliveryCharge = parseFloat(
-          deliveryChargeForScheduledOrder || oneTimeDeliveryCharge
-        );
-      }
-
-      const customerCart = await CustomerCart.findOneAndUpdate(
-        { customerId: customer._id },
-        {
-          customerId: customer._id,
-          merchantId,
-          items,
-          cartDetail: updatedCartDetail,
-          billDetail: updatedBill,
-        },
-        { new: true, upsert: true }
-      );
-
-      const populatedCartWithVariantNames = await formattedCartItems(
-        customerCart
-      );
-
-      let formattedItems = populatedCartWithVariantNames.items.map((item) => {
-        return {
-          itemName: item.productId.productName,
-          itemImageURL: item.productId.productImageURL,
-          quantity: item.quantity,
-          price: item.price,
-          variantTypeName: item?.variantTypeId?.variantTypeName,
-        };
-      });
-
-      const responseData = {
-        cartId: customerCart._id,
-        deliveryMode: customerCart.cartDetail.deliveryMode,
-        billDetail: customerCart.billDetail,
-        items: formattedItems,
-      };
-
-      res.status(200).json({
-        message: "Order invoice created successfully",
-        data: responseData,
-      });
-    } else if (deliveryMode === "Pick and Drop") {
-      const selectedVehicle = vehicleType;
-
-      // Fetch all available vehicle types from the Agent model
-      const agents = await Agent.find({});
-      const vehicleTypes = agents.flatMap((agent) =>
-        agent.vehicleDetail.map((vehicle) => vehicle.type)
-      );
-      const uniqueVehicleTypes = [...new Set(vehicleTypes)];
-
-      const latitude = pickupLocation[0];
-      const longitude = pickupLocation[1];
-
-      const geofenceFound = await geoLocation(latitude, longitude, next);
-
-      // Fetch the customer pricing details for all vehicle types
-      const customerPricingArray = await CustomerPricing.find({
-        deliveryMode: "Pick and Drop",
-        geofenceId: geofenceFound.id,
-        status: true,
-        vehicleType: { $in: uniqueVehicleTypes },
-      });
-
-      if (!customerPricingArray || customerPricingArray.length === 0) {
-        return res.status(404).json({ error: "Customer pricing not found" });
-      }
-
-      const customerSurge = await CustomerSurge.find({
-        geofenceId: geofenceFound.id,
-        status: true,
-      });
-
-      let surgeCharges = 0;
-
-      if (customerSurge) {
-        let surgeBaseFare = customerSurge.baseFare;
-        let surgeBaseDistance = customerSurge.baseDistance;
-        let surgeFareAfterBaseDistance = customerSurge.fareAfterBaseDistance;
-
-        surgeCharges = calculateDeliveryCharges(
-          distanceInKM,
-          surgeBaseFare,
-          surgeBaseDistance,
-          surgeFareAfterBaseDistance
-        );
-      }
-
-      const vehiclePrice = customerPricingArray.find(
-        (pricing) => pricing.vehicleType === selectedVehicle.toString()
-      );
-
-      if (!vehiclePrice) {
-        return next(appError("Vehicle pricing not found", 404));
-      }
-
-      const deliveryCharges = calculateDeliveryCharges(
-        distanceInKM,
-        vehiclePrice.baseFare,
-        vehiclePrice.baseDistance,
-        vehiclePrice.fareAfterBaseDistance
-      );
-
-      const totalWeight = getTotalItemWeight(items);
-
-      let additionalWeightCharge = calculateAdditionalWeightCharge(
-        totalWeight,
-        vehiclePrice.baseWeightUpto,
-        vehiclePrice.fareAfterBaseWeight
-      );
-
-      const deliveryChargePerDay = (
-        parseFloat(deliveryCharges) + parseFloat(additionalWeightCharge)
-      ).toFixed(2);
-
-      let originalDeliveryCharge = deliveryChargePerDay;
-      if (deliveryOption === "Scheduled") {
-        originalDeliveryCharge = deliveryChargePerDay * numOfDays;
-      }
-
-      // console.log("originalDeliveryCharge", originalDeliveryCharge);
-      // console.log("addedTip", addedTip);
-      // console.log("surgeCharges", surgeCharges);
-
-      const grandTotal =
-        safeParseFloat(originalDeliveryCharge) +
-        safeParseFloat(addedTip, 0) +
-        safeParseFloat(surgeCharges, 0);
-
-      // console.log("grandTotal", grandTotal);
-
-      let updatedBill = {
-        deliveryChargePerDay,
-        originalDeliveryCharge,
-        originalGrandTotal: Math.round(grandTotal),
-        addedTip: addedTip || null,
-        subTotal: Math.round(grandTotal),
-        surgePrice: safeParseFloat(surgeCharges, 0),
-      };
-
-      updatedCartDetail.instructionInPickup = instructionInPickup;
-      updatedCartDetail.instructionInDelivery = instructionInDelivery;
-
-      const customerCart = await PickAndCustomCart.findOneAndUpdate(
-        { customerId: customer._id },
-        {
-          customerId: customer._id,
-          cartDetail: updatedCartDetail,
-          billDetail: updatedBill,
-          items,
-        },
-        { new: true, upsert: true }
-      );
-
-      const responseData = {
-        cartId: customerCart._id,
-        billDetail: customerCart.billDetail,
-        items: customerCart.items,
-        deliveryMode: customerCart.cartDetail.deliveryMode,
-      };
-
-      res.status(200).json({
-        message: "Order invoice created successfully",
-        data: responseData,
-      });
-      return;
-    } else if (deliveryMode === "Custom Order") {
-      const latitude = deliveryLocation[0];
-      const longitude = deliveryLocation[1];
-
-      const geofenceFound = await geoLocation(latitude, longitude, next);
-
-      const customerPricing = await CustomerPricing.findOne({
-        deliveryMode: "Custom Order",
-        geofenceId: geofenceFound.id,
-        status: true,
-      });
-
-      const customerSurge = await CustomerSurge.find({
-        geofenceId: geofenceFound.id,
-        status: true,
-      });
-
-      if (!customerPricing) {
-        return next(appError("Custom order pricing not found", 404));
-      }
-
-      let deliveryChargePerDay = null;
-      let originalDeliveryCharge = null;
-      let surgeCharges;
-
-      if (distanceInKM > 0) {
-        deliveryChargePerDay = calculateDeliveryCharges(
-          distanceInKM,
-          customerPricing.baseFare,
-          customerPricing.baseDistance,
-          customerPricing.fareAfterBaseDistance
-        );
-
-        if (deliveryOption === "Scheduled") {
-          originalDeliveryCharge = (deliveryChargePerDay * numOfDays).toFixed(
-            2
-          );
-        }
-
-        if (customerSurge) {
-          const surgeBaseFare = customerSurge.baseFare;
-          const surgeBaseDistance = customerSurge.baseDistance;
-          const surgeFareAfterBaseDistance =
-            customerSurge.fareAfterBaseDistance;
-
-          surgeCharges = calculateDeliveryCharges(
-            distanceInKM,
-            surgeBaseFare,
-            surgeBaseDistance,
-            surgeFareAfterBaseDistance
-          );
-        }
-      }
-
-      const grandTotal =
-        parseFloat(originalDeliveryCharge || deliveryChargePerDay || 0) +
-        safeParseFloat(addedTip, 0) +
-        safeParseFloat(surgeCharges, 0);
-
-      const updatedBill = {
-        deliveryChargePerDay,
-        originalDeliveryCharge: originalDeliveryCharge || deliveryChargePerDay,
-        originalGrandTotal: Math.round(grandTotal),
-        addedTip: addedTip || null,
-        subTotal: Math.round(grandTotal),
-        surgePrice: safeParseFloat(surgeCharges, 0),
-      };
-
-      const transformedItems = items.map((item) => ({
-        itemName: item.itemName,
-        quantity: Number(item.quantity), // Ensure quantity is a number
-        numOfUnits: Number(item.numOfUnits), // Ensure numOfUnits is a number
-        itemImageURL: item?.itemImageURL,
-      }));
-
-      const customerCart = await PickAndCustomCart.findOneAndUpdate(
-        { customerId: customer._id },
-        {
-          customerId: customer._id,
-          cartDetail: updatedCartDetail,
-          billDetail: updatedBill,
-          items: transformedItems,
-        },
-        { new: true, upsert: true }
-      );
-
-      const responseData = {
-        cartId: customerCart._id,
-        deliveryMode: customerCart.cartDetail.deliveryMode,
-        billDetail: customerCart.billDetail,
-        items: customerCart.items,
-      };
-
-      res.status(200).json({
-        message: "Order invoice created successfully",
-        data: responseData,
-      });
-    }
   } catch (err) {
     next(appError(err.message));
   }
@@ -2794,7 +2160,7 @@ const markTakeAwayOrderCompletedController = async (req, res, next) => {
   const { orderId } = req.params;
   try {
     const orderFound = await Order.findById(orderId);
-    const taskFound = await Task.findOne({orderId})
+    const taskFound = await Task.findOne({ orderId });
     if (!orderFound) {
       return next(appError("Order not found.", 400));
     }
@@ -2810,16 +2176,199 @@ const markTakeAwayOrderCompletedController = async (req, res, next) => {
       orderFound.orderDetailStepper.completed = stepperDetail;
       await orderFound.save();
 
-      taskFound.taskStatus = "Completed"
-      taskFound.pickupDetail.pickupStatus = "Completed"
-      await taskFound.save()
+      taskFound.taskStatus = "Completed";
+      taskFound.pickupDetail.pickupStatus = "Completed";
+      await taskFound.save();
 
       res.status(200).json({ message: "Order marked as completed." });
     } else {
       res.status(400).json({ message: "Order cannot be marked as ready." });
     }
   } catch (err) {
-     return next( appError(err.message));
+    return next(appError(err.message));
+  }
+};
+
+const createInvoiceByAdminController = async (req, res, next) => {
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(500).json({ errors: formattedErrors });
+  }
+
+  try {
+    const {
+      customerId,
+      newCustomer,
+      deliveryOption,
+      deliveryMode,
+      items,
+      instructionToMerchant = "",
+      instructionToDeliveryAgent = "",
+      // For Take Away and Home Delivery
+      merchantId,
+      customerAddressType,
+      customerAddressOtherAddressId,
+      flatDiscount = 0,
+      newCustomerAddress,
+      // For Pick and Drop and Custom Order
+      pickUpAddressType,
+      pickUpAddressOtherAddressId,
+      deliveryAddressType,
+      deliveryAddressOtherAddressId,
+      newPickupAddress,
+      newDeliveryAddress,
+      vehicleType,
+      customPickupLocation,
+      instructionInPickup = "",
+      instructionInDelivery = "",
+      // For all orders (Optional)
+      addedTip = 0,
+    } = req.body;
+
+    // Step 1: Fetch merchant details if applicable
+    const merchantFound = await fetchMerchantDetails(
+      merchantId,
+      deliveryMode,
+      deliveryOption,
+      next
+    );
+
+    // Step 2: Validate customer address if necessary
+    validateCustomerAddress(
+      newCustomer,
+      deliveryMode,
+      newCustomerAddress,
+      newPickupAddress,
+      newDeliveryAddress
+    );
+
+    const customerAddress =
+      newCustomerAddress || newPickupAddress || newDeliveryAddress;
+
+    // Step 3: Find or create customer
+    const customer = await findOrCreateCustomer({
+      customerId,
+      newCustomer,
+      customerAddress,
+      formattedErrors,
+    });
+    if (!customer) return res.status(409).json({ errors: formattedErrors });
+
+    const {
+      pickupLocation,
+      pickupAddress,
+      deliveryLocation,
+      deliveryAddress,
+      distanceInKM,
+    } = await handleDeliveryModeForAdmin(
+      deliveryMode,
+      customer,
+      customerAddressType,
+      customerAddressOtherAddressId,
+      newCustomer,
+      newCustomerAddress,
+      merchantFound,
+      pickUpAddressType,
+      pickUpAddressOtherAddressId,
+      deliveryAddressType,
+      deliveryAddressOtherAddressId,
+      newPickupAddress,
+      newDeliveryAddress
+    );
+
+    const scheduledDetails = processScheduledDelivery(deliveryOption, req);
+
+    console.log("scheduled finished");
+
+    const {
+      oneTimeDeliveryCharge,
+      surgeCharges,
+      deliveryChargeForScheduledOrder,
+      taxAmount,
+      itemTotal,
+    } = await calculateDeliveryChargeHelperForAdmin(
+      deliveryMode,
+      distanceInKM,
+      merchantFound,
+      customer,
+      items,
+      scheduledDetails,
+      vehicleType,
+      pickupLocation
+    );
+
+    console.log("Delivery charges calculated");
+
+    let merchantDiscountAmount;
+    if (merchantFound) {
+      merchantDiscountAmount = await applyDiscounts({
+        items,
+        itemTotal,
+        merchantId,
+      });
+    }
+
+    console.log("Bill");
+
+    const billDetail = calculateBill(
+      itemTotal || 0,
+      deliveryChargeForScheduledOrder || oneTimeDeliveryCharge || 0,
+      surgeCharges || 0,
+      flatDiscount || 0,
+      merchantDiscountAmount || 0,
+      taxAmount || 0,
+      addedTip || 0
+    );
+
+    const cart = await saveCustomerCart(
+      deliveryMode,
+      deliveryOption,
+      merchantFound,
+      customer,
+      pickupLocation,
+      pickupAddress,
+      deliveryLocation,
+      deliveryAddress,
+      distanceInKM,
+      scheduledDetails,
+      billDetail,
+      vehicleType,
+      items,
+      instructionToMerchant,
+      instructionToDeliveryAgent,
+      instructionInPickup,
+      instructionInDelivery
+    );
+
+    let populatedCartWithVariantNames;
+    let formattedItems;
+    if (deliveryMode === "Take Away" || deliveryMode === "Home Delivery") {
+      populatedCartWithVariantNames = await formattedCartItems(cart);
+
+      formattedItems = populatedCartWithVariantNames.items.map((item) => ({
+        itemName: item.productId.productName,
+        itemImageURL: item.productId.productImageURL,
+        quantity: item.quantity,
+        price: item.price,
+        variantTypeName: item?.variantTypeId?.variantTypeName,
+      }));
+    }
+
+    res.status(200).json({
+      message: "Order invoice created successfully",
+      data: {
+        cartId: cart._id,
+        billDetail: cart.billDetail,
+        items: formattedItems || cart.items,
+      },
+    });
+  } catch (err) {
+    next(appError(err.message));
   }
 };
 

@@ -35,6 +35,7 @@ const {
   generateReferralCode,
   getCurrentOrderDetailcontroller,
   getAllNotificationsOfCustomerController,
+  getGeofenceNameController,
 } = require("../../controllers/customer/customerController");
 const {
   getAllBusinessCategoryController,
@@ -84,6 +85,9 @@ customerRoute.post(
   customerAuthenticateValidations,
   registerAndLoginController
 );
+
+// Get customer geofence name route
+customerRoute.get("/geofence-name", isAuthenticated, getGeofenceNameController);
 
 // Get customer profile route
 customerRoute.get("/profile", isAuthenticated, getCustomerProfileController);
