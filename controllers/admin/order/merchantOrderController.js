@@ -1056,7 +1056,7 @@ const createInvoiceController = async (req, res, next) => {
       customerId,
       newCustomer,
       customerAddress,
-      formattedErrors,
+      deliveryMode,
     });
 
     if (!customer) return res.status(409).json({ errors: formattedErrors });
@@ -1121,7 +1121,7 @@ const createInvoiceController = async (req, res, next) => {
       console.log(deliveryMode);
       console.log(businessCategory._id);
       console.log(customer.customerDetails.geofenceId);
-
+     
       const customerPricing = await CustomerPricing.findOne({
         deliveryMode,
         businessCategoryId: businessCategory._id,

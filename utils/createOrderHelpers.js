@@ -53,7 +53,7 @@ const findOrCreateCustomer = async ({
     );
 
     if (!geofence) {
-      return res.status(400).json({
+      return ({
         message: "User coordinates are outside defined geofences",
       });
     }
