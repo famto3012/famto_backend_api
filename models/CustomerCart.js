@@ -86,7 +86,7 @@ const cartDetailSchema = mongoose.Schema(
       default: null,
     },
     time: {
-      type: Date, //String,
+      type: Date,
       default: null,
     },
     numOfDays: {

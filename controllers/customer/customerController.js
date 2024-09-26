@@ -138,6 +138,29 @@ const registerAndLoginController = async (req, res, next) => {
   }
 };
 
+const getGeofenceNameController = async (req, res, next) => {
+  try {
+    const customerId = req.userAuth;
+
+    if (!customerId) {
+      return next(appError("Customer is not authenticated", 401));
+    }
+
+    const customerFound = await Customer.findById(customerId).populate(
+      "customerDetails.geofenceId",
+      "name"
+    );
+
+    if (!customerFound) {
+      return next(appError("Customer not found", 400));
+    }
+
+    res.status(200).json(customerFound.customerDetails.geofenceId.name);
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 // Get the profile details of customer
 const getCustomerProfileController = async (req, res, next) => {
   try {
@@ -1185,6 +1208,7 @@ const getAllNotificationsOfCustomerController = async (req, res, next) => {
 
 module.exports = {
   registerAndLoginController,
+  getGeofenceNameController,
   getCustomerProfileController,
   updateCustomerProfileController,
   updateCustomerAddressController,
