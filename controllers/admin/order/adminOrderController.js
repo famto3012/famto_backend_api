@@ -13,36 +13,25 @@ const {
 } = require("../../../utils/orderCreateTaskHelper");
 const { razorpayRefund } = require("../../../utils/razorpayPayment");
 const {
-  getDistanceFromPickupToDelivery,
-  getTaxAmount,
-  calculateDeliveryCharges,
   reduceProductAvailableQuantity,
   filterProductIdAndQuantity,
 } = require("../../../utils/customerAppHelpers");
-const CustomerPricing = require("../../../models/CustomerPricing");
-const BusinessCategory = require("../../../models/BusinessCategory");
-const CustomerSurge = require("../../../models/CustomerSurge");
 const CustomerCart = require("../../../models/CustomerCart");
 const {
   findOrCreateCustomer,
-  processSchedule,
-  calculateItemTotal,
-  calculateSubTotal,
-  calculateGrandTotal,
   formattedCartItems,
-  getPickAndDeliveryDetailForAdminOrderCreation,
-  getTotalItemWeight,
-  calculateAdditionalWeightCharge,
-  getCustomDeliveryAddressForAdmin,
-  safeParseFloat,
+  fetchMerchantDetails,
+  validateCustomerAddress,
+  processScheduledDelivery,
+  handleDeliveryModeForAdmin,
+  calculateDeliveryChargeHelperForAdmin,
+  applyDiscounts,
+  calculateBill,
+  saveCustomerCart,
 } = require("../../../utils/createOrderHelpers");
-const Product = require("../../../models/Product");
-const MerchantDiscount = require("../../../models/MerchantDiscount");
-const Agent = require("../../../models/Agent");
 const PickAndCustomCart = require("../../../models/PickAndCustomCart");
 const scheduledPickAndCustom = require("../../../models/ScheduledPickAndCustom");
 const { formatToHours } = require("../../../utils/agentAppHelpers");
-const geoLocation = require("../../../utils/getGeoLocation");
 const {
   sendNotification,
   findRolesToNotify,
@@ -55,19 +44,6 @@ const mongoose = require("mongoose");
 const puppeteer = require("puppeteer");
 const AgentAnnouncementLogs = require("../../../models/AgentAnnouncementLog");
 const Task = require("../../../models/Task");
-const {
-  fetchMerchantDetails,
-  validateCustomerAddress,
-  processScheduledDelivery,
-  getCartDetailsForAdmin,
-  calculateTotalBillAdmin,
-  validateDeliveryOption,
-  handleDeliveryModeForAdmin,
-  calculateDeliveryChargeHelperForAdmin,
-  applyDiscounts,
-  calculateBill,
-  saveCustomerCart,
-} = require("../../../utils/serviceHelpers");
 
 const getAllOrdersForAdminController = async (req, res, next) => {
   try {
