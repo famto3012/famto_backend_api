@@ -31,9 +31,6 @@ const getDistanceFromPickupToDelivery = async (
   deliveryCoordinates,
   profile = "biking"
 ) => {
-  // console.log("pickupCoordinates", pickupCoordinates);
-  // console.log("deliveryCoordinates", deliveryCoordinates);
-
   // distance_matrix_eta;
   // distance_matrix;
   // distance_matrix_traffic;
@@ -63,13 +60,6 @@ const calculateDeliveryCharges = (
   baseDistance,
   fareAfterBaseDistance
 ) => {
-  console.log("=================================");
-  console.log("distance", distance);
-  console.log("baseFare", baseFare);
-  console.log("baseDistance", baseDistance);
-  console.log("fareAfterBaseDistance", Boolean(fareAfterBaseDistance));
-  console.log("=================================");
-
   if (fareAfterBaseDistance) {
     if (distance <= baseDistance) {
       return parseFloat(baseFare).toFixed(2);
@@ -80,10 +70,8 @@ const calculateDeliveryCharges = (
     }
   } else {
     if (distance <= baseDistance) {
-      console.log("In");
       return parseFloat(baseFare).toFixed(2);
     } else {
-      console.log("Out");
       return parseFloat(baseFare + (distance - baseDistance)).toFixed(2);
     }
   }
@@ -694,8 +682,6 @@ const calculateMerchantDiscount = async (
         status: true,
       });
 
-      console.log("itemTotal", itemTotal);
-
       if (merchantDiscount) {
         if (itemTotal > merchantDiscount.maxCheckoutValue) {
           const currentDate = new Date();
@@ -714,8 +700,6 @@ const calculateMerchantDiscount = async (
               endDate
             );
 
-            // console.log("eligibleDates", eligibleDates);
-
             const startDateTime = new Date(startDate);
             const endDateTime = new Date(endDate);
 
@@ -726,7 +710,6 @@ const calculateMerchantDiscount = async (
             const calculatedAmount = perDayAmount * diffDays;
 
             if (merchantDiscount.discountType === "Percentage-discount") {
-              // console.log("Inside Percentage");
               let discountValue =
                 (calculatedAmount * merchantDiscount.discountValue) / 100;
 
@@ -736,15 +719,12 @@ const calculateMerchantDiscount = async (
 
               calculatedMerchantDiscount += discountValue;
             } else if (merchantDiscount.discountType === "Flat-discount") {
-              // console.log("Inside Flat");
               calculatedMerchantDiscount += merchantDiscount.discountValue;
             }
           }
         }
       }
     }
-
-    console.log("calculatedMerchantDiscount", calculatedMerchantDiscount);
 
     return calculatedMerchantDiscount;
   } catch (err) {
@@ -759,19 +739,8 @@ const calculateEligibleDates = (
   startDate,
   endDate
 ) => {
-  // console.log("===================================");
-  // console.log("Start", startDate);
-  // console.log("End", endDate);
-  // console.log("===================================");
-
   const deliveryStartDate = new Date(startDate || currentDate);
   const deliveryEndDate = new Date(endDate || currentDate);
-
-  // console.log("currentDate", currentDate);
-  // console.log("validFrom", validFrom);
-  // console.log("validTo", validTo);
-  // console.log("deliveryStartDate", deliveryStartDate);
-  // console.log("deliveryEndDate", deliveryEndDate);
 
   // Determine the effective start and end dates for applying the discount
   const effectiveStartDate =

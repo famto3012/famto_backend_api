@@ -1130,10 +1130,6 @@ const createOrderByAdminController = async (req, res, next) => {
         "merchantId"
       );
 
-      console.log("==============================");
-      console.log(newOrder);
-      console.log("==============================");
-
       // Clear the cart
       if (
         cartDeliveryMode === "Take Away" ||
@@ -1256,8 +1252,6 @@ const createOrderByAdminController = async (req, res, next) => {
       const newOrder = await Order.findById(newOrderCreated._id).populate(
         "merchantId"
       );
-
-      console.log(newOrder);
 
       // Clear the cart
       if (
@@ -2254,12 +2248,11 @@ const createInvoiceByAdminController = async (req, res, next) => {
       deliveryAddressType,
       deliveryAddressOtherAddressId,
       newPickupAddress,
-      newDeliveryAddress
+      newDeliveryAddress,
+      customPickupLocation
     );
 
     const scheduledDetails = processScheduledDelivery(deliveryOption, req);
-
-    console.log("scheduled finished");
 
     const {
       oneTimeDeliveryCharge,
@@ -2278,8 +2271,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
       pickupLocation
     );
 
-    console.log("Delivery charges calculated");
-
     let merchantDiscountAmount;
     if (merchantFound) {
       merchantDiscountAmount = await applyDiscounts({
@@ -2288,8 +2279,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
         merchantId,
       });
     }
-
-    console.log("Bill");
 
     const billDetail = calculateBill(
       itemTotal || 0,

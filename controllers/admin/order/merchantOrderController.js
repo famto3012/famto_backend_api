@@ -1406,8 +1406,6 @@ const createInvoiceController = async (req, res, next) => {
     });
     if (!customer) return res.status(409).json({ errors: formattedErrors });
 
-    console.log("Here 1");
-
     const {
       pickupLocation,
       pickupAddress,
@@ -1424,11 +1422,7 @@ const createInvoiceController = async (req, res, next) => {
       merchantFound
     );
 
-    console.log("Here 2");
-
     const scheduledDetails = processScheduledDelivery(deliveryOption, req);
-
-    console.log("Here 3");
 
     const {
       oneTimeDeliveryCharge,
@@ -1445,15 +1439,11 @@ const createInvoiceController = async (req, res, next) => {
       scheduledDetails
     );
 
-    console.log("Here 4");
-
     const merchantDiscountAmount = await applyDiscounts({
       items,
       itemTotal,
       merchantId,
     });
-
-    console.log("Here 5");
 
     const billDetail = calculateBill(
       itemTotal,
@@ -1464,8 +1454,6 @@ const createInvoiceController = async (req, res, next) => {
       taxAmount || 0,
       addedTip
     );
-
-    console.log("Here 6");
 
     const customerCart = await CustomerCart.findOneAndUpdate(
       { customerId: customer._id },
