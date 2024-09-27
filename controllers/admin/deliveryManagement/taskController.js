@@ -166,7 +166,6 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
       const deliveryLocation = task?.orderId?.orderDetail?.pickupLocation;
       const responseData = await Promise.all(
         agents.map(async (agent) => {
-          console.log("agent", agent.location);
           const { distanceInKM } = await getDistanceFromPickupToDelivery(
             agent.location,
             deliveryLocation
@@ -243,7 +242,7 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
           };
         })
       );
-      console.log(responseData);
+
       // Return the found agents
       res.status(200).json({
         success: true,
@@ -280,12 +279,9 @@ const getOrderByOrderIdController = async (req, res, next) => {
   try {
     const { orderId } = req.body;
 
-    console.log(orderId);
     const order = await Task.find({
       orderId: { $regex: orderId, $options: "i" },
     });
-
-    console.log(order);
 
     res.status(200).json({
       success: true,
@@ -321,11 +317,11 @@ const getAgentByNameController = async (req, res, next) => {
 const getTaskByDateRangeController = async (req, res, next) => {
   try {
     const { startDate, endDate } = req.query;
-    console.log(startDate, endDate);
+
     // Convert to ISO strings for querying
     const start = new Date(startDate);
     const end = new Date(endDate);
-    console.log(start, end);
+
     // Fetch data between the startDate and endDate
     const taskData = await Task.find({
       createdAt: {

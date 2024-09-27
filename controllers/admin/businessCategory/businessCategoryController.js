@@ -11,8 +11,6 @@ const {
 const addBusinessCategoryController = async (req, res, next) => {
   const { title, geofenceId } = req.body;
 
-  console.log(req.body);
-
   const errors = validationResult(req);
 
   let formattedErrors = {};

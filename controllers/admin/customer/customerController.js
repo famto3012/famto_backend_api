@@ -141,8 +141,6 @@ const filterCustomerByGeofenceController = async (req, res, next) => {
   try {
     let { filter, page = 1, limit = 25 } = req.query;
 
-    console.log(filter);
-
     // Convert to integers
     page = parseInt(page, 10);
     limit = parseInt(limit, 10);
@@ -874,11 +872,95 @@ const searchCustomerByNameForMerchantController = async (req, res, next) => {
   }
 };
 
+const filterCustomerByGeofenceForMerchantController = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    let { filter, page = 1, limit = 25 } = req.query;
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
+    const merchantId = req.userAuth;
+
+    // Fetch all orders of the merchant
+    const ordersOfMerchant = await Order.find({ merchantId }).select(
+      "customerId"
+    );
+
+    // Extract unique customer IDs
+    const uniqueCustomerIds = [
+      ...new Set(ordersOfMerchant.map((order) => order.customerId.toString())),
+    ];
+
+    // Base query
+    let query = {
+      _id: { $in: uniqueCustomerIds },
+    };
+
+    // If filter is not "all", filter by geofenceId
+    if (filter && filter.trim().toLowerCase() !== "all") {
+      const geofenceObjectId = new mongoose.Types.ObjectId(filter.trim());
+      query["customerDetails.geofenceId"] = geofenceObjectId;
+    }
+
+    // Find customers based on the query
+    const filteredResults = await Customer.find(query)
+      .select(
+        "fullName email phoneNumber lastPlatformUsed createdAt customerDetails"
+      )
+      .skip(skip)
+      .limit(limit)
+      .lean({ virtuals: true });
+
+    // Count total documents based on the query
+    const totalDocuments = await Customer.countDocuments(query);
+
+    // Format the customers
+    const formattedCustomers = filteredResults.map((customer) => {
+      return {
+        _id: customer._id,
+        fullName: customer.fullName || "-",
+        email: customer.email || "-",
+        phoneNumber: customer.phoneNumber,
+        lastPlatformUsed: customer?.lastPlatformUsed || "-",
+        registrationDate: formatDate(customer.createdAt),
+        averageRating: customer.customerDetails?.averageRating || 0,
+      };
+    });
+
+    // Pagination info
+    const pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
+    res.status(200).json({
+      message: "Searched customers",
+      data: formattedCustomers,
+      pagination,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getAllCustomersController,
   searchCustomerByNameController,
   searchCustomerByNameForMerchantController,
   filterCustomerByGeofenceController,
+  filterCustomerByGeofenceForMerchantController,
   getSingleCustomerController,
   blockCustomerController,
   editCustomerDetailsController,

@@ -235,11 +235,7 @@ const getCommissionDetailOfMerchant = async (req, res, next) => {
   try {
     const merchantId = req.userAuth;
 
-    console.log(merchantId);
-
     const commissionFound = await Commission.findOne({ merchantId });
-
-    console.log(commissionFound);
 
     res.status(200).json({
       message: "Commission of merchant",

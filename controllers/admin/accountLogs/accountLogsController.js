@@ -96,7 +96,6 @@ const unBlockUserController = async (req, res, next) => {
 
     let user;
     if (userLog.role === "Merchant") {
-      console.log("Unblocking Merchant");
       user = await Merchant.findById(userLog.userId); // Assuming userId stores the Merchant's ID
       if (!user) return next(appError("Merchant not found", 404));
 
@@ -106,7 +105,6 @@ const unBlockUserController = async (req, res, next) => {
         blockedDate: null,
       });
     } else if (userLog.role === "Agent") {
-      console.log("Unblocking Agent");
       user = await Agent.findById(userLog.userId); // Assuming userId stores the Agent's ID
       if (!user) return next(appError("Agent not found", 404));
 
@@ -116,7 +114,6 @@ const unBlockUserController = async (req, res, next) => {
         blockedDate: null,
       });
     } else {
-      console.log("Unblocking Customer");
       user = await Customer.findById(userLog.userId); // Assuming userId stores the Customer's ID
       if (!user) return next(appError("Customer not found", 404));
 

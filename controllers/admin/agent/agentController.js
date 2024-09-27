@@ -605,8 +605,6 @@ const filterAgentsController = async (req, res, next) => {
       }
     }
 
-    console.log(filterCriteria);
-
     const searchResults = await Agent.find(
       filterCriteria,
       "_id fullName email phoneNumber workStructure geofenceId status isApproved"
@@ -697,14 +695,14 @@ const getDeliveryAgentPayoutController = async (req, res, next) => {
           };
 
           let calculatedPayment = 0; // Initialize calculatedPayment
-          console.log("Agent", agent);
+
           // Calculate payment based on certain conditions
           const agentPricing = await AgentPricing.findById(
             agent.workStructure.salaryStructureId
           );
 
           const loginHours = agentPricing.minLoginHours * 60 * 60 * 1000;
-          console.log("loginHours", loginHours);
+
           if (
             lastHistory?.details?.orders >= agentPricing.minOrderNumber &&
             lastHistory?.details?.loginDuration >= loginHours
@@ -764,7 +762,7 @@ const getDeliveryAgentPayoutController = async (req, res, next) => {
       hasNextPage: page < totalPages,
       hasPrevPage: page > 1,
     };
-    console.log("formattedResponse", formattedResponse);
+
     // Send the response with the formatted data and pagination
     res.status(200).json({
       message: "Agent payout detail",
@@ -799,7 +797,7 @@ const searchAgentInPayoutController = async (req, res, next) => {
     const validAgents = agents?.filter((agent) =>
       agent.appDetailHistory.some((history) => history.date)
     );
-    console.log("validAgents", validAgents);
+
     // Process each agent to find the most recent appDetailHistory
     const formattedResponse = await Promise.all(
       validAgents
@@ -809,8 +807,7 @@ const searchAgentInPayoutController = async (req, res, next) => {
           const latestHistory = agent.appDetailHistory
             ?.filter((history) => history.date) // Filter histories with a valid date
             .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
-          console.log("Agent", agent);
-          console.log("latestHistory", latestHistory);
+
           const agentPricing = await AgentPricing.findById(
             agent.workStructure.salaryStructureId
           );
@@ -822,7 +819,7 @@ const searchAgentInPayoutController = async (req, res, next) => {
           let calculatedEarning = latestHistory?.details.totalEarning;
           if (agentPricing) {
             const loginHours = agentPricing.minLoginHours * 60 * 60 * 1000;
-            console.log("loginHours", loginHours);
+
             if (
               latestHistory?.details?.orders >= agentPricing.minOrderNumber &&
               latestHistory?.details?.loginDuration >= loginHours
@@ -835,7 +832,7 @@ const searchAgentInPayoutController = async (req, res, next) => {
               }
             }
           }
-          console.log("Calculated earnings", calculatedEarning);
+
           if (agent.workStructure.cashInHand) {
             calculatedEarning -= agent.workStructure.cashInHand;
           }
@@ -861,7 +858,7 @@ const searchAgentInPayoutController = async (req, res, next) => {
           };
         })
     );
-    console.log("Formatted response", formattedResponse);
+
     res.status(200).json({
       message: "Agent history details",
       data: formattedResponse,
@@ -915,12 +912,12 @@ const filterAgentPayoutController = async (req, res, next) => {
     if (agentId && agentId.trim().toLowerCase() !== "all") {
       filterCriteria["_id"] = agentId;
     }
-    console.log("filterCriteria", filterCriteria);
+
     // Fetch agents from the database based on the constructed filter criteria
     const agents = await Agent.find(filterCriteria).select(
       "fullName phoneNumber appDetailHistory workStructure.cashInHand workStructure.salaryStructureId bankDetail"
     );
-    console.log("agents", agents);
+
     // Prepare the response structure
     const responseData = await Promise.all(
       agents.map(async (agent) => {
@@ -956,7 +953,6 @@ const filterAgentPayoutController = async (req, res, next) => {
               return isWithinDateRange && isPaymentStatusMatch;
             })
             .map((history) => {
-              // console.log("historyM", history)
               const { totalEarning, orders, loginDuration } = history.details;
 
               let updatedEarning = totalEarning;
@@ -1020,14 +1016,12 @@ const filterAgentPayoutController = async (req, res, next) => {
       })
     );
 
-    console.log("responseData", responseData);
     const data = responseData.filter((resp) => {
       let isWithinDateRange = true;
       if (resp.workedDate === "-") {
         isWithinDateRange = false;
       }
 
-      console.log("isWithinDateRange", isWithinDateRange);
       // Filter by payment status
       let isPaymentStatusMatch = true;
       if (paymentStatus && paymentStatus.trim().toLowerCase() !== "all") {
@@ -1036,11 +1030,11 @@ const filterAgentPayoutController = async (req, res, next) => {
           paymentStatus.trim().toLowerCase() === "true";
         isPaymentStatusMatch = paymentSettled === paymentStatusBoolean;
       }
-      console.log("isPaymentStatusMatch", isPaymentStatusMatch);
+
       // Return true only if both date range and payment status match
       return isWithinDateRange && isPaymentStatusMatch;
     });
-    console.log("Data", data);
+
     // Send the response with the filtered and formatted agent data
     res.status(200).json({
       message: "Agent payout filter",
@@ -1207,7 +1201,7 @@ const downloadAgentPaymentCSVController = async (req, res, next) => {
     const { paymentStatus, agent, search, date, geofence } = req.query;
 
     // Build query object based on filters
-    const filter = {isApproved: "Approved"};
+    const filter = { isApproved: "Approved" };
 
     // If agent is not 'All', apply filter for agent ID
     if (agent && agent.trim().toLowerCase() !== "all") filter["_id"] = agent;
@@ -1351,14 +1345,12 @@ const downloadAgentPaymentCSVController = async (req, res, next) => {
       })
     );
 
-    console.log("responseData", responseData);
     const data = responseData.filter((resp) => {
       let isWithinDateRange = true;
       if (resp.workedDate === "-") {
         isWithinDateRange = false;
       }
 
-      console.log("isWithinDateRange", isWithinDateRange);
       // Filter by payment status
       let isPaymentStatusMatch = true;
       if (paymentStatus && paymentStatus.trim().toLowerCase() !== "all") {
@@ -1367,11 +1359,11 @@ const downloadAgentPaymentCSVController = async (req, res, next) => {
           paymentStatus.trim().toLowerCase() === "true";
         isPaymentStatusMatch = paymentSettled === paymentStatusBoolean;
       }
-      console.log("isPaymentStatusMatch", isPaymentStatusMatch);
+
       // Return true only if both date range and payment status match
       return isWithinDateRange && isPaymentStatusMatch;
     });
-    console.log("Data", data);
+
     // Define file path for CSV
     const filePath = path.join(__dirname, "../../../sample_CSV/sample_CSV.csv");
 

@@ -9,7 +9,7 @@ async function fetchPerDayRevenue(date) {
     // Start and end of the day
     const startOfDay = new Date(date.setHours(0, 0, 0, 0));
     const endOfDay = new Date(date.setHours(23, 59, 59, 999));
-    console.log("start", startOfDay, "End", endOfDay)
+
     // Fetch total sales from Orders
     const totalSales = await Order.aggregate([
       {
@@ -26,13 +26,12 @@ async function fetchPerDayRevenue(date) {
       },
     ]);
     const sales = totalSales[0]?.totalSales || 0;
-    const merchants = await Merchant.find({openedToday: true});
+    const merchants = await Merchant.find({ openedToday: true });
 
-    for(const merchant of merchants){
+    for (const merchant of merchants) {
       merchant.openedToday = false;
       await merchant.save();
     }
-
 
     // Fetch total commission from CommissionLogs
     const totalCommission = await CommissionLogs.aggregate([
@@ -79,7 +78,6 @@ async function fetchPerDayRevenue(date) {
 
     await revenueData.save();
 
-    console.log("Revenue calculated")
     return revenueData;
   } catch (error) {
     console.error("Error fetching per day revenue:", error);
@@ -88,73 +86,70 @@ async function fetchPerDayRevenue(date) {
 }
 
 async function fetchMerchantDailyRevenue(date) {
-    try {
-      // Start and end of the day
-      const startOfDay = new Date(date.setHours(0, 0, 0, 0));
-      const endOfDay = new Date(date.setHours(23, 59, 59, 999));
-      console.log("start", startOfDay, "End", endOfDay)
-      // Fetch merchants who opened today
-      const merchants = await Merchant.find({});
-  
-      for (const merchant of merchants) {
-        // Fetch total sales for the merchant
-        const totalSales = await Order.aggregate([
-          {
-            $match: {
-              createdAt: { $gte: startOfDay, $lte: endOfDay },
-              merchantId: merchant._id,
-              status: { $ne: "Cancelled" }, // Exclude cancelled orders
-            },
+  try {
+    // Start and end of the day
+    const startOfDay = new Date(date.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(date.setHours(23, 59, 59, 999));
+
+    // Fetch merchants who opened today
+    const merchants = await Merchant.find({});
+
+    for (const merchant of merchants) {
+      // Fetch total sales for the merchant
+      const totalSales = await Order.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startOfDay, $lte: endOfDay },
+            merchantId: merchant._id,
+            status: { $ne: "Cancelled" }, // Exclude cancelled orders
           },
-          {
-            $group: {
-              _id: null,
-              totalSales: { $sum: "$billDetail.itemTotal" },
-            },
+        },
+        {
+          $group: {
+            _id: null,
+            totalSales: { $sum: "$billDetail.itemTotal" },
           },
-        ]);
-  
-        const sales = totalSales[0]?.totalSales || 0;
-  
-        // Fetch total commission for the merchant
-        const totalCommission = await CommissionLogs.aggregate([
-          {
-            $match: {
-              createdAt: { $gte: startOfDay, $lte: endOfDay },
-              merchantId: merchant._id,
-            },
+        },
+      ]);
+
+      const sales = totalSales[0]?.totalSales || 0;
+
+      // Fetch total commission for the merchant
+      const totalCommission = await CommissionLogs.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startOfDay, $lte: endOfDay },
+            merchantId: merchant._id,
           },
-          {
-            $group: {
-              _id: null,
-              totalCommission: { $sum: "$payableAmountToFamto" },
-            },
+        },
+        {
+          $group: {
+            _id: null,
+            totalCommission: { $sum: "$payableAmountToFamto" },
           },
-        ]);
-  
-        const commission = totalCommission[0]?.totalCommission || 0;
-  
-        // Collect revenue data for each merchant
-        const revenueData = new HomeScreenRevenueData({
-            sales,
-            commission,
-            userId: merchant._id,
-          });
-    
-          await revenueData.save();
-  
-        // Reset openedToday to false
-        // merchant.openedToday = false;
-        // await merchant.save();
-        console.log("Merchant revenue data calculated:", revenueData);
-      }
-  
-    //   return merchantRevenues;
-    } catch (error) {
-      console.error("Error fetching merchant daily revenue:", error);
-      throw error;
+        },
+      ]);
+
+      const commission = totalCommission[0]?.totalCommission || 0;
+
+      // Collect revenue data for each merchant
+      const revenueData = new HomeScreenRevenueData({
+        sales,
+        commission,
+        userId: merchant._id,
+      });
+
+      await revenueData.save();
+
+      // Reset openedToday to false
+      // merchant.openedToday = false;
+      // await merchant.save();
     }
+
+    //   return merchantRevenues;
+  } catch (error) {
+    throw new Error(err.message);
   }
-  
+}
 
 module.exports = { fetchPerDayRevenue, fetchMerchantDailyRevenue };

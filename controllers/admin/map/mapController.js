@@ -8,7 +8,6 @@ const getPolylineController = async (req, res) => {
     const response = await axios.get(url);
     res.json(response.data);
   } catch (err) {
-    console.log(err);
     res.status(500).json({ error: "Failed to fetch data from Mappls API" });
   }
 };

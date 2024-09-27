@@ -46,6 +46,7 @@ const {
   sendNotification,
   findRolesToNotify,
 } = require("../../socket/socket");
+const FcmToken = require("../../models/fcmToken");
 
 //Function for getting agent's manager from geofence
 const getManager = async (geofenceId) => {
@@ -72,7 +73,7 @@ const updateLocationController = async (req, res, next) => {
 
     const location = [latitude, longitude];
 
-    const geofence = await geoLocation(latitude, longitude, next);
+    const geofence = await geoLocation(latitude, longitude);
 
     agentFound.location = location;
     agentFound.geofenceId = geofence.id;
@@ -118,7 +119,7 @@ const registerAgentController = async (req, res, next) => {
       return res.status(409).json({ errors: formattedErrors });
     }
 
-    const geofence = await geoLocation(latitude, longitude, next);
+    const geofence = await geoLocation(latitude, longitude);
 
     const manager = await getManager(geofence.id);
 
@@ -170,7 +171,7 @@ const registerAgentController = async (req, res, next) => {
 
 //Agent login Controller
 const agentLoginController = async (req, res, next) => {
-  const { phoneNumber } = req.body;
+  const { phoneNumber, fcmToken } = req.body;
 
   const errors = validationResult(req);
 
@@ -193,6 +194,21 @@ const agentLoginController = async (req, res, next) => {
     if (agentFound.isApproved === "Pending" || agentFound.isBlocked) {
       formattedErrors.general = "Login is restricted";
       return res.status(403).json({ errors: formattedErrors });
+    }
+
+    const user = await FcmToken.findOne({ userId: agentFound._id });
+
+    if (!user) {
+      await FcmToken.create({
+        userId: agentFound._id,
+        token: fcmToken,
+      });
+    } else {
+      if (user.token === null || user.token !== fcmToken) {
+        await FcmToken.findByIdAndUpdate(user._id, {
+          token: fcmToken,
+        });
+      }
     }
 
     res.status(200).json({
@@ -564,8 +580,6 @@ const addGovernmentCertificatesController = async (req, res, next) => {
   }
 
   try {
-    console.log(req.userAuth);
-
     const agentFound = await Agent.findById(req.userAuth);
 
     if (!agentFound) {
@@ -816,8 +830,6 @@ const getCurrentDayAppDetailController = async (req, res, next) => {
     if (!agentFound) {
       return next(appError("Agent not found", 404));
     }
-
-    // console.log(agentFound.appDetail);
 
     const formattedResponse = {
       totalEarning: agentFound?.appDetail?.totalEarning || "0.0",

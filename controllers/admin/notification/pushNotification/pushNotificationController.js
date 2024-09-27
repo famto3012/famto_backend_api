@@ -8,7 +8,10 @@ const {
 const Customer = require("../../../../models/Customer");
 const Merchant = require("../../../../models/Merchant");
 const Agent = require("../../../../models/Agent");
-const { sendNotification, sendSocketData } = require("../../../../socket/socket");
+const {
+  sendNotification,
+  sendSocketData,
+} = require("../../../../socket/socket");
 const AgentNotificationLogs = require("../../../../models/AgentNotificationLog");
 const AgentAnnouncementLogs = require("../../../../models/AgentAnnouncementLog");
 const CustomerNotificationLogs = require("../../../../models/CustomerNotificationLog");
@@ -147,28 +150,28 @@ const sendPushNotificationController = async (req, res, next) => {
       const customers = await Customer.find({
         "customerDetails.geofenceId": pushNotification.geofenceId,
       });
-      for(const customer of customers){
+      for (const customer of customers) {
         await CustomerNotificationLogs.create({
           customerId: customer._id,
           title: pushNotification.title,
           description: pushNotification.description,
           imageUrl: pushNotification.imageUrl,
-        })
+        });
       }
-      
+
       userIds = userIds.concat(customers.map((customer) => customer._id));
     }
     if (pushNotification.merchant) {
       const merchants = await Merchant.find({
         "merchantDetail.geofenceId": pushNotification.geofenceId,
       });
-      for(const merchant of merchants){
+      for (const merchant of merchants) {
         await MerchantNotificationLogs.create({
           merchantId: merchant._id,
           title: pushNotification.title,
           description: pushNotification.description,
           imageUrl: pushNotification.imageUrl,
-        })
+        });
       }
       userIds = userIds.concat(merchants.map((merchant) => merchant._id));
     }
@@ -176,13 +179,13 @@ const sendPushNotificationController = async (req, res, next) => {
       const drivers = await Agent.find({
         geofenceId: pushNotification.geofenceId,
       });
-      for(const driver of drivers){
+      for (const driver of drivers) {
         await AgentAnnouncementLogs.create({
           agentId: driver._id,
           title: pushNotification.title,
           description: pushNotification.description,
           imageUrl: pushNotification.imageUrl,
-        })
+        });
       }
       userIds = userIds.concat(drivers.map((driver) => driver._id));
     }
@@ -192,27 +195,27 @@ const sendPushNotificationController = async (req, res, next) => {
         title: pushNotification.title,
         description: pushNotification.description,
         imageUrl: pushNotification.imageUrl,
-        createdAt: pushNotification.createdAt
+        createdAt: pushNotification.createdAt,
       },
       fcm: {
         title: pushNotification.title,
         body: pushNotification.description,
-        image: pushNotification.imageUrl
+        image: pushNotification.imageUrl,
       },
     };
-    console.log("user", userIds);
+
     for (const userId of userIds) {
       await sendNotification(userId, "pushNotification", data);
-      const event = "pushNotification"
-      sendSocketData(userId, event, data.socket)
-      sendSocketData(process.env.ADMIN_ID, event, data.socket)
+      const event = "pushNotification";
+      sendSocketData(userId, event, data.socket);
+      sendSocketData(process.env.ADMIN_ID, event, data.socket);
     }
 
     await AdminNotificationLogs.create({
       title: pushNotification.title,
       description: pushNotification.description,
-      imageUrl: pushNotification.imageUrl 
-    })
+      imageUrl: pushNotification.imageUrl,
+    });
 
     // Respond with the userIds
     res.status(200).json({
