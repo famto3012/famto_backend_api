@@ -156,11 +156,18 @@ const calculateItemTotal = (items, numOfDays) => {
 };
 
 // Calculate the total weight of items
-const getTotalItemWeight = (items) => {
-  const weight = items.reduce(
-    (total, item) => total + parseFloat(item.weight || 0),
-    0
-  );
+const getTotalItemWeight = (deliveryMode, items) => {
+  let weight = 0;
+
+  if (deliveryMode === "Pick and Drop" || deliveryMode === "Custom Order") {
+    weight = items.reduce((total, item) => {
+      if (item.unit === "kg") {
+        return total + parseFloat(item.quantity * item.numOfUnits);
+      } else {
+        return total + parseFloat(item.weight || 0);
+      }
+    }, 0);
+  }
 
   return weight.toFixed(2);
 };
@@ -168,12 +175,12 @@ const getTotalItemWeight = (items) => {
 // Calculate additional weight charge
 const calculateAdditionalWeightCharge = (
   totalWeight,
-  vehicleBaseWeight,
+  baseWeight,
   fareAfterBaseWeight
 ) => {
-  if (totalWeight > vehicleBaseWeight) {
+  if (totalWeight > baseWeight) {
     const fare = (
-      (parseFloat(totalWeight) - parseFloat(vehicleBaseWeight)) *
+      (parseFloat(totalWeight) - parseFloat(baseWeight)) *
       parseFloat(fareAfterBaseWeight)
     ).toFixed(2);
 
@@ -320,7 +327,8 @@ const handleAddressDetails = async (
   deliveryAddressType,
   deliveryAddressOtherAddressId,
   newPickupAddress,
-  newDeliveryAddress
+  newDeliveryAddress,
+  customPickupLocation
 ) => {
   let pickupLocation, pickupAddress, deliveryLocation, deliveryAddress;
 
@@ -337,8 +345,6 @@ const handleAddressDetails = async (
 
   // Handling Home Delivery
   if (deliveryMode === "Home Delivery") {
-    console.log(merchantFound);
-
     pickupLocation = merchantFound.merchantDetail.location;
     pickupAddress = {
       fullName: merchantFound.merchantDetail.merchantName,
@@ -413,6 +419,10 @@ const handleAddressDetails = async (
 
   // Handling Custom Order
   else if (deliveryMode === "Custom Order") {
+    if (customPickupLocation) {
+      pickupLocation = [customPickupLocation[0], customPickupLocation[1]];
+    }
+
     if (newDeliveryAddress) {
       deliveryLocation = [
         newDeliveryAddress.latitude,
@@ -522,9 +532,7 @@ const calculateDeliveryChargesHelper = async (
     deliveryChargeForScheduledOrder,
     taxAmount;
 
-  console.log("1", items);
   const itemTotal = calculateItemTotal(items, scheduledDetails?.numOfDays);
-  console.log("2");
 
   if (deliveryMode === "Home Delivery") {
     const businessCategory = await BusinessCategory.findById(
@@ -646,14 +654,6 @@ const calculateBill = (
   taxAmount,
   addedTip
 ) => {
-  console.log("itemTotal", itemTotal);
-  console.log("deliveryCharges", deliveryCharges);
-  console.log("surgeCharges", surgeCharges);
-  console.log("flatDiscount", flatDiscount);
-  console.log("merchantDiscountAmount", merchantDiscountAmount);
-  console.log("taxAmount", taxAmount);
-  console.log("addedTip", addedTip);
-
   const totalDiscountAmount = parseFloat(flatDiscount) + merchantDiscountAmount;
 
   const subTotal = calculateSubTotal({
@@ -762,7 +762,8 @@ const handleDeliveryModeForAdmin = async (
   deliveryAddressType,
   deliveryAddressOtherAddressId,
   newPickupAddress,
-  newDeliveryAddress
+  newDeliveryAddress,
+  customPickupLocation
 ) => {
   const { pickupLocation, pickupAddress, deliveryLocation, deliveryAddress } =
     await handleAddressDetails(
@@ -778,18 +779,18 @@ const handleDeliveryModeForAdmin = async (
       deliveryAddressType,
       deliveryAddressOtherAddressId,
       newPickupAddress,
-      newDeliveryAddress
+      newDeliveryAddress,
+      customPickupLocation
     );
 
   let distance = 0;
-  if (deliveryMode !== "Take Away") {
-    // const { distanceInKM } = await getDistanceFromPickupToDelivery(
-    //   merchant.merchantDetail.location,
-    //   deliveryLocation
-    // );
+  if (deliveryMode !== "Take Away" && pickupLocation) {
+    const { distanceInKM } = await getDistanceFromPickupToDelivery(
+      pickupLocation,
+      deliveryLocation
+    );
 
-    // distance = distanceInKM;
-    distance = 5;
+    distance = distanceInKM;
   }
 
   return {
@@ -841,7 +842,12 @@ const calculateDeliveryChargeHelperForAdmin = async (
       );
 
     case "Custom Order":
-      return await customOrderCharges(distanceInKM, scheduledDetails, items);
+      return await customOrderCharges(
+        customer,
+        items,
+        distanceInKM,
+        scheduledDetails
+      );
   }
 };
 
@@ -883,8 +889,6 @@ const pickAndDropCharges = async (
     status: true,
   });
 
-  console.log("customerSurge", customerSurge);
-
   let surgeCharges = 0;
 
   if (customerSurge) {
@@ -899,10 +903,6 @@ const pickAndDropCharges = async (
       surgeFareAfterBaseDistance
     );
   }
-
-  console.log("SURGE", surgeCharges);
-
-  // return;
 
   const vehiclePrice = customerPricingArray.find(
     (pricing) => pricing.vehicleType === selectedVehicle.toString()
@@ -919,7 +919,7 @@ const pickAndDropCharges = async (
     vehiclePrice.fareAfterBaseDistance
   );
 
-  const totalWeight = getTotalItemWeight(items);
+  const totalWeight = getTotalItemWeight("Pick and Drop", items);
 
   let additionalWeightCharge = calculateAdditionalWeightCharge(
     totalWeight,
@@ -951,13 +951,70 @@ const pickAndDropCharges = async (
   };
 };
 
-const customOrderCharges = async () => {
+const customOrderCharges = async (
+  customer,
+  items,
+  distanceInKM,
+  scheduledDetails
+) => {
+  let oneTimeDeliveryCharge, surgeCharges, deliveryChargeForScheduledOrder;
+
+  const customerPricing = await CustomerPricing.findOne({
+    deliveryMode: "Custom Order",
+    geofenceId: customer.customerDetails.geofenceId,
+    status: true,
+  });
+
+  if (!customerPricing) throw new Error("Customer pricing not found");
+
+  oneTimeDeliveryCharge = calculateDeliveryCharges(
+    distanceInKM,
+    customerPricing.baseFare,
+    customerPricing.baseDistance,
+    customerPricing.fareAfterBaseDistance
+  );
+
+  const customerSurge = await CustomerSurge.findOne({
+    geofenceId: customer.customerDetails.geofenceId,
+    status: true,
+  });
+
+  if (customerSurge) {
+    surgeCharges = calculateDeliveryCharges(
+      distanceInKM,
+      customerSurge.baseFare,
+      customerSurge.baseDistance,
+      customerSurge.fareAfterBaseDistance
+    );
+  }
+
+  const totalWeight = getTotalItemWeight("Custom Order", items);
+
+  let additionalWeightCharge = calculateAdditionalWeightCharge(
+    totalWeight,
+    customerPricing.baseWeightUpto,
+    customerPricing.fareAfterBaseWeight
+  );
+
+  oneTimeDeliveryCharge =
+    parseFloat(oneTimeDeliveryCharge) + parseFloat(additionalWeightCharge);
+
+  if (
+    scheduledDetails?.startDate &&
+    scheduledDetails?.endDate &&
+    scheduledDetails?.time
+  ) {
+    deliveryChargeForScheduledOrder = (
+      oneTimeDeliveryCharge * scheduledDetails.numOfDays
+    ).toFixed(2);
+  }
+
   return {
-    oneTimeDeliveryCharge: 5,
-    surgeCharges: 5,
-    deliveryChargeForScheduledOrder: 5,
-    taxAmount: 5,
-    itemTotal: 5,
+    oneTimeDeliveryCharge,
+    surgeCharges,
+    deliveryChargeForScheduledOrder,
+    taxAmount: 0,
+    itemTotal: 0,
   };
 };
 
@@ -980,8 +1037,6 @@ const saveCustomerCart = async (
   instructionInPickup,
   instructionInDelivery
 ) => {
-  console.log("MODE", deliveryMode);
-
   if (deliveryMode === "Take Away" || deliveryMode === "Home Delivery") {
     return await CustomerCart.findOneAndUpdate(
       { customerId: customer._id },
@@ -1039,7 +1094,10 @@ const saveCustomerCart = async (
             time: scheduledDetails?.time || null,
             numOfDays: scheduledDetails?.numOfDays || null,
           },
-          billDetail,
+          billDetail: {
+            ...billDetail,
+            vehicleType,
+          },
         },
       },
       { new: true, upsert: true }
