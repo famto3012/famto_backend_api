@@ -50,9 +50,6 @@ const orderCommissionLogHelper = async (orderId) => {
 
     await commissionLog.save();
 
-    console.log(payableAmountToFamto);
-    console.log(payableAmountToMerchant);
-
     return { payableAmountToFamto, payableAmountToMerchant };
   } catch (err) {
     appError(err.message);

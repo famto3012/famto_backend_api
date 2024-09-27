@@ -153,9 +153,8 @@ const registerOnWebsite = async (req, res, next) => {
 };
 
 const findUserByEmail = async (email) => {
-  console.log(email)
   let user = await Admin.findOne({ email });
-  console.log(user)
+
   if (user) return { user, role: "Admin" };
 
   user = await Manager.findOne({ email });
@@ -163,7 +162,7 @@ const findUserByEmail = async (email) => {
 
   user = await Merchant.findOne({ email });
   if (user) return { user, role: "Merchant" };
-  
+
   return null;
 };
 
@@ -173,7 +172,7 @@ const forgotPassword = async (req, res, next) => {
 
     // Find the user in any of the models
     const userResult = await findUserByEmail(email);
-    console.log(userResult)
+
     if (!userResult) {
       return res.status(404).json({ message: "User not found" });
     }

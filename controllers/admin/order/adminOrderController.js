@@ -1538,6 +1538,8 @@ const downloadInvoiceBillController = async (req, res, next) => {
   try {
     const { cartId, deliveryMode } = req.body;
 
+    console.log(req.body);
+
     let cartFound;
 
     if (deliveryMode === "Take Away" || deliveryMode === "Home Delivery") {
@@ -1553,6 +1555,8 @@ const downloadInvoiceBillController = async (req, res, next) => {
         "fullName, phoneNumber"
       );
     }
+
+    console.log(cartFound);
 
     if (!cartFound || !cartFound.billDetail) {
       return next(appError("Cart not found or no bill details available"));
@@ -2330,6 +2334,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
         cartId: cart._id,
         billDetail: cart.billDetail,
         items: formattedItems || cart.items,
+        deliveryMode,
       },
     });
   } catch (err) {

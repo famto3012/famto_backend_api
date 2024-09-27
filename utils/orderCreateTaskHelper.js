@@ -73,7 +73,6 @@ const notifyAgents = async (order, priorityType) => {
 
     let deliveryAddress = order.orderDetail.deliveryAddress;
 
-    console.log("Agents array length:", agents.length);
     for (const agent of agents) {
       const data = {
         socket: {
@@ -180,7 +179,6 @@ const fetchMonthlySalaryAgents = async (merchantId) => {
       ruleName: "Monthly-salaried",
     });
 
-    //  console.log(monthlySalaryPricing._id)
     if (!monthlySalaryPricing) {
       throw new Error(`No pricing rule found for ruleName: "Monthly"`);
     }
@@ -229,7 +227,6 @@ const fetchNearestMonthlySalaryAgents = async (radius, merchantId) => {
       ruleName: "Monthly-salaried",
     });
 
-    //  console.log(monthlySalaryPricing._id)
     if (!monthlySalaryPricing) {
       throw new Error(`No pricing rule found for ruleName: "Monthly"`);
     }
@@ -276,7 +273,7 @@ const fetchNearestMonthlySalaryAgents = async (radius, merchantId) => {
           turf.point(agentLocation),
           { units: "kilometers" }
         );
-        console.log(distance);
+
         return distance <= maxRadius;
       }
       return true;
@@ -375,7 +372,7 @@ const fetchNearestAgents = async (merchantId) => {
         turf.point(agentLocation),
         { units: "kilometers" }
       );
-      console.log(distance);
+
       return distance <= maxRadius;
     }
     return true;

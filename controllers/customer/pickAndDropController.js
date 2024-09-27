@@ -53,8 +53,6 @@ const addPickUpAddressController = async (req, res, next) => {
       time,
     } = req.body;
 
-    console.log(req.body);
-
     const customerId = req.userAuth;
 
     const customer = await Customer.findById(customerId);

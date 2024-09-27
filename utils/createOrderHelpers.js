@@ -20,10 +20,6 @@ const {
   getDistanceFromPickupToDelivery,
 } = require("./customerAppHelpers");
 
-const safeParseFloat = (value, defaultValue = 0) => {
-  return isNaN(parseFloat(value)) ? defaultValue : parseFloat(value);
-};
-
 // Create or return the existing customer
 const findOrCreateCustomer = async ({
   customerId,
@@ -69,9 +65,9 @@ const findOrCreateCustomer = async ({
     );
 
     if (!geofence) {
-      return ({
+      return {
         message: "User coordinates are outside defined geofences",
-      });
+      };
     }
 
     const updatedCustomerDetails = {
@@ -1106,7 +1102,6 @@ const saveCustomerCart = async (
 };
 
 module.exports = {
-  safeParseFloat,
   findOrCreateCustomer,
   processSchedule,
   calculateItemTotal,

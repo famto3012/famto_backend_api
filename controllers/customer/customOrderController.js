@@ -175,21 +175,15 @@ const editItemInCartController = async (req, res, next) => {
 
     const customerId = req.userAuth;
 
-    console.log("Customer ID:", customerId);
-
     const cart = await PickAndCustomCart.findOne({ customerId });
 
     if (!cart) {
       return next(appError("Cart not found", 404));
     }
 
-    console.log("Cart items:", cart.items);
-
     const itemIndex = cart.items.findIndex(
       (item) => item.itemId.toString() === itemId
     );
-
-    console.log("Item index:", itemIndex);
 
     if (itemIndex === -1) {
       return next(appError("Item not found", 404));
@@ -716,8 +710,6 @@ const confirmCustomOrderController = async (req, res, next) => {
           deliveryOption: newOrder.orderDetail.deliveryOption,
           amount: newOrder.billDetail.grandTotal,
         };
-
-        console.log(socketData);
 
         sendSocketData(newOrder.customerId, eventName, socketData);
         sendSocketData(process.env.ADMIN_ID, eventName, socketData);

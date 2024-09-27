@@ -4,8 +4,6 @@ const Token = require("../../models/Token");
 
 const generateMapplsAuthToken = async () => {
   try {
-    console.log(`Generating auth token for mappls Token`);
-
     const response = await axios.post(
       `https://outpost.mappls.com/api/security/oauth/token?grant_type=client_credentials&client_id=${process.env.MAPPLS_CLIENT_ID}&client_secret=${process.env.MAPPLS_CLIENT_SECRET}`
     );
@@ -18,8 +16,6 @@ const generateMapplsAuthToken = async () => {
         { mapplsAuthToken: access_token },
         { new: true, upsert: true }
       );
-
-      console.log(`Token updated successfully`);
     } else {
       console.error("Failed to retrieve access token");
     }

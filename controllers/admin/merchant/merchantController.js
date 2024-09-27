@@ -1005,10 +1005,6 @@ const updateMerchantDetailsController = async (req, res, next) => {
   try {
     const { merchantId } = req.params;
 
-    console.log("===========================");
-    console.log(merchantDetail?.pricing);
-    console.log("===========================");
-
     const merchantFound = await Merchant.findById(merchantId);
     if (!merchantFound) {
       return next(appError("Merchant not found", 404));

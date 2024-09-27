@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const cron = require("node-cron");
 const morgan = require("morgan");
+// const NodeCache = require("node-cache");
 
 const globalErrorHandler = require("./middlewares/globalErrorHandler");
 
@@ -97,6 +98,10 @@ app.use(
   })
 );
 
+// const nodeCache = new NodeCache({
+//   stdTTL: 60,
+// });
+
 // =====================================================
 // ------------------Routers----------------------------
 // =====================================================
@@ -172,7 +177,6 @@ cron.schedule("0 6,12,18,0 * * *", async () => {
 
 //
 cron.schedule("0 0 * * *", async () => {
- 
   await moveAppDetailToHistoryAndResetForAllAgents();
   await updateOneDayLoyaltyPointEarning();
   await resetAllAgentTaskHelper();

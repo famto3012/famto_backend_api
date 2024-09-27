@@ -277,12 +277,8 @@ const addCategoryFromCSVController = async (req, res, next) => {
                 status: row["Status"]?.trim().toLowerCase(),
               };
 
-              console.log("category", category);
-
               categories.push(category);
             }
-
-            // console.log(categories);
           } catch (err) {
             next(appError(err.message));
           }

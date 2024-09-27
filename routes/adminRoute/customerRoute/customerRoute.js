@@ -16,6 +16,7 @@ const {
   downloadCustomerSampleCSVController,
   searchCustomerByNameForMerchantController,
   downloadCustomerCSVController,
+  filterCustomerByGeofenceForMerchantController,
 } = require("../../../controllers/admin/customer/customerController");
 const isAdminOrMerchant = require("../../../middlewares/isAdminOrMerchant");
 const { upload } = require("../../../utils/imageOperation");
@@ -68,6 +69,12 @@ adminCustomerRoute.get(
   isAuthenticated,
   isAdmin,
   filterCustomerByGeofenceController
+);
+
+adminCustomerRoute.get(
+  "/filter-customer-of-merchant",
+  isAuthenticated,
+  filterCustomerByGeofenceForMerchantController
 );
 
 adminCustomerRoute.get(

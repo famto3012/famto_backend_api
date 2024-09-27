@@ -16,8 +16,6 @@ const createRazorpayOrderId = async (amount) => {
 
     const order = await razorpay.orders.create(options);
 
-    console.log(order);
-
     return { success: true, orderId: order.id };
   } catch (err) {
     console.error("Error in processing payment:", err);
@@ -28,7 +26,7 @@ const createRazorpayOrderId = async (amount) => {
 const verifyPayment = async (paymentDetails) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
     paymentDetails;
-  console.log(paymentDetails);
+
   const body = razorpay_order_id + "|" + razorpay_payment_id;
   const expectedSignature = crypto
     .createHmac("sha256", razorpay.key_secret)

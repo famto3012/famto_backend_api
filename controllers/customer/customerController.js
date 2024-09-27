@@ -70,11 +70,11 @@ const registerAndLoginController = async (req, res, next) => {
           message: "Account is Blocked",
         });
       } else {
-        const geofence = await geoLocation(latitude, longitude, next);
+        // const geofence = await geoLocation(latitude, longitude, next);
 
         customer.lastPlatformUsed = os.platform();
         customer.customerDetails.location = location;
-        customer.customerDetails.geofenceId = geofence._id;
+        // customer.customerDetails.geofenceId = geofence._id;
 
         await customer.save();
 
@@ -86,13 +86,13 @@ const registerAndLoginController = async (req, res, next) => {
         });
       }
     } else {
-      const geofence = await geoLocation(latitude, longitude, next);
+      // const geofence = await geoLocation(latitude, longitude, next);
 
-      if (!geofence) {
-        return res.status(400).json({
-          message: "User coordinates are outside defined geofences",
-        });
-      }
+      // if (!geofence) {
+      //   return res.status(400).json({
+      //     message: "User coordinates are outside defined geofences",
+      //   });
+      // }
 
       // Create new customer based on email or phoneNumber
       const newCustomerData = email
@@ -104,7 +104,7 @@ const registerAndLoginController = async (req, res, next) => {
         lastPlatformUsed: os.platform(),
         customerDetails: {
           location,
-          geofenceId: geofence._id,
+          // geofenceId: geofence._id,
         },
       });
 

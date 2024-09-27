@@ -24,7 +24,7 @@ const addProductController = async (req, res, next) => {
     errors.array().forEach((error) => {
       formattedErrors[error.param] = error.msg;
     });
-    console.log("Validation errors:", formattedErrors); // Debug logging
+
     return res.status(400).json({ errors: formattedErrors });
   }
 
@@ -685,8 +685,6 @@ const downloadProductSampleCSVController = async (req, res, next) => {
 
     // Write the data to the CSV file
     await writer.writeRecords(csvData);
-
-    console.log("Final");
 
     // Send the CSV file as a response for download
     res.download(filePath, "Product_sample.csv", (err) => {

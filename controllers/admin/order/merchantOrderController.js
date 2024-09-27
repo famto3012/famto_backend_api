@@ -1449,7 +1449,7 @@ const createInvoiceController = async (req, res, next) => {
       itemTotal,
       deliveryChargeForScheduledOrder || oneTimeDeliveryCharge || 0,
       surgeCharges || 0,
-      flatDiscount,
+      flatDiscount || 0,
       merchantDiscountAmount,
       taxAmount || 0,
       addedTip
@@ -1468,6 +1468,7 @@ const createInvoiceController = async (req, res, next) => {
           deliveryLocation,
           deliveryAddress,
           instructionToDeliveryAgent,
+          distance: distanceInKM,
           startDate: scheduledDetails?.startDate || null,
           endDate: scheduledDetails?.endDate || null,
           time: scheduledDetails?.time || null,
@@ -1499,6 +1500,7 @@ const createInvoiceController = async (req, res, next) => {
         cartId: customerCart._id,
         billDetail: customerCart.billDetail,
         items: formattedItems,
+        deliveryMode,
       },
     });
   } catch (err) {

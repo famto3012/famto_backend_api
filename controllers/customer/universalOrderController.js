@@ -52,7 +52,16 @@ const getAllBusinessCategoryController = async (req, res, next) => {
       return next(appError("Latitude & Longitude are required", 400));
     }
 
-    const geofence = await geoLocation(latitude, longitude, next);
+    const customerId = req.userAuth;
+    const geofence = await geoLocation(latitude, longitude);
+
+    if (customerId) {
+      const customerFound = await Customer.findById(customerId);
+
+      customerFound.customerDetails.geofenceId = geofence._id;
+
+      await customerFound.save();
+    }
 
     const allBusinessCategories = await BusinessCategory.find({
       status: true,
@@ -177,14 +186,14 @@ const listRestaurantsController = async (req, res, next) => {
 
     const customerLocation = [latitude, longitude]; // [latitude, longitude]
 
-    const foundGeofence = await geoLocation(latitude, longitude, next);
+    const foundGeofence = await geoLocation(latitude, longitude);
 
     if (!foundGeofence) {
       return next(appError("Geofence not found", 404));
     }
 
     // Query merchants based on geofence and other conditions
-    console.log("Finding");
+
     const merchants = await Merchant.find({
       "merchantDetail.geofenceId": foundGeofence._id,
       "merchantDetail.businessCategoryId": businessCategoryId,
@@ -194,8 +203,6 @@ const listRestaurantsController = async (req, res, next) => {
       isBlocked: false,
       isApproved: "Approved",
     }).exec();
-
-    console.log("Found");
 
     // Filter merchants based on serving radius
     const filteredMerchants = merchants?.filter((merchant) => {
@@ -211,8 +218,6 @@ const listRestaurantsController = async (req, res, next) => {
       }
       return true;
     });
-
-    console.log("Here 2");
 
     // Sort merchants by sponsorship status (sponsored merchants first)
     const sortedMerchants = await sortMerchantsBySponsorship(filteredMerchants);
@@ -274,13 +279,17 @@ const getAllCategoriesOfMerchants = async (req, res, next) => {
 
     let distanceInKM;
     if (latitude && longitude) {
-      console.log("Inside");
       const distance = await getDistanceFromPickupToDelivery(
         merchantLocation,
         customerLocation
       );
 
       distanceInKM = distance.distanceInKM;
+    }
+
+    let distanceWarning = false;
+    if (distanceInKM > 12) {
+      distanceWarning = true;
     }
 
     const merchantData = {
@@ -290,6 +299,7 @@ const getAllCategoriesOfMerchants = async (req, res, next) => {
       merchantImageURL: merchantFound.merchantDetail.merchantImageURL,
       description: merchantFound.merchantDetail.description,
       displayAddress: merchantFound.merchantDetail.displayAddress,
+      distanceWarning,
     };
 
     const allCategories = await Category.find({ merchantId }).sort({
@@ -1461,10 +1471,7 @@ const applyPromocodeController = async (req, res, next) => {
     let perDayAmount = 0;
     let eligibleDates;
 
-    // console.log("Cart price Before", totalCartPrice);
-
     if (cart.cartDetail.deliveryOption === "Scheduled") {
-      // console.log("Inside scheduler condition");
       const { itemTotal, originalDeliveryCharge } = cart?.billDetail;
       const { startDate, endDate, numOfDays } = cart?.cartDetail;
 
@@ -1499,10 +1506,7 @@ const applyPromocodeController = async (req, res, next) => {
       }
 
       totalCartPrice = perDayAmount;
-      // console.log("Cart price in scheduled", totalCartPrice);
     }
-
-    // console.log("Cart price After", totalCartPrice);
 
     // Calculate discount amount
     let promoCodeDiscount = 0;
@@ -1555,8 +1559,6 @@ const applyPromocodeController = async (req, res, next) => {
 
     // Update cart and save
     const discountedAmount = cart?.billDetail?.merchantDiscount;
-
-    // console.log("Updated TOtal", updatedTotal);
 
     const subTotal =
       updatedTotal -

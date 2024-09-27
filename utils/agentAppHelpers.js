@@ -265,8 +265,6 @@ const updateOrderDetails = (order, calculatedSalary) => {
   }
 
   order.detailAddedByAgent.agentEarning = calculatedSalary;
-
-  console.log("Order", order);
 };
 
 const updateAgentDetails = async (
@@ -281,8 +279,6 @@ const updateAgentDetails = async (
     agent.appDetail.cancelledOrders += 1;
   }
 
-  console.log("One");
-
   agent.appDetail.totalEarning += parseFloat(calculatedSalary);
   agent.appDetail.totalDistance += order.orderDetail.distance;
 
@@ -294,8 +290,6 @@ const updateAgentDetails = async (
     grandTotal: order?.billDetail?.grandTotal,
   });
 
-  console.log("Two");
-
   const agentTasks = await Task.find({
     taskStatus: "Assigned",
     agentId: agent._id,
@@ -303,16 +297,12 @@ const updateAgentDetails = async (
     createdAt: 1,
   });
 
-  console.log("Three");
-
   if (agentTasks.length > 0) {
     agentTasks[0].pickupDetail.pickupStatus = "Started";
     agentTasks[0].startTime = new Date();
 
     // await agentTasks.save();
   }
-
-  console.log("Four");
 };
 
 const updateNotificationStatus = async (orderId) => {

@@ -16,8 +16,6 @@ const createSubscriptionLog = async (req, res, next) => {
   try {
     const { planId, userId, paymentMode } = req.body;
 
-    console.log(req.body);
-
     const merchant = await Merchant.findById(userId);
 
     let subscriptionPlan;
@@ -62,12 +60,11 @@ const createSubscriptionLog = async (req, res, next) => {
             merchant.merchantDetail.pricing.length - 1
           ]
         );
-        console.log(sub);
+
         startDate = sub.endDate;
       }
 
       const endDate = addDays(startDate, duration);
-      console.log(endDate);
 
       const subscriptionLog = new SubscriptionLog({
         planId,
@@ -164,11 +161,10 @@ const verifyRazorpayPayment = async (req, res, next) => {
             merchant.merchantDetail.pricing.length - 1
           ]
         );
-        console.log(sub);
+
         startDate = sub.endDate;
       }
     } else {
-      console.log(customer);
       if (customer.customerDetails.pricing.length === 0) {
         startDate = new Date();
       } else {
@@ -182,7 +178,6 @@ const verifyRazorpayPayment = async (req, res, next) => {
     }
 
     const endDate = addDays(startDate, duration);
-    console.log(endDate);
 
     const subscriptionLog = new SubscriptionLog({
       planId: currentPlan,
@@ -236,7 +231,6 @@ const createSubscriptionLogUser = async (req, res, next) => {
     const { planId, paymentMode } = req.body;
 
     const userId = req.userAuth;
-    console.log(userId);
 
     const merchant = await Merchant.findById(userId);
 
@@ -280,12 +274,11 @@ const createSubscriptionLogUser = async (req, res, next) => {
             merchant.merchantDetail.pricing.length - 1
           ]
         );
-        console.log(sub);
+
         startDate = sub.endDate;
       }
 
       const endDate = addDays(startDate, duration);
-      console.log(endDate);
 
       const subscriptionLog = new SubscriptionLog({
         planId,
@@ -303,7 +296,6 @@ const createSubscriptionLogUser = async (req, res, next) => {
     }
 
     if (paymentMode === "Online") {
-      console.log(userId);
       res.status(201).json({
         message: "Subscription order created successfully",
         amount,
@@ -487,7 +479,7 @@ const getMerchantSubscriptionLogsByName = async (req, res, next) => {
     });
 
     const subscriptionLogs = await Promise.all(subscriptionLogsPromises);
-    console.log("Merchant", merchants);
+
     res.status(200).json(subscriptionLogs.flat());
   } catch (err) {
     next(appError(err.message));
