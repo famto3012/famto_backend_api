@@ -183,6 +183,13 @@ cron.schedule("0 0 * * *", async () => {
   fetchMerchantDailyRevenue(now);
 });
 
+const convertToIST = (date) => {
+  // Convert the date to IST by adding 5 hours 30 minutes
+  const istOffset = 5 * 60 + 30; // IST is UTC + 5 hours 30 minutes
+  const dateInIST = new Date(date.getTime() + istOffset * 60 * 1000);
+  return dateInIST;
+};
+
 //
 cron.schedule("* * * * *", async () => {
   // await createSettlement();
@@ -191,19 +198,21 @@ cron.schedule("* * * * *", async () => {
 
   console.log("Running scheduled order job...");
   const now = new Date();
-
+  const date = convertToIST(now)
+ console.log("IST",date)
+ console.log("UTC",now)
   // Universal order
   const universalScheduledOrders = await ScheduledOrder.find({
     status: "Pending",
     $and: [
-      { startDate: { $lte: now } },
+      { startDate: { $lte: date } },
       // {
       //   $or: [{ startDate: { $lte: now } }, { startDate: { $gte: now } }],
       // },
       {
-        $or: [{ endDate: { $lte: now } }, { endDate: { $gte: now } }],
+        $or: [{ endDate: { $lte: date } }, { endDate: { $gte: date } }],
       },
-      { time: { $lte: now } },
+      { time: { $lte: date } },
     ],
   });
 
@@ -218,11 +227,11 @@ cron.schedule("* * * * *", async () => {
   const pickAndDropScheduledOrders = await scheduledPickAndCustom.find({
     status: "Pending",
     $and: [
-      { startDate: { $lte: now } },
+      { startDate: { $lte: date } },
       {
-        $or: [{ endDate: { $lte: now } }, { endDate: { $gte: now } }],
+        $or: [{ endDate: { $lte: date } }, { endDate: { $gte: date } }],
       },
-      { time: { $lte: now } },
+      { time: { $lte: date } },
     ],
   });
 
