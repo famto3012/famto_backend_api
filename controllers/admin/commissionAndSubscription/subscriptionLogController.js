@@ -58,7 +58,7 @@ const createSubscriptionLog = async (req, res, next) => {
         let sub = await SubscriptionLog.findById(
           merchant.merchantDetail.pricing[
             merchant.merchantDetail.pricing.length - 1
-          ]
+          ].modelId
         );
 
         startDate = sub.endDate;
@@ -159,7 +159,7 @@ const verifyRazorpayPayment = async (req, res, next) => {
         let sub = await SubscriptionLog.findById(
           merchant.merchantDetail.pricing[
             merchant.merchantDetail.pricing.length - 1
-          ]
+          ].modelId
         );
 
         startDate = sub.endDate;
@@ -171,7 +171,7 @@ const verifyRazorpayPayment = async (req, res, next) => {
         let sub = await SubscriptionLog.findById(
           customer.customerDetails.pricing[
             customer.customerDetails.pricing.length - 1
-          ]
+          ].modelId
         );
         startDate = sub.endDate;
       }
@@ -272,7 +272,7 @@ const createSubscriptionLogUser = async (req, res, next) => {
         let sub = await SubscriptionLog.findById(
           merchant.merchantDetail.pricing[
             merchant.merchantDetail.pricing.length - 1
-          ]
+          ].modelId
         );
 
         startDate = sub.endDate;
