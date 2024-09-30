@@ -553,7 +553,9 @@ const searchProductsInMerchantController = async (req, res, next) => {
         { searchTags: { $in: [query] } },
       ],
     })
-      .select("_id productName price description inventory variants")
+      .select(
+        "_id productName price description productImageURL inventory variants"
+      )
       .sort({ order: 1 });
 
     const formattedResponse = products?.map((product) => {
@@ -562,6 +564,7 @@ const searchProductsInMerchantController = async (req, res, next) => {
         productName: product.productName,
         price: product.price,
         description: product.description,
+        productImageUrl: product?.productImageURL || null,
         variants: product.variants.map((variant) => ({
           id: variant._id,
           variantName: variant.variantName,

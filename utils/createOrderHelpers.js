@@ -337,7 +337,11 @@ const handleAddressDetails = async (
       phoneNumber: merchantFound.phoneNumber,
     };
     deliveryLocation = merchantFound.merchantDetail.location;
-    deliveryAddress = null;
+    deliveryAddress = {
+      fullName: merchantFound.merchantDetail.merchantName,
+      area: merchantFound.merchantDetail.displayAddress,
+      phoneNumber: merchantFound.phoneNumber,
+    };
   }
 
   // Handling Home Delivery

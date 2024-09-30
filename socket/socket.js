@@ -110,7 +110,7 @@ const sendPushNotificationToUser = async (fcmToken, message, eventName) => {
     },
     token: fcmToken,
   };
-  console.log(mes)
+  console.log(mes);
 
   try {
     // Try sending with the first project
@@ -398,7 +398,7 @@ const getRealTimeDataCountMerchant = async (data) => {
       },
     };
 
-    console.log("Emitting real-time data:", realTimeData);
+    // console.log("Emitting real-time data:", realTimeData);
     io.emit("realTimeDataCount", realTimeData);
   } catch (err) {
     console.error("Error updating real-time data:", err);

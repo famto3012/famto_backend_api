@@ -202,9 +202,9 @@ cron.schedule("* * * * *", async () => {
 
   console.log("Running scheduled order job...");
   const now = new Date();
-  const date = convertToIST(now)
- console.log("IST",date)
- console.log("UTC",now)
+  const date = convertToIST(now);
+  //  console.log("IST",date)
+  //  console.log("UTC",now)
   // Universal order
   const universalScheduledOrders = await ScheduledOrder.find({
     status: "Pending",
