@@ -328,6 +328,7 @@ const handleAddressDetails = async (
 ) => {
   let pickupLocation, pickupAddress, deliveryLocation, deliveryAddress;
 
+  // Handling Take Away
   if (deliveryMode === "Take Away") {
     pickupLocation = merchantFound.merchantDetail.location;
     pickupAddress = {
@@ -354,26 +355,28 @@ const handleAddressDetails = async (
         newCustomerAddress.longitude,
       ];
       deliveryAddress = newCustomerAddress;
-    } else {
-      if (newCustomerAddress) {
-        deliveryLocation = await updateCustomerAddress(
-          newCustomerAddress.type,
-          newCustomerAddress,
-          customer,
-          customerAddressOtherAddressId
-        );
-        deliveryAddress = newCustomerAddress;
-      } else {
-        const address = getAddressDetails(
-          customer,
-          customerAddressType,
-          customerAddressOtherAddressId
-        );
+    }
 
-        if (!address) throw new Error("Address not found");
-        deliveryLocation = address.coordinates;
-        deliveryAddress = address;
-      }
+    if (newCustomerAddress) {
+      deliveryLocation = await updateCustomerAddress(
+        newCustomerAddress.type,
+        newCustomerAddress,
+        customer,
+        customerAddressOtherAddressId
+      );
+      deliveryAddress = newCustomerAddress;
+    }
+
+    if (customerAddressType) {
+      const address = getAddressDetails(
+        customer,
+        customerAddressType,
+        customerAddressOtherAddressId
+      );
+
+      if (!address) throw new Error("Address not found");
+      deliveryLocation = address.coordinates;
+      deliveryAddress = address;
     }
   }
 
@@ -382,7 +385,9 @@ const handleAddressDetails = async (
     if (newPickupAddress) {
       pickupLocation = [newPickupAddress.latitude, newPickupAddress.longitude];
       pickupAddress = newPickupAddress;
-    } else if (pickUpAddressType) {
+    }
+
+    if (pickUpAddressType) {
       const address = getAddressDetails(
         customer,
         pickUpAddressType,
@@ -400,7 +405,9 @@ const handleAddressDetails = async (
         newDeliveryAddress.longitude,
       ];
       deliveryAddress = newDeliveryAddress;
-    } else if (deliveryAddressType) {
+    }
+
+    if (deliveryAddressType) {
       const address = getAddressDetails(
         customer,
         deliveryAddressType,
@@ -434,7 +441,9 @@ const handleAddressDetails = async (
           deliveryAddressOtherAddressId
         );
       }
-    } else if (deliveryAddressType) {
+    }
+
+    if (deliveryAddressType) {
       const address = getAddressDetails(
         customer,
         deliveryAddressType,
@@ -787,6 +796,7 @@ const handleDeliveryModeForAdmin = async (
     );
 
     distance = distanceInKM;
+    // distance = 5;
   }
 
   return {
