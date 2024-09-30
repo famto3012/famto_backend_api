@@ -84,6 +84,9 @@ const getAllOrdersOfMerchantController = async (req, res, next) => {
         deliveryMode: order?.orderDetail?.deliveryMode,
         orderDate: formatDate(order.createdAt),
         orderTime: formatTime(order.createdAt),
+        deliveryDate: order?.orderDetail?.deliveryTime
+          ? formatDate(order.orderDetail.deliveryTime)
+          : "-",
         deliveryTime: order?.orderDetail?.deliveryTime
           ? formatTime(order.orderDetail.deliveryTime)
           : "-",
@@ -1020,6 +1023,8 @@ const createOrderController = async (req, res, next) => {
   try {
     const { paymentMode, cartId } = req.body;
 
+    console.log("cartId", cartId);
+
     const cartFound = await CustomerCart.findById(cartId);
 
     if (!cartFound) {
@@ -1154,9 +1159,9 @@ const createOrderController = async (req, res, next) => {
           status: "Pending",
           paymentMode: "Online-payment",
           paymentStatus: "Completed",
-          startDate: cart.cartDetail.startDate,
-          endDate: cart.cartDetail.endDate,
-          time: cart.cartDetail.time,
+          startDate: cartFound.cartDetail.startDate,
+          endDate: cartFound.cartDetail.endDate,
+          time: cartFound.cartDetail.time,
           purchasedItems,
         });
 
@@ -1169,7 +1174,7 @@ const createOrderController = async (req, res, next) => {
 
         await customerFound.save();
 
-        res.status(200).json({
+        res.status(201).json({
           message: "Scheduled Order created successfully",
           data: newOrder,
         });
@@ -1192,6 +1197,10 @@ const createOrderController = async (req, res, next) => {
           "orderDetailStepper.accepted": stepperData,
           purchasedItems,
         });
+
+        console.log("================================");
+        console.log(newOrder);
+        console.log("================================");
 
         const { payableAmountToFamto, payableAmountToMerchant } =
           await orderCommissionLogHelper(newOrder._id);
