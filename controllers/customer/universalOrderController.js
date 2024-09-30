@@ -52,15 +52,10 @@ const getAllBusinessCategoryController = async (req, res, next) => {
       return next(appError("Latitude & Longitude are required", 400));
     }
 
-    const customerId = req.userAuth;
     const geofence = await geoLocation(latitude, longitude);
 
-    if (customerId) {
-      const customerFound = await Customer.findById(customerId);
-
-      customerFound.customerDetails.geofenceId = geofence._id;
-
-      await customerFound.save();
+    if (!geofence) {
+      return next(appError("Customer is outside the listed geofences"));
     }
 
     const allBusinessCategories = await BusinessCategory.find({

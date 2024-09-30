@@ -87,7 +87,7 @@ customerRoute.post(
 );
 
 // Get customer geofence name route
-customerRoute.get("/geofence-name", isAuthenticated, getGeofenceNameController);
+customerRoute.post("/geofence-name", getGeofenceNameController);
 
 // Get customer profile route
 customerRoute.get("/profile", isAuthenticated, getCustomerProfileController);

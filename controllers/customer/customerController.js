@@ -140,22 +140,34 @@ const registerAndLoginController = async (req, res, next) => {
 
 const getGeofenceNameController = async (req, res, next) => {
   try {
-    const customerId = req.userAuth;
+    const { latitude, longitude, customerId } = req.body;
 
-    if (!customerId) {
-      return next(appError("Customer is not authenticated", 401));
+    if (!latitude || !longitude) {
+      return next(appError("Latitude or Longitude is missing", 400));
     }
 
-    const customerFound = await Customer.findById(customerId).populate(
-      "customerDetails.geofenceId",
-      "name"
-    );
+    const geofence = await geoLocation(latitude, longitude);
 
-    if (!customerFound) {
-      return next(appError("Customer not found", 400));
+    if (!geofence) {
+      return next(appError("Customer is outside the listed geofences"));
     }
 
-    res.status(200).json(customerFound.customerDetails.geofenceId.name);
+    if (customerId) {
+      const customerFound = await Customer.findById(customerId);
+
+      if (!customerFound) {
+        return next(appError("Customer not found", 404));
+      }
+
+      customerFound.customerDetails.geofenceId = geofence._id;
+
+      await customerFound.save();
+    }
+
+    res.status(200).json({
+      message: "Geofence name",
+      data: geofence.name,
+    });
   } catch (err) {
     next(appError(err.message));
   }
