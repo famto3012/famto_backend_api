@@ -39,7 +39,7 @@ const getAllOrdersOfMerchantController = async (req, res, next) => {
   try {
     // Get page and limit from query parameters with default values
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit) || 50;
     const skip = (page - 1) * limit;
 
     // Get the current authenticated merchant
@@ -76,6 +76,7 @@ const getAllOrdersOfMerchantController = async (req, res, next) => {
       return {
         _id: order._id,
         orderStatus: order.status,
+        isReady: order.orderDetail.isReady,
         merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
         customerName:
           order?.orderDetail?.deliveryAddress?.fullName ||

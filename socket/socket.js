@@ -82,7 +82,7 @@ const server = http.createServer(app);
 const io = socketio(server, {
   transports: ["websocket"],
   cors: {
-    origin: ["https://dashboard.famto.in", "*"], // Replace with the correct URL of your React app
+    origin: ["https://dashboard.famto.in", "http://localhost:8080"], // Replace with the correct URL of your React app
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true,
   },
@@ -256,6 +256,7 @@ const populateUserSocketMap = async () => {
         userSocketMap[token.userId] = { socketId: null, fcmToken: token.token };
       }
     });
+
     // console.log("User socket map", userSocketMap);
   } catch (error) {
     console.error("Error populating User Socket Map:", error);
@@ -404,6 +405,7 @@ const getRealTimeDataCountMerchant = async (data) => {
     console.error("Error updating real-time data:", err);
   }
 };
+
 const getRealTimeDataCount = async () => {
   try {
     const startOfDay = new Date();
@@ -495,10 +497,12 @@ const getRealTimeDataCount = async () => {
 Order.watch().on("change", async (change) => {
   getRealTimeDataCount();
 });
+
 // Example of listening for changes
 Merchant.watch().on("change", async (change) => {
   getRealTimeDataCount();
 });
+
 // Example of listening for changes
 Agent.watch().on("change", async (change) => {
   getRealTimeDataCount();

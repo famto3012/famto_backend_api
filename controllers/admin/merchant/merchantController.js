@@ -458,7 +458,7 @@ const verifyPaymentByMerchantController = async (req, res, next) => {
 //----------------------------
 //For Admin Panel
 //-----------------------------
-
+// TODO: Check statuts in dropdown of create order
 // Search merchant
 const searchMerchantController = async (req, res, next) => {
   try {
@@ -482,7 +482,7 @@ const searchMerchantController = async (req, res, next) => {
     const searchResults = await Merchant.find({
       "merchantDetail.merchantName": { $regex: searchTerm, $options: "i" },
     })
-      .select("merchantDetail.merchantName phoneNumber isApproved")
+      .select("merchantDetail phoneNumber isApproved")
       .skip(skip)
       .limit(limit);
 
