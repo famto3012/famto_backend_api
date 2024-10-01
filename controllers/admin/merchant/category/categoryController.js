@@ -11,7 +11,29 @@ const axios = require("axios");
 const path = require("path");
 const BusinessCategory = require("../../../../models/BusinessCategory");
 const Product = require("../../../../models/Product");
+const Merchant = require("../../../../models/Merchant");
 const csvWriter = require("csv-writer").createObjectCsvWriter;
+
+const getSelectedBusinessCategoriesOfMerchant = async (req, res, next) => {
+  try {
+    const { merchantId } = req.params;
+
+    if (!merchantId) return next(appError("Merchant id is required", 400));
+
+    const merchantFound = await Merchant.findById(merchantId)
+      .select("merchantDetail.businessCategoryId")
+      .populate("merchantDetail.businessCategoryId", "title");
+
+    if (!merchantFound) return next(appError("Merchant not found", 404));
+
+    res.status(200).json({
+      message: "Selected business categories",
+      data: merchantFound?.merchantDetail?.businessCategoryId || [],
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
 
 // ----------------------------------------------------
 // For Admin
@@ -632,6 +654,7 @@ const updateCategoryOrderController = async (req, res, next) => {
 };
 
 module.exports = {
+  getSelectedBusinessCategoriesOfMerchant,
   getAllCategoriesOfMerchantByAdminController,
   getSingleCategoryOfMerchantByAdminController,
   addCategoryByAdminController,

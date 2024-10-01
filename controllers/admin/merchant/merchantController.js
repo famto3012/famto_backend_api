@@ -111,7 +111,6 @@ const getMerchantProfileController = async (req, res, next) => {
 
     const merchantFound = await Merchant.findById(merchantId)
       .populate("merchantDetail.geofenceId", "name _id")
-      .populate("merchantDetail.businessCategoryId")
       .populate("merchantDetail.pricing")
       .select("-password")
       .lean({ virtuals: true });
@@ -162,7 +161,7 @@ const getMerchantProfileController = async (req, res, next) => {
           pricing: merchantPricing ? merchantPricing : null,
           geofenceId: merchantFound?.merchantDetail?.geofenceId?._id || "",
           businessCategoryId:
-            merchantFound?.merchantDetail?.businessCategoryId?._id || "",
+            merchantFound?.merchantDetail?.businessCategoryId || [],
         } || {},
       sponsorshipDetail: merchantFound?.sponsorshipDetail[0] || {},
     };
@@ -460,6 +459,82 @@ const verifyPaymentByMerchantController = async (req, res, next) => {
 //-----------------------------
 // TODO: Check statuts in dropdown of create order
 // Search merchant
+// const searchMerchantController = async (req, res, next) => {
+//   try {
+//     let { query, page = 1, limit = 20 } = req.query;
+
+//     if (!query || query.trim() === "") {
+//       return res.status(400).json({
+//         message: "Search query cannot be empty",
+//       });
+//     }
+
+//     // Convert to integers
+//     page = parseInt(page, 10);
+//     limit = parseInt(limit, 10);
+
+//     // Calculate the number of documents to skip
+//     const skip = (page - 1) * limit;
+
+//     const searchTerm = query.toLowerCase();
+
+//     const searchResults = await Merchant.find({
+//       "merchantDetail.merchantName": { $regex: searchTerm, $options: "i" },
+//     })
+//       .select("merchantDetail phoneNumber isApproved")
+//       .skip(skip)
+//       .limit(limit);
+
+//     // Count total documents
+//     const totalDocuments = await Merchant.countDocuments({});
+
+//     const merchantsWithDetails = await Promise.all(
+//       searchResults.map(async (merchant) => {
+//         // Fetch additional details if available, or set them to null if not
+//         let merchantDetail = await Merchant.findById(merchant._id)
+//           .select(
+//             "status merchantDetail.merchantName merchantDetail.geofenceId merchantDetail.averageRating merchantDetail.isServiceableToday"
+//           )
+//           .populate("merchantDetail.geofenceId", "name");
+
+//         console.log(merchantDetail?.geofenceId?.name);
+
+//         return {
+//           _id: merchant._id,
+//           merchantName: merchant?.merchantDetail?.merchantName || "-",
+//           phoneNumber: merchant.phoneNumber,
+//           isApproved: merchant.isApproved,
+//           subscriptionStatus:
+//             merchant?.merchantDetail?.pricing?.length === 0
+//               ? "Inactive"
+//               : "Active",
+//           status: merchant.status,
+//           geofence: merchant?.merchantDetail?.geofenceId?.name || "-",
+//           averageRating: merchant?.merchantDetail?.averageRating,
+//           isServiceableToday: merchant.status ? "Open" : "Closed",
+//         };
+//       })
+//     );
+
+//     let pagination = {
+//       totalDocuments: totalDocuments || 0,
+//       totalPages: Math.ceil(totalDocuments / limit),
+//       currentPage: page || 1,
+//       pageSize: limit,
+//       hasNextPage: page < Math.ceil(totalDocuments / limit),
+//       hasPrevPage: page > 1,
+//     };
+
+//     res.status(200).json({
+//       message: "Searched merchant results",
+//       data: merchantsWithDetails,
+//       pagination,
+//     });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
+
 const searchMerchantController = async (req, res, next) => {
   try {
     let { query, page = 1, limit = 20 } = req.query;
@@ -479,41 +554,36 @@ const searchMerchantController = async (req, res, next) => {
 
     const searchTerm = query.toLowerCase();
 
+    // Perform search with geofenceId populated
     const searchResults = await Merchant.find({
       "merchantDetail.merchantName": { $regex: searchTerm, $options: "i" },
     })
-      .select("merchantDetail phoneNumber isApproved")
+      .select("merchantDetail status phoneNumber isApproved")
+      .populate("merchantDetail.geofenceId", "name")
+      .populate("merchantDetail.businessCategoryId", "title")
       .skip(skip)
       .limit(limit);
 
     // Count total documents
     const totalDocuments = await Merchant.countDocuments({});
 
-    const merchantsWithDetails = await Promise.all(
-      searchResults.map(async (merchant) => {
-        // Fetch additional details if available, or set them to null if not
-        let merchantDetail = await Merchant.findById(merchant._id)
-          .select(
-            "status merchantDetail.merchantName merchantDetail.geofenceId merchantDetail.averageRating merchantDetail.isServiceableToday"
-          )
-          .populate("merchantDetail.geofenceId", "name");
-
-        return {
-          _id: merchant._id,
-          merchantName: merchant?.merchantDetail?.merchantName || "-",
-          phoneNumber: merchant.phoneNumber,
-          isApproved: merchant.isApproved,
-          subscriptionStatus:
-            merchant?.merchantDetail?.pricing?.length === 0
-              ? "Inactive"
-              : "Active",
-          status: merchant.status,
-          geofence: merchant?.merchantDetail?.geofenceId?.name || "-",
-          averageRating: merchant?.merchantDetail?.averageRating,
-          isServiceableToday: merchant.status ? "Open" : "Closed",
-        };
-      })
-    );
+    const merchantsWithDetails = searchResults.map((merchant) => {
+      return {
+        _id: merchant._id,
+        merchantName: merchant?.merchantDetail?.merchantName || "-",
+        phoneNumber: merchant.phoneNumber,
+        isApproved: merchant.isApproved,
+        subscriptionStatus:
+          merchant?.merchantDetail?.pricing?.length === 0
+            ? "Inactive"
+            : "Active",
+        status: merchant.status,
+        geofence: merchant?.merchantDetail?.geofenceId?.name || "-",
+        averageRating: merchant?.merchantDetail?.averageRating,
+        isServiceableToday: merchant.status ? "Open" : "Closed",
+        businessCategory: merchant.merchantDetail.businessCategoryId,
+      };
+    });
 
     let pagination = {
       totalDocuments: totalDocuments || 0,
@@ -797,7 +867,6 @@ const getSingleMerchantController = async (req, res, next) => {
   try {
     const merchantFound = await Merchant.findById(req.params.merchantId)
       .populate("merchantDetail.geofenceId", "name _id")
-      .populate("merchantDetail.businessCategoryId")
       .populate("merchantDetail.pricing")
       .select("-password")
       .lean({ virtuals: true });
@@ -848,7 +917,7 @@ const getSingleMerchantController = async (req, res, next) => {
           pricing: merchantPricing ? merchantPricing : null,
           geofenceId: merchantFound?.merchantDetail?.geofenceId?._id || "",
           businessCategoryId:
-            merchantFound?.merchantDetail?.businessCategoryId?._id || "",
+            merchantFound?.merchantDetail?.businessCategoryId || [],
         } || {},
       sponsorshipDetail: merchantFound?.sponsorshipDetail[0] || {},
     };
@@ -992,6 +1061,8 @@ const changeMerchantStatusController = async (req, res, next) => {
 // Update Merchant Details by admin
 const updateMerchantDetailsController = async (req, res, next) => {
   const { fullName, email, phoneNumber, merchantDetail } = req.body;
+
+  console.log(req.body.merchantDetail.availability.specificDays);
 
   const errors = validationResult(req);
   let formattedErrors = {};

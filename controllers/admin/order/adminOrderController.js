@@ -2176,6 +2176,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
 
   try {
     const {
+      selectedBusinessCategory,
       customerId,
       newCustomer,
       deliveryOption,
@@ -2280,7 +2281,8 @@ const createInvoiceByAdminController = async (req, res, next) => {
       items,
       scheduledDetails,
       vehicleType,
-      pickupLocation
+      pickupLocation,
+      selectedBusinessCategory
     );
     // console.log("Step 6 finished");
 

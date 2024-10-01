@@ -15,6 +15,7 @@ const {
   updateCategoryOrderController,
   addCategoryFromCSVController,
   downloadCategorySampleCSVController,
+  getSelectedBusinessCategoriesOfMerchant,
 } = require("../../../../controllers/admin/merchant/category/categoryController");
 const { upload } = require("../../../../utils/imageOperation");
 const isAuthenticated = require("../../../../middlewares/isAuthenticated");
@@ -28,6 +29,12 @@ const isAdmin = require("../../../../middlewares/isAdmin");
 const isAdminOrMerchant = require("../../../../middlewares/isAdminOrMerchant");
 
 const categoryRoute = express.Router();
+
+categoryRoute.get(
+  "/:merchantId/business-categories",
+  isAuthenticated,
+  getSelectedBusinessCategoriesOfMerchant
+);
 
 // ----------------------------------------------------
 // For Admin

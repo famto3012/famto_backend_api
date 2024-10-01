@@ -534,7 +534,8 @@ const calculateDeliveryChargesHelper = async (
   merchantFound,
   customer,
   items,
-  scheduledDetails
+  scheduledDetails,
+  selectedBusinessCategory
 ) => {
   let oneTimeDeliveryCharge,
     surgeCharges,
@@ -544,14 +545,13 @@ const calculateDeliveryChargesHelper = async (
   const itemTotal = calculateItemTotal(items, scheduledDetails?.numOfDays);
 
   if (deliveryMode === "Home Delivery") {
-    const businessCategory = await BusinessCategory.findById(
-      merchantFound.merchantDetail.businessCategoryId
-    );
-    if (!businessCategory) throw new Error("Business category not found");
+    const businessCategoryId = selectedBusinessCategory;
+
+    if (!businessCategoryId) throw new Error("Business category not found");
 
     const customerPricing = await CustomerPricing.findOne({
       deliveryMode,
-      businessCategoryId: businessCategory._id,
+      businessCategoryId,
       geofenceId: customer.customerDetails.geofenceId,
       status: true,
     });
@@ -590,7 +590,7 @@ const calculateDeliveryChargesHelper = async (
     }
 
     taxAmount = await getTaxAmount(
-      businessCategory._id,
+      businessCategoryId,
       merchantFound.merchantDetail.geofenceId,
       itemTotal,
       deliveryChargeForScheduledOrder || oneTimeDeliveryCharge
@@ -820,7 +820,8 @@ const calculateDeliveryChargeHelperForAdmin = async (
   items,
   scheduledDetails,
   vehicleType,
-  pickupLocation
+  pickupLocation,
+  selectedBusinessCategory
 ) => {
   switch (deliveryMode) {
     case "Take Away":
@@ -839,7 +840,8 @@ const calculateDeliveryChargeHelperForAdmin = async (
         merchant,
         customer,
         items,
-        scheduledDetails
+        scheduledDetails,
+        selectedBusinessCategory
       );
 
     case "Pick and Drop":
