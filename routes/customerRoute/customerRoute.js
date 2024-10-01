@@ -128,7 +128,10 @@ customerRoute.get("/search-home", homeSearchController);
 customerRoute.post("/list-restaurants", listRestaurantsController);
 
 // Get all categories a merchant
-customerRoute.get("/:merchantId/categories", getAllCategoriesOfMerchants);
+customerRoute.get(
+  "/:merchantId/:businessCategoryId/categories",
+  getAllCategoriesOfMerchants
+);
 
 // Get all products a merchant
 customerRoute.get(
@@ -141,7 +144,7 @@ customerRoute.post("/filter-merchants", filterMerchantController);
 
 // Search products in merchant
 customerRoute.get(
-  "/search-products/:merchantId",
+  "/search-products/:merchantId/:businessCategoryId",
   searchProductsInMerchantController
 );
 

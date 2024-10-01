@@ -114,52 +114,9 @@ const homeSearchController = async (req, res, next) => {
       }
     );
 
-    // Search in Product by productName or searchTags
-    const products = await Product.find({
-      $or: [
-        { productName: { $regex: query, $options: "i" } },
-        { searchTags: { $in: [query] } },
-      ],
-    })
-      .select("productName productImageURL type, price")
-      .exec();
-
-    const formattedProductResponse = products?.map((product) => {
-      return {
-        id: product._id,
-        productName: product.productName,
-        type: product.type,
-        productImageURL: product.productImageURL,
-      };
-    });
-
-    // Search in Merchant by merchantName
-    const merchants = await Merchant.find({
-      "merchantDetail.merchantName": { $regex: query, $options: "i" },
-      "merchantDetail.pricing.0": { $exists: true },
-      "merchantDetail.pricing.modelType": { $exists: true }, // Ensures modelType exists
-      "merchantDetail.pricing.modelId": { $exists: true },
-    })
-      .select(
-        "merchantDetail.merchantName merchantDetail.merchantImageURL merchantDetail.displayAddress"
-      )
-      .exec();
-
-    // Combine results from all models
-    const searchResults = {
-      formattedBusinessCategoryResponse,
-      formattedProductResponse,
-      merchants: merchants.map((merchant) => ({
-        id: merchant._id,
-        merchantName: merchant.merchantDetail.merchantName,
-        merchantImageURL: merchant.merchantDetail.merchantImageURL,
-        displayAddress: merchant.merchantDetail.displayAddress,
-      })),
-    };
-
     res.status(200).json({
       message: "Search results",
-      data: searchResults,
+      data: formattedBusinessCategoryResponse,
     });
   } catch (err) {
     next(appError(err.message));
@@ -191,7 +148,7 @@ const listRestaurantsController = async (req, res, next) => {
 
     const merchants = await Merchant.find({
       "merchantDetail.geofenceId": foundGeofence._id,
-      "merchantDetail.businessCategoryId": businessCategoryId,
+      "merchantDetail.businessCategoryId": { $in: [businessCategoryId] },
       "merchantDetail.pricing.0": { $exists: true },
       "merchantDetail.pricing.modelType": { $exists: true }, // Ensures modelType exists
       "merchantDetail.pricing.modelId": { $exists: true },
@@ -260,7 +217,7 @@ const listRestaurantsController = async (req, res, next) => {
 // Get all categories of merchant
 const getAllCategoriesOfMerchants = async (req, res, next) => {
   try {
-    const { merchantId } = req.params;
+    const { merchantId, businessCategoryId } = req.params;
     const { latitude, longitude } = req.query;
 
     const merchantFound = await Merchant.findById(merchantId);
@@ -297,7 +254,10 @@ const getAllCategoriesOfMerchants = async (req, res, next) => {
       distanceWarning,
     };
 
-    const allCategories = await Category.find({ merchantId }).sort({
+    const allCategories = await Category.find({
+      businessCategoryId,
+      merchantId,
+    }).sort({
       order: 1,
     });
 
@@ -457,12 +417,18 @@ const getAllProductsOfMerchantController = async (req, res, next) => {
 // Filter merchants based on (Pure veg, Rating, Nearby)
 const filterMerchantController = async (req, res, next) => {
   try {
-    const { filterType, latitude, longitude } = req.body;
+    const { businessCategoryId, filterType, latitude, longitude } = req.body;
+
+    if (!filterType || !businessCategoryId)
+      return next(
+        appError("Filter type or Business catgory id is missing", 400)
+      );
 
     // Define filter criteria based on filter type
     let filterCriteria = {
       isBlocked: false,
       isApproved: "Approved",
+      "merchantDetail.businessCategoryId": { $in: [businessCategoryId] },
       "merchantDetail.pricing.0": { $exists: true },
       "merchantDetail.pricing.modelType": { $exists: true }, // Ensures modelType exists
       "merchantDetail.pricing.modelId": { $exists: true },
@@ -534,19 +500,37 @@ const filterMerchantController = async (req, res, next) => {
 // Search for a product in the merchant
 const searchProductsInMerchantController = async (req, res, next) => {
   try {
-    const { merchantId } = req.params;
-
+    const { merchantId, businessCategoryId } = req.params;
     const { query } = req.query;
 
-    // Find categories belonging to the merchant
-    const categories = await Category.find({ merchantId });
+    if (!merchantId || !businessCategoryId) {
+      return next(
+        appError("Merchant id or Business category id is missing", 400)
+      );
+    }
 
-    // Extract category IDs
-    const categoryIds = categories.map((category) => category._id);
+    if (!query) {
+      return next(appError("Query is required", 400));
+    }
 
-    // Search products by name or description within the categories
+    // Find the category belonging to the merchant
+    const category = await Category.findOne({
+      merchantId,
+      businessCategoryId,
+    });
+
+    if (!category) {
+      return next(
+        appError(
+          "Category not found for the given merchant and business category",
+          404
+        )
+      );
+    }
+
+    // Search products within the found categoryId only
     const products = await Product.find({
-      categoryId: { $in: categoryIds },
+      categoryId: category._id, // Ensure we're only searching within this specific category
       $or: [
         { productName: { $regex: query, $options: "i" } },
         { description: { $regex: query, $options: "i" } },
@@ -558,24 +542,22 @@ const searchProductsInMerchantController = async (req, res, next) => {
       )
       .sort({ order: 1 });
 
-    const formattedResponse = products?.map((product) => {
-      return {
-        id: product._id,
-        productName: product.productName,
-        price: product.price,
-        description: product.description,
-        productImageUrl: product?.productImageURL || null,
-        variants: product.variants.map((variant) => ({
-          id: variant._id,
-          variantName: variant.variantName,
-          variantTypes: variant.variantTypes.map((variantType) => ({
-            id: variantType._id,
-            typeName: variantType.typeName,
-            price: variantType.price,
-          })),
+    const formattedResponse = products?.map((product) => ({
+      id: product._id,
+      productName: product.productName,
+      price: product.price,
+      description: product.description,
+      productImageUrl: product?.productImageURL || null,
+      variants: product.variants.map((variant) => ({
+        id: variant._id,
+        variantName: variant.variantName,
+        variantTypes: variant.variantTypes.map((variantType) => ({
+          id: variantType._id,
+          typeName: variantType.typeName,
+          price: variantType.price,
         })),
-      };
-    });
+      })),
+    }));
 
     res.status(200).json({
       message: "Products found in merchant",
@@ -988,6 +970,7 @@ const addOrUpdateCartItemController = async (req, res, next) => {
 const addCartDetailsController = async (req, res, next) => {
   try {
     const {
+      businessCategoryId,
       addressType,
       otherAddressId,
       fullName,
@@ -1238,7 +1221,7 @@ const addCartDetailsController = async (req, res, next) => {
 
       updatedCartDetail.distance = distanceInKM;
 
-      const businessCategoryId = merchant.merchantDetail.businessCategoryId;
+      // const businessCategoryId = merchant.merchantDetail.businessCategoryId;
 
       const { deliveryCharges, surgeCharges } = await getDeliveryAndSurgeCharge(
         customerId,

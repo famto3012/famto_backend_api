@@ -171,11 +171,13 @@ const merchantDetailSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
-    businessCategoryId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "BusinessCategory",
-      // default: null,
-    },
+    businessCategoryId: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "BusinessCategory",
+        // default: null,
+      },
+    ],
     merchantFoodType: {
       type: String,
       enum: ["Veg", "Non-veg", "Both", " "],
