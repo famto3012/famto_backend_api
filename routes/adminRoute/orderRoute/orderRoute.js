@@ -14,6 +14,7 @@ const {
   filterScheduledOrdersController,
   searchScheduledOrderByIdController,
   getScheduledOrderDetailController,
+  getAvailableMerchantBusinessCategoriesController,
 } = require("../../../controllers/admin/order/merchantOrderController");
 const {
   getAllOrdersForAdminController,
@@ -36,14 +37,17 @@ const {
 const isAdmin = require("../../../middlewares/isAdmin");
 const { upload } = require("../../../utils/imageOperation");
 const isAdminOrMerchant = require("../../../middlewares/isAdminOrMerchant");
-const {
-  adminInvoiceValidations,
-} = require("../../../middlewares/validators/orderValidations");
 const orderRoute = express.Router();
 
 // -------------------------------------------------
 // For Merchant
 // -------------------------------------------------
+
+orderRoute.get(
+  "/available-business-categories",
+  isAuthenticated,
+  getAvailableMerchantBusinessCategoriesController
+);
 
 orderRoute.get(
   "/all-orders",

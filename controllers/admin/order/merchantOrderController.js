@@ -1518,6 +1518,35 @@ const createInvoiceController = async (req, res, next) => {
   }
 };
 
+const getAvailableMerchantBusinessCategoriesController = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const merchantId = req.userAuth;
+
+    const merchantFound = await Merchant.findById(merchantId)
+      .select("merchantDetail.businessCategoryId")
+      .populate("merchantDetail.businessCategoryId", "title");
+
+    if (!merchantFound) return next(appError("Merchant not found", 404));
+
+    const formattedResponse =
+      merchantFound?.merchantDetail?.businessCategoryId?.map((category) => ({
+        _id: category._id,
+        title: category.title,
+      }));
+
+    res.status(200).json({
+      message: "Businesss categories",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getAllOrdersOfMerchantController,
   getAllScheduledOrdersOfMerchantController,
@@ -1532,4 +1561,5 @@ module.exports = {
   createInvoiceController,
   createOrderController,
   downloadOrdersCSVByMerchantController,
+  getAvailableMerchantBusinessCategoriesController,
 };
