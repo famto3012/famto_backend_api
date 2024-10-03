@@ -27,6 +27,8 @@ const { createTransport } = require("nodemailer");
 const { formatDate } = require("../../../utils/formatters");
 const Commission = require("../../../models/Commission");
 const SubscriptionLog = require("../../../models/SubscriptionLog");
+const Category = require("../../../models/Category");
+const Product = require("../../../models/Product");
 
 // Helper function to handle null or empty string values
 const convertNullValues = (obj) => {
@@ -558,9 +560,12 @@ const searchMerchantController = async (req, res, next) => {
     const searchResults = await Merchant.find({
       "merchantDetail.merchantName": { $regex: searchTerm, $options: "i" },
     })
-      .select("merchantDetail status phoneNumber isApproved")
+      .select("fullName phoneNumber isApproved status merchantDetail")
       .populate("merchantDetail.geofenceId", "name")
-      .populate("merchantDetail.businessCategoryId", "title")
+      .sort({
+        "merchantDetail.merchantName": 1,
+        phoneNumber: 1,
+      })
       .skip(skip)
       .limit(limit);
 
@@ -661,8 +666,12 @@ const filterMerchantsController = async (req, res, next) => {
 
     // Fetch merchants based on the constructed filter criteria
     const filteredMerchants = await Merchant.find(filterCriteria)
-      .populate("merchantDetail.geofenceId")
-      .populate("merchantDetail.businessCategoryId")
+      .select("fullName phoneNumber isApproved status merchantDetail")
+      .populate("merchantDetail.geofenceId", "name")
+      .sort({
+        "merchantDetail.merchantName": 1,
+        phoneNumber: 1,
+      })
       .skip(skip)
       .limit(limit);
 
@@ -670,7 +679,6 @@ const filterMerchantsController = async (req, res, next) => {
     const totalDocuments = await Merchant.countDocuments({});
 
     const merchantsWithDetails = filteredMerchants.map((merchant) => {
-      const merchantDetail = merchant.merchantDetail;
       return {
         _id: merchant._id,
         merchantName: merchant?.merchantDetail?.merchantName || "-",
@@ -817,9 +825,14 @@ const getAllMerchantsController = async (req, res, next) => {
     // Calculate the number of documents to skip
     const skip = (page - 1) * limit;
 
+    // Find merchants, sort by merchantName alphabetically and phoneNumber numerically
     const merchantsFound = await Merchant.find({ isBlocked: false })
       .select("fullName phoneNumber isApproved status merchantDetail")
       .populate("merchantDetail.geofenceId", "name")
+      .sort({
+        "merchantDetail.merchantName": 1,
+        phoneNumber: 1,
+      })
       .skip(skip)
       .limit(limit);
 
@@ -1061,8 +1074,6 @@ const changeMerchantStatusController = async (req, res, next) => {
 // Update Merchant Details by admin
 const updateMerchantDetailsController = async (req, res, next) => {
   const { fullName, email, phoneNumber, merchantDetail } = req.body;
-
-  console.log(req.body.merchantDetail.availability.specificDays);
 
   const errors = validationResult(req);
   let formattedErrors = {};
@@ -1607,6 +1618,59 @@ const downloadMerchantCSVController = async (req, res, next) => {
   }
 };
 
+const deleteMerchantProfileByAdminController = async (req, res, next) => {
+  try {
+    const { merchantId } = req.params;
+
+    // Step 1: Find the merchant
+    const merchant = await Merchant.findById(merchantId);
+    if (!merchant) return next(appError("Merchant not found", 404));
+
+    // Step 2: Find all categories and products of the merchant
+    const categories = await Category.find({ merchantId });
+    const products = await Product.find({ merchantId });
+
+    // Step 3: Delete associated images from Firebase (Products, Categories, and Merchant)
+    const deleteCategoryImagesPromises = categories
+      .filter((category) => category.categoryImageURL) // Only delete if image exists
+      .map((category) => deleteFromFirebase(category.categoryImageURL));
+
+    const deleteProductImagesPromises = products
+      .filter((product) => product.productImageURL) // Only delete if image exists
+      .map((product) => deleteFromFirebase(product.productImageURL));
+
+    const deleteMerchantImagesPromises = [
+      merchant.merchantDetail.merchantImageURL,
+      merchant.merchantDetail.pancardImageURL,
+      merchant.merchantDetail.GSTINImageURL,
+      merchant.merchantDetail.FSSAIImageURL,
+      merchant.merchantDetail.aadharImageURL,
+    ]
+      .filter((url) => url) // Only delete if image URL is not null
+      .map((url) => deleteFromFirebase(url));
+
+    // Execute all image deletion promises in parallel
+    await Promise.all([
+      ...deleteCategoryImagesPromises,
+      ...deleteProductImagesPromises,
+      ...deleteMerchantImagesPromises,
+    ]);
+
+    // Step 4: Delete products and categories
+    await Product.deleteMany({ merchantId });
+    await Category.deleteMany({ merchantId });
+
+    // Step 5: Delete the merchant
+    await Merchant.findByIdAndDelete(merchantId);
+
+    res
+      .status(200)
+      .json({ message: "Merchant and associated data deleted successfully." });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerMerchantController,
   getMerchantProfileController,
@@ -1632,4 +1696,5 @@ module.exports = {
   addMerchantsFromCSVController,
   downloadMerchantSampleCSVController,
   downloadMerchantCSVController,
+  deleteMerchantProfileByAdminController,
 };

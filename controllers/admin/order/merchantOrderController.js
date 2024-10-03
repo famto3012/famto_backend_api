@@ -1387,6 +1387,7 @@ const createInvoiceController = async (req, res, next) => {
 
   try {
     const {
+      selectedBusinessCategory,
       customerId,
       newCustomer,
       deliveryOption,
@@ -1446,7 +1447,8 @@ const createInvoiceController = async (req, res, next) => {
       merchantFound,
       customer,
       items,
-      scheduledDetails
+      scheduledDetails,
+      selectedBusinessCategory
     );
 
     const merchantDiscountAmount = await applyDiscounts({
