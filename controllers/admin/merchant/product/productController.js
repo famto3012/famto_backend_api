@@ -11,10 +11,11 @@ const { Readable } = require("stream");
 const csvParser = require("csv-parser");
 const path = require("path");
 const csvWriter = require("csv-writer").createObjectCsvWriter;
+const fs = require("fs");
 
 // ------------------------------------------------------
-// For Merchant and Admin
-// -------------------------------------------------------
+// ----------------For Merchant and Admin----------------
+// ------------------------------------------------------
 
 const addProductController = async (req, res, next) => {
   const errors = validationResult(req);
@@ -341,7 +342,9 @@ const updateProductOrderController = async (req, res, next) => {
   }
 };
 
-//Variants
+// -------------------------------------------------------
+// ------------------------Variants-----------------------
+// -------------------------------------------------------
 
 const addVariantToProductController = async (req, res, next) => {
   try {
@@ -796,6 +799,11 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
     });
 
     await writer.writeRecords(formattedResponse);
+
+    // Add UTF-8 BOM to the CSV file
+    const bom = "\uFEFF"; // BOM character
+    const csvContent = fs.readFileSync(filePath, "utf8");
+    fs.writeFileSync(filePath, bom + csvContent, { encoding: "utf8" });
 
     res.status(200).download(filePath, "Combined_Product_Data.csv", (err) => {
       if (err) {

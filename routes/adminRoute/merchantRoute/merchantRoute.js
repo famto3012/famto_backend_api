@@ -21,6 +21,7 @@ const {
   addMerchantsFromCSVController,
   downloadMerchantSampleCSVController,
   downloadMerchantCSVController,
+  deleteMerchantProfileByAdminController,
 } = require("../../../controllers/admin/merchant/merchantController");
 const { upload } = require("../../../utils/imageOperation");
 const isAdmin = require("../../../middlewares/isAdmin");
@@ -221,6 +222,13 @@ merchantRoute.post(
   isAuthenticated,
   isAdmin,
   addMerchantsFromCSVController
+);
+
+merchantRoute.delete(
+  "/admin/delete-merchant/:merchantId",
+  isAuthenticated,
+  isAdmin,
+  deleteMerchantProfileByAdminController
 );
 
 module.exports = merchantRoute;
