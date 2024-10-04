@@ -129,7 +129,7 @@ const editBusinessCategoryController = async (req, res, next) => {
       return next(appError("Business category not found", 404));
     }
 
-    let bannerImageURL = businessCategoryFound.bannerImageURL;
+    let bannerImageURL = businessCategoryFound?.bannerImageURL;
     let order = businessCategoryFound.order;
 
     if (req.file) {

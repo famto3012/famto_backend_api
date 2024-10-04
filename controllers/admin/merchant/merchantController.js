@@ -562,6 +562,7 @@ const searchMerchantController = async (req, res, next) => {
     })
       .select("fullName phoneNumber isApproved status merchantDetail")
       .populate("merchantDetail.geofenceId", "name")
+      .populate("merchantDetail.businessCategoryId", "title")
       .sort({
         "merchantDetail.merchantName": 1,
         phoneNumber: 1,
@@ -851,7 +852,7 @@ const getAllMerchantsController = async (req, res, next) => {
             : "Active",
         status: merchant.status,
         geofence: merchant?.merchantDetail?.geofenceId?.name || "-",
-        averageRating: merchant?.merchantDetail?.averageRating,
+        averageRating: merchant?.merchantDetail?.averageRating || "0",
         isServiceableToday: merchant.status ? "Open" : "Closed",
       };
     });
@@ -982,7 +983,22 @@ const addMerchantController = async (req, res, next) => {
       return next(appError("Error in creating new merchant"));
     }
 
-    res.status(201).json({ message: "Merchant added successfully" });
+    const formattedResponse = {
+      _id: newMerchant._id,
+      merchantName: "-",
+      phoneNumber: newMerchant.phoneNumber,
+      isApproved: "Pending",
+      subscriptionStatus: "Inactive",
+      status: false,
+      geofence: "-",
+      averageRating: "0",
+      isServiceableToday: "Closed",
+    };
+
+    res.status(201).json({
+      message: "Merchant added successfully",
+      data: formattedResponse,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -1630,23 +1646,23 @@ const deleteMerchantProfileByAdminController = async (req, res, next) => {
     const categories = await Category.find({ merchantId });
     const products = await Product.find({ merchantId });
 
-    // Step 3: Delete associated images from Firebase (Products, Categories, and Merchant)
+    // Step 3: Delete associated images from Firebase
     const deleteCategoryImagesPromises = categories
-      .filter((category) => category.categoryImageURL) // Only delete if image exists
-      .map((category) => deleteFromFirebase(category.categoryImageURL));
+      .filter((category) => category.categoryImageURL) // Filter categories with images
+      .map((category) => deleteFromFirebase(category?.categoryImageURL));
 
     const deleteProductImagesPromises = products
-      .filter((product) => product.productImageURL) // Only delete if image exists
-      .map((product) => deleteFromFirebase(product.productImageURL));
+      .filter((product) => product.productImageURL) // Filter products with images
+      .map((product) => deleteFromFirebase(product?.productImageURL));
 
     const deleteMerchantImagesPromises = [
-      merchant.merchantDetail.merchantImageURL,
-      merchant.merchantDetail.pancardImageURL,
-      merchant.merchantDetail.GSTINImageURL,
-      merchant.merchantDetail.FSSAIImageURL,
-      merchant.merchantDetail.aadharImageURL,
+      merchant?.merchantDetail?.merchantImageURL,
+      merchant?.merchantDetail?.pancardImageURL,
+      merchant?.merchantDetail?.GSTINImageURL,
+      merchant?.merchantDetail?.FSSAIImageURL,
+      merchant?.merchantDetail?.aadharImageURL,
     ]
-      .filter((url) => url) // Only delete if image URL is not null
+      .filter((url) => url) // Filter merchant images with URLs
       .map((url) => deleteFromFirebase(url));
 
     // Execute all image deletion promises in parallel
