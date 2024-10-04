@@ -193,7 +193,7 @@ const editProductController = async (req, res, next) => {
       productImageURL = await uploadToFirebase(req.file, "ProductImages");
     }
 
-    await Product.findByIdAndUpdate(
+   const product =  await Product.findByIdAndUpdate(
       productId,
       {
         productName: productName || null,
@@ -218,7 +218,7 @@ const editProductController = async (req, res, next) => {
       { new: true }
     );
 
-    res.status(200).json({ message: "Product updated successfully" });
+    res.status(200).json({ message: "Product updated successfully", data: product });
   } catch (err) {
     next(appError(err.message));
   }
