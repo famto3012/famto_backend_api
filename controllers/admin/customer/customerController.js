@@ -193,7 +193,7 @@ const filterCustomerByGeofenceController = async (req, res, next) => {
     };
 
     res.status(200).json({
-      message: "Searched customers",
+      message: "Filtered customers",
       data: formattedCustomers,
       pagination,
     });
@@ -377,31 +377,44 @@ const getAllRatingsAndReviewsByAgentController = async (req, res, next) => {
   try {
     const { customerId } = req.params;
 
+    // Step 1: Find the customer and populate ratings and agent details
     const customerFound = await Customer.findById(customerId).populate({
       path: "customerDetails.ratingsByAgents",
       populate: {
         path: "agentId",
         model: "Agent",
-        select: "fullName _id", // Selecting the fields of fullName and _id from Agent
+        select: "fullName _id",
       },
     });
 
+    // Step 2: Check if the customer exists
     if (!customerFound) {
-      next(appError("Customer not found", 404));
+      return next(appError("Customer not found", 404));
     }
 
+    // Step 3: Retrieve and reverse ratings, if they exist
     const ratingsOfCustomer =
-      customerFound.customerDetails?.ratingsByAgents?.reverse();
+      customerFound.customerDetails?.ratingsByAgents?.reverse() || [];
 
-    const ratings = ratingsOfCustomer?.map((rating) => ({
-      review: rating.review,
-      rating: rating.rating,
-      agentId: {
-        id: rating.agentId._id,
-        fullName: rating.agentId.fullName,
-      },
-    }));
+    // Step 4: Map ratings to extract review, rating, and agent information (with safety checks)
+    const ratings = ratingsOfCustomer
+      .map((rating) => {
+        if (rating.agentId) {
+          // Check if agentId exists
+          return {
+            review: rating.review,
+            rating: rating.rating,
+            agentId: {
+              id: rating.agentId._id,
+              fullName: rating.agentId.fullName,
+            },
+          };
+        }
+        return null; // Return null if there's no agentId
+      })
+      .filter(Boolean); // Filter out any null values
 
+    // Step 5: Send response
     res.status(200).json({
       message: "Ratings of customer by agent",
       data: ratings,

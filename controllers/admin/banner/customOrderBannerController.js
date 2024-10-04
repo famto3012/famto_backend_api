@@ -51,9 +51,11 @@ const editCustomOrderBannerController = async (req, res, next) => {
 
     const banner = await CustomOrderBanner.findOne({ _id: id });
 
-    let imageUrl = banner.imageUrl;
+    let imageUrl = banner?.imageUrl;
     if (req.file) {
-      await deleteFromFirebase(banner.imageUrl);
+      if (imageUrl) {
+        await deleteFromFirebase(banner.imageUrl);
+      }
       imageUrl = await uploadToFirebase(req.file, "CustomOrderBannerImages");
     }
 
