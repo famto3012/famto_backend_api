@@ -18,7 +18,7 @@ const categorySchema = mongoose.Schema(
     },
     description: {
       type: String,
-      required: true,
+      default: null,
     },
     type: {
       type: String,
@@ -28,6 +28,7 @@ const categorySchema = mongoose.Schema(
     },
     categoryImageURL: {
       type: String,
+      default: null,
     },
     status: {
       type: Boolean,

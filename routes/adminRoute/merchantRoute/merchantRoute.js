@@ -22,6 +22,7 @@ const {
   downloadMerchantSampleCSVController,
   downloadMerchantCSVController,
   deleteMerchantProfileByAdminController,
+  getAllMerchantsForDropDownController,
 } = require("../../../controllers/admin/merchant/merchantController");
 const { upload } = require("../../../utils/imageOperation");
 const isAdmin = require("../../../middlewares/isAdmin");
@@ -89,6 +90,14 @@ merchantRoute.post(
 // -------------------------------
 // For Admin
 // -------------------------------
+
+// Get all merchant for drop-down
+merchantRoute.get(
+  "/admin/all-merchant-drop-down",
+  isAuthenticated,
+  isAdmin,
+  getAllMerchantsForDropDownController
+);
 
 // Download sample CSV
 merchantRoute.get(

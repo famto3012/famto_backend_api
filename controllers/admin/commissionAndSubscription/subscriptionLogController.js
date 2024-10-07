@@ -424,6 +424,7 @@ const getByMerchantIdSubscriptionLogController = async (req, res, next) => {
     const subscriptionLogs = await SubscriptionLog.find({
       userId: merchantId,
     });
+
     const userIds = [...new Set(subscriptionLogs.map((log) => log.userId))];
 
     // Step 3: Fetch user details for the extracted userIds
