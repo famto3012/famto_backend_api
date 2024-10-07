@@ -1,4 +1,4 @@
-const { body, check } = require("express-validator");
+const { body } = require("express-validator");
 
 const addCategoryByAdminValidation = [
   body("businessCategoryId")
@@ -10,14 +10,8 @@ const addCategoryByAdminValidation = [
     .trim()
     .notEmpty()
     .withMessage("Category name is required"),
-  body("description").trim().notEmpty().withMessage("Description is required"),
+  body("description").optional().trim(),
   body("type").trim().notEmpty().withMessage("Type is required"),
-  check("categoryImage").custom((value, { req }) => {
-    if (!req.file) {
-      throw new Error("Merchant image is required");
-    }
-    return true;
-  }),
 ];
 
 const editCategoryByAdminValidation = [
@@ -29,7 +23,7 @@ const editCategoryByAdminValidation = [
     .trim()
     .notEmpty()
     .withMessage("Category name is required"),
-  body("description").trim().notEmpty().withMessage("Description is required"),
+  body("description").optional().trim(),
   body("type").trim().notEmpty().withMessage("Type is required"),
 ];
 
@@ -42,14 +36,8 @@ const addCategoryByMerchantValidation = [
     .trim()
     .notEmpty()
     .withMessage("Category name is required"),
-  body("description").trim().notEmpty().withMessage("Description is required"),
+  body("description").optional().trim(),
   body("type").trim().notEmpty().withMessage("Type is required"),
-  check("categoryImage").custom((value, { req }) => {
-    if (!req.file) {
-      throw new Error("Merchant image is required");
-    }
-    return true;
-  }),
 ];
 
 const editCategoryByMerchantValidation = [
@@ -61,14 +49,8 @@ const editCategoryByMerchantValidation = [
     .trim()
     .notEmpty()
     .withMessage("Category name is required"),
-  body("description").trim().notEmpty().withMessage("Description is required"),
+  body("description").optional().trim(),
   body("type").trim().notEmpty().withMessage("Type is required"),
-  check("categoryImage").custom((value, { req }) => {
-    if (!req.body.categoryImageURL && !req.file) {
-      throw new Error("Category image is required");
-    }
-    return true;
-  }),
 ];
 
 module.exports = {

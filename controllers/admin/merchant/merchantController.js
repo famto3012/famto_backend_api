@@ -40,7 +40,7 @@ const convertNullValues = (obj) => {
 };
 
 //----------------------------
-//For Merchant
+// -------For Merchant--------
 //-----------------------------
 
 //Register
@@ -457,86 +457,10 @@ const verifyPaymentByMerchantController = async (req, res, next) => {
 };
 
 //----------------------------
-//For Admin Panel
-//-----------------------------
-// TODO: Check statuts in dropdown of create order
-// Search merchant
-// const searchMerchantController = async (req, res, next) => {
-//   try {
-//     let { query, page = 1, limit = 20 } = req.query;
+// ------For Admin Panel------
+//----------------------------
 
-//     if (!query || query.trim() === "") {
-//       return res.status(400).json({
-//         message: "Search query cannot be empty",
-//       });
-//     }
-
-//     // Convert to integers
-//     page = parseInt(page, 10);
-//     limit = parseInt(limit, 10);
-
-//     // Calculate the number of documents to skip
-//     const skip = (page - 1) * limit;
-
-//     const searchTerm = query.toLowerCase();
-
-//     const searchResults = await Merchant.find({
-//       "merchantDetail.merchantName": { $regex: searchTerm, $options: "i" },
-//     })
-//       .select("merchantDetail phoneNumber isApproved")
-//       .skip(skip)
-//       .limit(limit);
-
-//     // Count total documents
-//     const totalDocuments = await Merchant.countDocuments({});
-
-//     const merchantsWithDetails = await Promise.all(
-//       searchResults.map(async (merchant) => {
-//         // Fetch additional details if available, or set them to null if not
-//         let merchantDetail = await Merchant.findById(merchant._id)
-//           .select(
-//             "status merchantDetail.merchantName merchantDetail.geofenceId merchantDetail.averageRating merchantDetail.isServiceableToday"
-//           )
-//           .populate("merchantDetail.geofenceId", "name");
-
-//         console.log(merchantDetail?.geofenceId?.name);
-
-//         return {
-//           _id: merchant._id,
-//           merchantName: merchant?.merchantDetail?.merchantName || "-",
-//           phoneNumber: merchant.phoneNumber,
-//           isApproved: merchant.isApproved,
-//           subscriptionStatus:
-//             merchant?.merchantDetail?.pricing?.length === 0
-//               ? "Inactive"
-//               : "Active",
-//           status: merchant.status,
-//           geofence: merchant?.merchantDetail?.geofenceId?.name || "-",
-//           averageRating: merchant?.merchantDetail?.averageRating,
-//           isServiceableToday: merchant.status ? "Open" : "Closed",
-//         };
-//       })
-//     );
-
-//     let pagination = {
-//       totalDocuments: totalDocuments || 0,
-//       totalPages: Math.ceil(totalDocuments / limit),
-//       currentPage: page || 1,
-//       pageSize: limit,
-//       hasNextPage: page < Math.ceil(totalDocuments / limit),
-//       hasPrevPage: page > 1,
-//     };
-
-//     res.status(200).json({
-//       message: "Searched merchant results",
-//       data: merchantsWithDetails,
-//       pagination,
-//     });
-//   } catch (err) {
-//     next(appError(err.message));
-//   }
-// };
-
+// Search merchant controller
 const searchMerchantController = async (req, res, next) => {
   try {
     let { query, page = 1, limit = 20 } = req.query;
@@ -813,7 +737,34 @@ const rejectRegistrationController = async (req, res, next) => {
   }
 };
 
-// Get all merchant details
+// Get all merchants for dropdown
+const getAllMerchantsForDropDownController = async (req, res, next) => {
+  try {
+    // Find merchants, sort by merchantName alphabetically and phoneNumber numerically
+    const merchantsFound = await Merchant.find({ isBlocked: false })
+      .select("merchantDetail")
+      .sort({
+        "merchantDetail.merchantName": 1,
+        phoneNumber: 1,
+      });
+
+    const formattedResponse = merchantsFound?.map((merchant) => {
+      return {
+        _id: merchant._id,
+        merchantName: merchant.merchantDetail.merchantName,
+      };
+    });
+
+    res.status(200).json({
+      message: "All merchants for drop-down",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get all merchants for panel
 const getAllMerchantsController = async (req, res, next) => {
   try {
     // Get page and limit from query parameters
@@ -1634,6 +1585,7 @@ const downloadMerchantCSVController = async (req, res, next) => {
   }
 };
 
+// Delete merchant profile
 const deleteMerchantProfileByAdminController = async (req, res, next) => {
   try {
     const { merchantId } = req.params;
@@ -1713,4 +1665,5 @@ module.exports = {
   downloadMerchantSampleCSVController,
   downloadMerchantCSVController,
   deleteMerchantProfileByAdminController,
+  getAllMerchantsForDropDownController,
 };

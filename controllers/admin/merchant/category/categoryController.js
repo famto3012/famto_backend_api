@@ -172,7 +172,7 @@ const editCategoryByAdminController = async (req, res, next) => {
       categoryImageURL = await uploadToFirebase(req.file, "CategoryImages");
     }
 
-    await Category.findByIdAndUpdate(
+    const updatedCategory = await Category.findByIdAndUpdate(
       req.params.categoryId,
       {
         businessCategoryId: businessCategoryId._id,
@@ -187,6 +187,7 @@ const editCategoryByAdminController = async (req, res, next) => {
 
     res.status(200).json({
       message: "Category updated successfully",
+      data: updatedCategory,
     });
   } catch (err) {
     next(appError(err.message));
