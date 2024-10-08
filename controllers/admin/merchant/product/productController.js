@@ -127,12 +127,9 @@ const getAllProductsByMerchant = async (req, res) => {
 
 const getProductController = async (req, res, next) => {
   try {
-    const productId = req.params.productId;
+    const { productId } = req.params;
 
     const productFound = await Product.findById(productId);
-    // .populate("oftenBoughtTogetherId", "productName")
-    // .populate("discountId", "discountName")
-    // .populate("categoryId", "categoryName");
 
     if (!productFound) {
       return next(appError("Product not found", 404));
@@ -194,7 +191,7 @@ const editProductController = async (req, res, next) => {
       productImageURL = await uploadToFirebase(req.file, "ProductImages");
     }
 
-   const product =  await Product.findByIdAndUpdate(
+    const product = await Product.findByIdAndUpdate(
       productId,
       {
         productName: productName || null,
@@ -219,7 +216,9 @@ const editProductController = async (req, res, next) => {
       { new: true }
     );
 
-    res.status(200).json({ message: "Product updated successfully", data: product });
+    res
+      .status(200)
+      .json({ message: "Product updated successfully", data: product });
   } catch (err) {
     next(appError(err.message));
   }

@@ -2,7 +2,9 @@ const { validationResult } = require("express-validator");
 const ProductDiscount = require("../../../../models/ProductDiscount");
 const appError = require("../../../../utils/appError");
 
-// For Merchant
+// =====================================
+// ===============Merchant==============
+// =====================================
 const addProductDiscountController = async (req, res, next) => {
   const errors = validationResult(req);
 
@@ -82,7 +84,9 @@ const editProductDiscountController = async (req, res, next) => {
       }
     });
 
-    const updatedDiscount = await existingDiscount.save();
+    let updatedDiscount = await existingDiscount.save();
+
+    updatedDiscount = await updatedDiscount.populate("geofenceId", "name");
 
     res.status(200).json({
       success: "Product Discount updated successfully",
@@ -116,10 +120,9 @@ const getAllProductDiscountController = async (req, res, next) => {
   try {
     const merchantId = req.userAuth;
 
-    const discounts = await ProductDiscount.find({ merchantId }).populate(
-      "geofenceId",
-      "name"
-    ).populate("productId", "productName");
+    const discounts = await ProductDiscount.find({ merchantId })
+      .populate("geofenceId", "name")
+      .populate("productId", "productName");
 
     res.status(200).json({
       success: "Product Discounts retrieved successfully",
@@ -182,7 +185,9 @@ const getProductDiscountByIdController = async (req, res, next) => {
   }
 };
 
-//For Admin
+// =======================================
+// =================Admin=================
+// =======================================
 const addProductDiscountAdminController = async (req, res, next) => {
   const errors = validationResult(req);
 

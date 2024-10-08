@@ -237,6 +237,8 @@ const editCustomerSubscriptionPlanController = async (req, res, next) => {
       description,
     } = req.body;
 
+    console.log(req.body);
+
     const subscriptionPlan = await CustomerSubscription.findById(id);
 
     if (!subscriptionPlan) {
@@ -264,7 +266,9 @@ const editCustomerSubscriptionPlanController = async (req, res, next) => {
       { new: true }
     );
 
-    updatedSubPlan = await updatedSubPlan.populate("taxId", "taxName");
+    updatedSubPlan = (await updatedSubPlan.populate("taxId", "taxName")).select(
+      "-createdAt -upatedAt"
+    );
 
     res.status(200).json({
       message: "Subscription plan updated successfully",
