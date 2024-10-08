@@ -202,6 +202,8 @@ cron.schedule("* * * * *", async () => {
 
   console.log("Running scheduled order job...");
   const now = new Date();
+  // fetchPerDayRevenue(now);
+  // fetchMerchantDailyRevenue(now);
   const date = convertToIST(now);
   //  console.log("IST",date)
   //  console.log("UTC",now)
