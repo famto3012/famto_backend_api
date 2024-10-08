@@ -351,6 +351,7 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
       FSSAIImageURL,
       aadharImageURL,
     };
+    console.log("Detail",detail)
 
     merchantFound.fullName = fullName;
     merchantFound.email = email;
