@@ -28,22 +28,22 @@ const isAdminOrMerchant = require("../../../../middlewares/isAdminOrMerchant");
 
 const productRoute = express.Router();
 
-// Download sample product Data CSV
 productRoute.get(
-  "/download-sample-product-csv",
+  "/all-products-of-merchant/:merchantId",
   isAuthenticated,
   isAdminOrMerchant,
-  downloadProductSampleCSVController
+  getAllProductsByMerchant
 );
 
 //Search Product Details
 productRoute.get("/search", isAuthenticated, searchProductController);
 
-//Get Product by category
+//Get Product
 productRoute.get(
-  "/product-by-category/:categoryId",
+  "/:productId",
   isAuthenticated,
-  getProductByCategoryController
+  isAdminOrMerchant,
+  getProductController
 );
 
 //Add Product
@@ -54,21 +54,6 @@ productRoute.post(
   isAuthenticated,
   isAdminOrMerchant,
   addProductController
-);
-
-productRoute.get(
-  "/all-products-of-merchant/:merchantId",
-  isAuthenticated,
-  isAdminOrMerchant,
-  getAllProductsByMerchant
-);
-
-//Get Product
-productRoute.get(
-  "/:productId",
-  isAuthenticated,
-  isAdminOrMerchant,
-  getProductController
 );
 
 //Edit Product
@@ -89,6 +74,17 @@ productRoute.delete(
   deleteProductController
 );
 
+// -------------------------------
+// Category and Inventory Management Routes
+// -------------------------------
+
+//Get Product by category
+productRoute.get(
+  "/product-by-category/:categoryId",
+  isAuthenticated,
+  getProductByCategoryController
+);
+
 // Change product category
 productRoute.patch(
   "/:productId/change-category/:categoryId",
@@ -105,6 +101,10 @@ productRoute.patch(
   changeInventoryStatusController
 );
 
+// -------------------------------
+// Product Order Route
+// -------------------------------
+
 // Change product order
 productRoute.put(
   "/change-order",
@@ -113,7 +113,8 @@ productRoute.put(
   updateProductOrderController
 );
 
-//Variants
+// -------------------------------
+// Variant Management Routes
 // -------------------------------
 
 //Add variants to product
@@ -137,8 +138,21 @@ productRoute.put(
 //Delete product variant type
 productRoute.delete(
   "/:productId/variants/:variantId/types/:variantTypeId",
+  isAuthenticated,
   isAdminOrMerchant,
   deleteVariantTypeController
+);
+
+// -------------------------------
+// CSV Upload/Download Routes
+// -------------------------------
+
+// Download sample product Data CSV
+productRoute.get(
+  "/download-sample-product-csv",
+  isAuthenticated,
+  isAdminOrMerchant,
+  downloadProductSampleCSVController
 );
 
 // Upload product Data from CSV

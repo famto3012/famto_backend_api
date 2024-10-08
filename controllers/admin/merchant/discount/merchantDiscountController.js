@@ -3,7 +3,9 @@ const MerchantDiscount = require("../../../../models/MerchantDiscount");
 const appError = require("../../../../utils/appError");
 const ProductDiscount = require("../../../../models/ProductDiscount");
 
-//For Merchant
+// =========================
+// Merchant
+// =========================
 const addDiscountController = async (req, res, next) => {
   const errors = validationResult(req);
 
@@ -80,7 +82,9 @@ const editDiscountController = async (req, res, next) => {
       }
     });
 
-    const updatedDiscount = await existingDiscount.save();
+    let updatedDiscount = await existingDiscount.save();
+
+    updatedDiscount = await updatedDiscount.populate("geofenceId", "name");
 
     res.status(200).json({
       success: "Discount updated successfully",
@@ -215,7 +219,9 @@ const getMerchantDiscountByIdController = async (req, res, next) => {
   }
 };
 
-//For Admin
+// =========================
+// Admin
+// =========================
 const addDiscountAdminController = async (req, res, next) => {
   const errors = validationResult(req);
 
@@ -303,8 +309,12 @@ const updateAllDiscountAdminController = async (req, res, next) => {
 const getAllDiscountAdminController = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const merchantDiscounts = await MerchantDiscount.find({ merchantId: id }).populate("geofenceId", "name");
-    const productDiscounts = await ProductDiscount.find({ merchantId: id }).populate("geofenceId", "name");
+    const merchantDiscounts = await MerchantDiscount.find({
+      merchantId: id,
+    }).populate("geofenceId", "name");
+    const productDiscounts = await ProductDiscount.find({
+      merchantId: id,
+    }).populate("geofenceId", "name");
 
     const discounts = [...merchantDiscounts, ...productDiscounts];
 
