@@ -5,6 +5,7 @@ const {
   addOrUpdateReferralController,
   getReferralController,
   getReferralDetailController,
+  updateReferralStatus,
 } = require("../../../controllers/admin/referral/referralController");
 const referralRoute = express.Router();
 
@@ -13,6 +14,13 @@ referralRoute.post(
   isAuthenticated,
   isAdmin,
   addOrUpdateReferralController
+);
+
+referralRoute.put(
+  "/edit-referral-status",
+  isAuthenticated,
+  isAdmin,
+  updateReferralStatus
 );
 
 referralRoute.get(

@@ -106,6 +106,36 @@ const addOrUpdateReferralController = async (req, res, next) => {
   }
 };
 
+
+const updateReferralStatus = async (req, res, next) => {
+  try {
+    const referral = await Referral.find({});
+    console.log(referral)
+    if (!referral) {
+      return res.status(404).json({ message: "Referral not found" });
+    }
+
+    const updatedReferrals = await Promise.all(
+      referral.map(async (data) => {
+        if(data.status){
+          data.status = false;
+        }
+        await data.save(); 
+        return data;
+      })
+    );
+
+    res.status(200).json({
+      message: "Referral status updated successfully",
+      updatedReferrals,
+    });
+
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+
 const getReferralController = async (req, res, next) => {
   try {
     const { referralType } = req.query;
@@ -151,4 +181,5 @@ module.exports = {
   addOrUpdateReferralController,
   getReferralController,
   getReferralDetailController,
+  updateReferralStatus,
 };

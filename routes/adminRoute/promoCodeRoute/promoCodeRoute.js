@@ -22,7 +22,7 @@ promoCodeRoute.post(
     body("promoCode").notEmpty().withMessage("Promo code is required"),
     body("promoType").notEmpty().withMessage("Promo type is required"),
     body("discount").notEmpty().withMessage("Discount is required"),
-    body("description").notEmpty().withMessage("Description is required"),
+    // body("description").notEmpty().withMessage("Description is required"),
     body("fromDate").notEmpty().withMessage("From date is required"),
     body("toDate").notEmpty().withMessage("To date is required"),
     body("maxDiscountValue")
