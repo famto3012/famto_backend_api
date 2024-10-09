@@ -29,6 +29,7 @@ const Commission = require("../../../models/Commission");
 const SubscriptionLog = require("../../../models/SubscriptionLog");
 const Category = require("../../../models/Category");
 const Product = require("../../../models/Product");
+const sharp = require("sharp");
 
 // Helper function to handle null or empty string values
 const convertNullValues = (obj) => {
@@ -351,7 +352,7 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
       FSSAIImageURL,
       aadharImageURL,
     };
-    console.log("Detail",detail)
+    console.log("Detail", details);
 
     merchantFound.fullName = fullName;
     merchantFound.email = email;
@@ -1118,6 +1119,41 @@ const updateMerchantDetailsController = async (req, res, next) => {
         aadharImageURL = await uploadToFirebase(aadharImage[0], "AadharImages");
       }
     }
+    const newLocation = [
+      parseFloat(merchantDetail.location[0]),
+      parseFloat(merchantDetail.location[1]),
+    ];
+    console.log("Old location", merchantFound.merchantDetail.location);
+    console.log("New location", newLocation);
+
+    const arraysAreEqual = (arr1, arr2) => {
+      return (
+        arr1.length === arr2.length &&
+        arr1.every((value, index) => value === arr2[index])
+      );
+    };
+    let locationImage;
+    if (!arraysAreEqual(newLocation, merchantFound.merchantDetail.location)) {
+      if (merchantFound?.merchantDetail?.locationImage) {
+        await deleteFromFirebase(merchantFound.merchantDetail.locationImage);
+      }
+
+      const url = `https://apis.mapmyindia.com/advancedmaps/v1/9a632cda78b871b3a6eb69bddc470fef/still_image?center=${newLocation[0]}, ${newLocation[1]}&size=400x500&markers=${newLocation[0]}, ${newLocation[1]}&zoom=15`;
+
+      try {
+        const response = await axios.get(url, { responseType: "arraybuffer" });
+        // Process the image using sharp to convert it to PNG format
+        const imageBuffer = await sharp(response.data).png().toBuffer();
+        locationImage = await uploadToFirebase(
+          imageBuffer,
+          "MerchantLocationImage"
+        );
+      } catch (err) {
+        res.status(500).json({ error: "Failed to fetch data from Mappls API" });
+      }
+    }
+
+    merchantDetail.locationImage = locationImage;
 
     const details = {
       ...merchantDetail,

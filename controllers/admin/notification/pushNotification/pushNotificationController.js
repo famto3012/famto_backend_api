@@ -32,6 +32,12 @@ const addPushNotificationController = async (req, res, next) => {
   try {
     const { title, description, geofenceId, merchant, driver, customer } =
       req.body;
+   
+    if (merchant === "false" && driver === "false" && customer === "false") {
+      return res.status(400).json({
+        message: "Please choose a value for merchant, driver, and customer.",
+      });
+    }
 
     let imageUrl = "";
     if (req.file) {

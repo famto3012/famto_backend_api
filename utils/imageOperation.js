@@ -39,7 +39,7 @@ const uploadToFirebase = async (file, folderName) => {
 
   const storageRef = ref(
     storage,
-    `${folderName}/${uniqueName}-${file.originalname}`
+    `${folderName}/${uniqueName}-${file.originalname || file.name}`
   );
   await uploadBytes(storageRef, file.buffer);
   const downloadURL = await getDownloadURL(storageRef);
