@@ -138,6 +138,10 @@ const merchantDetailSchema = new mongoose.Schema(
       type: [Number],
       default: [],
     },
+    locationImage: {
+      type: String,
+      default: null,
+    },
     ratingByCustomers: [ratingByCustomerSchema],
     pancardNumber: {
       type: String,

@@ -108,6 +108,15 @@ const sendPushNotificationToUser = async (fcmToken, message, eventName) => {
     data: {
       orderId: message?.orderId || "",
     },
+    webpush: {
+      fcm_options: {
+        link: "https://dashboard.famto.in/home",
+      },
+      notification: {
+        icon:
+          "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/admin_panel_assets%2FNew%20logo%20(19).svg?alt=media&token=5716ffd8-5dc9-457e-aafb-56abbe9d88f2",
+      },
+    },
     token: fcmToken,
   };
   console.log(mes);
