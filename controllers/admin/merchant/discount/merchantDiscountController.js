@@ -4,7 +4,7 @@ const appError = require("../../../../utils/appError");
 const ProductDiscount = require("../../../../models/ProductDiscount");
 
 // =========================
-// Merchant
+// ========Merchant=========
 // =========================
 const addDiscountController = async (req, res, next) => {
   const errors = validationResult(req);
@@ -31,7 +31,7 @@ const addDiscountController = async (req, res, next) => {
       geofenceId,
     } = req.body;
 
-    const addDiscount = new MerchantDiscount({
+    let addDiscount = await MerchantDiscount.create({
       discountName,
       maxCheckoutValue,
       maxDiscountValue,
@@ -44,7 +44,7 @@ const addDiscountController = async (req, res, next) => {
       merchantId,
     });
 
-    addDiscount.save();
+    addDiscount = await addDiscount.populate("geofenceId", "name");
 
     res.status(201).json({
       success: "Discount created successfully",
@@ -220,7 +220,7 @@ const getMerchantDiscountByIdController = async (req, res, next) => {
 };
 
 // =========================
-// Admin
+// ==========Admin==========
 // =========================
 const addDiscountAdminController = async (req, res, next) => {
   const errors = validationResult(req);
@@ -247,7 +247,7 @@ const addDiscountAdminController = async (req, res, next) => {
       merchantId,
     } = req.body;
 
-    const addDiscount = new MerchantDiscount({
+    let addDiscount = await MerchantDiscount.create({
       discountName,
       maxCheckoutValue,
       maxDiscountValue,
@@ -260,7 +260,7 @@ const addDiscountAdminController = async (req, res, next) => {
       merchantId,
     });
 
-    addDiscount.save();
+    addDiscount = await addDiscount.populate("geofenceId", "name");
 
     res.status(201).json({
       success: "Discount created successfully",

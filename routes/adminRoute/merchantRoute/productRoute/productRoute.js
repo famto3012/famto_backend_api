@@ -149,7 +149,7 @@ productRoute.delete(
 
 // Download sample product Data CSV
 productRoute.get(
-  "/download-sample-product-csv",
+  "/csv/sample-csv",
   isAuthenticated,
   isAdminOrMerchant,
   downloadProductSampleCSVController
@@ -157,7 +157,7 @@ productRoute.get(
 
 // Upload product Data from CSV
 productRoute.post(
-  "/upload-product-csv",
+  "/csv/upload-csv",
   upload.single("productCSV"),
   isAuthenticated,
   isAdminOrMerchant,
@@ -165,7 +165,7 @@ productRoute.post(
 );
 
 productRoute.post(
-  "/download-product-csv",
+  "/csv/download-csv",
   isAuthenticated,
   isAdminOrMerchant,
   downloadCobminedProductAndCategoryController

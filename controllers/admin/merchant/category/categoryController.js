@@ -47,9 +47,10 @@ const getAllCategoriesOfMerchantByAdminController = async (req, res, next) => {
       .select("categoryName merchantId status")
       .sort({ order: 1 });
 
-    res
-      .status(200)
-      .json({ message: "Categories of merchant", data: categoriesOfMerchant });
+    res.status(200).json({
+      message: "Categories of merchant",
+      data: categoriesOfMerchant,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -348,8 +349,16 @@ const addCategoryFromCSVController = async (req, res, next) => {
 
           await Promise.all(categoryPromise);
 
+          // Fetch all categories after adding, ordered by the 'order' field in ascending order
+          const allCategories = await Category.find({ merchantId })
+            .select("categoryName status")
+            .sort({
+              order: 1,
+            });
+
           res.status(200).json({
             message: "Categories added successfully.",
+            data: allCategories,
           });
         } catch (err) {
           next(appError(err.message));
@@ -605,6 +614,20 @@ const deleteCategoryByMerchantController = async (req, res, next) => {
     }
 
     await Category.findByIdAndDelete(req.params.categoryId);
+
+    const allProducts = await Product.find({
+      categoryId: req.params.categoryId,
+    });
+
+    allProducts.forEach(async (product) => {
+      let productImageURL = product?.productImageURL;
+
+      if (productImageURL) {
+        await deleteFromFirebase(productImageURL);
+      }
+
+      await Product.findByIdAndDelete(product._id);
+    });
 
     res.status(200).json({
       message: "Category deleted successfully",
