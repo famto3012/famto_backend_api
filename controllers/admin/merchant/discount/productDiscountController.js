@@ -31,7 +31,7 @@ const addProductDiscountController = async (req, res, next) => {
       onAddOn,
     } = req.body;
 
-    const addProductDiscount = new ProductDiscount({
+    let addProductDiscount = await ProductDiscount.create({
       discountName,
       maxAmount,
       discountType,
@@ -45,7 +45,10 @@ const addProductDiscountController = async (req, res, next) => {
       onAddOn,
     });
 
-    addProductDiscount.save();
+    addProductDiscount = await addProductDiscount.populate(
+      "geofenceId",
+      "name"
+    );
 
     res.status(201).json({
       success: "Product Discount created successfully",
@@ -214,7 +217,7 @@ const addProductDiscountAdminController = async (req, res, next) => {
       onAddOn,
     } = req.body;
 
-    const addDiscount = new ProductDiscount({
+    let addDiscount = await ProductDiscount.create({
       discountName,
       maxAmount,
       discountType,
@@ -228,7 +231,7 @@ const addProductDiscountAdminController = async (req, res, next) => {
       onAddOn,
     });
 
-    addDiscount.save();
+    addDiscount = await addDiscount.populate("geofenceId", "name");
 
     res.status(201).json({
       success: "Product Discount created successfully",

@@ -1,5 +1,6 @@
 const HomeScreenRealTimeData = require("../../../models/HomeScreenRealTimeData");
 const HomeScreenRevenueData = require("../../../models/HomeScreenRevenueData");
+const appError = require("../../../utils/appError");
 
 const getHomeScreenRealTimeData = async (req, res, next) => {
   try {
@@ -43,6 +44,8 @@ const createHomeScreenRealTimeData = async (req, res, next) => {
 const getRevenueDataByDateRange = async (req, res, next) => {
   try {
     const { startDate, endDate } = req.query;
+
+    console.log(req.query);
 
     // Convert to ISO strings for querying
     const start = new Date(startDate);

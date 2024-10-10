@@ -594,8 +594,16 @@ const addProductFromCSVController = async (req, res, next) => {
 
           await Promise.all(productPromises);
 
+          // Fetch all categories after adding, ordered by the 'order' field in ascending order
+          const allProducts = await Product.find({ categoryId })
+            .select("productName status")
+            .sort({
+              order: 1,
+            });
+
           res.status(200).json({
             message: "Products added/updated successfully.",
+            data: allProducts,
           });
         } catch (err) {
           next(appError(err.message));
