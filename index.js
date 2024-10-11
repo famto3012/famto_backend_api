@@ -183,8 +183,9 @@ cron.schedule("0 0 * * *", async () => {
   await generateMapplsAuthToken();
 
   const now = new Date();
-  fetchPerDayRevenue(now);
-  fetchMerchantDailyRevenue(now);
+  const date = convertToIST(now);
+  fetchPerDayRevenue(date);
+  fetchMerchantDailyRevenue(date);
 });
 
 const convertToIST = (date) => {

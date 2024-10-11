@@ -13,9 +13,9 @@ const createRazorpayOrderId = async (amount) => {
       currency: "INR",
       receipt: crypto.randomBytes(10).toString("hex"),
     };
-
+    console.log(options)
     const order = await razorpay.orders.create(options);
-
+    console.log("order", order)
     return { success: true, orderId: order.id };
   } catch (err) {
     console.error("Error in processing payment:", err);
