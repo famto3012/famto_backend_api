@@ -1,3 +1,3 @@
-Product name,Price,Min Quantity To Order,Max Quantity per Order,Cost price,SKU,Preparation time,Description,Long description,Type,Inventory,Available Quantity,Alert,Variant name,Variant Type name,Variant Type price
-Product 1,100,1,20,100,SKU12345,30,Description,Long description,Veg / Non-veg,TRUE / FALSE,20,10,Size,Medium,150
-Product 2,100,1,20,100,SKU12345,30,Description,Long description,Veg / Non-veg,TRUE / FALSE,20,10,Colour,Black,150
+Business Category Name*,Category Name*,Category Type*,Product Name*,Product Price*,Cost Price*,Product Type*,Min Quantity To Order,Max Quantity Per Order,SKU,Preparation Time,Description,Long Description,Available Quantity,Alert,Variant Name,Variant Type Name,Variant Type Price
+Business category,Category 1,Veg / Non-veg / Both,Product 1,100,100,Veg / Non-veg / Other,1,20,SKU12345,30,Description,Long Description,20,10,Size,Medium,150
+Business category,Category 2,Veg / Non-veg / Both,Product 2,200,200,Veg / Non-veg / Other,1,20,SKU12345,30,Description,Long Description,20,10,Size,Medium,150

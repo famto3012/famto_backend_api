@@ -40,22 +40,6 @@ categoryRoute.get(
 // For Admin
 // ----------------------------------------------------
 
-// Upload categories from CSV by Admin
-categoryRoute.post(
-  "/admin/upload-category-csv",
-  upload.single("categoryCSV"),
-  isAuthenticated,
-  isAdminOrMerchant,
-  addCategoryFromCSVController
-);
-
-categoryRoute.get(
-  "/admin/download-sample-category-csv",
-  isAuthenticated,
-  isAdminOrMerchant,
-  downloadCategorySampleCSVController
-);
-
 //Get all category of a merchant by Admin
 categoryRoute.get(
   "/admin/:merchantId",

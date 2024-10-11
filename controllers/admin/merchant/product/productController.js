@@ -12,6 +12,7 @@ const csvParser = require("csv-parser");
 const path = require("path");
 const csvWriter = require("csv-writer").createObjectCsvWriter;
 const fs = require("fs");
+const BusinessCategory = require("../../../../models/BusinessCategory");
 
 // ------------------------------------------------------
 // ----------------For Merchant and Admin----------------
@@ -456,170 +457,6 @@ const deleteVariantTypeController = async (req, res, next) => {
   }
 };
 
-const addProductFromCSVController = async (req, res, next) => {
-  try {
-    if (!req.file) {
-      return next(appError("CSV file is required", 400));
-    }
-
-    const { categoryId } = req.body;
-
-    if (!categoryId) {
-      return next(appError("Category Id is required", 400));
-    }
-
-    // Upload the CSV file to Firebase and get the download URL
-    const fileUrl = await uploadToFirebase(req.file, "csv-uploads");
-
-    const productsMap = new Map();
-
-    // Download the CSV data from Firebase Storage
-    const response = await axios.get(fileUrl);
-    const csvData = response.data;
-
-    // Create a readable stream from the CSV data
-    const stream = Readable.from(csvData);
-
-    // Parse the CSV data
-    stream
-      .pipe(csvParser())
-      .on("data", (row) => {
-        const isRowEmpty = Object.values(row).every(
-          (value) => value.trim() === ""
-        );
-
-        if (!isRowEmpty) {
-          // Use a unique key that includes SKU or other unique identifiers
-          const productKey = `${row[
-            "Product name"
-          ]?.trim()}-${categoryId}-${row["SKU"]?.trim()}`;
-
-          // Check if the product is already in the map
-          if (!productsMap.has(productKey)) {
-            productsMap.set(productKey, {
-              productName: row["Product name"]?.trim(),
-              price: parseFloat(row["Price"]?.trim()),
-              minQuantityToOrder:
-                parseInt(row["Min Quantity To Order"]?.trim()) || 0,
-              maxQuantityPerOrder:
-                parseInt(row["Max Quantity per Order"]?.trim()) || 0,
-              costPrice: parseFloat(row["Cost price"]?.trim()),
-              sku: row["SKU"]?.trim() || "",
-              preparationTime: row["Preparation time"]?.trim() || "",
-              description: row["Description"]?.trim() || "",
-              longDescription: row["Long description"]?.trim() || "",
-              type: row["Type"]?.trim(),
-              categoryId,
-              inventory: row["Inventory"]?.trim().toLowerCase() || true,
-              availableQuantity:
-                parseInt(row["Available Quantity"]?.trim()) || 0,
-              alert: parseInt(row["Alert"]?.trim()) || 0,
-              variants: [],
-            });
-          }
-
-          // Get the existing product
-          const product = productsMap.get(productKey);
-
-          // Only add the variant if `Variant name`, `Variant Type name`, and `Variant Type price` are available
-          const variantName = row["Variant name"]?.trim();
-          const variantTypeName = row["Variant Type name"]?.trim();
-          const variantTypePrice = parseFloat(
-            row["Variant Type price"]?.trim()
-          );
-
-          if (variantName && variantTypeName && variantTypePrice) {
-            const variant = {
-              variantName,
-              variantTypes: [
-                {
-                  typeName: variantTypeName,
-                  price: variantTypePrice,
-                },
-              ],
-            };
-
-            // Check if the variant already exists
-            const existingVariant = product.variants.find(
-              (v) => v.variantName === variant.variantName
-            );
-
-            if (existingVariant) {
-              // Add new variant types to the existing variant
-              existingVariant.variantTypes.push(...variant.variantTypes);
-            } else {
-              // Add new variant to the product
-              product.variants.push(variant);
-            }
-
-            // Update the map with the modified product
-            productsMap.set(productKey, product);
-          }
-        }
-      })
-      .on("end", async () => {
-        try {
-          const productPromises = Array.from(productsMap.values()).map(
-            async (productData) => {
-              const existingProduct = await Product.findOne({
-                productName: productData.productName,
-                categoryId: productData.categoryId,
-                sku: productData.sku, // Ensure SKU is also checked
-              });
-
-              if (existingProduct) {
-                // Replace existing product data with the new data from the CSV
-                await Product.findByIdAndUpdate(
-                  existingProduct._id,
-                  {
-                    ...productData,
-                    order: existingProduct.order,
-                  },
-                  {
-                    new: true,
-                  }
-                );
-              } else {
-                // Get the last product order
-                let lastProduct = await Product.findOne().sort({ order: -1 });
-                let newOrder = lastProduct ? lastProduct.order + 1 : 1;
-
-                // Set the order and create the new product
-                productData.order = newOrder++;
-                const product = new Product(productData);
-                await product.save();
-              }
-            }
-          );
-
-          await Promise.all(productPromises);
-
-          // Fetch all categories after adding, ordered by the 'order' field in ascending order
-          const allProducts = await Product.find({ categoryId })
-            .select("productName status")
-            .sort({
-              order: 1,
-            });
-
-          res.status(200).json({
-            message: "Products added/updated successfully.",
-            data: allProducts,
-          });
-        } catch (err) {
-          next(appError(err.message));
-        } finally {
-          // Delete the file from Firebase after processing
-          await deleteFromFirebase(fileUrl);
-        }
-      })
-      .on("error", (err) => {
-        next(appError(err.message));
-      });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
 const downloadProductSampleCSVController = async (req, res, next) => {
   try {
     // Define the path to your sample CSV file
@@ -630,37 +467,42 @@ const downloadProductSampleCSVController = async (req, res, next) => {
 
     // Define the headers and data for the CSV
     const csvHeaders = [
-      { id: "productName", title: "Product name" },
-      { id: "price", title: "Price" },
+      { id: "businessCategoryName", title: "Business Category Name*" },
+      { id: "categoryName", title: "Category Name*" },
+      { id: "categoryType", title: "Category Type*" },
+      { id: "productName", title: "Product Name*" },
+      { id: "price", title: "Product Price*" },
+      { id: "costPrice", title: "Cost Price*" },
+      { id: "productType", title: "Product Type*" },
       { id: "minQuantityToOrder", title: "Min Quantity To Order" },
-      { id: "maxQuantityPerOrder", title: "Max Quantity per Order" },
-      { id: "costPrice", title: "Cost price" },
+      { id: "maxQuantityPerOrder", title: "Max Quantity Per Order" },
       { id: "sku", title: "SKU" },
-      { id: "preparationTime", title: "Preparation time" },
+      { id: "preparationTime", title: "Preparation Time" },
       { id: "description", title: "Description" },
-      { id: "longDescription", title: "Long description" },
-      { id: "type", title: "Type" },
-      { id: "inventory", title: "Inventory" },
+      { id: "longDescription", title: "Long Description" },
       { id: "availableQuantity", title: "Available Quantity" },
       { id: "alert", title: "Alert" },
-      { id: "variantName", title: "Variant name" },
-      { id: "typeName", title: "Variant Type name" },
-      { id: "variantTypePrice", title: "Variant Type price" },
+      { id: "variantName", title: "Variant Name" },
+      { id: "typeName", title: "Variant Type Name" },
+      { id: "variantTypePrice", title: "Variant Type Price" },
     ];
 
     const csvData = [
       {
+        businessCategoryName: "Business category",
+        categoryName: "Category 1",
+        categoryType: "Veg / Non-veg / Both",
+        status: "TRUE / FALSE",
         productName: "Product 1",
         price: "100",
+        costPrice: "100",
+        productType: "Veg / Non-veg / Other",
         minQuantityToOrder: "1",
         maxQuantityPerOrder: "20",
-        costPrice: "100",
         sku: "SKU12345",
         preparationTime: "30",
         description: "Description",
-        longDescription: "Long description",
-        type: "Veg / Non-veg",
-        inventory: "TRUE / FALSE",
+        longDescription: "Long Description",
         availableQuantity: "20",
         alert: "10",
         variantName: "Size",
@@ -668,21 +510,24 @@ const downloadProductSampleCSVController = async (req, res, next) => {
         variantTypePrice: "150",
       },
       {
+        businessCategoryName: "Business category",
+        categoryName: "Category 2",
+        categoryType: "Veg / Non-veg / Both",
+        status: "TRUE / FALSE",
         productName: "Product 2",
-        price: "100",
+        price: "200",
+        costPrice: "200",
+        productType: "Veg / Non-veg / Other",
         minQuantityToOrder: "1",
         maxQuantityPerOrder: "20",
-        costPrice: "100",
         sku: "SKU12345",
         preparationTime: "30",
         description: "Description",
-        longDescription: "Long description",
-        type: "Veg / Non-veg",
-        inventory: "TRUE / FALSE",
+        longDescription: "Long Description",
         availableQuantity: "20",
         alert: "10",
-        variantName: "Colour",
-        typeName: "Black",
+        variantName: "Size",
+        typeName: "Medium",
         variantTypePrice: "150",
       },
     ];
@@ -742,9 +587,7 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
             formattedResponse.push({
               businessCategory: category.businessCategoryId?.title || "-",
               categoryName: category.categoryName || "-",
-              categoryDescription: category.description || "-",
               categoryType: category.type || "-",
-              categoryImage: category.categoryImageURL || "-",
               categoryStatus: category.status || "-",
               productName: product.productName || "-",
               productPrice: product.price || "-",
@@ -775,29 +618,27 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
     );
 
     const csvHeaders = [
-      { id: "businessCategory", title: "Business category name" },
-      { id: "categoryName", title: "Category name" },
-      { id: "categoryDescription", title: "category description" },
-      { id: "categoryType", title: "Category type" },
-      { id: "categoryImage", title: "category Image" },
-      { id: "categoryStatus", title: "category status" },
-      { id: "productName", title: "Poduct name" },
-      { id: "productPrice", title: "Product price" },
-      { id: "minQuantityToOrder", title: "Min quantity to order" },
-      { id: "maxQuantityPerOrder", title: "Max quantity to order" },
-      { id: "costPrice", title: "Cost price" },
+      { id: "businessCategory", title: "Business Category Name*" },
+      { id: "categoryName", title: "Category Name*" },
+      { id: "categoryType", title: "Category Type*" },
+      { id: "categoryStatus", title: "Category Status*" },
+      { id: "productName", title: "Poduct Name*" },
+      { id: "productPrice", title: "Product Price*" },
+      { id: "costPrice", title: "Cost Price*" },
+      { id: "type", title: "Product Type*" },
+      { id: "minQuantityToOrder", title: "Min Quantity To Order" },
+      { id: "maxQuantityPerOrder", title: "Max quantity Per Order" },
       { id: "sku", title: "SKU" },
-      { id: "preparationTime", title: "Preperation time" },
-      { id: "description", title: "Product description" },
-      { id: "longDescription", title: "Product long description" },
-      { id: "type", title: "Product type" },
+      { id: "preparationTime", title: "Preperation Time" },
+      { id: "description", title: "Description" },
+      { id: "longDescription", title: "Long Description" },
       { id: "productImageURL", title: "Product Image" },
       { id: "inventory", title: "Inventory" },
       { id: "availableQuantity", title: "Available quantity" },
       { id: "alert", title: "Alert" },
-      { id: "variantName", title: "Variant name" },
-      { id: "typeName", title: "Variant type name" },
-      { id: "price", title: "variant price" },
+      { id: "variantName", title: "Variant Name" },
+      { id: "typeName", title: "Variant Type Name" },
+      { id: "price", title: "Variant Price" },
     ];
 
     const writer = csvWriter({
@@ -822,6 +663,234 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
   }
 };
 
+const addCategoryAndProductsFromCSVController = async (req, res, next) => {
+  try {
+    const { merchantId } = req.body;
+
+    if (!req.file) {
+      return next(appError("CSV file is required", 400));
+    }
+
+    // Upload the CSV file to Firebase and get the download URL
+    const fileUrl = await uploadToFirebase(req.file, "csv-uploads");
+
+    const categoriesMap = new Map(); // To store categories and their products
+
+    // Download the CSV data from Firebase Storage
+    const response = await axios.get(fileUrl);
+    const csvData = response.data;
+
+    // Create a readable stream from the CSV data
+    const stream = Readable.from(csvData);
+
+    // Parse the CSV data
+    stream
+      .pipe(csvParser())
+      .on("data", (row) => {
+        console.log("Row data:", row); // Log the entire row data to check values
+
+        const isRowEmpty = Object.values(row).every(
+          (value) => value.trim() === ""
+        );
+
+        if (!isRowEmpty) {
+          const businessCategoryName = row["Business Category Name*"]?.trim();
+          const categoryName = row["Category Name*"]?.trim();
+          const productName = row["Product Name*"]?.trim();
+          const variantKey = row["Variant Name"]?.trim();
+          const variantTypeKey = row["Variant Type Name"]?.trim();
+          const categoryKey = `${merchantId}-${businessCategoryName}-${categoryName}-${productName}-${variantKey}-${variantTypeKey}`; // Updated to include businessCategoryName
+
+          if (!categoriesMap.has(categoryKey)) {
+            categoriesMap.set(categoryKey, {
+              categoryData: {
+                merchantId,
+                businessCategoryName, // Ensure businessCategoryName is set correctly
+                categoryName,
+                type: row["Category Type*"]?.trim(),
+                status: true,
+              },
+              products: [],
+            });
+          }
+
+          console.log(
+            "Parsed Category Data:",
+            categoriesMap.get(categoryKey).categoryData
+          );
+
+          // Add products under the relevant category
+          const categoryEntry = categoriesMap.get(categoryKey);
+
+          const product = {
+            productName: row["Product Name*"]?.trim(),
+            price: parseFloat(row["Product Price*"]?.trim()),
+            minQuantityToOrder:
+              parseInt(row["Min Quantity To Order"]?.trim()) || 0,
+            maxQuantityPerOrder:
+              parseInt(row["Max Quantity Per Order"]?.trim()) || 0,
+            costPrice: parseFloat(row["Cost Price*"]?.trim()),
+            sku: row["SKU"]?.trim() || "",
+            preparationTime: row["Preparation Time"]?.trim() || "",
+            description: row["Description"]?.trim() || "",
+            longDescription: row["Long Description"]?.trim() || "",
+            type: row["Product Type*"]?.trim(),
+            inventory: true,
+            availableQuantity: parseInt(row["Available Quantity"]?.trim()) || 0,
+            alert: parseInt(row["Alert"]?.trim()) || 0,
+            variants: [],
+          };
+
+          console.log("Parsed Product Data:", product);
+
+          // Add variants to the product
+          const variantName = row["Variant Name"]?.trim();
+          const variantTypeName = row["Variant Type Name"]?.trim();
+          const variantTypePrice = parseFloat(
+            row["Variant Type Price"]?.trim()
+          );
+
+          if (variantName && variantTypeName && variantTypePrice) {
+            const variant = {
+              variantName,
+              variantTypes: [
+                { typeName: variantTypeName, price: variantTypePrice },
+              ],
+            };
+
+            console.log("Parsed Variant Data:", variant);
+
+            const existingVariant = product.variants.find(
+              (v) => v.variantName === variant.variantName
+            );
+
+            if (existingVariant) {
+              existingVariant.variantTypes.push(...variant.variantTypes);
+            } else {
+              product.variants.push(variant);
+            }
+          }
+
+          categoryEntry.products.push(product);
+        }
+      })
+      .on("end", async () => {
+        try {
+          for (const [
+            _,
+            { categoryData, products },
+          ] of categoriesMap.entries()) {
+            console.log("Final Category Data to Save:", categoryData);
+            console.log("Associated Products:", products);
+
+            // Find or create the business category using businessCategoryName
+            const businessCategoryFound = await BusinessCategory.findOne({
+              title: categoryData.businessCategoryName,
+            });
+
+            if (!businessCategoryFound) {
+              console.log(
+                `Business category not found for ${categoryData.businessCategoryName}`
+              );
+              continue; // Skip this category if the business category does not exist
+            }
+
+            console.log(
+              `Found business category: ${businessCategoryFound.title}`
+            );
+
+            // Add business category ID to category data
+            categoryData.businessCategoryId = businessCategoryFound._id;
+
+            // Check if the category already exists
+            const existingCategory = await Category.findOne({
+              merchantId,
+              categoryName: categoryData.categoryName,
+            });
+
+            let newCategory;
+            if (existingCategory) {
+              console.log(
+                `Updating existing category: ${categoryData.categoryName}`
+              );
+              newCategory = await Category.findByIdAndUpdate(
+                existingCategory._id,
+                { $set: categoryData },
+                { new: true }
+              );
+            } else {
+              console.log(
+                `Creating new category: ${categoryData.categoryName}`
+              );
+              // Get the last category order
+              let lastCategory = await Category.findOne().sort({ order: -1 });
+              let newOrder = lastCategory ? lastCategory.order + 1 : 1;
+
+              categoryData.order = newOrder++;
+              newCategory = new Category(categoryData);
+              await newCategory.save();
+            }
+
+            // Now, process products for the category
+            const productPromises = products.map(async (productData) => {
+              productData.categoryId = newCategory._id;
+              console.log("Product Data to Save/Update:", productData);
+
+              const existingProduct = await Product.findOne({
+                productName: productData.productName,
+                categoryId: productData.categoryId,
+                sku: productData.sku,
+              });
+
+              if (existingProduct) {
+                console.log(`Updating product: ${productData.productName}`);
+                await Product.findByIdAndUpdate(
+                  existingProduct._id,
+                  { ...productData, order: existingProduct.order },
+                  { new: true }
+                );
+              } else {
+                console.log(`Creating new product: ${productData.productName}`);
+                // Get the last product order
+                let lastProduct = await Product.findOne().sort({ order: -1 });
+                let newOrder = lastProduct ? lastProduct.order + 1 : 1;
+
+                productData.order = newOrder++;
+                const newProduct = new Product(productData);
+                await newProduct.save();
+              }
+            });
+
+            await Promise.all(productPromises);
+          }
+
+          // Fetch all categories after adding, ordered by the 'order' field in ascending order
+          const allCategories = await Category.find({ merchantId })
+            .select("categoryName status")
+            .sort({ order: 1 });
+
+          res.status(200).json({
+            message: "Categories and products added successfully.",
+            data: allCategories,
+          });
+        } catch (err) {
+          console.error("Error processing categories and products:", err);
+          next(appError(err.message));
+        } finally {
+          // Delete the file from Firebase after processing
+          await deleteFromFirebase(fileUrl);
+        }
+      })
+      .on("error", (error) => {
+        console.error("Error reading CSV data:", error);
+        next(appError(error.message));
+      });
+  } catch (err) {
+    console.error("General error:", err);
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getProductController,
   getAllProductsByMerchant,
@@ -836,7 +905,7 @@ module.exports = {
   changeProductCategoryController,
   changeInventoryStatusController,
   updateProductOrderController,
-  addProductFromCSVController,
   downloadProductSampleCSVController,
   downloadCobminedProductAndCategoryController,
+  addCategoryAndProductsFromCSVController,
 };
