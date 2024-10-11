@@ -213,7 +213,6 @@ const getAlertNotificationsByUserTypeController = async (req, res, next) => {
 
     // Fetch alert notifications by user type from the database
     const alertNotifications = await AlertNotification.find(query);
-
     res.status(200).json({
       message: "Alert notifications retrieved successfully!",
       alertNotifications,

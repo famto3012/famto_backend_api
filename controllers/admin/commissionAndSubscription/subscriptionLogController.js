@@ -24,7 +24,7 @@ const createSubscriptionLog = async (req, res, next) => {
     } else {
       subscriptionPlan = await CustomerSubscription.findById(planId);
     }
-
+    console.log("subscriptionPlan", subscriptionPlan)
     if (!subscriptionPlan) {
       return res.status(404).json({ message: "Subscription plan not found" });
     }
@@ -347,6 +347,7 @@ const setAsPaidController = async (req, res, next) => {
   }
 };
 
+
 const getAllMerchantSubscriptionLogController = async (req, res, next) => {
   try {
     // Step 1: Fetch all subscription logs for Merchants
@@ -354,22 +355,33 @@ const getAllMerchantSubscriptionLogController = async (req, res, next) => {
       typeOfUser: "Merchant",
     });
 
-    // Step 2: Extract unique userIds from the subscription logs
+    // Step 2: Extract unique userIds and planIds from the subscription logs
     const userIds = [...new Set(subscriptionLogs.map((log) => log.userId))];
+    const planIds = [...new Set(subscriptionLogs.map((log) => log.planId))];
 
     // Step 3: Fetch user details for the extracted userIds
     const users = await Merchant.find({ _id: { $in: userIds } });
 
-    // Step 4: Create a map of userId to user details for quick lookup
+    // Step 4: Fetch plan details for the extracted planIds
+    const plans = await MerchantSubscription.find({ _id: { $in: planIds } });
+
+    // Step 5: Create a map of userId to user details for quick lookup
     const userMap = users.reduce((map, user) => {
       map[user._id] = user.merchantDetail.merchantName;
       return map;
     }, {});
 
-    // Step 5: Combine subscription logs with the corresponding user details
+    // Step 6: Create a map of planId to plan details for quick lookup
+    const planMap = plans.reduce((map, plan) => {
+      map[plan._id] = plan.name; // Assuming `planName` is the name of the plan
+      return map;
+    }, {});
+
+    // Step 7: Combine subscription logs with the corresponding user and plan details
     const combinedData = subscriptionLogs.map((log) => ({
       ...log.toObject(),
       user: userMap[log.userId],
+      plan: planMap[log.planId],
     }));
 
     // Send the combined data as the response
@@ -382,29 +394,77 @@ const getAllMerchantSubscriptionLogController = async (req, res, next) => {
   }
 };
 
+
+// const getAllCustomerSubscriptionLogController = async (req, res, next) => {
+
+//   try {
+//     // Step 1: Fetch all subscription logs for Merchants
+//     const subscriptionLogs = await SubscriptionLog.find({
+//       typeOfUser: "Customer",
+//     });
+
+//     // Step 2: Extract unique userIds from the subscription logs
+//     const userIds = [...new Set(subscriptionLogs.map((log) => log.userId))];
+
+//     // Step 3: Fetch user details for the extracted userIds
+//     const users = await Customer.find({ _id: { $in: userIds } });
+
+//     // Step 4: Create a map of userId to user details for quick lookup
+//     const userMap = users.reduce((map, user) => {
+//       map[user._id] = user.fullName;
+//       return map;
+//     }, {});
+
+//     // Step 5: Combine subscription logs with the corresponding user details
+//     const combinedData = subscriptionLogs.map((log) => ({
+//       ...log.toObject(),
+//       user: userMap[log.userId],
+//     }));
+
+//     // Send the combined data as the response
+//     res.status(200).json({
+//       message: "Subscription logs fetched successfully",
+//       subscriptionLogs: combinedData,
+//     });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
+
 const getAllCustomerSubscriptionLogController = async (req, res, next) => {
   try {
-    // Step 1: Fetch all subscription logs for Merchants
+    // Step 1: Fetch all subscription logs for Customers
     const subscriptionLogs = await SubscriptionLog.find({
       typeOfUser: "Customer",
     });
 
-    // Step 2: Extract unique userIds from the subscription logs
+    // Step 2: Extract unique userIds and planIds from the subscription logs
     const userIds = [...new Set(subscriptionLogs.map((log) => log.userId))];
+    const planIds = [...new Set(subscriptionLogs.map((log) => log.planId))];
 
     // Step 3: Fetch user details for the extracted userIds
     const users = await Customer.find({ _id: { $in: userIds } });
 
-    // Step 4: Create a map of userId to user details for quick lookup
+    // Step 4: Fetch plan details for the extracted planIds from CustomerSubscription
+    const plans = await CustomerSubscription.find({ _id: { $in: planIds } });
+
+    // Step 5: Create a map of userId to user details for quick lookup
     const userMap = users.reduce((map, user) => {
-      map[user._id] = user.fullName;
+      map[user._id] = user.fullName; // Assuming user has fullName property
       return map;
     }, {});
 
-    // Step 5: Combine subscription logs with the corresponding user details
+    // Step 6: Create a map of planId to plan details for quick lookup
+    const planMap = plans.reduce((map, plan) => {
+      map[plan._id] = plan.name; // Assuming CustomerSubscription has a planName property
+      return map;
+    }, {});
+
+    // Step 7: Combine subscription logs with the corresponding user and plan details
     const combinedData = subscriptionLogs.map((log) => ({
       ...log.toObject(),
       user: userMap[log.userId],
+      plan: planMap[log.planId],
     }));
 
     // Send the combined data as the response
@@ -416,6 +476,7 @@ const getAllCustomerSubscriptionLogController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
+
 
 const getByMerchantIdSubscriptionLogController = async (req, res, next) => {
   try {
