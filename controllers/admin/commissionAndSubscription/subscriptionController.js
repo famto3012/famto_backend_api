@@ -246,9 +246,11 @@ const editCustomerSubscriptionPlanController = async (req, res, next) => {
     }
 
     let totalAmount = amount;
-    if (taxId) {
-      const tax = await Tax.findById(taxId);
-      const taxAmount = amount * (tax.tax / 100);
+    if (taxId && !subscriptionPlan.taxId && taxId !== subscriptionPlan.taxId) {
+      const taxFound = await Tax.findById(taxId);
+
+      const taxAmount = amount * (taxFound.tax / 100);
+
       totalAmount = parseFloat(amount) + taxAmount;
     }
 
@@ -266,9 +268,7 @@ const editCustomerSubscriptionPlanController = async (req, res, next) => {
       { new: true }
     );
 
-    updatedSubPlan = (await updatedSubPlan.populate("taxId", "taxName")).select(
-      "-createdAt -upatedAt"
-    );
+    updatedSubPlan = await updatedSubPlan.populate("taxId", "taxName");
 
     res.status(200).json({
       message: "Subscription plan updated successfully",

@@ -113,8 +113,7 @@ const sendPushNotificationToUser = async (fcmToken, message, eventName) => {
         link: "https://dashboard.famto.in/home",
       },
       notification: {
-        icon:
-          "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/admin_panel_assets%2FNew%20logo%20(19).svg?alt=media&token=5716ffd8-5dc9-457e-aafb-56abbe9d88f2",
+        icon: "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/admin_panel_assets%2FNew%20logo%20(19).svg?alt=media&token=5716ffd8-5dc9-457e-aafb-56abbe9d88f2",
       },
     },
     token: fcmToken,
@@ -286,6 +285,8 @@ const findRolesToNotify = async (eventName) => {
     const notificationSettings = await NotificationSetting.findOne({
       event: eventName,
     });
+
+    console.log("notificationSettings", notificationSettings);
 
     const rolesToNotify = ["admin", "merchant", "driver", "customer"].filter(
       (role) => notificationSettings[role]
@@ -1034,6 +1035,7 @@ io.on("connection", async (socket) => {
         "customerId",
         "customerDetails.geofenceId"
       );
+
       if (!orderFound) {
         return socket.emit("error", { message: "Order not found" });
       }

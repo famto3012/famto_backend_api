@@ -207,11 +207,12 @@ const confirmOrderController = async (req, res, next) => {
 
     const { orderId } = req.params;
 
-    let orderFound = await Order.findById(orderId);
+    let orderFound = await Order.findById(orderId).populate(
+      "merchantId",
+      "merchantDetail"
+    );
 
-    if (!orderFound) {
-      return next(appError("Order not found", 404));
-    }
+    if (!orderFound) return next(appError("Order not found", 404));
 
     const stepperData = {
       by: "Merchant",
@@ -223,21 +224,24 @@ const confirmOrderController = async (req, res, next) => {
       orderFound.status = "On-going";
       orderFound.orderDetailStepper.accepted = stepperData;
 
-      const { payableAmountToFamto, payableAmountToMerchant } =
-        await orderCommissionLogHelper(orderId);
+      const modelType =
+        orderFound.merchantId.merchantDetail.pricing[0].modelType;
 
-      let updatedCommission = {
-        merchantEarnings: payableAmountToMerchant,
-        famtoEarnings: payableAmountToFamto,
-      };
+      if (modelType === "Commission") {
+        const { payableAmountToFamto, payableAmountToMerchant } =
+          await orderCommissionLogHelper(orderId);
 
-      orderFound.commissionDetail = updatedCommission;
+        let updatedCommission = {
+          merchantEarnings: payableAmountToMerchant,
+          famtoEarnings: payableAmountToFamto,
+        };
+
+        orderFound.commissionDetail = updatedCommission;
+      }
 
       const task = await orderCreateTaskHelper(orderId);
 
-      if (!task) {
-        return next(appError("Task not created"));
-      }
+      if (!task) return next(appError("Task not created"));
 
       await reduceProductAvailableQuantity(
         orderFound.purchasedItems,

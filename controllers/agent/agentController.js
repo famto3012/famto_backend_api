@@ -1021,6 +1021,9 @@ const getTaskPreviewController = async (req, res, next) => {
       }
     });
 
+    console.log(currentTasks);
+    console.log(nextTasks);
+
     res.status(200).json({
       message: "Task preview",
       data: {

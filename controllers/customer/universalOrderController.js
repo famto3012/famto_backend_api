@@ -137,9 +137,9 @@ const listRestaurantsController = async (req, res, next) => {
     }
 
     const customerLocation = [latitude, longitude]; // [latitude, longitude]
-    console.log("customerLocation", customerLocation)
+    console.log("customerLocation", customerLocation);
     const foundGeofence = await geoLocation(latitude, longitude);
-    console.log("foundGeofence", foundGeofence)
+    console.log("foundGeofence", foundGeofence);
     if (!foundGeofence) {
       return next(appError("Geofence not found", 404));
     }
@@ -156,7 +156,7 @@ const listRestaurantsController = async (req, res, next) => {
       isBlocked: false,
       isApproved: "Approved",
     }).exec();
-    console.log("merchants", merchants)
+    console.log("merchants", merchants);
     // Filter merchants based on serving radius
     const filteredMerchants = merchants?.filter((merchant) => {
       const servingRadius = merchant.merchantDetail.servingRadius || 0;
@@ -172,11 +172,11 @@ const listRestaurantsController = async (req, res, next) => {
       return true;
     });
 
-    console.log("filteredMerchants", filteredMerchants)
+    console.log("filteredMerchants", filteredMerchants);
 
     // Sort merchants by sponsorship status (sponsored merchants first)
     const sortedMerchants = await sortMerchantsBySponsorship(filteredMerchants);
-    console.log("sortedMerchants", sortedMerchants)
+    console.log("sortedMerchants", sortedMerchants);
     // Extracting required fields from filtered merchants including distance and favorite status
     const simplifiedMerchants = await Promise.all(
       sortedMerchants.map(async (merchant) => {
@@ -207,7 +207,7 @@ const listRestaurantsController = async (req, res, next) => {
         };
       })
     );
-    console.log("simplifiedMerchants", simplifiedMerchants)
+    console.log("simplifiedMerchants", simplifiedMerchants);
 
     res.status(200).json({
       message: "Available merchants",
@@ -538,7 +538,7 @@ const searchProductsInMerchantController = async (req, res, next) => {
       $or: [
         { productName: { $regex: query, $options: "i" } },
         { description: { $regex: query, $options: "i" } },
-        { searchTags: { $in: [query] } },
+        { searchTags: { $elemMatch: { $regex: query, $options: "i" } } },
       ],
     })
       .select(
