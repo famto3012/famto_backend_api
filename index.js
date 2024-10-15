@@ -176,7 +176,7 @@ cron.schedule("0 6,12,18,0 * * *", async () => {
 });
 
 //
-cron.schedule("0 0 * * *", async () => {
+cron.schedule("30 18 * * *", async () => {
   await moveAppDetailToHistoryAndResetForAllAgents();
   await updateOneDayLoyaltyPointEarning();
   await resetAllAgentTaskHelper();
@@ -198,6 +198,21 @@ const convertToIST = (date) => {
 };
 
 //
+function getPreviousDayMidnightIST() {
+  const now = new Date();
+  
+  // Convert current time to IST by adding 5 hours and 30 minutes
+  const offsetIST = 5.5 * 60 * 60 * 1000;
+  const currentIST = new Date(now.getTime() + offsetIST);
+
+  // Set time to midnight (00:00:00) and go back one day
+  currentIST.setUTCHours(0, 0, 0, 0);
+  currentIST.setDate(currentIST.getDate() - 1); // Subtract 1 day
+
+  // Convert back to UTC
+  return new Date(currentIST.getTime() - offsetIST).toISOString();
+}
+
 cron.schedule("* * * * *", async () => {
   // await createSettlement();
   deleteExpiredConversationsAndMessages();
@@ -207,7 +222,7 @@ cron.schedule("* * * * *", async () => {
   const now = new Date();
   const previousDay = new Date(now);
   previousDay.setDate(now.getDate() - 1); // Subtract 1 day to get the previous day
-  const previousDate = convertToIST(previousDay);
+  // const previousDate = convertToIST(previousDay);
   // fetchPerDayRevenue(now);
   // fetchMerchantDailyRevenue(now);
   const date = convertToIST(now);
@@ -215,6 +230,9 @@ cron.schedule("* * * * *", async () => {
   //  console.log("UTC",now)
   // Universal order
   console.log("IST", date)
+  const previousDate = await getPreviousDayMidnightIST();
+  await fetchPerDayRevenue(previousDate);
+  await fetchMerchantDailyRevenue(previousDate);
   console.log("UST", now)
   console.log("previousDate", previousDate)
   const universalScheduledOrders = await ScheduledOrder.find({

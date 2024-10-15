@@ -136,18 +136,27 @@ const updateDiscountStatusController = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Find the banner by ID and delete it
+    // Find the discount by ID
     const updateDiscount = await MerchantDiscount.findOne({ _id: id });
 
-    // Check if the banner was found and deleted
+    // Check if the discount was found
     if (!updateDiscount) {
       return next(appError("Discount not found", 404));
-    } else if (updateDiscount.status) {
-      updateDiscount.status = false;
-    } else {
-      updateDiscount.status = true;
     }
 
+    // Check if the current discount is being turned on
+    if (!updateDiscount.status) {
+      // Turn off all other discounts of the same merchant
+      await MerchantDiscount.updateMany(
+        { merchantId: updateDiscount.merchantId, _id: { $ne: id } }, // Exclude the current discount by ID
+        { $set: { status: false } } // Turn off all other discounts
+      );
+    }
+
+    // Toggle the status of the current discount
+    updateDiscount.status = !updateDiscount.status;
+
+    // Save the updated discount status
     await updateDiscount.save();
 
     res.status(200).json({
@@ -158,6 +167,8 @@ const updateDiscountStatusController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
+
+
 
 const updateAllDiscountController = async (req, res, next) => {
   try {
