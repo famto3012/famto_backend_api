@@ -90,7 +90,7 @@ app.use(
     origin: [
       "https://dashboard.famto.in",
       "http://localhost:5173",
-      "https://www.famto.in",
+      "https://famto.in",
       "*",
     ],
     credentials: true,
@@ -183,7 +183,9 @@ cron.schedule("0 0 * * *", async () => {
   await generateMapplsAuthToken();
 
   const now = new Date();
-  const date = convertToIST(now);
+  const previousDay = new Date(now);
+  previousDay.setDate(now.getDate() - 1); // Subtract 1 day to get the previous day
+  const date = convertToIST(previousDay);
   fetchPerDayRevenue(date);
   fetchMerchantDailyRevenue(date);
 });
@@ -203,12 +205,18 @@ cron.schedule("* * * * *", async () => {
 
   console.log("Running scheduled order job...");
   const now = new Date();
+  const previousDay = new Date(now);
+  previousDay.setDate(now.getDate() - 1); // Subtract 1 day to get the previous day
+  const previousDate = convertToIST(previousDay);
   // fetchPerDayRevenue(now);
   // fetchMerchantDailyRevenue(now);
   const date = convertToIST(now);
   //  console.log("IST",date)
   //  console.log("UTC",now)
   // Universal order
+  console.log("IST", date)
+  console.log("UST", now)
+  console.log("previousDate", previousDate)
   const universalScheduledOrders = await ScheduledOrder.find({
     status: "Pending",
     $and: [
