@@ -163,19 +163,19 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
     const agents = await Agent.find({ isApproved: "Approved" });
 
     if (task?.orderId?.orderDetail?.deliveryMode === "Custom Order") {
-      const deliveryLocation = task?.orderId?.orderDetail?.pickupLocation;
+      // const deliveryLocation = task?.orderId?.orderDetail?.pickupLocation;
       const responseData = await Promise.all(
         agents.map(async (agent) => {
-          const { distanceInKM } = await getDistanceFromPickupToDelivery(
-            agent.location,
-            deliveryLocation
-          );
+          // const { distanceInKM } = await getDistanceFromPickupToDelivery(
+          //   agent.location,
+          //   deliveryLocation
+          // );
           return {
             _id: agent?._id,
             name: agent?.fullName,
             workStructure: agent?.workStructure?.tag,
             status: agent?.status,
-            distance: distanceInKM, // distance in kilometers, rounded to 2 decimal places
+            distance: 0,
           };
         })
       );

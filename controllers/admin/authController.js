@@ -63,7 +63,7 @@ const loginController = async (req, res, next) => {
     if (user.role === "Admin") {
       fullName = user.fullName;
     } else if (user.role === "Merchant") {
-      fullName = user?.merchantDetails?.merchantName || user?.fullName || "-";
+      fullName = user?.merchantDetail?.merchantName || user?.fullName || "-";
     } else if (user.role === "Manager") {
       fullName = user.name;
     }

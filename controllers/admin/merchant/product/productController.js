@@ -622,7 +622,7 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
       { id: "categoryName", title: "Category Name*" },
       { id: "categoryType", title: "Category Type*" },
       { id: "categoryStatus", title: "Category Status*" },
-      { id: "productName", title: "Poduct Name*" },
+      { id: "productName", title: "Product Name*" },
       { id: "productPrice", title: "Product Price*" },
       { id: "costPrice", title: "Cost Price*" },
       { id: "type", title: "Product Type*" },

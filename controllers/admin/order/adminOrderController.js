@@ -211,11 +211,12 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
   try {
     const { orderId } = req.params;
 
-    let orderFound = await Order.findById(orderId);
+    let orderFound = await Order.findById(orderId).populate(
+      "merchantId",
+      "merchantDetail"
+    );
 
-    if (!orderFound) {
-      return next(appError("Order not found", 404));
-    }
+    if (!orderFound) return next(appError("Order not found", 404));
 
     const stepperData = {
       by: "Admin",
@@ -226,7 +227,9 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
     orderFound.status = "On-going";
     orderFound.orderDetailStepper.accepted = stepperData;
 
-    if (orderFound.merchantId) {
+    const modelType = orderFound.merchantId.merchantDetail.pricing[0].modelType;
+
+    if (orderFound.merchantId && modelType === "Commission") {
       const { payableAmountToFamto, payableAmountToMerchant } =
         await orderCommissionLogHelper(orderId);
 
