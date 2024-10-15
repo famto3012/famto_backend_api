@@ -6,7 +6,7 @@ const ProductDiscount = require("../../../../models/ProductDiscount");
 // =========================
 // ========Merchant=========
 // =========================
-const addDiscountController = async (req, res, next) => {
+const  addDiscountController = async (req, res, next) => {
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
