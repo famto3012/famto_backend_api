@@ -339,6 +339,42 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
       }
     }
 
+    let newLocation = [
+      parseFloat(merchantDetail?.location[0]),
+      parseFloat(merchantDetail?.location[1]),
+    ];
+
+    const arraysAreEqual = (arr1, arr2) => {
+      return (
+        arr1?.length === arr2?.length &&
+        arr1?.every((value, index) => value === arr2[index])
+      );
+    };
+
+    let locationImage;
+
+    if (!arraysAreEqual(newLocation, merchantFound?.merchantDetail?.location)) {
+      if (merchantFound?.merchantDetail?.locationImage) {
+        await deleteFromFirebase(merchantFound?.merchantDetail?.locationImage);
+      }
+
+      const url = `https://apis.mapmyindia.com/advancedmaps/v1/9a632cda78b871b3a6eb69bddc470fef/still_image?center=${newLocation[0]}, ${newLocation[1]}&size=400x500&markers=${newLocation[0]}, ${newLocation[1]}&zoom=15`;
+
+      try {
+        const response = await axios.get(url, { responseType: "arraybuffer" });
+        // Process the image using sharp to convert it to PNG format
+        const imageBuffer = await sharp(response.data).png().toBuffer();
+        locationImage = await uploadToFirebase(
+          imageBuffer,
+          "MerchantLocationImage"
+        );
+      } catch (err) {
+        res.status(500).json({ error: "Failed to fetch data from Mappls API" });
+      }
+    }
+
+    merchantDetail.locationImage = locationImage;
+
     const details = {
       ...merchantDetail,
       geofenceId: merchantDetail?.geofenceId || null,
@@ -1124,14 +1160,10 @@ const updateMerchantDetailsController = async (req, res, next) => {
       }
     }
 
-    let newLocation = [];
-
-    if (merchantDetail?.location?.length === 2) {
-      newLocation = [
-        parseFloat(merchantDetail?.location[0]),
-        parseFloat(merchantDetail?.location[1]),
-      ];
-    }
+    let newLocation = [
+      parseFloat(merchantDetail?.location[0]),
+      parseFloat(merchantDetail?.location[1]),
+    ];
 
     const arraysAreEqual = (arr1, arr2) => {
       return (
