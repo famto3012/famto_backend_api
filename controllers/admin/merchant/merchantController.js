@@ -40,6 +40,38 @@ const convertNullValues = (obj) => {
   });
 };
 
+const transformAvailabilityValues = (availability) => {
+  // Ensure availability is a plain object
+  if (typeof availability !== "object" || availability === null) {
+    return availability;
+  }
+
+  const transformedAvailability = {};
+
+  for (const day in availability) {
+    if (Object.prototype.hasOwnProperty.call(availability, day)) {
+      const dayData = availability[day];
+
+      // Check if dayData is an object and has the expected properties
+      if (dayData && typeof dayData === "object") {
+        transformedAvailability[day] = {
+          ...dayData,
+          openAllDay: dayData.openAllDay === "true" ? true : false,
+          closedAllDay: dayData.closedAllDay === "true" ? true : false,
+          specificTime: dayData.specificTime === "true" ? true : false,
+          startTime: dayData.startTime === "null" ? null : dayData.startTime,
+          endTime: dayData.endTime === "null" ? null : dayData.endTime,
+        };
+      } else {
+        // If dayData is not an object, just copy it as is
+        transformedAvailability[day] = dayData;
+      }
+    }
+  }
+
+  return transformedAvailability;
+};
+
 //----------------------------
 // -------For Merchant--------
 //-----------------------------
@@ -261,6 +293,10 @@ const editMerchantProfileController = async (req, res, next) => {
 const updateMerchantDetailsByMerchantController = async (req, res, next) => {
   const { fullName, email, phoneNumber, merchantDetail } = req.body;
 
+  console.log("===============================================");
+  console.log(req.body.merchantDetail.availability.specificDays);
+  console.log("===============================================");
+
   const errors = validationResult(req);
 
   let formattedErrors = {};
@@ -283,6 +319,12 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
     // Apply the helper function to handle null or empty string values
     if (merchantDetail) {
       convertNullValues(merchantDetail);
+    }
+
+    if (merchantDetail && merchantDetail.availability) {
+      merchantDetail.availability.specificDays = transformAvailabilityValues(
+        merchantDetail.availability.specificDays
+      );
     }
 
     let merchantImageURL =
@@ -352,7 +394,6 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
       FSSAIImageURL,
       aadharImageURL,
     };
-    console.log("Detail", details);
 
     merchantFound.fullName = fullName;
     merchantFound.email = email;
@@ -1063,10 +1104,23 @@ const updateMerchantDetailsController = async (req, res, next) => {
       return next(appError("Merchant not found", 404));
     }
 
+    console.log("Here");
+
     // Apply the helper function to handle null or empty string values
     if (merchantDetail) {
       convertNullValues(merchantDetail);
     }
+
+    let modifiedAvailability;
+    if (merchantDetail && merchantDetail.availability) {
+      modifiedAvailability = transformAvailabilityValues(
+        merchantDetail.availability.specificDays
+      );
+    }
+
+    console.log("Modified", modifiedAvailability);
+
+    console.log("Here 2");
 
     let merchantImageURL =
       merchantFound?.merchantDetail?.merchantImageURL || "";
@@ -1076,8 +1130,6 @@ const updateMerchantDetailsController = async (req, res, next) => {
     let aadharImageURL = merchantFound?.merchantDetail?.aadharImageURL || "";
 
     if (req.files) {
-      console.log();
-
       const {
         merchantImage,
         pancardImage,
@@ -1166,6 +1218,7 @@ const updateMerchantDetailsController = async (req, res, next) => {
 
     const details = {
       ...merchantDetail,
+      "availability.specificDays": modifiedAvailability,
       geofenceId: merchantDetail?.geofenceId || null,
       businessCategoryId: merchantDetail?.businessCategoryId || null,
       pricing: merchantFound?.merchantDetail?.pricing

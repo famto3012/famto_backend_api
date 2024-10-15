@@ -348,25 +348,25 @@ merchantDetailSchema.virtual("averageRating").get(function () {
 });
 
 // day schema validation before saving the document
-daySchema.pre("save", function (next) {
-  if (this.openAllDay) {
-    this.startTime = null;
-    this.endTime = null;
-  } else if (this.closedAllDay) {
-    this.startTime = null;
-    this.endTime = null;
-    this.specificTime = false;
-  } else if (this.specificTime) {
-    if (!this.startTime || !this.endTime) {
-      return next(
-        new Error(
-          "Start time and end time must be provided if specificTime is true"
-        )
-      );
-    }
-  }
-  next();
-});
+// daySchema.pre("save", function (next) {
+//   if (this.openAllDay) {
+//     this.startTime = null;
+//     this.endTime = null;
+//   } else if (this.closedAllDay) {
+//     this.startTime = null;
+//     this.endTime = null;
+//     this.specificTime = false;
+//   } else if (this.specificTime) {
+//     if (!this.startTime || !this.endTime) {
+//       return next(
+//         new Error(
+//           "Start time and end time must be provided if specificTime is true"
+//         )
+//       );
+//     }
+//   }
+//   next();
+// });
 
 const Merchant = mongoose.model("Merchant", merchantSchema);
 module.exports = Merchant;
