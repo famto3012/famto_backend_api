@@ -91,6 +91,7 @@ app.use(
       "https://dashboard.famto.in",
       "http://localhost:5173",
       "https://famto.in",
+      "https://www.famto.in",
       "*",
     ],
     credentials: true,
