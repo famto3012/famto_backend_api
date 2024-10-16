@@ -182,12 +182,9 @@ cron.schedule("30 18 * * *", async () => {
   await resetAllAgentTaskHelper();
   await generateMapplsAuthToken();
 
-  const now = new Date();
-  const previousDay = new Date(now);
-  previousDay.setDate(now.getDate() - 1); // Subtract 1 day to get the previous day
-  const date = convertToIST(previousDay);
-  fetchPerDayRevenue(date);
-  fetchMerchantDailyRevenue(date);
+  const now = new Date(); // Subtract 1 day to get the previous day
+  fetchPerDayRevenue(now);
+  fetchMerchantDailyRevenue(now);
 });
 
 const convertToIST = (date) => {
@@ -205,9 +202,6 @@ cron.schedule("* * * * *", async () => {
 
   console.log("Running scheduled order job...");
   const now = new Date();
-  const previousDay = new Date(now);
-  previousDay.setDate(now.getDate() - 1); // Subtract 1 day to get the previous day
-  const previousDate = convertToIST(previousDay);
   // fetchPerDayRevenue(now);
   // fetchMerchantDailyRevenue(now);
   const date = convertToIST(now);
@@ -216,7 +210,6 @@ cron.schedule("* * * * *", async () => {
   // Universal order
   console.log("IST", date)
   console.log("UST", now)
-  console.log("previousDate", previousDate)
   const universalScheduledOrders = await ScheduledOrder.find({
     status: "Pending",
     $and: [

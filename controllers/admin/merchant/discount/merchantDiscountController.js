@@ -6,7 +6,7 @@ const ProductDiscount = require("../../../../models/ProductDiscount");
 // =========================
 // ========Merchant=========
 // =========================
-const  addDiscountController = async (req, res, next) => {
+const addDiscountController = async (req, res, next) => {
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
@@ -168,8 +168,6 @@ const updateDiscountStatusController = async (req, res, next) => {
   }
 };
 
-
-
 const updateAllDiscountController = async (req, res, next) => {
   try {
     const { id } = req.userAuth;
@@ -325,7 +323,9 @@ const getAllDiscountAdminController = async (req, res, next) => {
     }).populate("geofenceId", "name");
     const productDiscounts = await ProductDiscount.find({
       merchantId: id,
-    }).populate("geofenceId", "name");
+    })
+      .populate("geofenceId", "name")
+      .populate("productId", "productName");
 
     const discounts = [...merchantDiscounts, ...productDiscounts];
 
