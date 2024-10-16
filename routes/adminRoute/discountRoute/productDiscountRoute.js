@@ -10,13 +10,14 @@ const {
   updateProductDiscountStatusController,
   addProductDiscountAdminController,
   getProductDiscountByIdController,
+  getAllProductDiscountAdminController,
 } = require("../../../controllers/admin/merchant/discount/productDiscountController");
-const {
-  getAllDiscountAdminController,
-} = require("../../../controllers/admin/merchant/discount/merchantDiscountController");
 
 const productDiscountRoute = express.Router();
-//For Merchant
+
+// ============================
+// For Merchant
+// ============================
 
 productDiscountRoute.post(
   "/add-product-discount",
@@ -26,7 +27,6 @@ productDiscountRoute.post(
     body("geofenceId").notEmpty().withMessage("Geofence is required"),
     body("discountType").notEmpty().withMessage("Discount Type is required"),
     body("discountValue").notEmpty().withMessage("Discount value is required"),
-    body("description").notEmpty().withMessage("Description is required"),
     body("validFrom").notEmpty().withMessage("Valid from is required"),
     body("validTo").notEmpty().withMessage("Valid to is required"),
     body("productId").notEmpty().withMessage("Product id is required"),
@@ -66,7 +66,9 @@ productDiscountRoute.get(
   getProductDiscountByIdController
 );
 
+// ============================
 //For Admin
+// ============================
 
 productDiscountRoute.post(
   "/add-product-discount-admin",
@@ -76,7 +78,6 @@ productDiscountRoute.post(
     body("geofenceId").notEmpty().withMessage("Geofence is required"),
     body("discountType").notEmpty().withMessage("Discount Type is required"),
     body("discountValue").notEmpty().withMessage("Discount value is required"),
-    body("description").notEmpty().withMessage("Description is required"),
     body("validFrom").notEmpty().withMessage("Valid from is required"),
     body("validTo").notEmpty().withMessage("Valid to is required"),
     body("productId").notEmpty().withMessage("Product id is required"),
@@ -106,7 +107,7 @@ productDiscountRoute.get(
   "/get-product-discount-admin/:id",
   isAuthenticated,
   isAdmin,
-  getAllDiscountAdminController
+  getAllProductDiscountAdminController
 );
 
 productDiscountRoute.put(

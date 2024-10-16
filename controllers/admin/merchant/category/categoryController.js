@@ -1,5 +1,3 @@
-const csvParser = require("csv-parser");
-const { Readable } = require("stream");
 const { validationResult } = require("express-validator");
 const Category = require("../../../../models/Category");
 const appError = require("../../../../utils/appError");
@@ -7,9 +5,7 @@ const {
   uploadToFirebase,
   deleteFromFirebase,
 } = require("../../../../utils/imageOperation");
-const axios = require("axios");
 const path = require("path");
-const BusinessCategory = require("../../../../models/BusinessCategory");
 const Product = require("../../../../models/Product");
 const Merchant = require("../../../../models/Merchant");
 const csvWriter = require("csv-writer").createObjectCsvWriter;
@@ -238,19 +234,27 @@ const deleteCategoryByAdminController = async (req, res, next) => {
 
 const changeCategoryStatusByAdminController = async (req, res, next) => {
   try {
+    const { categoryId, merchantId } = req.params;
+
     const categoryFound = await Category.findOne({
-      _id: req.params.categoryId,
-      merchantId: req.params.merchantId,
+      _id: categoryId,
+      merchantId,
     });
 
-    if (!categoryFound) {
-      return next(appError("Category not found", 404));
-    }
+    if (!categoryFound) return next(appError("Category not found", 404));
 
     categoryFound.status = !categoryFound.status;
+
+    await Product.updateMany(
+      { categoryId },
+      { inventory: categoryFound.status }
+    );
+
     await categoryFound.save();
 
-    res.status(200).json({ message: "Category status changed" });
+    res.status(200).json({
+      message: "Category status changed and products updated",
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -521,20 +525,27 @@ const deleteCategoryByMerchantController = async (req, res, next) => {
 const changeCategoryStatusByMerchantController = async (req, res, next) => {
   try {
     const merchantId = req.userAuth;
+    const { categoryId } = req.params;
 
     const categoryFound = await Category.findOne({
       _id: req.params.categoryId,
       merchantId,
     });
 
-    if (!categoryFound) {
-      return next(appError("Category not found", 404));
-    }
+    if (!categoryFound) return next(appError("Category not found", 404));
 
     categoryFound.status = !categoryFound.status;
+
+    await Product.updateMany(
+      { categoryId },
+      { inventory: categoryFound.status }
+    );
+
     await categoryFound.save();
 
-    res.status(200).json({ message: "Category status changed" });
+    res.status(200).json({
+      message: "Category status changed and products updated",
+    });
   } catch (err) {
     next(appError(err.message));
   }
