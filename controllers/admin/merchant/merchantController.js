@@ -1212,10 +1212,14 @@ const updateMerchantDetailsController = async (req, res, next) => {
       }
     }
 
-    let newLocation = [
-      parseFloat(merchantDetail?.location[0]),
-      parseFloat(merchantDetail?.location[1]),
-    ];
+    let newLocation = [];
+
+    if (merchantDetail?.location?.length === 2) {
+      newLocation = [
+        parseFloat(merchantDetail?.location[0]),
+        parseFloat(merchantDetail?.location[1]),
+      ];
+    }
 
     const arraysAreEqual = (arr1, arr2) => {
       return (

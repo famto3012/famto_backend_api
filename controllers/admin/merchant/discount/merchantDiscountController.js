@@ -6,7 +6,7 @@ const ProductDiscount = require("../../../../models/ProductDiscount");
 // =========================
 // ========Merchant=========
 // =========================
-const  addDiscountController = async (req, res, next) => {
+const addDiscountController = async (req, res, next) => {
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
@@ -168,8 +168,6 @@ const updateDiscountStatusController = async (req, res, next) => {
   }
 };
 
-
-
 const updateAllDiscountController = async (req, res, next) => {
   try {
     const { id } = req.userAuth;
@@ -320,18 +318,14 @@ const updateAllDiscountAdminController = async (req, res, next) => {
 const getAllDiscountAdminController = async (req, res, next) => {
   try {
     const { id } = req.params;
+
     const merchantDiscounts = await MerchantDiscount.find({
       merchantId: id,
     }).populate("geofenceId", "name");
-    const productDiscounts = await ProductDiscount.find({
-      merchantId: id,
-    }).populate("geofenceId", "name");
-
-    const discounts = [...merchantDiscounts, ...productDiscounts];
 
     res.status(200).json({
       success: "Discounts retrieved successfully",
-      data: discounts || [],
+      data: merchantDiscounts,
     });
   } catch (err) {
     next(appError(err.message));
