@@ -105,6 +105,13 @@ const getTaxAmount = async (
   }
 };
 
+const convertToIST = (date) => {
+  // Convert the date to IST by adding 5 hours 30 minutes
+  const istOffset = 5 * 60 + 30; // IST is UTC + 5 hours 30 minutes
+  const dateInIST = new Date(date.getTime() + istOffset * 60 * 1000);
+  return dateInIST;
+};
+
 const createOrdersFromScheduled = async (scheduledOrder) => {
   try {
     const customer = await Customer.findById(scheduledOrder.customerId);
@@ -131,12 +138,12 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
       10
     );
 
-    const deliveryTime = new Date();
+    const deliveryTime = convertToIST(new Date());
     deliveryTime.setMinutes(deliveryTime.getMinutes() + deliveryTimeMinutes);
 
     const stepperData = {
       by: "Admin",
-      date: new Date(),
+      date: convertToIST(new Date()),
     };
 
     let options = {
@@ -162,8 +169,8 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
 
     options = {};
 
-    if (new Date() < new Date(scheduledOrder.endDate)) {
-      const nextTime = new Date();
+    if (convertToIST(new Date()) < convertToIST(new Date(scheduledOrder.endDate))) {
+      const nextTime = convertToIST(new Date())
       nextTime.setDate(nextTime.getDate() + 1);
 
       await ScheduledOrder.findByIdAndUpdate(scheduledOrder._id, {
@@ -269,12 +276,12 @@ const createOrdersFromScheduledPickAndDrop = async (scheduledOrder) => {
         scheduledOrder.orderDetail.numOfDays;
     }
 
-    const deliveryTime = new Date();
+    const deliveryTime = convertToIST(new Date());
     deliveryTime.setHours(deliveryTime.getHours() + 1);
 
     const stepperData = {
       by: "Admin",
-      date: new Date(),
+      date: convertToIST(new Date()),
     };
 
     const newOrder = await Order.create({
@@ -295,8 +302,8 @@ const createOrdersFromScheduledPickAndDrop = async (scheduledOrder) => {
       "orderDetailStepper.created": stepperData,
     });
 
-    if (new Date() < new Date(scheduledOrder.endDate)) {
-      const nextTime = new Date();
+    if (convertToIST(new Date()) < convertToIST(new Date(scheduledOrder.endDate))) {
+      const nextTime = convertToIST(new Date());
       nextTime.setDate(nextTime.getDate() + 1);
 
       await ScheduledPickAndCustom.findByIdAndUpdate(scheduledOrder._id, {
