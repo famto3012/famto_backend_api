@@ -318,20 +318,14 @@ const updateAllDiscountAdminController = async (req, res, next) => {
 const getAllDiscountAdminController = async (req, res, next) => {
   try {
     const { id } = req.params;
+
     const merchantDiscounts = await MerchantDiscount.find({
       merchantId: id,
     }).populate("geofenceId", "name");
-    const productDiscounts = await ProductDiscount.find({
-      merchantId: id,
-    })
-      .populate("geofenceId", "name")
-      .populate("productId", "productName");
-
-    const discounts = [...merchantDiscounts, ...productDiscounts];
 
     res.status(200).json({
       success: "Discounts retrieved successfully",
-      data: discounts || [],
+      data: merchantDiscounts,
     });
   } catch (err) {
     next(appError(err.message));

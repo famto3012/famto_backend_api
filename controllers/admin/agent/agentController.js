@@ -161,6 +161,8 @@ const editAgentByAdminController = async (req, res, next) => {
     workStructure,
   } = req.body;
 
+  console.log(req.body);
+
   const errors = validationResult(req);
 
   let formattedErrors = {};
@@ -582,7 +584,14 @@ const filterAgentsController = async (req, res, next) => {
     //     .status(400)
     //     .json({ message: "Vehicle type or geofence is required" });
     // }
-    console.log("vehicleType", vehicleType, "geofence", geofence, "status", status)
+    console.log(
+      "vehicleType",
+      vehicleType,
+      "geofence",
+      geofence,
+      "status",
+      status
+    );
     const filterCriteria = {};
 
     if (status && status.trim().toLowerCase() !== "all") {
@@ -605,8 +614,7 @@ const filterAgentsController = async (req, res, next) => {
       }
     }
 
-   
-    console.log("filterCriteria", filterCriteria)
+    console.log("filterCriteria", filterCriteria);
     const searchResults = await Agent.find(
       filterCriteria,
       "_id fullName email phoneNumber workStructure geofenceId status isApproved"
@@ -873,7 +881,16 @@ const filterAgentPayoutController = async (req, res, next) => {
   try {
     const { paymentStatus, agentId, geofence, date } = req.query;
 
-    console.log("paymentStatus", paymentStatus, "agentId", agentId, "geofence", geofence, "date", date)
+    console.log(
+      "paymentStatus",
+      paymentStatus,
+      "agentId",
+      agentId,
+      "geofence",
+      geofence,
+      "date",
+      date
+    );
 
     // Initialize filter criteria
     const filterCriteria = { isApproved: "Approved" };
@@ -915,13 +932,13 @@ const filterAgentPayoutController = async (req, res, next) => {
     if (agentId && agentId.trim().toLowerCase() !== "all") {
       filterCriteria["_id"] = agentId;
     }
-    console.log("filterCriteria", filterCriteria)
+    console.log("filterCriteria", filterCriteria);
     // Fetch agents from the database based on the constructed filter criteria
     const agents = await Agent.find(filterCriteria).select(
       "fullName phoneNumber appDetailHistory workStructure.cashInHand workStructure.salaryStructureId bankDetail"
     );
 
-    console.log("agents", agents)
+    console.log("agents", agents);
 
     // Prepare the response structure
     const responseData = await Promise.all(
@@ -1021,7 +1038,7 @@ const filterAgentPayoutController = async (req, res, next) => {
       })
     );
 
-    console.log("responseData", responseData)
+    console.log("responseData", responseData);
     const data = responseData.filter((resp) => {
       let isWithinDateRange = true;
       if (resp.workedDate === "-") {
@@ -1040,7 +1057,7 @@ const filterAgentPayoutController = async (req, res, next) => {
       // Return true only if both date range and payment status match
       return isWithinDateRange && isPaymentStatusMatch;
     });
-    console.log("data", data)
+    console.log("data", data);
     // Send the response with the filtered and formatted agent data
     res.status(200).json({
       message: "Agent payout filter",

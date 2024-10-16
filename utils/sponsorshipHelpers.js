@@ -118,13 +118,13 @@ const calculateEndDate = (startDate, plan) => {
 const getPlanAmount = (plan) => {
   switch (plan) {
     case "Monthly":
-      return 250;
+      return 299;
     case "3 Month":
-      return 750;
+      return 799;
     case "6 Month":
-      return 1500;
+      return 1399;
     case "1 Year":
-      return 3000;
+      return 2999;
     default:
       throw new Error("Invalid plan");
   }

@@ -87,12 +87,15 @@ const editProductDiscountController = async (req, res, next) => {
       }
     });
 
-    let updatedDiscount = await existingDiscount.save();
+    await existingDiscount.save();
 
-    updatedDiscount = await updatedDiscount.populate("geofenceId", "name");
+    const updatedDiscount = await ProductDiscount.findById(id)
+      .populate("geofenceId", "name")
+      .populate("productId", "productName");
 
     res.status(200).json({
-      success: "Product Discount updated successfully",
+      success: true,
+      message: "Product Discount updated successfully",
       data: updatedDiscount,
     });
   } catch (err) {
@@ -242,6 +245,25 @@ const addProductDiscountAdminController = async (req, res, next) => {
   }
 };
 
+const getAllProductDiscountAdminController = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const productDiscounts = await ProductDiscount.find({
+      merchantId: id,
+    })
+      .populate("geofenceId", "name")
+      .populate("productId", "productName");
+
+    res.status(200).json({
+      success: "Discounts retrieved successfully",
+      data: productDiscounts,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   addProductDiscountController,
   editProductDiscountController,
@@ -250,4 +272,5 @@ module.exports = {
   updateProductDiscountStatusController,
   addProductDiscountAdminController,
   getProductDiscountByIdController,
+  getAllProductDiscountAdminController,
 };
