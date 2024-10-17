@@ -638,7 +638,7 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
       { id: "alert", title: "Alert" },
       { id: "variantName", title: "Variant Name" },
       { id: "typeName", title: "Variant Type Name" },
-      { id: "price", title: "Variant Price" },
+      { id: "price", title: "Variant Type Price" },
     ];
 
     const writer = csvWriter({
@@ -686,6 +686,109 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
     // Parse the CSV data
     stream
       .pipe(csvParser())
+      // .on("data", (row) => {
+      //   console.log("Row data:", row); // Log the entire row data to check values
+
+      //   const isRowEmpty = Object.values(row).every(
+      //     (value) => value.trim() === ""
+      //   );
+
+      //   if (!isRowEmpty) {
+      //     const businessCategoryName = row["Business Category Name*"]?.trim();
+      //     const categoryName = row["Category Name*"]?.trim();
+      //     const productName = row["Product Name*"]?.trim();
+      //     const variantKey = row["Variant Name"]?.trim();
+      //     const variantTypeKey = row["Variant Type Name"]?.trim();
+      //     const categoryKey = `${merchantId}-${businessCategoryName}-${categoryName}-${productName}-${variantKey}-${variantTypeKey}`; // Updated to include businessCategoryName
+
+      //     if (!categoriesMap.has(categoryKey)) {
+      //       categoriesMap.set(categoryKey, {
+      //         categoryData: {
+      //           merchantId,
+      //           businessCategoryName, // Ensure businessCategoryName is set correctly
+      //           categoryName,
+      //           type: row["Category Type*"]?.trim(),
+      //           status: true,
+      //         },
+      //         products: [],
+      //       });
+      //     }
+
+      //     console.log(
+      //       "Parsed Category Data:",
+      //       categoriesMap.get(categoryKey).categoryData
+      //     );
+
+      //     // Add products under the relevant category
+      //     const categoryEntry = categoriesMap.get(categoryKey);
+
+      //     console.log("categoryEntry----", categoryEntry)
+      //     let existingProduct = categoryEntry.products.find(
+      //       (p) => p.productName === productName
+      //     );
+      //     console.log("existingProduct----", existingProduct)
+
+      //     const product = {
+      //       productName: row["Product Name*"]?.trim(),
+      //       price: parseFloat(row["Product Price*"]?.trim()),
+      //       minQuantityToOrder:
+      //         parseInt(row["Min Quantity To Order"]?.trim()) || 0,
+      //       maxQuantityPerOrder:
+      //         parseInt(row["Max Quantity Per Order"]?.trim()) || 0,
+      //       costPrice: parseFloat(row["Cost Price*"]?.trim()),
+      //       sku: row["SKU"]?.trim() || "",
+      //       preparationTime: row["Preparation Time"]?.trim() || "",
+      //       description: row["Description"]?.trim() || "",
+      //       longDescription: row["Long Description"]?.trim() || "",
+      //       type: row["Product Type*"]?.trim(),
+      //       inventory: true,
+      //       availableQuantity: parseInt(row["Available Quantity"]?.trim()) || 0,
+      //       alert: parseInt(row["Alert"]?.trim()) || 0,
+      //       variants: [],
+      //     };
+
+      //     console.log("Parsed Product Data:", product);
+
+      //     // Add variants to the product
+      //     const variantName = row["Variant Name"]?.trim();
+      //     const variantTypeName = row["Variant Type Name"]?.trim();
+      //     const variantTypePrice = parseFloat(
+      //       row["Variant Type Price"]?.trim()
+      //     );
+      //     console.log("variantName", variantName);
+      //     console.log("variantTypeName", variantTypeName);
+      //     console.log("variantTypePrice", variantTypePrice);
+
+      //     if (
+      //       variantName &&
+      //       variantTypeName &&
+      //       variantTypePrice !== null &&
+      //       variantTypePrice !== undefined
+      //     ) {
+      //       const variant = {
+      //         variantName,
+      //         variantTypes: [
+      //           { typeName: variantTypeName, price: variantTypePrice },
+      //         ],
+      //       };
+
+      //       console.log("Parsed Variant Data:", variant);
+
+      //       const existingVariant = existingProduct?.variants?.find(
+      //         (v) => v.variantName === variant.variantName
+      //       );
+      //       console.log("existingVariant", existingVariant);
+      //       if (existingVariant) {
+      //         existingVariant.variantTypes.push(...variant.variantTypes);
+      //       } else {
+      //         product.variants.push(variant);
+      //       }
+      //     }
+
+      //     categoryEntry.products.push(product);
+      //     console.log("categoryEntry----", categoryEntry)
+      //   }
+      // })
       .on("data", (row) => {
         console.log("Row data:", row); // Log the entire row data to check values
 
@@ -699,7 +802,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
           const productName = row["Product Name*"]?.trim();
           const variantKey = row["Variant Name"]?.trim();
           const variantTypeKey = row["Variant Type Name"]?.trim();
-          const categoryKey = `${merchantId}-${businessCategoryName}-${categoryName}-${productName}-${variantKey}-${variantTypeKey}`; // Updated to include businessCategoryName
+          const categoryKey = `${merchantId}-${businessCategoryName}-${categoryName}`; // Simplified key to group by category
 
           if (!categoriesMap.has(categoryKey)) {
             categoriesMap.set(categoryKey, {
@@ -710,7 +813,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
                 type: row["Category Type*"]?.trim(),
                 status: true,
               },
-              products: [],
+              products: [], // Array to store products under this category
             });
           }
 
@@ -719,62 +822,81 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
             categoriesMap.get(categoryKey).categoryData
           );
 
-          // Add products under the relevant category
+          // Get the category entry from the map
           const categoryEntry = categoriesMap.get(categoryKey);
 
-          const product = {
-            productName: row["Product Name*"]?.trim(),
-            price: parseFloat(row["Product Price*"]?.trim()),
-            minQuantityToOrder:
-              parseInt(row["Min Quantity To Order"]?.trim()) || 0,
-            maxQuantityPerOrder:
-              parseInt(row["Max Quantity Per Order"]?.trim()) || 0,
-            costPrice: parseFloat(row["Cost Price*"]?.trim()),
-            sku: row["SKU"]?.trim() || "",
-            preparationTime: row["Preparation Time"]?.trim() || "",
-            description: row["Description"]?.trim() || "",
-            longDescription: row["Long Description"]?.trim() || "",
-            type: row["Product Type*"]?.trim(),
-            inventory: true,
-            availableQuantity: parseInt(row["Available Quantity"]?.trim()) || 0,
-            alert: parseInt(row["Alert"]?.trim()) || 0,
-            variants: [],
-          };
+          // Check if the product already exists in the category
+          let existingProduct = categoryEntry.products.find(
+            (p) => p.productName === productName
+          );
 
-          console.log("Parsed Product Data:", product);
+          if (!existingProduct) {
+            // Create a new product if it doesn't exist
+            existingProduct = {
+              productName,
+              price: parseFloat(row["Product Price*"]?.trim()),
+              minQuantityToOrder:
+                parseInt(row["Min Quantity To Order"]?.trim()) || 0,
+              maxQuantityPerOrder:
+                parseInt(row["Max Quantity Per Order"]?.trim()) || 0,
+              costPrice: parseFloat(row["Cost Price*"]?.trim()),
+              sku: row["SKU"]?.trim() || "",
+              preparationTime: row["Preparation Time"]?.trim() || "",
+              description: row["Description"]?.trim() || "",
+              longDescription: row["Long Description"]?.trim() || "",
+              type: row["Product Type*"]?.trim(),
+              inventory: true,
+              availableQuantity:
+                parseInt(row["Available Quantity"]?.trim()) || 0,
+              alert: parseInt(row["Alert"]?.trim()) || 0,
+              variants: [], // Initialize empty variants array
+            };
 
-          // Add variants to the product
+            // Add the new product to the category's product list
+            categoryEntry.products.push(existingProduct);
+            console.log("New Product Added:", existingProduct);
+          }
+
+          // Now handle the variant part
           const variantName = row["Variant Name"]?.trim();
           const variantTypeName = row["Variant Type Name"]?.trim();
           const variantTypePrice = parseFloat(
             row["Variant Type Price"]?.trim()
           );
-          console.log("variantName", variantName)
-          console.log("variantTypeName", variantTypeName)
-          console.log("variantTypePrice", variantTypePrice)
 
-          if (variantName && variantTypeName && variantTypePrice !== null && variantTypePrice !== undefined) {
-            const variant = {
-              variantName,
-              variantTypes: [
-                { typeName: variantTypeName, price: variantTypePrice },
-              ],
-            };
-
-            console.log("Parsed Variant Data:", variant);
-
-            const existingVariant = product.variants.find(
-              (v) => v.variantName === variant.variantName
+          if (
+            variantName &&
+            variantTypeName &&
+            variantTypePrice !== null &&
+            variantTypePrice !== undefined
+          ) {
+            // Check if the product already has the variant
+            let existingVariant = existingProduct.variants.find(
+              (v) => v.variantName === variantName
             );
 
-            if (existingVariant) {
-              existingVariant.variantTypes.push(...variant.variantTypes);
-            } else {
-              product.variants.push(variant);
+            if (!existingVariant) {
+              // If the variant doesn't exist, create a new one
+              existingVariant = {
+                variantName,
+                variantTypes: [],
+              };
+
+              // Add the new variant to the product's variants array
+              existingProduct.variants.push(existingVariant);
+              console.log("New Variant Added:", existingVariant);
             }
+
+            // Add the variant type to the existing or newly created variant
+            existingVariant.variantTypes.push({
+              typeName: variantTypeName,
+              price: variantTypePrice,
+            });
+
+            console.log("Updated Variant:", existingVariant);
           }
 
-          categoryEntry.products.push(product);
+          console.log("Final Updated Product Data:", existingProduct);
         }
       })
       .on("end", async () => {

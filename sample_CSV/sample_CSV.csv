@@ -1,3 +1,32 @@
-Business Category Name*,Category Name*,Category Type*,Product Name*,Product Price*,Cost Price*,Product Type*,Min Quantity To Order,Max Quantity Per Order,SKU,Preparation Time,Description,Long Description,Available Quantity,Alert,Variant Name,Variant Type Name,Variant Type Price
-Business category,Category 1,Veg / Non-veg / Both,Product 1,100,100,Veg / Non-veg / Other,1,20,SKU12345,30,Description,Long Description,20,10,Size,Medium,150
-Business category,Category 2,Veg / Non-veg / Both,Product 2,200,200,Veg / Non-veg / Other,1,20,SKU12345,30,Description,Long Description,20,10,Size,Medium,150
+﻿Business Category Name*,Category Name*,Category Type*,Category Status*,Product Name*,Product Price*,Cost Price*,Product Type*,Min Quantity To Order,Max quantity Per Order,SKU,Preperation Time,Description,Long Description,Product Image,Inventory,Available quantity,Alert,Variant Name,Variant Type Name,Variant Type Price
+Food,Shawarma,Non-veg,true,Romali Roti,20,15,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
+Food,Shawarma,Non-veg,true,Shawarma Roll(R),100,95,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
+Food,Shawarma,Non-veg,true,Cheese Roll(R),130,125,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
+Food,Shawarma,Non-veg,true,Peri Peri Roll(R),120,115,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
+Food,Shawarma,Non-veg,true,Full Meat Roll(R),150,145,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
+Food,Shawarma,Non-veg,true,Peri Peri Special Roll(R),160,155,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
+Food,Shawarma,Non-veg,true,Normal Plate Shawarma (R),180,175,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
+Food,Shawarma,Non-veg,true,Peri Peri Plate Shawarma(R),200,195,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
+Food,Shawarma,Non-veg,true,Peri Peri Special Plate(R),230,225,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
+Food,Shawarma,Non-veg,true,Al Faham1,345,300,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
+Food,Fried Rice,Both,true,Veg Fried Rice,100,100,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-
+Food,Fried Rice,Both,true,Chicken Fried Rice,190,190,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
+Food,Fried Rice,Both,true,Egg Fried Rice,140,140,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
+Food,Fried Rice,Both,true,Schezwan Chicken Fried Rice,200,200,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
+Food,Fried Rice,Both,true,Mixed Fried Rice,220,220,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
+Food,Fried Rice,Both,true,TEST Fried rice 2,160,140,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
+Food,Fried Rice,Both,true,TEST Fried rice,150,130,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
+Food,Fried Rice,Both,true,Al Faham,345,300,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
+Food,Tandoori,Non-veg,true,Tandoori Chicken,500,500,Non-veg,-,-,-,-,-,-,-,true,-,-,Quantity,Full,500
+Food,Tandoori,Non-veg,true,Chicken Tikka,290,290,Non-veg,-,-,-,-,-,-,-,true,-,-,Quantity,Full,290
+Food,Tandoori,Non-veg,true,Malai Tikka,300,300,Non-veg,-,-,-,-,-,-,-,true,-,-,Quantity,Full,300
+Food,Tandoori,Non-veg,true,Hariyali Kabab,280,280,Non-veg,-,-,-,-,-,-,-,true,-,-,Quantity,Full,280
+Food,Tandoori,Non-veg,true,Chicken Seek Kabab,280,280,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
+Fish,Fresh Fish,Non-veg,true,Mathi,-,-,Non-veg,-,-,-,-,-,Fresh sardine,-,true,-,-,Quantity,1 kg,-
+Fish,Fresh Fish,Non-veg,true,Mathi,-,-,Non-veg,-,-,-,-,-,Fresh sardine,-,true,-,-,Quantity,500 gms,-
+Fish,Fresh Fish,Non-veg,true,Mathi,-,-,Non-veg,-,-,-,-,-,Fresh sardine,-,true,-,-,Quant,500 gms,-
+Fish,Fresh Fish,Non-veg,true,Mathi,-,-,Non-veg,-,-,-,-,-,Fresh sardine,-,true,-,-,Quan,1 kg,-
+Fish,Fresh Fish,Non-veg,true,Mathi,-,-,Non-veg,-,-,-,-,-,Fresh sardine,-,true,-,-,Quan,555 gms,150
+Fish,Fresh Fish,Non-veg,true,K. Kozhiyala,-,-,Non-veg,-,-,-,-,-,Small mackerel,-,true,-,-,Quantity,500 gms,-
+Fish,Fresh Fish,Non-veg,true,Choora,-,-,Non-veg,-,-,-,-,-,Tuna,-,true,-,-,Quantity,500 gms,-
+Fish,Fresh Fish,Non-veg,true,Ayala,-,-,Non-veg,-,-,-,-,-,Indian mackerel,-,true,-,-,Quantity,500 gms,100

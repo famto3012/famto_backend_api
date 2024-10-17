@@ -172,6 +172,11 @@ const CustomerCartSchema = mongoose.Schema(
       ref: "Merchant",
       required: true,
     },
+    scheduledOrderId: {
+      type: String,
+      ref: "ScheduledOrder",
+      default: null,
+    },
     items: [cartItemSchema],
     cartDetail: cartDetailSchema,
     billDetail: billSchema,

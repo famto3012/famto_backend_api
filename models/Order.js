@@ -153,7 +153,7 @@ const orderDetailSchema = mongoose.Schema(
     isReady: {
       type: Boolean,
       default: false,
-    }
+    },
   },
   {
     _id: false,
@@ -361,6 +361,11 @@ const orderSchema = mongoose.Schema(
     merchantId: {
       type: String,
       ref: "Merchant",
+    },
+    scheduledOrderId: {
+      type: String,
+      ref: "ScheduledOrder",
+      default: null,
     },
     agentId: {
       type: String,

@@ -2362,6 +2362,34 @@ const createInvoiceByAdminController = async (req, res, next) => {
   }
 };
 
+const getScheduledOrderByIdForAdmin = async (req, res) => {
+  try {
+    const { id } = req.params; // Get the order ID from the request parameters
+
+    // Fetch the scheduled order by ID
+    const scheduledOrder = await ScheduledOrder.findById(id)
+      .populate({
+        path: "customerId",
+        select: "fullName phoneNumber email",
+      })
+      .populate({
+        path: "merchantId",
+        select: "merchantDetail",
+      });
+
+    // Check if the scheduled order exists
+    if (!scheduledOrder) {
+      return res.status(404).json({ message: "Scheduled order not found" });
+    }
+
+    // Send back the scheduled order if found
+    res.status(200).json(scheduledOrder);
+  } catch (err) {
+    // Handle any errors that occur during the process
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getAllOrdersForAdminController,
   getAllScheduledOrdersForAdminController,
@@ -2379,4 +2407,5 @@ module.exports = {
   downloadOrderBillController,
   orderMarkAsReadyController,
   markTakeAwayOrderCompletedController,
+  getScheduledOrderByIdForAdmin,
 };

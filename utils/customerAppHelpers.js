@@ -149,6 +149,7 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
     let options = {
       customerId: scheduledOrder.customerId,
       merchantId: scheduledOrder.merchantId,
+      scheduledOrderId: scheduledOrder._id,
       items: scheduledOrder.items,
       orderDetail: {
         ...scheduledOrder.orderDetail,
