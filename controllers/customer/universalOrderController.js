@@ -517,24 +517,27 @@ const searchProductsInMerchantController = async (req, res, next) => {
       return next(appError("Query is required", 400));
     }
 
-    // Find the category belonging to the merchant
-    const category = await Category.findOne({
+    // Find all categories belonging to the merchant with the given business category
+    const categories = await Category.find({
       merchantId,
       businessCategoryId,
     });
 
-    if (!category) {
+    if (!categories || categories.length === 0) {
       return next(
         appError(
-          "Category not found for the given merchant and business category",
+          "Categories not found for the given merchant and business category",
           404
         )
       );
     }
 
-    // Search products within the found categoryId only
+    // Extract all category ids to search products within all these categories
+    const categoryIds = categories.map((category) => category._id);
+
+    // Search products within the found categoryIds
     const products = await Product.find({
-      categoryId: category._id, // Ensure we're only searching within this specific category
+      categoryId: { $in: categoryIds }, // Search within all relevant categories
       $or: [
         { productName: { $regex: query, $options: "i" } },
         { description: { $regex: query, $options: "i" } },
@@ -546,7 +549,11 @@ const searchProductsInMerchantController = async (req, res, next) => {
       )
       .sort({ order: 1 });
 
-    const formattedResponse = products?.map((product) => ({
+    if (!products || products.length === 0) {
+      return next(appError("No products found", 404));
+    }
+
+    const formattedResponse = products.map((product) => ({
       id: product._id,
       productName: product.productName,
       price: product.price,
@@ -571,6 +578,7 @@ const searchProductsInMerchantController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
+
 
 // Filter and sort products
 const filterAndSortProductsController = async (req, res, next) => {

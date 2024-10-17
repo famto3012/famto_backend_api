@@ -79,8 +79,8 @@ const getAllOrdersOfMerchantController = async (req, res, next) => {
         isReady: order.orderDetail.isReady,
         merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
         customerName:
-          order?.orderDetail?.deliveryAddress?.fullName ||
           order?.customerId?.fullName ||
+          order?.orderDetail?.deliveryAddress?.fullName ||
           "-",
         deliveryMode: order?.orderDetail?.deliveryMode,
         orderDate: formatDate(order.createdAt),
@@ -154,8 +154,8 @@ const getAllScheduledOrdersOfMerchantController = async (req, res, next) => {
       orderStatus: order.status,
       merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
       customerName:
-        order?.orderDetail?.deliveryAddress?.fullName ||
         order?.customerId?.fullName ||
+        order?.orderDetail?.deliveryAddress?.fullName ||
         "-",
       deliveryMode: order?.orderDetail?.deliveryMode,
       orderDate: formatDate(order.createdAt),
@@ -220,7 +220,7 @@ const confirmOrderController = async (req, res, next) => {
       date: new Date(),
     };
 
-    if (orderFound.merchantId.toString() === currentMerchant.toString()) {
+    if (orderFound.merchantId._id.toString() === currentMerchant.toString()) {
       orderFound.status = "On-going";
       orderFound.orderDetailStepper.accepted = stepperData;
 
@@ -509,8 +509,8 @@ const searchOrderByIdController = async (req, res, next) => {
         orderStatus: order.status,
         merchantName: order.merchantId.merchantDetail.merchantName,
         customerName:
-          order.orderDetail.deliveryAddress.fullName ||
-          order.customerId.fullName,
+          order.customerId.fullName ||
+          order.orderDetail.deliveryAddress.fullName,
         deliveryMode: order.orderDetail.deliveryMode,
         orderDate: formatDate(order?.orderDetail?.deliveryTime),
         orderTime: formatTime(order.createdAt),
@@ -586,8 +586,8 @@ const searchScheduledOrderByIdController = async (req, res, next) => {
         orderStatus: order.status,
         merchantName: order.merchantId.merchantDetail.merchantName,
         customerName:
-          order.orderDetail.deliveryAddress.fullName ||
-          order.customerId.fullName,
+          order.customerId.fullName ||
+          order.orderDetail.deliveryAddress.fullName,
         deliveryMode: order.orderDetail.deliveryMode,
         orderDate: formatDate(order.createdAt),
         orderTime: formatTime(order.createdAt),
@@ -679,8 +679,8 @@ const filterOrdersController = async (req, res, next) => {
         orderStatus: order.status,
         merchantName: order.merchantId.merchantDetail.merchantName,
         customerName:
-          order.orderDetail.deliveryAddress.fullName ||
-          order.customerId.fullName,
+          order.customerId.fullName ||
+          order.orderDetail.deliveryAddress.fullName,
         deliveryMode: order.orderDetail.deliveryMode,
         orderDate: formatDate(order?.orderDetail?.deliveryTime),
         orderTime: formatTime(order.createdAt),
@@ -771,8 +771,8 @@ const filterScheduledOrdersController = async (req, res, next) => {
         orderStatus: order.status,
         merchantName: order.merchantId.merchantDetail.merchantName,
         customerName:
-          order.orderDetail.deliveryAddress.fullName ||
-          order.customerId.fullName,
+          order.customerId.fullName ||
+          order.orderDetail.deliveryAddress.fullName,
         deliveryMode: order.orderDetail.deliveryMode,
         orderDate: formatDate(order.createdAt),
         orderTime: formatTime(order.createdAt),
