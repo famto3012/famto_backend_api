@@ -178,14 +178,14 @@ cron.schedule("0 6,12,18,0 * * *", async () => {
 
 //
 cron.schedule("30 18 * * *", async () => {
+  console.log("Running cron job for revenue generation in mid night")
+  const now = new Date(); // Subtract 1 day to get the previous day
   await moveAppDetailToHistoryAndResetForAllAgents();
   await updateOneDayLoyaltyPointEarning();
-  await resetAllAgentTaskHelper();
+  await fetchPerDayRevenue(now);
+  await fetchMerchantDailyRevenue(now);
   await generateMapplsAuthToken();
-
-  const now = new Date(); // Subtract 1 day to get the previous day
-  fetchPerDayRevenue(now);
-  fetchMerchantDailyRevenue(now);
+  await resetAllAgentTaskHelper();
 });
 
 const convertToIST = (date) => {
@@ -203,8 +203,8 @@ cron.schedule("* * * * *", async () => {
 
   console.log("Running scheduled order job...");
   const now = new Date();
-  // fetchPerDayRevenue(now);
-  // fetchMerchantDailyRevenue(now);
+  //  fetchPerDayRevenue(now);
+  //  fetchMerchantDailyRevenue(now);
   const date = convertToIST(now);
   //  console.log("IST",date)
   //  console.log("UTC",now)

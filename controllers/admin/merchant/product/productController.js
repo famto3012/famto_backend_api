@@ -276,7 +276,7 @@ const getProductByCategoryController = async (req, res, next) => {
     const productsByCategory = await Product.find({
       categoryId: categoryId,
     })
-      .select("productName")
+      .select("productName inventory")
       .sort({ order: 1 });
 
     res.status(200).json({
@@ -749,8 +749,11 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
           const variantTypePrice = parseFloat(
             row["Variant Type Price"]?.trim()
           );
+          console.log("variantName", variantName)
+          console.log("variantTypeName", variantTypeName)
+          console.log("variantTypePrice", variantTypePrice)
 
-          if (variantName && variantTypeName && variantTypePrice) {
+          if (variantName && variantTypeName && variantTypePrice !== null && variantTypePrice !== undefined) {
             const variant = {
               variantName,
               variantTypes: [

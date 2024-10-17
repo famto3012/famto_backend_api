@@ -50,14 +50,50 @@ const getRevenueDataByDateRange = async (req, res, next) => {
     // Convert to ISO strings for querying
     const start = new Date(startDate);
     const end = new Date(endDate);
-
+    console.log("start date", start)
+    console.log("end date", end)
     // Fetch data between the startDate and endDate
-    const revenueData = await HomeScreenRevenueData.find({
-      createdAt: {
-        $gte: start,
-        $lte: end,
+    const revenueData = await HomeScreenRevenueData.aggregate([
+      {
+        $match: {
+          createdAt: {
+            $gte: start,
+            $lte: end,
+          },
+        },
       },
-    });
+      {
+        // Group by truncated date (to the day, ignoring time)
+        $group: {
+          _id: {
+            $dateTrunc: {
+              date: "$createdAt",
+              unit: "day", // Truncate to the day, ignoring time
+            },
+          },
+          sales: { $sum: "$sales" },
+          merchants: { $sum: "$merchants" },
+          commission: { $sum: "$commission" },
+          subscription: { $sum: "$subscription" },
+        },
+      },
+      {
+        // Rename `_id` to `createdAt`
+        $project: {
+          _id: 0, // Exclude the default `_id` field
+          createdAt: "$_id", // Rename `_id` to `createdAt`
+          sales: 1,
+          merchants: 1,
+          commission: 1,
+          subscription: 1,
+        },
+      },
+      {
+        // Optionally sort by date (ascending)
+        $sort: { createdAt: 1 },
+      },
+    ]);
+    console.log("revenue data", revenueData);
 
     // Send the response
     res.status(200).json(revenueData);

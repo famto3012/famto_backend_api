@@ -77,8 +77,8 @@ const getAllOrdersForAdminController = async (req, res, next) => {
         orderStatus: order.status,
         merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
         customerName:
-          order?.orderDetail?.deliveryAddress?.fullName ||
           order?.customerId?.fullName ||
+          order?.orderDetail?.deliveryAddress?.fullName ||
           "-",
         deliveryMode: order?.orderDetail?.deliveryMode,
         isReady: order?.orderDetail?.isReady ? true : false,
@@ -162,8 +162,8 @@ const getAllScheduledOrdersForAdminController = async (req, res, next) => {
         orderStatus: order.status,
         merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
         customerName:
-          order?.orderDetail?.deliveryAddress?.fullName ||
           order?.customerId?.fullName ||
+          order?.orderDetail?.deliveryAddress?.fullName ||
           "-",
         deliveryMode: order?.orderDetail?.deliveryMode,
         orderDate: formatDate(order.createdAt),
@@ -499,8 +499,8 @@ const searchOrderByIdByAdminController = async (req, res, next) => {
         orderStatus: order.status,
         merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
         customerName:
-          order.orderDetail.deliveryAddress.fullName ||
-          order.customerId.fullName,
+          order.customerId.fullName ||
+          order.orderDetail.deliveryAddress.fullName,
         deliveryMode: order.orderDetail.deliveryMode,
         orderDate: formatDate(order?.orderDetail?.deliveryTime),
         orderTime: formatTime(order.createdAt),
@@ -602,7 +602,7 @@ const searchScheduledOrderByIdByAdminController = async (req, res, next) => {
       orderStatus: order.status,
       merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
       customerName:
-        order.orderDetail.deliveryAddress.fullName || order.customerId.fullName,
+        order.customerId.fullName || order.orderDetail.deliveryAddress.fullName,
       deliveryMode: order.orderDetail.deliveryMode,
       orderDate: formatDate(order?.orderDetail?.deliveryTime),
       orderTime: formatTime(order.createdAt),
@@ -691,8 +691,8 @@ const filterOrdersByAdminController = async (req, res, next) => {
         orderStatus: order.status,
         merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
         customerName:
-          order.orderDetail.deliveryAddress.fullName ||
-          order.customerId.fullName,
+          order.customerId.fullName ||
+          order.orderDetail.deliveryAddress.fullName,
         deliveryMode: order.orderDetail.deliveryMode,
         orderDate: formatDate(order.createdAt),
         orderTime: formatTime(order.createdAt),
@@ -831,8 +831,8 @@ const filterScheduledOrdersByAdminController = async (req, res, next) => {
         orderStatus: order.status,
         merchantName: order?.merchantData?.merchantDetail?.merchantName || "-", // Fallback if no merchantId
         customerName:
-          order.orderDetail.deliveryAddress.fullName ||
-          order.customerId.fullName,
+          order.customerId.fullName ||
+          order.orderDetail.deliveryAddress.fullName,
         deliveryMode: order.orderDetail.deliveryMode,
         orderDate: formatDate(order.createdAt),
         orderTime: formatTime(order.createdAt),
