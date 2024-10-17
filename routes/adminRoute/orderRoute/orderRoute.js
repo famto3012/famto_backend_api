@@ -15,6 +15,7 @@ const {
   searchScheduledOrderByIdController,
   getScheduledOrderDetailController,
   getAvailableMerchantBusinessCategoriesController,
+  getScheduledOrderByIdForMerchant,
 } = require("../../../controllers/admin/order/merchantOrderController");
 const {
   getAllOrdersForAdminController,
@@ -33,6 +34,7 @@ const {
   searchScheduledOrderByIdByAdminController,
   orderMarkAsReadyController,
   markTakeAwayOrderCompletedController,
+  getScheduledOrderByIdForAdmin,
 } = require("../../../controllers/admin/order/adminOrderController");
 const isAdmin = require("../../../middlewares/isAdmin");
 const { upload } = require("../../../utils/imageOperation");
@@ -60,6 +62,12 @@ orderRoute.get(
   isAuthenticated,
   getAllScheduledOrdersOfMerchantController
 );
+
+// orderRoute.get(
+//   "/scheduled-order/:id",
+//   isAuthenticated,
+//   getScheduledOrderByIdForMerchant
+// );
 
 orderRoute.get("/search-order", isAuthenticated, searchOrderByIdController);
 
@@ -184,6 +192,13 @@ orderRoute.get(
   isAuthenticated,
   isAdmin,
   getAllScheduledOrdersForAdminController
+);
+
+orderRoute.get(
+  "/admin/scheduled-order/:id",
+  isAuthenticated,
+  isAdmin,
+  getScheduledOrderByIdForAdmin
 );
 
 orderRoute.get(

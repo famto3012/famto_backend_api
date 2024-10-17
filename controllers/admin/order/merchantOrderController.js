@@ -920,8 +920,7 @@ const getScheduledOrderDetailController = async (req, res, next) => {
     const { orderId } = req.params;
 
     const orderFound = await ScheduledOrder.findOne({
-      _id: orderId,
-      merchantId: currentMerchant,
+      _id: orderId
     })
       .populate({
         path: "customerId",
@@ -952,8 +951,10 @@ const getScheduledOrderDetailController = async (req, res, next) => {
       paymentMode: orderFound.paymentMode || "-",
       deliveryMode: orderFound.orderDetail.deliveryMode || "-",
       deliveryOption: orderFound.orderDetail.deliveryOption || "-",
-      orderTime: `${formatDate(orderFound.createdAt)} | ${formatTime(
-        orderFound.createdAt
+      orderTime: `${formatDate(orderFound.startDate)} | ${formatTime(
+        orderFound.startDate
+      )} || ${formatDate(orderFound.endDate)} | ${formatTime(
+        orderFound.endDate
       )}`,
       deliveryTime: `${formatDate(
         orderFound.orderDetail.deliveryTime
@@ -1246,6 +1247,37 @@ const createOrderController = async (req, res, next) => {
       data: newOrder,
     });
   } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getScheduledOrderByIdForMerchant = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const merchantId = req.userAuth; // Get the order ID from the request parameters
+
+    // Fetch the scheduled order by ID
+    const scheduledOrder = await ScheduledOrder.findById(id)
+      .populate({
+        path: "customerId",
+        select: "fullName phoneNumber email",
+      })
+      .populate({
+        path: "merchantId",
+        select: "merchantDetail",
+      });
+
+    // Check if the scheduled order exists
+    if (!scheduledOrder) {
+      return res.status(404).json({ message: "Scheduled order not found" });
+    } else if (scheduledOrder.merchantId._id !== merchantId) {
+      return res.status(404).json({ message: "Merchant not authorized" });
+    }
+
+    // Send back the scheduled order if found
+    res.status(200).json(scheduledOrder);
+  } catch (err) {
+    // Handle any errors that occur during the process
     next(appError(err.message));
   }
 };
@@ -1568,4 +1600,5 @@ module.exports = {
   createOrderController,
   downloadOrdersCSVByMerchantController,
   getAvailableMerchantBusinessCategoriesController,
+  getScheduledOrderByIdForMerchant,
 };
