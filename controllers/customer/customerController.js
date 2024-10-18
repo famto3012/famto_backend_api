@@ -624,15 +624,6 @@ const getsingleOrderDetailController = async (req, res, next) => {
       return next(appError("Order not found", 404));
     }
 
-    let distance;
-
-    if (singleOrderDetail?.orderDetail?.pickupLocation) {
-      distance = await getDistanceFromPickupToDelivery(
-        singleOrderDetail?.orderDetail?.pickupLocation,
-        singleOrderDetail?.orderDetail?.deliveryLocation
-      );
-    }
-
     const formattedResponse = {
       id: singleOrderDetail?._id,
       merchantName:
@@ -641,7 +632,7 @@ const getsingleOrderDetailController = async (req, res, next) => {
         singleOrderDetail?.merchantId?.merchantDetail?.displayAddress || null,
       deliveryTime:
         singleOrderDetail?.merchantId?.merchantDetail?.deliveryTime || null,
-      distance: distance || null,
+      distance: singleOrderDetail?.orderDetail?.distance || null,
       items: singleOrderDetail?.items || null,
       billDetail: singleOrderDetail?.billDetail || null,
       deliveryAddress: singleOrderDetail?.orderDetail?.deliveryAddress || null,

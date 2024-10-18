@@ -91,7 +91,10 @@ const getAllOrdersOfMerchantController = async (req, res, next) => {
         deliveryTime: order?.orderDetail?.deliveryTime
           ? formatTime(order.orderDetail.deliveryTime)
           : "-",
-        paymentMethod: order.paymentMode,
+        paymentMethod:
+          order.paymentMode === "Cash-on-delivery"
+            ? "Pay-on-delivery"
+            : order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
         amount: order.billDetail.grandTotal,
       };
@@ -166,7 +169,10 @@ const getAllScheduledOrdersOfMerchantController = async (req, res, next) => {
       deliveryTime: order?.orderDetail?.deliveryTime
         ? formatTime(order.orderDetail.deliveryTime)
         : "",
-      paymentMethod: order.paymentMode,
+      paymentMethod:
+        order.paymentMode === "Cash-on-delivery"
+          ? "Pay-on-delivery"
+          : order.paymentMode,
       deliveryOption: order.orderDetail.deliveryOption,
       amount: order.billDetail.grandTotal,
     }));
@@ -515,7 +521,10 @@ const searchOrderByIdController = async (req, res, next) => {
         orderDate: formatDate(order?.orderDetail?.deliveryTime),
         orderTime: formatTime(order.createdAt),
         deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
-        paymentMethod: order.paymentMode,
+        paymentMethod:
+          order.paymentMode === "Cash-on-delivery"
+            ? "Pay-on-delivery"
+            : order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
         amount: order.billDetail.grandTotal,
       };
@@ -593,7 +602,10 @@ const searchScheduledOrderByIdController = async (req, res, next) => {
         orderTime: formatTime(order.createdAt),
         deliveryDate: "-",
         deliveryTime: "-",
-        paymentMethod: order.paymentMode,
+        paymentMethod:
+          order.paymentMode === "Cash-on-delivery"
+            ? "Pay-on-delivery"
+            : order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
         amount: order.billDetail.grandTotal,
       };
@@ -685,7 +697,10 @@ const filterOrdersController = async (req, res, next) => {
         orderDate: formatDate(order?.orderDetail?.deliveryTime),
         orderTime: formatTime(order.createdAt),
         deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
-        paymentMethod: order.paymentMode,
+        paymentMethod:
+          order.paymentMode === "Cash-on-delivery"
+            ? "Pay-on-delivery"
+            : order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
         amount: order.billDetail.grandTotal,
       };
@@ -778,7 +793,10 @@ const filterScheduledOrdersController = async (req, res, next) => {
         orderTime: formatTime(order.createdAt),
         deliveryDate: "-",
         deliveryTime: "-",
-        paymentMethod: order.paymentMode,
+        paymentMethod:
+          order.paymentMode === "Cash-on-delivery"
+            ? "Pay-on-delivery"
+            : order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
         amount: order.billDetail.grandTotal,
       };
@@ -843,7 +861,10 @@ const getOrderDetailController = async (req, res, next) => {
       _id: orderFound._id,
       orderStatus: orderFound.status || "-",
       paymentStatus: orderFound.paymentStatus || "-",
-      paymentMode: orderFound.paymentMode || "-",
+      paymentMode:
+        orderFound.paymentMode === "Cash-on-delivery"
+          ? "Pay-on-delivery"
+          : orderFound.paymentMode || "-",
       deliveryMode: orderFound.orderDetail.deliveryMode || "-",
       deliveryOption: orderFound.orderDetail.deliveryOption || "-",
       orderTime: `${formatDate(orderFound.createdAt)} | ${formatTime(
@@ -941,7 +962,10 @@ const getScheduledOrderDetailController = async (req, res, next) => {
       _id: orderFound._id,
       orderStatus: orderFound.status || "-",
       paymentStatus: orderFound.paymentStatus || "-",
-      paymentMode: orderFound.paymentMode || "-",
+      paymentMode:
+        orderFound.paymentMode === "Cash-on-delivery"
+          ? "Pay-on-delivery"
+          : orderFound.paymentMode || "-",
       deliveryMode: orderFound.orderDetail.deliveryMode || "-",
       deliveryOption: orderFound.orderDetail.deliveryOption || "-",
       orderTime: `${formatDate(orderFound.startDate)} | ${formatTime(

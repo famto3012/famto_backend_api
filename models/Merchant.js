@@ -34,7 +34,7 @@ const availabilitySchema = new mongoose.Schema(
     type: {
       type: String,
       enum: ["Full-time", "Specific-time"],
-      required: true,
+      required: false,
     },
     specificDays: {
       sunday: daySchema,

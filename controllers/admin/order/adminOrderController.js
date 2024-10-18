@@ -90,7 +90,10 @@ const getAllOrdersForAdminController = async (req, res, next) => {
         deliveryTime: order?.orderDetail?.deliveryTime
           ? formatTime(order.orderDetail.deliveryTime)
           : "-",
-        paymentMethod: order.paymentMode,
+        paymentMethod:
+          order.paymentMode === "Cash-on-delivery"
+            ? "Pay-on-delivery"
+            : order.paymentMode,
         deliveryOption: order?.orderDetail?.deliveryOption,
         amount: order?.billDetail?.grandTotal,
       };
@@ -174,7 +177,10 @@ const getAllScheduledOrdersForAdminController = async (req, res, next) => {
         deliveryTime: order?.orderDetail?.deliveryTime
           ? formatTime(order.orderDetail.deliveryTime)
           : "-",
-        paymentMethod: order.paymentMode,
+        paymentMethod:
+          order.paymentMode === "Cash-on-delivery"
+            ? "Pay-on-delivery"
+            : order.paymentMode,
         deliveryOption: order?.orderDetail?.deliveryOption,
         amount: order?.billDetail?.grandTotal,
       };
@@ -476,7 +482,10 @@ const searchOrderByIdByAdminController = async (req, res, next) => {
     const skip = (page - 1) * limit;
 
     const ordersFound = await Order.find({
-      _id: { $regex: query, $options: "i" },
+      $or: [
+        { _id: { $regex: query, $options: "i" } },
+        { scheduledOrderId: { $regex: query, $options: "i" } },
+      ],
     })
       .populate({
         path: "merchantId",
@@ -505,7 +514,10 @@ const searchOrderByIdByAdminController = async (req, res, next) => {
         orderDate: formatDate(order?.orderDetail?.deliveryTime),
         orderTime: formatTime(order.createdAt),
         deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
-        paymentMethod: order.paymentMode,
+        paymentMethod:
+          order.paymentMode === "Cash-on-delivery"
+            ? "Pay-on-delivery"
+            : order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
         amount: order.billDetail.grandTotal,
       };
@@ -607,7 +619,10 @@ const searchScheduledOrderByIdByAdminController = async (req, res, next) => {
       orderDate: formatDate(order?.orderDetail?.deliveryTime),
       orderTime: formatTime(order.createdAt),
       deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
-      paymentMethod: order.paymentMode,
+      paymentMethod:
+        order.paymentMode === "Cash-on-delivery"
+          ? "Pay-on-delivery"
+          : order.paymentMode,
       deliveryOption: order.orderDetail.deliveryOption,
       amount: order.billDetail.grandTotal,
     }));
@@ -702,7 +717,10 @@ const filterOrdersByAdminController = async (req, res, next) => {
         deliveryTime: order?.orderDetail?.deliveryTime
           ? formatTime(order.orderDetail.deliveryTime)
           : "-",
-        paymentMethod: order.paymentMode,
+        paymentMethod:
+          order.paymentMode === "Cash-on-delivery"
+            ? "Pay-on-delivery"
+            : order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
         amount: order.billDetail.grandTotal,
       };
@@ -842,7 +860,10 @@ const filterScheduledOrdersByAdminController = async (req, res, next) => {
         deliveryTime: order?.orderDetail?.deliveryTime
           ? formatTime(order.orderDetail.deliveryTime)
           : "-",
-        paymentMethod: order.paymentMode,
+        paymentMethod:
+          order.paymentMode === "Cash-on-delivery"
+            ? "Pay-on-delivery"
+            : order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
         amount: order.billDetail.grandTotal,
       };
@@ -905,7 +926,10 @@ const getOrderDetailByAdminController = async (req, res, next) => {
       scheduledOrderId: orderFound?.scheduledOrderId || null,
       orderStatus: orderFound.status || "-",
       paymentStatus: orderFound.paymentStatus || "-",
-      paymentMode: orderFound.paymentMode || "-",
+      paymentMode:
+        orderFound.paymentMode === "Cash-on-delivery"
+          ? "Pay-on-delivery"
+          : orderFound.paymentMode || "-",
       vehicleType: orderFound?.billDetail?.vehicleType || "-",
       deliveryMode: orderFound.orderDetail.deliveryMode || "-",
       deliveryOption: orderFound.orderDetail.deliveryOption || "-",
