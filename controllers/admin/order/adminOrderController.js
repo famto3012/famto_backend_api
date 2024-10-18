@@ -168,15 +168,12 @@ const getAllScheduledOrdersForAdminController = async (req, res, next) => {
         deliveryMode: order?.orderDetail?.deliveryMode,
         orderDate: formatDate(order.createdAt),
         orderTime: formatTime(order.createdAt),
-        deliveryDate: order?.orderDetail?.deliveryTime
-          ? formatDate(order.orderDetail.deliveryTime)
-          : "-",
-        deliveryTime: order?.orderDetail?.deliveryTime
-          ? formatTime(order.orderDetail.deliveryTime)
-          : "-",
+        deliveryDate: order?.time ? formatDate(order.time) : "",
+        deliveryTime: order?.time ? formatTime(order.time) : "",
         paymentMethod: order.paymentMode,
         deliveryOption: order?.orderDetail?.deliveryOption,
         amount: order?.billDetail?.grandTotal,
+        isViewed: order?.isViewed || false,
       };
     });
 
@@ -2399,8 +2396,8 @@ const getScheduledOrderDetailByAdminController = async (req, res, next) => {
         orderFound.endDate
       )}`,
       deliveryTime: `${formatDate(
-        orderFound.orderDetail.deliveryTime
-      )} | ${formatTime(orderFound.orderDetail.deliveryTime)}`,
+        orderFound.time
+      )} | ${formatTime(orderFound.time)}`,
       customerDetail: {
         _id: orderFound.customerId._id,
         name:

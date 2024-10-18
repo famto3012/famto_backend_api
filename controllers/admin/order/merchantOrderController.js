@@ -160,19 +160,17 @@ const getAllScheduledOrdersOfMerchantController = async (req, res, next) => {
       deliveryMode: order?.orderDetail?.deliveryMode,
       orderDate: formatDate(order.createdAt),
       orderTime: formatTime(order.createdAt),
-      deliveryDate: order?.orderDetail?.deliveryTime
-        ? formatDate(order.orderDetail.deliveryTime)
-        : "",
-      deliveryTime: order?.orderDetail?.deliveryTime
-        ? formatTime(order.orderDetail.deliveryTime)
-        : "",
+      deliveryDate: order?.time ? formatDate(order.time) : "",
+      deliveryTime: order?.time ? formatTime(order.time) : "",
       paymentMethod: order.paymentMode,
       deliveryOption: order.orderDetail.deliveryOption,
       amount: order.billDetail.grandTotal,
+      isViewed: order?.isViewed || false,
     }));
 
     // Count total documents for the authenticated merchant
     const totalDocuments = await ScheduledOrder.countDocuments({ merchantId });
+    const totalUnSeenDocuments = await ScheduledOrder.countDocuments({ merchantId, isViewed: false });
 
     // Calculate total pages
     const totalPages = Math.ceil(totalDocuments / limit);
@@ -191,6 +189,7 @@ const getAllScheduledOrdersOfMerchantController = async (req, res, next) => {
       message: "All scheduled orders of merchant",
       data: formattedOrders,
       pagination,
+      notSeen: totalUnSeenDocuments,
     });
   } catch (err) {
     next(appError(err.message));
@@ -950,8 +949,9 @@ const getScheduledOrderDetailController = async (req, res, next) => {
         orderFound.endDate
       )}`,
       deliveryTime: `${formatDate(
-        orderFound.orderDetail.deliveryTime
-      )} | ${formatTime(orderFound.orderDetail.deliveryTime)}`,
+        orderFound.time
+      )} | ${formatTime(orderFound.time)}`,
+      isViewed: orderFound?.isViewed,
       customerDetail: {
         _id: orderFound.customerId._id,
         name:
@@ -1578,6 +1578,53 @@ const getAvailableMerchantBusinessCategoriesController = async (
   }
 };
 
+const markScheduledOrderViewedController = async (req, res, next) => {
+  try {
+    const { orderId, merchantId } = req.params;
+    console.log("orderId", orderId)
+    console.log("merchantId", merchantId)
+    const scheduledOrder = await ScheduledOrder.findOneAndUpdate(
+      { _id: orderId, merchantId },
+      {
+        isViewed: true,
+      }
+    );
+
+    if (!scheduledOrder) {
+      return next(appError("Scheduled order not found", 404));
+    }
+
+    res.status(200).json({
+      message: "Order viewed successfully",
+      data: scheduledOrder,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const numberOfScheduledOrderNotViewedController = async (req, res, next) => {
+  try {
+    const { merchantId } = req.params;
+
+    const scheduledOrder = await ScheduledOrder.find({
+      merchantId,
+      isViewed: false,
+    });
+
+    if (!scheduledOrder) {
+      return next(appError("Scheduled order not found", 404));
+    }
+
+    res.status(200).json({
+      message: "Orders not viewed",
+      data: scheduledOrder?.length,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getAllOrdersOfMerchantController,
   getAllScheduledOrdersOfMerchantController,
@@ -1594,4 +1641,6 @@ module.exports = {
   downloadOrdersCSVByMerchantController,
   getAvailableMerchantBusinessCategoriesController,
   getScheduledOrderByIdForMerchant,
+  markScheduledOrderViewedController,
+  numberOfScheduledOrderNotViewedController,
 };
