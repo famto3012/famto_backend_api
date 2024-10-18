@@ -15,6 +15,7 @@ const {
   searchScheduledOrderByIdController,
   getScheduledOrderDetailController,
   getAvailableMerchantBusinessCategoriesController,
+  markScheduledOrderViewedController,
 } = require("../../../controllers/admin/order/merchantOrderController");
 const {
   getAllOrdersForAdminController,
@@ -89,6 +90,12 @@ orderRoute.get(
   "/scheduled-order/:orderId",
   isAuthenticated,
   getScheduledOrderDetailController
+);
+
+orderRoute.put(
+  "/scheduled-order-view/:orderId/:merchantId",
+  isAuthenticated,
+  markScheduledOrderViewedController
 );
 
 orderRoute.get("/:orderId", isAuthenticated, getOrderDetailController);

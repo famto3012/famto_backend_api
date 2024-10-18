@@ -199,6 +199,10 @@ const scheduledOrderSchema = mongoose.Schema(
     paymentId: {
       type: String,
     },
+    isViewed: {
+      type: Boolean,
+      default: false,
+    },
     purchasedItems: [purchasedItemsSchema],
   },
   {
