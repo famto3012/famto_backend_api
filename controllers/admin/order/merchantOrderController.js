@@ -920,7 +920,8 @@ const getScheduledOrderDetailController = async (req, res, next) => {
     const { orderId } = req.params;
 
     const orderFound = await ScheduledOrder.findOne({
-      _id: orderId
+      _id: orderId,
+      merchantId: currentMerchant,
     })
       .populate({
         path: "customerId",
@@ -930,14 +931,6 @@ const getScheduledOrderDetailController = async (req, res, next) => {
         path: "merchantId",
         select: "merchantDetail",
       })
-      // .populate({
-      //   path: "agentId",
-      //   select: "fullName workStructure",
-      //   populate: {
-      //     path: "workStructure.managerId",
-      //     select: "name",
-      //   },
-      // })
       .exec();
 
     if (!orderFound) {

@@ -124,6 +124,10 @@ const billSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
+    vehicleType: {
+      type: String,
+      default: null,
+    },
   },
   {
     _id: false,

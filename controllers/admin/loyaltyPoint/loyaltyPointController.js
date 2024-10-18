@@ -4,7 +4,7 @@ const LoyaltyPoint = require("../../../models/LoyaltyPoint");
 
 const appError = require("../../../utils/appError");
 
-//Create / Update loyalty point criteria
+// Create / Update loyalty point criteria
 const addLoyaltyPointController = async (req, res, next) => {
   const {
     earningCriteriaRupee,
@@ -99,6 +99,8 @@ const updateStatusController = async (req, res, next) => {
       existingCriteria.status = !existingCriteria.status;
 
       await existingCriteria.save();
+
+      console.log(existingCriteria.status);
 
       return res.status(200).json({
         mesage: "Loyalty point criteria status updated successfully",
