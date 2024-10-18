@@ -902,9 +902,11 @@ const getOrderDetailByAdminController = async (req, res, next) => {
 
     const formattedResponse = {
       _id: orderFound._id,
+      scheduledOrderId: orderFound?.scheduledOrderId || null,
       orderStatus: orderFound.status || "-",
       paymentStatus: orderFound.paymentStatus || "-",
       paymentMode: orderFound.paymentMode || "-",
+      vehicleType: orderFound?.billDetail?.vehicleType || "-",
       deliveryMode: orderFound.orderDetail.deliveryMode || "-",
       deliveryOption: orderFound.orderDetail.deliveryOption || "-",
       orderTime: `${formatDate(orderFound.createdAt)} | ${formatTime(
@@ -2362,12 +2364,14 @@ const createInvoiceByAdminController = async (req, res, next) => {
   }
 };
 
-const getScheduledOrderByIdForAdmin = async (req, res) => {
+const getScheduledOrderDetailByAdminController = async (req, res, next) => {
   try {
-    const { id } = req.params; // Get the order ID from the request parameters
+    const { id } = req.params;
+    console.log(req.params);
 
-    // Fetch the scheduled order by ID
-    const scheduledOrder = await ScheduledOrder.findById(id)
+    const orderFound = await ScheduledOrder.findOne({
+      _id: id,
+    })
       .populate({
         path: "customerId",
         select: "fullName phoneNumber email",
@@ -2375,20 +2379,84 @@ const getScheduledOrderByIdForAdmin = async (req, res) => {
       .populate({
         path: "merchantId",
         select: "merchantDetail",
-      });
+      })
+      .exec();
 
-    // Check if the scheduled order exists
-    if (!scheduledOrder) {
-      return res.status(404).json({ message: "Scheduled order not found" });
+    if (!orderFound) {
+      return next(appError("Order not found", 404));
     }
 
-    // Send back the scheduled order if found
-    res.status(200).json(scheduledOrder);
+    const formattedResponse = {
+      _id: orderFound._id,
+      orderStatus: orderFound.status || "-",
+      paymentStatus: orderFound.paymentStatus || "-",
+      paymentMode: orderFound.paymentMode || "-",
+      deliveryMode: orderFound.orderDetail.deliveryMode || "-",
+      deliveryOption: orderFound.orderDetail.deliveryOption || "-",
+      orderTime: `${formatDate(orderFound.startDate)} | ${formatTime(
+        orderFound.startDate
+      )} || ${formatDate(orderFound.endDate)} | ${formatTime(
+        orderFound.endDate
+      )}`,
+      deliveryTime: `${formatDate(
+        orderFound.orderDetail.deliveryTime
+      )} | ${formatTime(orderFound.orderDetail.deliveryTime)}`,
+      customerDetail: {
+        _id: orderFound.customerId._id,
+        name:
+          orderFound.customerId.fullName ||
+          orderFound.orderDetail.deliveryAddress.fullName ||
+          "-",
+        email: orderFound.customerId.email || "-",
+        phone: orderFound.customerId.phoneNumber || "-",
+        address: orderFound.orderDetail.deliveryAddress || "-",
+        ratingsToDeliveryAgent: {
+          rating: orderFound?.orderRating?.ratingToDeliveryAgent?.rating || 0,
+          review: orderFound.orderRating?.ratingToDeliveryAgent.review || "-",
+        },
+        ratingsByDeliveryAgent: {
+          rating: orderFound?.orderRating?.ratingByDeliveryAgent?.rating || 0,
+          review: orderFound?.orderRating?.ratingByDeliveryAgent?.review || "-",
+        },
+      },
+      merchantDetail: {
+        _id: orderFound?.merchantId?._id || "-",
+        name: orderFound?.merchantId?.merchantDetail?.merchantName || "-",
+        instructionsByCustomer:
+          orderFound?.orderDetail?.instructionToMerchant || "-",
+        merchantEarnings: orderFound?.commissionDetail?.merchantEarnings || "-",
+        famtoEarnings: orderFound?.commissionDetail?.famtoEarnings || "-",
+      },
+      deliveryAgentDetail: {
+        _id: "-",
+        name: "-",
+        phoneNumber: "-",
+        avatar: "-",
+        team: "-",
+        instructionsByCustomer: "-",
+        distanceTravelled: "-",
+        timeTaken: "-",
+        delayedBy: "-",
+      },
+      items: orderFound.items || null,
+      billDetail: orderFound.billDetail || null,
+      pickUpLocation: orderFound?.orderDetail?.pickupLocation || null,
+      deliveryLocation: orderFound?.orderDetail?.deliveryLocation || null,
+      agentLocation: orderFound?.agentId?.location || null,
+      orderDetailStepper: Array.isArray(orderFound?.orderDetailStepper)
+        ? orderFound.orderDetailStepper
+        : [orderFound.orderDetailStepper],
+    };
+
+    res.status(200).json({
+      message: "Single order detail",
+      data: formattedResponse,
+    });
   } catch (err) {
-    // Handle any errors that occur during the process
     next(appError(err.message));
   }
 };
+//
 
 module.exports = {
   getAllOrdersForAdminController,
@@ -2407,5 +2475,5 @@ module.exports = {
   downloadOrderBillController,
   orderMarkAsReadyController,
   markTakeAwayOrderCompletedController,
-  getScheduledOrderByIdForAdmin,
+  getScheduledOrderDetailByAdminController,
 };
