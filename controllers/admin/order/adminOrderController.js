@@ -2456,6 +2456,7 @@ const getScheduledOrderDetailByAdminController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
+//
 
 module.exports = {
   getAllOrdersForAdminController,
