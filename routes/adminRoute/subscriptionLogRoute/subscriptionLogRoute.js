@@ -1,5 +1,4 @@
 const express = require("express");
-const { body } = require("express-validator");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const {
   createSubscriptionLog,
