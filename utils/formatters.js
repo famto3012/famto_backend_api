@@ -78,6 +78,16 @@ const convertToUTC = (time12hr, startDate) => {
   return newDate;
 };
 
+const convertISTToUTC = (startDate, time12hr) => {
+  // Parse the given date (e.g., '2024-10-20') and time (e.g., '01:00 AM') into a moment object in IST
+  let istDateTime = moment(`${startDate} ${time12hr}`, "YYYY-MM-DD hh:mm A");
+
+  // Convert IST to UTC
+  let utcDateTime = istDateTime.utcOffset("+05:30").utc(); // Adjust for IST (UTC +5:30) and convert to UTC
+
+  // Return the UTC date and time in ISO format
+  return new Date(utcDateTime);
+};
 
 const convertStartDateToUTC = (date, time) => {
   // Combine date and time using 12-hour format
@@ -126,4 +136,5 @@ module.exports = {
   convertToUTC,
   convertStartDateToUTC,
   convertEndDateToUTC,
+  convertISTToUTC,
 };

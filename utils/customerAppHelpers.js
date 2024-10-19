@@ -138,7 +138,7 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
       10
     );
 
-    const deliveryTime = convertToIST(new Date());
+    const deliveryTime = new Date();
     deliveryTime.setMinutes(deliveryTime.getMinutes() + deliveryTimeMinutes);
 
     const stepperData = {
