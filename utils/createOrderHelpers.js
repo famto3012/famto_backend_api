@@ -10,7 +10,7 @@ const PickAndCustomCart = require("../models/PickAndCustomCart");
 const Product = require("../models/Product");
 const appError = require("./appError");
 
-const { convertToUTC } = require("./formatters");
+const { convertToUTC, convertISTToUTC } = require("./formatters");
 
 const geoLocation = require("./getGeoLocation");
 
@@ -116,7 +116,7 @@ const findOrCreateCustomer = async ({
 const processSchedule = (ifScheduled) => {
   let startDate = ifScheduled.startDate;
   let endDate = ifScheduled.endDate;
-  let time = ifScheduled.time && convertToUTC(ifScheduled.time, ifScheduled.startDate);
+  let time = ifScheduled.time && convertISTToUTC(ifScheduled.startDate, ifScheduled.time);
   let numOfDays;
   console.log("Start date", ifScheduled.startDate)
   console.log("End date", ifScheduled.endDate)
@@ -124,7 +124,10 @@ const processSchedule = (ifScheduled) => {
 
   if (startDate && endDate && time) {
     startDate = new Date(startDate);
+    startDate.setUTCDate(startDate.getUTCDate() - 1);
     startDate.setUTCHours(18, 30, 0, 0);
+
+    time.setUTCHours(time.getUTCHours() - 1);
 
     endDate = new Date(endDate);
     endDate.setUTCHours(18, 29, 59, 999);

@@ -214,14 +214,14 @@ cron.schedule("* * * * *", async () => {
   const universalScheduledOrders = await ScheduledOrder.find({
     status: "Pending",
     $and: [
-      { startDate: { $lte: date } },
-      // {
-      //   $or: [{ startDate: { $lte: now } }, { startDate: { $gte: now } }],
-      // },
+      // { startDate: { $lte: date } },
       {
-        $or: [{ endDate: { $lte: date } }, { endDate: { $gte: date } }],
+        $or: [{ startDate: { $lte: now } }, { startDate: { $gte: now } }],
       },
-      { time: { $lte: date } },
+      {
+        $or: [{ endDate: { $lte: now } }, { endDate: { $gte: now } }],
+      },
+      { time: { $lte: now } },
     ],
   });
 
