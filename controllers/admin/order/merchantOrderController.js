@@ -858,6 +858,7 @@ const getOrderDetailController = async (req, res, next) => {
 
     const formattedResponse = {
       _id: orderFound._id,
+      scheduledOrderId: orderFound?.scheduledOrderId || null,
       orderStatus: orderFound.status || "-",
       paymentStatus: orderFound.paymentStatus || "-",
       paymentMode:

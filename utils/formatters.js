@@ -33,30 +33,51 @@ const formatTime = (createdAt) => {
 //   return timeUTC.format();
 // };
 
-const convertToUTC = (time12hr) => {
-  // // Parse the 12-hour time using a known format
-  // const localTime = moment(time12hr, "hh:mm A");
+// const convertToUTC = (time12hr) => {
+//   // // Parse the 12-hour time using a known format
+//   // const localTime = moment(time12hr, "hh:mm A");
 
-  // // Convert to UTC
-  // const utcTime = localTime.utc();
+//   // // Convert to UTC
+//   // const utcTime = localTime.utc();
 
-  // // Return the UTC time in desired format
-  // return utcTime.format();
+//   // // Return the UTC time in desired format
+//   // return utcTime.format();
 
-  // ===================
+//   // ===================
 
-  // Parse the 12-hour time using a known format
+//   // Parse the 12-hour time using a known format
+//   const localTime = moment(time12hr, "hh:mm A");
+
+//   // Subtract one hour
+//   const adjustedTime = localTime.subtract(1, "hours");
+
+//   // Convert to UTC
+//   const utcTime = adjustedTime.utc();
+
+//   // Return the UTC time in desired format
+//   return utcTime.format();
+// };
+
+const convertToUTC = (time12hr, startDate) => {
+  // Parse the 12-hour time using a known format (e.g., "hh:mm A" for 12-hour format with AM/PM)
   const localTime = moment(time12hr, "hh:mm A");
 
-  // Subtract one hour
+  // Subtract one hour from the parsed time
   const adjustedTime = localTime.subtract(1, "hours");
 
-  // Convert to UTC
+  // Convert to UTC time (just the time, not the date yet)
   const utcTime = adjustedTime.utc();
 
-  // Return the UTC time in desired format
-  return utcTime.format();
+  // Create a new Date object from the provided startDate
+  const newDate = new Date(startDate);
+
+  // Set the hours and minutes on newDate using the converted UTC time
+  newDate.setUTCHours(utcTime.hours(), utcTime.minutes(), 0, 0);
+
+  // Return the new date with updated time
+  return newDate;
 };
+
 
 const convertStartDateToUTC = (date, time) => {
   // Combine date and time using 12-hour format
