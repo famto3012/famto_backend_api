@@ -293,10 +293,6 @@ const editMerchantProfileController = async (req, res, next) => {
 const updateMerchantDetailsByMerchantController = async (req, res, next) => {
   const { fullName, email, phoneNumber, merchantDetail } = req.body;
 
-  console.log("===============================================");
-  console.log(req.body.merchantDetail.availability.specificDays);
-  console.log("===============================================");
-
   const errors = validationResult(req);
 
   let formattedErrors = {};
@@ -830,7 +826,7 @@ const getAllMerchantsForDropDownController = async (req, res, next) => {
     const formattedResponse = merchantsFound?.map((merchant) => {
       return {
         _id: merchant._id,
-        merchantName: merchant.merchantDetail.merchantName,
+        merchantName: merchant?.merchantDetail?.merchantName || "-",
       };
     });
 
