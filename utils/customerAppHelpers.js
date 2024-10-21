@@ -1,5 +1,5 @@
 const axios = require("axios");
-
+const moment = require("moment");
 const Tax = require("../models/Tax");
 const Order = require("../models/Order");
 const Product = require("../models/Product");
@@ -112,7 +112,21 @@ const convertToIST = (date) => {
   return dateInIST;
 };
 
+const adjustEndDate = (endDate, time) => {
+  // Parse the endDate and time using Moment.js
+  const endMoment = moment(endDate).utc(); // Ensure endDate is in UTC
+  const timeMoment = moment(time).utc(); // Ensure time is in UTC
+
+  // Set the hours and minutes of endMoment to those of timeMoment
+  endMoment.hours(timeMoment.hours());
+  endMoment.minutes(timeMoment.minutes());
+  endMoment.seconds(0); // Optional: reset seconds to 0 if you want
+
+  return endMoment.toDate(); // Convert back to Date object
+};
+
 const createOrdersFromScheduled = async (scheduledOrder) => {
+  console.log("scheduledOrder", scheduledOrder);
   try {
     const customer = await Customer.findById(scheduledOrder.customerId);
 
@@ -138,12 +152,16 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
       10
     );
 
-    const deliveryTime = new Date();
-    deliveryTime.setMinutes(deliveryTime.getMinutes() + deliveryTimeMinutes);
-
+    // const deliveryTime = new Date(scheduledOrder.time);
+    // deliveryTime.setMinutes(deliveryTime.getMinutes() + deliveryTimeMinutes);
+    const deliveryTime = moment(scheduledOrder.time)
+      .add(deliveryTimeMinutes, "minutes")
+      .utc()
+      .toDate();
+    console.log("deliveryTime", deliveryTime);
     const stepperData = {
       by: "Admin",
-      date: convertToIST(new Date()),
+      date: new Date(),
     };
 
     let options = {
@@ -170,12 +188,21 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
 
     options = {};
 
-    if (
-      convertToIST(new Date()) < convertToIST(new Date(scheduledOrder.endDate))
-    ) {
-      const nextTime = convertToIST(new Date());
-      nextTime.setDate(nextTime.getDate() + 1);
+    const adjustedEndDate = adjustEndDate(
+      scheduledOrder.endDate,
+      scheduledOrder.time
+    );
 
+    // const nextTime = new Date(scheduledOrder.time);
+    // nextTime.setDate(nextTime.getDate() + 1);
+    const nextTime = moment(scheduledOrder.time) // Convert to moment object
+      .add(1, "day")
+      .utc()
+      .toDate();
+    console.log("adjustedEndDate", adjustedEndDate);
+    console.log("nextTime", nextTime);
+
+    if (nextTime < adjustedEndDate) {
       await ScheduledOrder.findByIdAndUpdate(scheduledOrder._id, {
         time: nextTime,
       });
