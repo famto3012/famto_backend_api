@@ -94,7 +94,7 @@ subscriptionLogRoute.get(
 subscriptionLogRoute.get(
   "/merchant-subscription-log-date",
   isAuthenticated,
-  isAdmin,
+  isAdminOrMerchant,
   getMerchantSubscriptionLogsByStartDate
 );
 

@@ -11,21 +11,22 @@ const { v4: uuidv4 } = require("uuid");
 const firebaseApp = require("../config/firebase");
 
 const storage = getStorage(firebaseApp);
+
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 1 * 1024 * 1024 },
+  limits: { fileSize: 5 * 1024 * 1024 }, // Set a higher limit globally, but enforce limits conditionally
   fileFilter: (req, file, cb) => {
-    // Allow any size for CSV files
+    // Allow CSV files of any size
     if (
       file.mimetype === "text/csv" ||
       file.mimetype === "application/vnd.ms-excel"
     ) {
-      cb(null, true); // Accept CSV files
+      cb(null, true); // Accept CSV files without size limitation
     } else if (file.size > 1 * 1024 * 1024) {
-      // Check if file size exceeds 1 MB for other file types
-      cb(new Error("File size exceeds 1 MB"), false);
+      // Check file size for non-CSV files
+      cb(new Error("File size exceeds 1 MB for non-CSV files"), false);
     } else {
-      cb(null, true); // Accept files below 1 MB
+      cb(null, true); // Accept other files below 1 MB
     }
   },
 });

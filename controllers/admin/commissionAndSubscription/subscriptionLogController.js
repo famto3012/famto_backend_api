@@ -1,5 +1,3 @@
-const moment = require("moment");
-
 const Customer = require("../../../models/Customer");
 const CustomerSubscription = require("../../../models/CustomerSubscription");
 const Merchant = require("../../../models/Merchant");
@@ -447,6 +445,10 @@ const getByMerchantIdSubscriptionLogController = async (req, res, next) => {
       userId: merchantId,
     });
 
+    const planIds = [...new Set(subscriptionLogs.map((log) => log.planId))];
+
+    const plans = await MerchantSubscription.find({ _id: { $in: planIds } });
+
     const userIds = [...new Set(subscriptionLogs.map((log) => log.userId))];
 
     // Step 3: Fetch user details for the extracted userIds
@@ -458,13 +460,17 @@ const getByMerchantIdSubscriptionLogController = async (req, res, next) => {
       return map;
     }, {});
 
+    const planMap = plans.reduce((map, plan) => {
+      map[plan._id] = plan.name; // Assuming `planName` is the name of the plan
+      return map;
+    }, {});
+
     // Step 5: Combine subscription logs with the corresponding user details
     const combinedData = subscriptionLogs.map((log) => ({
       ...log.toObject(),
       user: userMap[log.userId],
+      plan: planMap[log.planId],
     }));
-
-    console.log(combinedData);
 
     res.status(200).json({
       message: "Subscription logs fetched successfully",
@@ -485,23 +491,29 @@ const getMerchantSubscriptionLogsByName = async (req, res, next) => {
     }).populate("merchantDetail.pricing");
 
     if (merchants.length === 0) {
-      return res.status(404).json({ message: "No merchants found" });
+      return res.status(200).json({ message: "No merchants found", data: [] });
     }
 
     // Extract subscription logs from all matching merchants
     const subscriptionLogsPromises = merchants.map(async (merchant) => {
       const logsWithUsersPromises = merchant.merchantDetail.pricing.map(
-        async (pricingId) => {
-          const log = await SubscriptionLog.findById(pricingId);
+        async (pricing) => {
+          const log = await SubscriptionLog.findById(pricing.modelId);
+          if (!log) return null;
+
           const user = await Merchant.findById(log.userId); // Assuming log contains a reference to userId
+
+          // Fetch the plan details (assuming `planId` references a Plan model)
+          const plan = await MerchantSubscription.findById(log.planId);
+
           return {
             ...log._doc,
-            user: `${user.merchantDetail.merchantName}`, // Adjust according to your User model
+            user: user ? `${user.merchantDetail.merchantName}` : null, // Adjust according to your User model
+            planName: plan ? plan.name : null, // Assuming the plan has a `name` field
           };
         }
       );
       return await Promise.all(logsWithUsersPromises);
-      // return await Promise.all(subscriptionLogsPromises);
     });
 
     const subscriptionLogs = await Promise.all(subscriptionLogsPromises);
@@ -514,45 +526,41 @@ const getMerchantSubscriptionLogsByName = async (req, res, next) => {
 
 const getMerchantSubscriptionLogsByStartDate = async (req, res, next) => {
   try {
-    const { startDate } = req.query;
+    const { startDate, merchantId } = req.query;
 
-    if (!startDate) {
-      return res.status(400).json({ message: "Start date is required" });
+    if (!startDate) return next(appError("Date is required", 400));
+
+    let startOfDay = new Date(startDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    let endOfDay = new Date(startDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    let subscriptionLogs;
+
+    if (merchantId) {
+      subscriptionLogs = await SubscriptionLog.find({
+        startDate: {
+          $gte: startOfDay,
+          $lte: endOfDay,
+        },
+        typeOfUser: "Merchant",
+        userId: merchantId,
+      });
+    } else {
+      subscriptionLogs = await SubscriptionLog.find({
+        startDate: {
+          $gte: startOfDay,
+          $lte: endOfDay,
+        },
+        typeOfUser: "Merchant",
+      });
     }
-
-    // Parse the user-provided date using moment
-    let inputDate = moment(startDate, moment.ISO_8601, true);
-
-    // Check if the date is valid
-    if (!inputDate.isValid()) {
-      // Attempt to convert the invalid date format to a valid format
-      const formattedDate = moment(startDate, "MM/DD/YYYY", true);
-
-      // Check if the conversion to a valid format was successful
-      if (!formattedDate.isValid()) {
-        return res.status(400).json({
-          message: "Invalid date format. Please use YYYY-MM-DD or MM/DD/YYYY.",
-        });
-      }
-
-      inputDate = formattedDate;
-    }
-
-    // Get the start and end of the day
-    const startOfDay = inputDate.startOf("day").toDate();
-    const endOfDay = inputDate.endOf("day").toDate();
-    // Find subscription logs by date range
-    const subscriptionLogs = await SubscriptionLog.find({
-      startDate: {
-        $gte: startOfDay,
-        $lte: endOfDay,
-      },
-      typeOfUser: "Merchant",
-    });
 
     if (subscriptionLogs.length === 0) {
-      return res.status(404).json({
+      return res.status(200).json({
         message: "No subscription logs found for the provided start date",
+        data: [],
       });
     }
 
@@ -586,33 +594,53 @@ const getCustomerSubscriptionLogsByName = async (req, res, next) => {
   const { name } = req.query;
 
   try {
-    // Find merchants whose names start with the given letter, case-insensitive
+    // Find customers whose names start with the given name, case-insensitive
     const customers = await Customer.find({
       fullName: new RegExp(`^${name}`, "i"),
     }).populate("customerDetails.pricing");
 
     if (customers.length === 0) {
-      return res.status(404).json({ message: "No customers found" });
+      return res.status(200).json({ message: "No customers found", data: [] });
     }
 
+    // Extract subscription logs from all matching customers
     const subscriptionLogsPromises = customers.map(async (customer) => {
       const logsWithUsersPromises = customer.customerDetails.pricing.map(
         async (pricingId) => {
+          // Fetch the subscription log
           const log = await SubscriptionLog.findById(pricingId);
-          const user = await Customer.findById(log.userId); // Assuming log contains a reference to userId
+
+          if (!log) return null; // If the log is not found, return null
+
+          // Fetch the customer details based on userId
+          const user = await Customer.findById(log.userId);
+
+          if (!user) return null; // If the user is not found, return null
+
+          // Assuming you have a Plan model and want to include the plan name
+          const plan = await CustomerSubscription.findById(log.planId); // Adjust based on your schema
+
           return {
             ...log._doc,
-            user: `${user.fullName}`, // Adjust according to your User model
+            user: user ? user.fullName : null,
+            plan: plan ? plan.name : null, // Add plan name if it exists
           };
         }
       );
-      return await Promise.all(logsWithUsersPromises);
-      // return await Promise.all(subscriptionLogsPromises);
+      // Resolve all promises for this customer
+      const logs = await Promise.all(logsWithUsersPromises);
+      return logs;
     });
 
-    const subscriptionLogs = await Promise.all(subscriptionLogsPromises);
+    // Wait for all promises to resolve and flatten the result
+    const subscriptionLogs = (await Promise.all(subscriptionLogsPromises))
+      .flat()
+      .filter((log) => log !== null);
 
-    res.status(200).json(subscriptionLogs.flat());
+    res.status(200).json({
+      message: "Customer subscription logs",
+      data: subscriptionLogs,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -622,32 +650,14 @@ const getCustomerSubscriptionLogsByStartDate = async (req, res, next) => {
   try {
     const { startDate } = req.query;
 
-    if (!startDate) {
-      return res.status(400).json({ message: "Start date is required" });
-    }
+    if (!startDate) return next(appError("Date is required", 400));
 
-    // Parse the user-provided date using moment
-    let inputDate = moment(startDate, moment.ISO_8601, true);
+    let startOfDay = new Date(startDate);
+    startOfDay.setHours(0, 0, 0, 0);
 
-    // Check if the date is valid
-    if (!inputDate.isValid()) {
-      // Attempt to convert the invalid date format to a valid format
-      const formattedDate = moment(startDate, "MM/DD/YYYY", true);
+    let endOfDay = new Date(startDate);
+    endOfDay.setHours(23, 59, 59, 999);
 
-      // Check if the conversion to a valid format was successful
-      if (!formattedDate.isValid()) {
-        return res.status(400).json({
-          message: "Invalid date format. Please use YYYY-MM-DD or MM/DD/YYYY.",
-        });
-      }
-
-      inputDate = formattedDate;
-    }
-
-    // Get the start and end of the day
-    const startOfDay = inputDate.startOf("day").toDate();
-    const endOfDay = inputDate.endOf("day").toDate();
-    // Find subscription logs by date range
     const subscriptionLogs = await SubscriptionLog.find({
       startDate: {
         $gte: startOfDay,
@@ -657,8 +667,9 @@ const getCustomerSubscriptionLogsByStartDate = async (req, res, next) => {
     });
 
     if (subscriptionLogs.length === 0) {
-      return res.status(404).json({
+      return res.status(200).json({
         message: "No subscription logs found for the provided start date",
+        data: [],
       });
     }
     const userIds = [...new Set(subscriptionLogs.map((log) => log.userId))];
