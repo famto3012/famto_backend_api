@@ -1,5 +1,4 @@
 const { validationResult } = require("express-validator");
-const moment = require("moment");
 
 const Commission = require("../../../models/Commission");
 const CommissionLogs = require("../../../models/CommissionLog");
@@ -68,7 +67,8 @@ const addAndEditCommissionController = async (req, res, next) => {
 
 const getAllCommissionLogController = async (req, res, next) => {
   try {
-    const commissionLogs = await CommissionLogs.find();
+    const commissionLogs = await CommissionLogs.find({});
+
     res.status(200).json({
       status: "success",
       data: {
@@ -95,13 +95,6 @@ const getCommissionLogsByMerchantName = async (req, res) => {
       merchantName: new RegExp(`^${merchantName}`, "i"),
     });
 
-    if (commissionLogs.length === 0) {
-      return res.status(404).json({
-        status: "fail",
-        message: "No commission logs found for the given merchant name",
-      });
-    }
-
     res.status(200).json({
       status: "success",
       data: {
@@ -115,44 +108,32 @@ const getCommissionLogsByMerchantName = async (req, res) => {
 
 const getCommissionLogsByCreatedDate = async (req, res, next) => {
   try {
-    const { date } = req.query;
+    const { date, merchantId } = req.query;
 
-    if (!date) {
-      return res.status(400).json({ message: "Date is required" });
-    }
+    if (!date) return next(appError("Date is missing", 400));
 
-    // Parse the user-provided date using moment
-    let inputDate = moment(date, moment.ISO_8601, true);
+    let startDate = new Date(date);
+    startDate.setHours(0, 0, 0, 0);
 
-    // Check if the date is valid
-    if (!inputDate.isValid()) {
-      // Attempt to convert the invalid date format to a valid format
-      const formattedDate = moment(date, "MM/DD/YYYY", true);
+    let endDate = new Date(date);
+    endDate.setHours(23, 59, 59, 999);
 
-      // Check if the conversion to a valid format was successful
-      if (!formattedDate.isValid()) {
-        return res.status(400).json({
-          message: "Invalid date format. Please use YYYY-MM-DD or MM/DD/YYYY.",
-        });
-      }
+    let commissionLogs;
 
-      inputDate = formattedDate;
-    }
-
-    // Get the start and end of the day
-    const startOfDay = inputDate.startOf("day").toDate();
-    const endOfDay = inputDate.endOf("day").toDate();
-    // Find subscription logs by date range
-    const commissionLogs = await CommissionLogs.find({
-      createdAt: {
-        $gte: startOfDay,
-        $lte: endOfDay,
-      },
-    });
-
-    if (commissionLogs.length === 0) {
-      return res.status(404).json({
-        message: "No commission logs found for the provided start date",
+    if (merchantId) {
+      commissionLogs = await CommissionLogs.find({
+        merchantId,
+        createdAt: {
+          $gte: startDate,
+          $lte: endDate,
+        },
+      });
+    } else {
+      commissionLogs = await CommissionLogs.find({
+        createdAt: {
+          $gte: startDate,
+          $lte: endDate,
+        },
       });
     }
 
@@ -169,21 +150,9 @@ const getCommissionLogsByMerchantId = async (req, res) => {
   try {
     const merchantId = req.params.merchantId;
 
-    if (!merchantId) {
-      return res.status(400).json({
-        status: "fail",
-        message: "Merchant ID is required",
-      });
-    }
+    if (!merchantId) return next(appError("Merchant id is required", 400));
 
     const commissionLogs = await CommissionLogs.find({ merchantId });
-
-    if (commissionLogs.length === 0) {
-      return res.status(404).json({
-        status: "fail",
-        message: "No commission logs found for the given merchant ID",
-      });
-    }
 
     res.status(200).json({
       status: "success",

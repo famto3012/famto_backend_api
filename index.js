@@ -178,7 +178,7 @@ cron.schedule("0 6,12,18,0 * * *", async () => {
 
 //
 cron.schedule("30 18 * * *", async () => {
-  console.log("Running cron job for revenue generation in mid night")
+  console.log("Running cron job for revenue generation in mid night");
   const now = new Date(); // Subtract 1 day to get the previous day
   await moveAppDetailToHistoryAndResetForAllAgents();
   await updateOneDayLoyaltyPointEarning();
@@ -209,8 +209,8 @@ cron.schedule("* * * * *", async () => {
   //  console.log("IST",date)
   //  console.log("UTC",now)
   // Universal order
-  console.log("IST", date)
-  console.log("UST", now)
+  console.log("IST", date);
+  console.log("UST", now);
   const universalScheduledOrders = await ScheduledOrder.find({
     status: "Pending",
     $and: [

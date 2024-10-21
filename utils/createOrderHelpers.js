@@ -116,11 +116,13 @@ const findOrCreateCustomer = async ({
 const processSchedule = (ifScheduled) => {
   let startDate = ifScheduled.startDate;
   let endDate = ifScheduled.endDate;
-  let time = ifScheduled.time && convertISTToUTC(ifScheduled.startDate, ifScheduled.time);
+  let time =
+    ifScheduled.time &&
+    convertISTToUTC(ifScheduled.startDate, ifScheduled.time);
   let numOfDays;
-  console.log("Start date", ifScheduled.startDate)
-  console.log("End date", ifScheduled.endDate)
-  console.log("Time", ifScheduled.time)
+  console.log("Start date", ifScheduled.startDate);
+  console.log("End date", ifScheduled.endDate);
+  console.log("Time", ifScheduled.time);
 
   if (startDate && endDate && time) {
     startDate = new Date(startDate);
@@ -135,10 +137,10 @@ const processSchedule = (ifScheduled) => {
     numOfDays = getTotalDaysBetweenDates(startDate, endDate);
   }
 
-  console.log("startDate", startDate)
-  console.log("endDate", endDate)
-  console.log("time", time)
-  console.log("numOfDays", numOfDays)
+  console.log("startDate", startDate);
+  console.log("endDate", endDate);
+  console.log("time", time);
+  console.log("numOfDays", numOfDays);
 
   return { startDate, endDate, time, numOfDays };
 };

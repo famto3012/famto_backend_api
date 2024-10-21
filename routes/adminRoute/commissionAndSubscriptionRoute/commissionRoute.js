@@ -50,7 +50,7 @@ commissionRoute.get(
 commissionRoute.get(
   "/commission-log-date",
   isAuthenticated,
-  isAdmin,
+  isAdminOrMerchant,
   getCommissionLogsByCreatedDate
 );
 

@@ -686,112 +686,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
     // Parse the CSV data
     stream
       .pipe(csvParser())
-      // .on("data", (row) => {
-      //   console.log("Row data:", row); // Log the entire row data to check values
-
-      //   const isRowEmpty = Object.values(row).every(
-      //     (value) => value.trim() === ""
-      //   );
-
-      //   if (!isRowEmpty) {
-      //     const businessCategoryName = row["Business Category Name*"]?.trim();
-      //     const categoryName = row["Category Name*"]?.trim();
-      //     const productName = row["Product Name*"]?.trim();
-      //     const variantKey = row["Variant Name"]?.trim();
-      //     const variantTypeKey = row["Variant Type Name"]?.trim();
-      //     const categoryKey = `${merchantId}-${businessCategoryName}-${categoryName}-${productName}-${variantKey}-${variantTypeKey}`; // Updated to include businessCategoryName
-
-      //     if (!categoriesMap.has(categoryKey)) {
-      //       categoriesMap.set(categoryKey, {
-      //         categoryData: {
-      //           merchantId,
-      //           businessCategoryName, // Ensure businessCategoryName is set correctly
-      //           categoryName,
-      //           type: row["Category Type*"]?.trim(),
-      //           status: true,
-      //         },
-      //         products: [],
-      //       });
-      //     }
-
-      //     console.log(
-      //       "Parsed Category Data:",
-      //       categoriesMap.get(categoryKey).categoryData
-      //     );
-
-      //     // Add products under the relevant category
-      //     const categoryEntry = categoriesMap.get(categoryKey);
-
-      //     console.log("categoryEntry----", categoryEntry)
-      //     let existingProduct = categoryEntry.products.find(
-      //       (p) => p.productName === productName
-      //     );
-      //     console.log("existingProduct----", existingProduct)
-
-      //     const product = {
-      //       productName: row["Product Name*"]?.trim(),
-      //       price: parseFloat(row["Product Price*"]?.trim()),
-      //       minQuantityToOrder:
-      //         parseInt(row["Min Quantity To Order"]?.trim()) || 0,
-      //       maxQuantityPerOrder:
-      //         parseInt(row["Max Quantity Per Order"]?.trim()) || 0,
-      //       costPrice: parseFloat(row["Cost Price*"]?.trim()),
-      //       sku: row["SKU"]?.trim() || "",
-      //       preparationTime: row["Preparation Time"]?.trim() || "",
-      //       description: row["Description"]?.trim() || "",
-      //       longDescription: row["Long Description"]?.trim() || "",
-      //       type: row["Product Type*"]?.trim(),
-      //       inventory: true,
-      //       availableQuantity: parseInt(row["Available Quantity"]?.trim()) || 0,
-      //       alert: parseInt(row["Alert"]?.trim()) || 0,
-      //       variants: [],
-      //     };
-
-      //     console.log("Parsed Product Data:", product);
-
-      //     // Add variants to the product
-      //     const variantName = row["Variant Name"]?.trim();
-      //     const variantTypeName = row["Variant Type Name"]?.trim();
-      //     const variantTypePrice = parseFloat(
-      //       row["Variant Type Price"]?.trim()
-      //     );
-      //     console.log("variantName", variantName);
-      //     console.log("variantTypeName", variantTypeName);
-      //     console.log("variantTypePrice", variantTypePrice);
-
-      //     if (
-      //       variantName &&
-      //       variantTypeName &&
-      //       variantTypePrice !== null &&
-      //       variantTypePrice !== undefined
-      //     ) {
-      //       const variant = {
-      //         variantName,
-      //         variantTypes: [
-      //           { typeName: variantTypeName, price: variantTypePrice },
-      //         ],
-      //       };
-
-      //       console.log("Parsed Variant Data:", variant);
-
-      //       const existingVariant = existingProduct?.variants?.find(
-      //         (v) => v.variantName === variant.variantName
-      //       );
-      //       console.log("existingVariant", existingVariant);
-      //       if (existingVariant) {
-      //         existingVariant.variantTypes.push(...variant.variantTypes);
-      //       } else {
-      //         product.variants.push(variant);
-      //       }
-      //     }
-
-      //     categoryEntry.products.push(product);
-      //     console.log("categoryEntry----", categoryEntry)
-      //   }
-      // })
       .on("data", (row) => {
-        console.log("Row data:", row); // Log the entire row data to check values
-
         const isRowEmpty = Object.values(row).every(
           (value) => value.trim() === ""
         );
@@ -800,9 +695,9 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
           const businessCategoryName = row["Business Category Name*"]?.trim();
           const categoryName = row["Category Name*"]?.trim();
           const productName = row["Product Name*"]?.trim();
-          const variantKey = row["Variant Name"]?.trim();
-          const variantTypeKey = row["Variant Type Name"]?.trim();
-          const categoryKey = `${merchantId}-${businessCategoryName}-${categoryName}`; // Simplified key to group by category
+          const variantKey = row["Variant Name"]?.trim() || "VK";
+          const variantTypeKey = row["Variant Type Name"]?.trim() || "VTK";
+          const categoryKey = `${merchantId}-${businessCategoryName}-${categoryName}-${variantKey}-${variantTypeKey}`;
 
           if (!categoriesMap.has(categoryKey)) {
             categoriesMap.set(categoryKey, {
@@ -817,10 +712,10 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
             });
           }
 
-          console.log(
-            "Parsed Category Data:",
-            categoriesMap.get(categoryKey).categoryData
-          );
+          // console.log(
+          //   "Parsed Category Data:",
+          //   categoriesMap.get(categoryKey).categoryData
+          // );
 
           // Get the category entry from the map
           const categoryEntry = categoriesMap.get(categoryKey);
@@ -854,7 +749,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
 
             // Add the new product to the category's product list
             categoryEntry.products.push(existingProduct);
-            console.log("New Product Added:", existingProduct);
+            // console.log("New Product Added:", existingProduct);
           }
 
           // Now handle the variant part
@@ -884,7 +779,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
 
               // Add the new variant to the product's variants array
               existingProduct.variants.push(existingVariant);
-              console.log("New Variant Added:", existingVariant);
+              // console.log("New Variant Added:", existingVariant);
             }
 
             // Add the variant type to the existing or newly created variant
@@ -893,10 +788,10 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
               price: variantTypePrice,
             });
 
-            console.log("Updated Variant:", existingVariant);
+            // console.log("Updated Variant:", existingVariant);
           }
 
-          console.log("Final Updated Product Data:", existingProduct);
+          // console.log("Final Updated Product Data:", existingProduct);
         }
       })
       .on("end", async () => {
@@ -905,8 +800,8 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
             _,
             { categoryData, products },
           ] of categoriesMap.entries()) {
-            console.log("Final Category Data to Save:", categoryData);
-            console.log("Associated Products:", products);
+            // console.log("Final Category Data to Save:", categoryData);
+            // console.log("Associated Products:", products);
 
             // Find or create the business category using businessCategoryName
             const businessCategoryFound = await BusinessCategory.findOne({
@@ -914,15 +809,15 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
             });
 
             if (!businessCategoryFound) {
-              console.log(
-                `Business category not found for ${categoryData.businessCategoryName}`
-              );
+              // console.log(
+              //   `Business category not found for ${categoryData.businessCategoryName}`
+              // );
               continue; // Skip this category if the business category does not exist
             }
 
-            console.log(
-              `Found business category: ${businessCategoryFound.title}`
-            );
+            // console.log(
+            //   `Found business category: ${businessCategoryFound.title}`
+            // );
 
             // Add business category ID to category data
             categoryData.businessCategoryId = businessCategoryFound._id;
@@ -935,18 +830,18 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
 
             let newCategory;
             if (existingCategory) {
-              console.log(
-                `Updating existing category: ${categoryData.categoryName}`
-              );
+              // console.log(
+              //   `Updating existing category: ${categoryData.categoryName}`
+              // );
               newCategory = await Category.findByIdAndUpdate(
                 existingCategory._id,
                 { $set: categoryData },
                 { new: true }
               );
             } else {
-              console.log(
-                `Creating new category: ${categoryData.categoryName}`
-              );
+              // console.log(
+              //   `Creating new category: ${categoryData.categoryName}`
+              // );
               // Get the last category order
               let lastCategory = await Category.findOne().sort({ order: -1 });
               let newOrder = lastCategory ? lastCategory.order + 1 : 1;
@@ -959,7 +854,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
             // Now, process products for the category
             const productPromises = products.map(async (productData) => {
               productData.categoryId = newCategory._id;
-              console.log("Product Data to Save/Update:", productData);
+              // console.log("Product Data to Save/Update:", productData);
 
               const existingProduct = await Product.findOne({
                 productName: productData.productName,
@@ -968,14 +863,14 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
               });
 
               if (existingProduct) {
-                console.log(`Updating product: ${productData.productName}`);
+                // console.log(`Updating product: ${productData.productName}`);
                 await Product.findByIdAndUpdate(
                   existingProduct._id,
                   { ...productData, order: existingProduct.order },
                   { new: true }
                 );
               } else {
-                console.log(`Creating new product: ${productData.productName}`);
+                // console.log(`Creating new product: ${productData.productName}`);
                 // Get the last product order
                 let lastProduct = await Product.findOne().sort({ order: -1 });
                 let newOrder = lastProduct ? lastProduct.order + 1 : 1;
