@@ -42,6 +42,7 @@ const appError = require("../../utils/appError");
 const geoLocation = require("../../utils/getGeoLocation");
 
 const { sendNotification, sendSocketData } = require("../../socket/socket");
+const { processSchedule } = require("../../utils/createOrderHelpers");
 
 // Get all available business categories according to the order
 const getAllBusinessCategoryController = async (req, res, next) => {
@@ -82,7 +83,7 @@ const getAllBusinessCategoryController = async (req, res, next) => {
   }
 };
 
-// search for Product OR Business category OR Merchant in the home
+// search for Business category in the home
 const homeSearchController = async (req, res, next) => {
   const { query } = req.query;
 
@@ -125,26 +126,24 @@ const homeSearchController = async (req, res, next) => {
 
 // List the available restaurants in the customers geofence
 const listRestaurantsController = async (req, res, next) => {
-  const { latitude, longitude, customerId, businessCategoryId } = req.body;
+  const { latitude, longitude, businessCategoryId } = req.body;
 
   try {
-    // Fetch the authenticated customer to get their favorite merchants, if they exist
-    let currentCustomer = null;
-    if (customerId) {
-      currentCustomer = await Customer.findById(customerId)
-        .select("customerDetails.favoriteMerchants")
-        .exec();
-    }
+    const customerId = req.userAuth;
 
-    const customerLocation = [latitude, longitude]; // [latitude, longitude]
-    console.log("customerLocation", customerLocation);
+    const currentCustomer = await Customer.findById(customerId)
+      .select("customerDetails.favoriteMerchants")
+      .exec();
+
+    if (!currentCustomer) return next(appError("Customer not found", 404));
+
+    const customerLocation = [latitude, longitude];
+
     const foundGeofence = await geoLocation(latitude, longitude);
-    console.log("foundGeofence", foundGeofence);
+
     if (!foundGeofence) {
       return next(appError("Geofence not found", 404));
     }
-
-    // Query merchants based on geofence and other conditions
 
     const merchants = await Merchant.find({
       "merchantDetail.geofenceId": foundGeofence._id,
@@ -156,8 +155,7 @@ const listRestaurantsController = async (req, res, next) => {
       isBlocked: false,
       isApproved: "Approved",
     }).exec();
-    console.log("merchants", merchants);
-    // Filter merchants based on serving radius
+
     const filteredMerchants = merchants?.filter((merchant) => {
       const servingRadius = merchant.merchantDetail.servingRadius || 0;
       if (servingRadius > 0) {
@@ -172,22 +170,10 @@ const listRestaurantsController = async (req, res, next) => {
       return true;
     });
 
-    console.log("filteredMerchants", filteredMerchants);
-
-    // Sort merchants by sponsorship status (sponsored merchants first)
     const sortedMerchants = await sortMerchantsBySponsorship(filteredMerchants);
-    console.log("sortedMerchants", sortedMerchants);
-    // Extracting required fields from filtered merchants including distance and favorite status
+
     const simplifiedMerchants = await Promise.all(
       sortedMerchants.map(async (merchant) => {
-        // const merchantLocation = merchant.merchantDetail.location;
-
-        // const { distanceInKM } = await getDistanceFromPickupToDelivery(
-        //   merchantLocation,
-        //   customerLocation
-        // );
-
-        // Determine if the merchant is a favorite
         const isFavorite =
           currentCustomer?.customerDetails?.favoriteMerchants?.includes(
             merchant._id
@@ -196,18 +182,17 @@ const listRestaurantsController = async (req, res, next) => {
         return {
           id: merchant._id,
           merchantName: merchant.merchantDetail.merchantName,
-          // deliveryTime: merchant.merchantDetail.deliveryTime,
           description: merchant.merchantDetail.description,
           averageRating: merchant.merchantDetail.averageRating,
           status: merchant.status,
-          // distanceInKM: parseFloat(distanceInKM),
           restaurantType: merchant.merchantDetail.merchantFoodType || "-",
           merchantImageURL: merchant.merchantDetail.merchantImageURL,
+          displayAddress: merchant.merchantDetail.displayAddress || "-",
+          preOrderStatus: merchant.merchantDetail.preOrderStatus,
           isFavorite,
         };
       })
     );
-    console.log("simplifiedMerchants", simplifiedMerchants);
 
     res.status(200).json({
       message: "Available merchants",
@@ -255,6 +240,7 @@ const getAllCategoriesOfMerchants = async (req, res, next) => {
       merchantImageURL: merchantFound.merchantDetail.merchantImageURL,
       description: merchantFound.merchantDetail.description,
       displayAddress: merchantFound.merchantDetail.displayAddress,
+      preOrderStatus: merchantFound.merchantDetail.preOrderStatus,
       distanceWarning,
     };
 
@@ -291,7 +277,15 @@ const getAllCategoriesOfMerchants = async (req, res, next) => {
 // Get all product of a category
 const getAllProductsOfMerchantController = async (req, res, next) => {
   try {
-    const { categoryId, customerId } = req.params;
+    const { categoryId } = req.params;
+
+    const customerId = req.userAuth;
+
+    const currentCustomer = await Customer.findById(customerId)
+      .select("customerDetails.favoriteProducts")
+      .exec();
+
+    if (!currentCustomer) return next(appError("Customer not found", 404));
 
     const allProducts = await Product.find({ categoryId })
       .populate(
@@ -299,13 +293,6 @@ const getAllProductsOfMerchantController = async (req, res, next) => {
         "discountName maxAmount discountType discountValue validFrom validTo onAddOn status"
       )
       .sort({ order: 1 });
-
-    let currentCustomer = null;
-    if (customerId) {
-      currentCustomer = await Customer.findById(customerId)
-        .select("customerDetails.favoriteProducts")
-        .exec();
-    }
 
     const productsWithDetails = allProducts.map((product) => {
       const currentDate = new Date();
@@ -578,7 +565,6 @@ const searchProductsInMerchantController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
-
 
 // Filter and sort products
 const filterAndSortProductsController = async (req, res, next) => {
@@ -1136,6 +1122,17 @@ const addCartDetailsController = async (req, res, next) => {
       }
     }
 
+    let scheduled;
+    if (startDate && endDate && time) {
+      const ifScheduled = {
+        startDate,
+        endDate,
+        time,
+      };
+
+      scheduled = processSchedule(ifScheduled);
+    }
+
     let updatedCartDetail = {
       pickupLocation: pickupCoordinates,
       pickupAddress: {
@@ -1149,9 +1146,9 @@ const addCartDetailsController = async (req, res, next) => {
       instructionToDeliveryAgent,
       voiceInstructiontoMerchant: voiceInstructiontoMerchantURL,
       voiceInstructiontoAgent: voiceInstructiontoAgentURL,
-      startDate,
-      endDate,
-      time: time && convertToUTC(time),
+      startDate: scheduled.startDate,
+      endDate: scheduled.endDate,
+      time: scheduled.time,
     };
 
     const subscriptionOfCustomer = await Customer.findById(customerId).select(
@@ -1167,8 +1164,6 @@ const addCartDetailsController = async (req, res, next) => {
       startDate,
       endDate
     );
-
-    // return;
 
     discountedAmount += merchantDiscount;
 
@@ -1189,11 +1184,7 @@ const addCartDetailsController = async (req, res, next) => {
       };
 
       if (startDate && endDate && time) {
-        const startDateTime = new Date(`${startDate} ${time}`);
-        const endDateTime = new Date(`${endDate} ${time}`);
-
-        const diffTime = Math.abs(endDateTime - startDateTime);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        const diffDays = scheduled.numOfDays;
 
         // Set subTotal, originalGrandTotal without tax and delivery charges
         subTotal =
@@ -1232,8 +1223,6 @@ const addCartDetailsController = async (req, res, next) => {
       );
 
       updatedCartDetail.distance = distanceInKM;
-
-      // const businessCategoryId = merchant.merchantDetail.businessCategoryId;
 
       const { deliveryCharges, surgeCharges } = await getDeliveryAndSurgeCharge(
         customerId,

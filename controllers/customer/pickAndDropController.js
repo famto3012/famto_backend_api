@@ -34,6 +34,7 @@ const {
 } = require("../../utils/imageOperation");
 
 const { sendNotification, sendSocketData } = require("../../socket/socket");
+const { processSchedule } = require("../../utils/createOrderHelpers");
 
 const addPickUpAddressController = async (req, res, next) => {
   try {
@@ -183,6 +184,17 @@ const addPickUpAddressController = async (req, res, next) => {
       }
     }
 
+    let scheduled;
+    if (startDate && endDate && time) {
+      const ifScheduled = {
+        startDate,
+        endDate,
+        time,
+      };
+
+      scheduled = processSchedule(ifScheduled);
+    }
+
     let updatedCartDetail = {
       pickupAddress: pickupAddress._doc,
       pickupLocation: pickupCoordinates,
@@ -194,17 +206,13 @@ const addPickUpAddressController = async (req, res, next) => {
       instructionInDelivery,
       voiceInstructionInPickup: voiceInstructionInPickupURL,
       voiceInstructionInDelivery: voiceInstructionInDeliveryURL,
-      startDate,
-      endDate,
-      time: time && convertToUTC(startDate, time),
+      startDate: scheduled.startDate,
+      endDate: scheduled.endDate,
+      time: scheduled.time,
     };
 
     if (startDate && endDate && time) {
-      const startDateTime = new Date(`${startDate} ${time}`);
-      const endDateTime = new Date(`${endDate} ${time}`);
-
-      const diffTime = Math.abs(endDateTime - startDateTime);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      const diffDays = scheduled.numOfDays;
 
       updatedCartDetail.numOfDays = diffDays;
     } else {

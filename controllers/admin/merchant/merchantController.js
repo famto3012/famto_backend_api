@@ -1762,9 +1762,9 @@ const deleteMerchantProfileByAdminController = async (req, res, next) => {
     // Step 5: Delete the merchant
     await Merchant.findByIdAndDelete(merchantId);
 
-    res
-      .status(200)
-      .json({ message: "Merchant and associated data deleted successfully" });
+    res.status(200).json({
+      message: "Merchant and associated data deleted successfully",
+    });
   } catch (err) {
     next(appError(err.message));
   }

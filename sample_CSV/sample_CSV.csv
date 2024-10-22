@@ -1,32 +1,98 @@
 ﻿Business Category Name*,Category Name*,Category Type*,Category Status*,Product Name*,Product Price*,Cost Price*,Product Type*,Min Quantity To Order,Max quantity Per Order,SKU,Preperation Time,Description,Long Description,Product Image,Inventory,Available quantity,Alert,Variant Name,Variant Type Name,Variant Type Price
-Food,Shawarma,Non-veg,true,Romali Roti,20,15,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
-Food,Shawarma,Non-veg,true,Shawarma Roll(R),100,95,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
-Food,Shawarma,Non-veg,true,Cheese Roll(R),130,125,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
-Food,Shawarma,Non-veg,true,Peri Peri Roll(R),120,115,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
-Food,Shawarma,Non-veg,true,Full Meat Roll(R),150,145,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
-Food,Shawarma,Non-veg,true,Peri Peri Special Roll(R),160,155,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
-Food,Shawarma,Non-veg,true,Normal Plate Shawarma (R),180,175,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
-Food,Shawarma,Non-veg,true,Peri Peri Plate Shawarma(R),200,195,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
-Food,Shawarma,Non-veg,true,Peri Peri Special Plate(R),230,225,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
-Food,Shawarma,Non-veg,true,Al Faham1,345,300,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
-Food,Fried Rice,Both,true,Veg Fried Rice,100,100,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-
-Food,Fried Rice,Both,true,Chicken Fried Rice,190,190,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
-Food,Fried Rice,Both,true,Egg Fried Rice,140,140,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
-Food,Fried Rice,Both,true,Schezwan Chicken Fried Rice,200,200,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
-Food,Fried Rice,Both,true,Mixed Fried Rice,220,220,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
-Food,Fried Rice,Both,true,TEST Fried rice 2,160,140,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
-Food,Fried Rice,Both,true,TEST Fried rice,150,130,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
-Food,Fried Rice,Both,true,Al Faham,345,300,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
-Food,Tandoori,Non-veg,true,Tandoori Chicken,500,500,Non-veg,-,-,-,-,-,-,-,true,-,-,Quantity,Full,500
-Food,Tandoori,Non-veg,true,Chicken Tikka,290,290,Non-veg,-,-,-,-,-,-,-,true,-,-,Quantity,Full,290
-Food,Tandoori,Non-veg,true,Malai Tikka,300,300,Non-veg,-,-,-,-,-,-,-,true,-,-,Quantity,Full,300
-Food,Tandoori,Non-veg,true,Hariyali Kabab,280,280,Non-veg,-,-,-,-,-,-,-,true,-,-,Quantity,Full,280
-Food,Tandoori,Non-veg,true,Chicken Seek Kabab,280,280,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-
-Fish,Fresh Fish,Non-veg,true,Mathi,-,-,Non-veg,-,-,-,-,-,Fresh sardine,-,true,-,-,Quantity,1 kg,-
-Fish,Fresh Fish,Non-veg,true,Mathi,-,-,Non-veg,-,-,-,-,-,Fresh sardine,-,true,-,-,Quantity,500 gms,-
-Fish,Fresh Fish,Non-veg,true,Mathi,-,-,Non-veg,-,-,-,-,-,Fresh sardine,-,true,-,-,Quant,500 gms,-
-Fish,Fresh Fish,Non-veg,true,Mathi,-,-,Non-veg,-,-,-,-,-,Fresh sardine,-,true,-,-,Quan,1 kg,-
-Fish,Fresh Fish,Non-veg,true,Mathi,-,-,Non-veg,-,-,-,-,-,Fresh sardine,-,true,-,-,Quan,555 gms,150
-Fish,Fresh Fish,Non-veg,true,K. Kozhiyala,-,-,Non-veg,-,-,-,-,-,Small mackerel,-,true,-,-,Quantity,500 gms,-
-Fish,Fresh Fish,Non-veg,true,Choora,-,-,Non-veg,-,-,-,-,-,Tuna,-,true,-,-,Quantity,500 gms,-
-Fish,Fresh Fish,Non-veg,true,Ayala,-,-,Non-veg,-,-,-,-,-,Indian mackerel,-,true,-,-,Quantity,500 gms,100
+Fish,Fresh Fish,Non-veg,true,Ayala,1,1,Non-veg,-,-,-,-,-,Indian mackerel,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Attuvaala,1,1,Non-veg,-,-,-,-,-,Fresh Attuvaala fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Avolipara full,1,1,Non-veg,-,-,-,-,-,Whole Avolipara fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Basa,1,1,Non-veg,-,-,-,-,-,Fresh Basa fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Avoli wite,1,1,Non-veg,-,-,-,-,-,White Avoli fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Avoli black small,1,1,Non-veg,-,-,-,-,-,Small black Avoli fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Ayalapara,1,1,Non-veg,-,-,-,-,-,Ayalapara fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Cheelave head,1,1,Non-veg,-,-,-,-,-,Cheelave fish head,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Avolipara pic,1,1,Non-veg,-,-,-,-,-,Sliced Avolipara fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Chainees avoli,1,1,Non-veg,-,-,-,-,-,Fresh Chainees Avoli fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,CD karal,1,1,Non-veg,-,-,-,-,-,CD karal fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Cheelavu small,1,1,Non-veg,-,-,-,-,-,Small Cheelavu fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Chembali,1,1,Non-veg,-,-,-,-,-,Chembali fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Chembali pic,1,1,Non-veg,-,-,-,-,-,Sliced Chembali fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Chempali head,1,1,Non-veg,-,-,-,-,-,Chempali fish head,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Choora,1,1,Non-veg,-,-,-,-,-,Tuna,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Co netholi,1,1,Non-veg,-,-,-,-,-,Big anchovy,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Crab (njandu),1,1,Non-veg,-,-,-,-,-,Crab,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Eata(therd),1,1,Non-veg,-,-,-,-,-,Eata fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Fish egg,1,1,Non-veg,-,-,-,-,-,Fish egg,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Hamoor pic,1,1,Non-veg,-,-,-,-,-,Sliced Hamoor fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,K. Kozhiyala,1,1,Non-veg,-,-,-,-,-,Small mackerel,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Kaaral,1,1,Non-veg,-,-,-,-,-,Fresh Kaaral fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Kalachi head,1,1,Non-veg,-,-,-,-,-,Kalachi fish head,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Kakka,1,1,Non-veg,-,-,-,-,-,Kakka fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Kalanchi full,1,1,Non-veg,-,-,-,-,-,Full Kalanchi fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Kalanchi pic,1,1,Non-veg,-,-,-,-,-,Sliced Kalanchi fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Kalava,1,1,Non-veg,-,-,-,-,-,Kalava fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Kalava head,1,1,Non-veg,-,-,-,-,-,Kalava head,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Kallumakaya,1,1,Non-veg,-,-,-,-,-,Kallumakaya fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Kanambu,1,1,Non-veg,-,-,-,-,-,Kanambu fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Kanava small,1,1,Non-veg,-,-,-,-,-,Small squid,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Kanava big,1,1,Non-veg,-,-,-,-,-,Big squid,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Kannadi para,1,1,Non-veg,-,-,-,-,-,Kannadi para fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Kera head,1,1,Non-veg,-,-,-,-,-,Sardine head,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Kozhuvapara,1,1,Non-veg,-,-,-,-,-,Kozhuvapara fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Kera pic,1,1,Non-veg,-,-,-,-,-,Sliced sardine,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Kozhiyala small,1,1,Non-veg,-,-,-,-,-,Small mackerel,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Kera full,1,1,Non-veg,-,-,-,-,-,Full sardine,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Kattala,1,1,Non-veg,-,-,-,-,-,Kattala fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Kuyil,1,1,Non-veg,-,-,-,-,-,Kuyil fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Mahi Mahi (paalameen),1,1,Non-veg,-,-,-,-,-,Mahi Mahi,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Lobstor,1,1,Non-veg,-,-,-,-,-,Lobster,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Manthal,1,1,Non-veg,-,-,-,-,-,Manthal fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Mathi,1,1,Non-veg,-,-,-,-,-,Fresh sardine,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Modha full,1,1,Non-veg,-,-,-,-,-,Full Modha fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Modha pic,1,1,Non-veg,-,-,-,-,-,Sliced Modha fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Modha head,1,1,Non-veg,-,-,-,-,-,Modha head,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Mural,1,1,Non-veg,-,-,-,-,-,Fresh Mural fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Naaran (prown),1,1,Non-veg,-,-,-,-,-,Naaran prawn,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Navara,1,1,Non-veg,-,-,-,-,-,Navara fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Netholi,1,1,Non-veg,-,-,-,-,-,Anchovy,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Navara small,1,1,Non-veg,-,-,-,-,-,Small Navara fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Neduva,1,1,Non-veg,-,-,-,-,-,Neduva fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Neymeen pic,1,1,Non-veg,-,-,-,-,-,Neymeen fish slices,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,NM HEAD,1,1,Non-veg,-,-,-,-,-,Tuna head,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,NM Choora,1,1,Non-veg,-,-,-,-,-,Large tuna,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,NM small,1,1,Non-veg,-,-,-,-,-,Small tuna,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Nooli,1,1,Non-veg,-,-,-,-,-,Fresh Nooli fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Parava,1,1,Non-veg,-,-,-,-,-,Parava fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Para,1,1,Non-veg,-,-,-,-,-,Fresh Para fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Pirana,1,1,Non-veg,-,-,-,-,-,Fresh Pirana fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Ponnarameen,1,1,Non-veg,-,-,-,-,-,Ponnarameen fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Poolaa,1,1,Non-veg,-,-,-,-,-,Fresh Poolaa fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Poomeen full,1,1,Non-veg,-,-,-,-,-,Full Poomeen fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Rohu,1,1,Non-veg,-,-,-,-,-,Fresh Rohu fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Thala pic,1,1,Non-veg,-,-,-,-,-,Thala fish slices,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Shark small,1,1,Non-veg,-,-,-,-,-,Small shark,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Thirandi,1,1,Non-veg,-,-,-,-,-,Thirandi fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Poomeen pic,1,1,Non-veg,-,-,-,-,-,Sliced Poomeen fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Shark pic,1,1,Non-veg,-,-,-,-,-,Sliced shark,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,White avoli Small,1,1,Non-veg,-,-,-,-,-,Small white Avoli fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Vankada,1,1,Non-veg,-,-,-,-,-,Vankada fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Udupoori,1,1,Non-veg,-,-,-,-,-,Udupoori fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Vilameen,1,1,Non-veg,-,-,-,-,-,Vilameen fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Vanami (prown),1,1,Non-veg,-,-,-,-,-,Vanami prawn,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Velapara small,1,1,Non-veg,-,-,-,-,-,Small Velapara fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Vattakanni,1,1,Non-veg,-,-,-,-,-,Vattakanni fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Tiger (prown),1,1,Non-veg,-,-,-,-,-,Tiger prawn,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Thiloppi,1,1,Non-veg,-,-,-,-,-,Thiloppi fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Thirandi pic,1,1,Non-veg,-,-,-,-,-,Sliced Thirandi fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Vela para pic,1,1,Non-veg,-,-,-,-,-,Sliced Vela para fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Vatta pic,1,1,Non-veg,-,-,-,-,-,Sliced Vatta fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Vaala,1,1,Non-veg,-,-,-,-,-,Vaala fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Cheelavu big pic,1,1,Non-veg,-,-,-,-,-,Big sliced Cheelavu fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Vatta head,1,1,Non-veg,-,-,-,-,-,Vatta head,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Vanami big,1,1,Non-veg,-,-,-,-,-,Big Vanami prawn,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Cheelavu full,1,1,Non-veg,-,-,-,-,-,Full Cheelavu fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Vilameen pic,1,1,Non-veg,-,-,-,-,-,Sliced Vilameen fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Vatta para,1,1,Non-veg,-,-,-,-,-,Vatta para fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Velapara pic,1,1,Non-veg,-,-,-,-,-,Sliced Velapara fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Vela para,1,1,Non-veg,-,-,-,-,-,Vela para fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Velapara head,1,1,Non-veg,-,-,-,-,-,Velapara head,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Karimeen,1,1,Non-veg,-,-,-,-,-,Pearl spot,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Avoli black,1,1,Non-veg,-,-,-,-,-,Black Avoli fish,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Cheemeen,1,1,Non-veg,-,-,-,-,-,Prawn,-,true,-,-,Quantity,500 gms,1
+Fish,Fresh Fish,Non-veg,true,Moral,1,1,Non-veg,-,-,-,-,-,Fresh Moral fish,-,true,-,-,Quantity,500 gms,1

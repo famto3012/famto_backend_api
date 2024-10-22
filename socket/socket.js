@@ -1167,7 +1167,7 @@ io.on("connection", async (socket) => {
 
       const eventName = "reachedDeliveryLocation";
 
-      const { rolesToNotify, data } = await findRolesToNotify(eventName);
+      const { rolesToNotify } = await findRolesToNotify(eventName);
 
       const maxRadius = 0.1;
       if (maxRadius > 0) {
@@ -1225,7 +1225,10 @@ io.on("connection", async (socket) => {
           orderFound.orderDetailStepper.reachedDeliveryLocation = stepperDetail;
           orderFound.orderDetail.deliveryTime = new Date();
 
+          taskFound.deliveryDetail.deliveryStatus = "Completed";
+
           await orderFound.save();
+          await taskFound.save();
 
           // Send notifications to each role dynamically
           for (const role of rolesToNotify) {

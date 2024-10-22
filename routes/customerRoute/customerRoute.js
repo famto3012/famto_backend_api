@@ -35,7 +35,8 @@ const {
   generateReferralCode,
   getCurrentOrderDetailcontroller,
   getAllNotificationsOfCustomerController,
-  getGeofenceNameController,
+  getAvailableGeofences,
+  setSelectedGeofence,
 } = require("../../controllers/customer/customerController");
 const {
   getAllBusinessCategoryController,
@@ -86,8 +87,11 @@ customerRoute.post(
   registerAndLoginController
 );
 
-// Get customer geofence name route
-customerRoute.post("/geofence-name", getGeofenceNameController);
+// Get available geofence
+customerRoute.get("/all-geofence", isAuthenticated, getAvailableGeofences);
+
+// Set selected geofence
+customerRoute.post("/set-geofence", isAuthenticated, setSelectedGeofence);
 
 // Get customer profile route
 customerRoute.get("/profile", isAuthenticated, getCustomerProfileController);
@@ -118,38 +122,51 @@ customerRoute.get(
 // Get all business categories route
 customerRoute.post(
   "/all-business-categories",
+  isAuthenticated,
   getAllBusinessCategoryController
 );
 
 // Search in home
-customerRoute.get("/search-home", homeSearchController);
+customerRoute.get("/search-home", isAuthenticated, homeSearchController);
 
 // List all restaurants in customers geofence
-customerRoute.post("/list-restaurants", listRestaurantsController);
+customerRoute.post(
+  "/list-restaurants",
+  isAuthenticated,
+  listRestaurantsController
+);
 
 // Get all categories a merchant
 customerRoute.get(
   "/:merchantId/:businessCategoryId/categories",
+  isAuthenticated,
   getAllCategoriesOfMerchants
 );
 
 // Get all products a merchant
 customerRoute.get(
   "/merchant/:categoryId/products/:customerId",
+  isAuthenticated,
   getAllProductsOfMerchantController
 );
 
 // Filter merchants by criteria (Pure veg, Rating, Nearby)
-customerRoute.post("/filter-merchants", filterMerchantController);
+customerRoute.post(
+  "/filter-merchants",
+  isAuthenticated,
+  filterMerchantController
+);
 
 // Search products in merchant
 customerRoute.get(
   "/search-products/:merchantId/:businessCategoryId",
+  isAuthenticated,
   searchProductsInMerchantController
 );
 
 customerRoute.get(
   "/products/filter-and-sort/:merchantId",
+  isAuthenticated,
   filterAndSortProductsController
 );
 
@@ -178,6 +195,7 @@ customerRoute.post(
 // Get rating details of customer
 customerRoute.get(
   "/merchant-rating-details/:merchantId",
+  isAuthenticated,
   getTotalRatingOfMerchantController
 );
 

@@ -37,6 +37,7 @@ const { formatDate, formatTime } = require("../../utils/formatters");
 const { formatToHours } = require("../../utils/agentAppHelpers");
 
 const { sendNotification, sendSocketData } = require("../../socket/socket");
+const Geofence = require("../../models/Geofence");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -51,60 +52,46 @@ const registerAndLoginController = async (req, res, next) => {
   }
 
   try {
-    const { email, phoneNumber, latitude, longitude, referralCode } = req.body;
+    const { phoneNumber, latitude, longitude, referralCode } = req.body;
     const location = [latitude, longitude];
 
-    const normalizedEmail = email?.toLowerCase();
+    const customer = await Customer.findOne({ phoneNumber });
 
-    let customer = {};
+    const geofence = await geoLocation(latitude, longitude, next);
 
-    if (email) {
-      customer = await Customer.findOne({ email: normalizedEmail });
-    } else {
-      customer = await Customer.findOne({ phoneNumber });
+    if (!geofence) {
+      return res.status(400).json({
+        message: "Location is outside the listed geofence",
+      });
     }
 
     if (customer) {
       if (customer?.customerDetails?.isBlocked) {
-        return res.status(400).json({
+        return res.status(403).json({
           message: "Account is Blocked",
         });
-      } else {
-        // const geofence = await geoLocation(latitude, longitude, next);
-
-        customer.lastPlatformUsed = os.platform();
-        customer.customerDetails.location = location;
-        // customer.customerDetails.geofenceId = geofence._id;
-
-        await customer.save();
-
-        return res.status(200).json({
-          success: "User logged in successfully",
-          id: customer.id,
-          token: generateToken(customer.id, customer.role),
-          role: customer.role,
-        });
       }
+
+      customer.lastPlatformUsed = os.platform();
+      customer.customerDetails.location = location;
+      customer.customerDetails.geofenceId = geofence._id;
+
+      await customer.save();
+
+      return res.status(200).json({
+        success: "User logged in successfully",
+        id: customer.id,
+        token: generateToken(customer.id, customer.role),
+        role: customer.role,
+        geofenceName: geofence.name,
+      });
     } else {
-      // const geofence = await geoLocation(latitude, longitude, next);
-
-      // if (!geofence) {
-      //   return res.status(400).json({
-      //     message: "User coordinates are outside defined geofences",
-      //   });
-      // }
-
-      // Create new customer based on email or phoneNumber
-      const newCustomerData = email
-        ? { email: normalizedEmail }
-        : { phoneNumber };
-
       const newCustomer = await Customer.create({
-        ...newCustomerData,
+        phoneNumber,
         lastPlatformUsed: os.platform(),
         customerDetails: {
           location,
-          // geofenceId: geofence._id,
+          geofenceId: geofence._id,
         },
       });
 
@@ -131,6 +118,7 @@ const registerAndLoginController = async (req, res, next) => {
         success: "User created successfully",
         id: newCustomer.id,
         token: generateToken(newCustomer.id),
+        geofenceName: geofence.name,
       });
     }
   } catch (err) {
@@ -138,36 +126,43 @@ const registerAndLoginController = async (req, res, next) => {
   }
 };
 
-const getGeofenceNameController = async (req, res, next) => {
+// Get all geofences
+const getAvailableGeofences = async (req, res, next) => {
   try {
-    const { latitude, longitude, customerId } = req.body;
+    const availableGeofences = await Geofence.find({});
 
-    if (!latitude || !longitude) {
-      return next(appError("Latitude or Longitude is missing", 400));
-    }
-
-    const geofence = await geoLocation(latitude, longitude);
-
-    if (!geofence) {
-      return next(appError("Customer is outside the listed geofences"));
-    }
-
-    if (customerId) {
-      const customerFound = await Customer.findById(customerId);
-
-      if (!customerFound) {
-        return next(appError("Customer not found", 404));
-      }
-
-      customerFound.customerDetails.geofenceId = geofence._id;
-
-      await customerFound.save();
-    }
+    const formattedResponse = availableGeofences?.map((geofence) => ({
+      id: geofence._id,
+      name: geofence.name,
+    }));
 
     res.status(200).json({
       message: "Geofence name",
-      data: geofence.name,
+      data: formattedResponse,
     });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Set selected geofence
+const setSelectedGeofence = async (req, res, next) => {
+  try {
+    const { geofenceId } = req.body;
+
+    const geofenceFound = await Geofence.findById(geofenceId);
+
+    if (!geofenceFound) return next(appError("Geofence not found", 404));
+
+    const customerFound = await Customer.findById(req.userAuth);
+
+    if (!customerFound) return next(appError("Customer not found", 404));
+
+    customerFound.customerDetails.geofenceId = geofenceId;
+
+    await customerFound.save();
+
+    res.status(200).json({ message: "Geofence saved successfully" });
   } catch (err) {
     next(appError(err.message));
   }
@@ -1211,7 +1206,8 @@ const getAllNotificationsOfCustomerController = async (req, res, next) => {
 
 module.exports = {
   registerAndLoginController,
-  getGeofenceNameController,
+  getAvailableGeofences,
+  setSelectedGeofence,
   getCustomerProfileController,
   updateCustomerProfileController,
   updateCustomerAddressController,
