@@ -126,7 +126,6 @@ const adjustEndDate = (endDate, time) => {
 };
 
 const createOrdersFromScheduled = async (scheduledOrder) => {
-  console.log("scheduledOrder", scheduledOrder);
   try {
     const customer = await Customer.findById(scheduledOrder.customerId);
 
@@ -152,13 +151,9 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
       10
     );
 
-    // const deliveryTime = new Date(scheduledOrder.time);
-    // deliveryTime.setMinutes(deliveryTime.getMinutes() + deliveryTimeMinutes);
-    const deliveryTime = moment(scheduledOrder.time)
-      .add(deliveryTimeMinutes, "minutes")
-      .utc()
-      .toDate();
-    console.log("deliveryTime", deliveryTime);
+    const deliveryTime = new Date(scheduledOrder.time);
+    deliveryTime.setMinutes(deliveryTime.getMinutes() + deliveryTimeMinutes);
+
     const stepperData = {
       by: "Admin",
       date: new Date(),
@@ -188,21 +183,10 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
 
     options = {};
 
-    const adjustedEndDate = adjustEndDate(
-      scheduledOrder.endDate,
-      scheduledOrder.time
-    );
+    const nextTime = new Date(scheduledOrder.time);
+    nextTime.setDate(nextTime.getDate() + 1);
 
-    // const nextTime = new Date(scheduledOrder.time);
-    // nextTime.setDate(nextTime.getDate() + 1);
-    const nextTime = moment(scheduledOrder.time) // Convert to moment object
-      .add(1, "day")
-      .utc()
-      .toDate();
-    console.log("adjustedEndDate", adjustedEndDate);
-    console.log("nextTime", nextTime);
-
-    if (nextTime < adjustedEndDate) {
+    if (nextTime < new Date(scheduledOrder.endDate)) {
       await ScheduledOrder.findByIdAndUpdate(scheduledOrder._id, {
         time: nextTime,
       });
@@ -448,6 +432,10 @@ const getDeliveryAndSurgeCharge = async (
   }
 
   let customerPricing;
+
+  console.log(deliveryMode);
+  console.log(businessCategoryId);
+  console.log(customer.customerDetails.geofenceId);
 
   if (deliveryMode === "Home Delivery") {
     customerPricing = await CustomerPricing.findOne({

@@ -695,9 +695,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
           const businessCategoryName = row["Business Category Name*"]?.trim();
           const categoryName = row["Category Name*"]?.trim();
           const productName = row["Product Name*"]?.trim();
-          const variantKey = row["Variant Name"]?.trim() || "VK";
-          const variantTypeKey = row["Variant Type Name"]?.trim() || "VTK";
-          const categoryKey = `${merchantId}-${businessCategoryName}-${categoryName}-${variantKey}-${variantTypeKey}`;
+          const categoryKey = `${merchantId}-${businessCategoryName}-${categoryName}`;
 
           if (!categoriesMap.has(categoryKey)) {
             categoriesMap.set(categoryKey, {

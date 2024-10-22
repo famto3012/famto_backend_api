@@ -21,7 +21,7 @@ const scheduledOrderItemSchema = mongoose.Schema(
     },
     itemImageURL: {
       type: String,
-      required: true,
+      default: null,
     },
   },
   {

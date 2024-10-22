@@ -188,41 +188,25 @@ cron.schedule("30 18 * * *", async () => {
   await resetAllAgentTaskHelper();
 });
 
-const convertToIST = (date) => {
-  // Convert the date to IST by adding 5 hours 30 minutes
-  const istOffset = 5 * 60 + 30; // IST is UTC + 5 hours 30 minutes
-  const dateInIST = new Date(date.getTime() + istOffset * 60 * 1000);
-  return dateInIST;
-};
-
-//
 cron.schedule("* * * * *", async () => {
   // await createSettlement();
   deleteExpiredConversationsAndMessages();
   populateUserSocketMap();
 
   console.log("Running scheduled order job...");
-  const now = new Date();
-  //  fetchPerDayRevenue(now);
-  //  fetchMerchantDailyRevenue(now);
-  const date = convertToIST(now);
-  //  console.log("IST",date)
-  //  console.log("UTC",now)
-  // Universal order
-  console.log("IST", date);
-  console.log("UST", now);
+  const now = new Date().toISOString();
+  console.log(now);
+
+  // Calculate 2 minutes earlier and 2 minutes later
+  const twoMinutesEarlier = new Date(now.getTime() - 2 * 60 * 1000); // Subtract 2 minutes
+  const twoMinutesLater = new Date(now.getTime() + 2 * 60 * 1000); // Add 2 minutes
+
+  // Query to find scheduled orders within the 2-minute time window
   const universalScheduledOrders = await ScheduledOrder.find({
     status: "Pending",
-    $and: [
-      { startDate: { $lte: date } },
-      // {
-      //   $or: [{ startDate: { $lte: now } }, { startDate: { $gte: now } }],
-      // },
-      {
-        $or: [{ endDate: { $lte: now } }, { endDate: { $gte: now } }],
-      },
-      { time: { $lte: now } },
-    ],
+    startDate: { $lte: now }, // Start date must be on or before now
+    endDate: { $gte: now }, // End date must be on or after now
+    time: { $gte: twoMinutesEarlier, $lte: twoMinutesLater }, // Time between 2 minutes earlier and later
   });
 
   if (universalScheduledOrders.length) {
