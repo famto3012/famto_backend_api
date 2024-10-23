@@ -8,6 +8,7 @@ const {
 const path = require("path");
 const Product = require("../../../../models/Product");
 const Merchant = require("../../../../models/Merchant");
+const ActivityLog = require("../../../../models/ActivityLog");
 const csvWriter = require("csv-writer").createObjectCsvWriter;
 
 const getSelectedBusinessCategoriesOfMerchant = async (req, res, next) => {
@@ -126,6 +127,12 @@ const addCategoryByAdminController = async (req, res, next) => {
       return next(appError("Error in creating new category"));
     }
 
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `New category (${categoryName}) is added by Admin (${req.userAuth})`,
+    });
+
     res.status(201).json({
       message: "Category created successfully",
       data: newCategory,
@@ -182,6 +189,12 @@ const editCategoryByAdminController = async (req, res, next) => {
       { new: true }
     );
 
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `Category (${categoryName}) is updated by Admin (${req.userAuth})`,
+    });
+
     res.status(200).json({
       message: "Category updated successfully",
       data: updatedCategory,
@@ -224,6 +237,12 @@ const deleteCategoryByAdminController = async (req, res, next) => {
       await Product.findByIdAndDelete(product._id);
     });
 
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `Category (${categoryToDelete.categoryName}) is deleted by Admin (${req.userAuth})`,
+    });
+
     res.status(200).json({
       message: "Category deleted successfully",
     });
@@ -251,6 +270,12 @@ const changeCategoryStatusByAdminController = async (req, res, next) => {
     );
 
     await categoryFound.save();
+
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `Category status (${categoryFound.categoryName}) is updated by Admin (${req.userAuth})`,
+    });
 
     res.status(200).json({
       message: "Category status changed and products updated",
@@ -372,6 +397,12 @@ const addCategoryByMerchantController = async (req, res, next) => {
       return next(appError("Error in creating new category"));
     }
 
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `New category (${categoryName}) is added by Merchant (${req.userAuth})`,
+    });
+
     res.status(201).json({
       message: "Category created successfully",
       data: newCategory,
@@ -470,6 +501,12 @@ const editCategoryByMerchantController = async (req, res, next) => {
       { new: true }
     );
 
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `Category (${categoryName}) is updated by Merchant (${req.userAuth})`,
+    });
+
     res.status(200).json({
       message: "Category updated successfully",
       data: updatedCategory,
@@ -514,6 +551,13 @@ const deleteCategoryByMerchantController = async (req, res, next) => {
       await Product.findByIdAndDelete(product._id);
     });
 
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `Category (${categoryToDelete.categoryName}) is deleted by Merchant (${req.userAuth})`,
+    });
+    s;
+
     res.status(200).json({
       message: "Category deleted successfully",
     });
@@ -543,6 +587,12 @@ const changeCategoryStatusByMerchantController = async (req, res, next) => {
 
     await categoryFound.save();
 
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `Category status (${categoryFound.categoryName}) is updated by Merchant (${req.userAuth})`,
+    });
+
     res.status(200).json({
       message: "Category status changed and products updated",
     });
@@ -562,6 +612,12 @@ const updateCategoryOrderController = async (req, res, next) => {
         { new: true }
       );
     }
+
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `Category order is updated by ${req.userRole} (${req.userAuth})`,
+    });
 
     res.status(200).json({ message: "Category order updated successfully" });
   } catch (err) {

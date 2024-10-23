@@ -5,6 +5,7 @@ const CommissionLogs = require("../../../models/CommissionLog");
 const Merchant = require("../../../models/Merchant");
 
 const appError = require("../../../utils/appError");
+const ActivityLog = require("../../../models/ActivityLog");
 
 const addAndEditCommissionController = async (req, res, next) => {
   const errors = validationResult(req);
@@ -35,6 +36,12 @@ const addAndEditCommissionController = async (req, res, next) => {
 
       await commission.save();
 
+      await ActivityLog.create({
+        userId: req.userAuth,
+        userType: req.userRole,
+        description: `Updated commission value of Merchant ${merchantId} by Admin (${req.userAuth})`,
+      });
+
       res.status(200).json({
         message: "Commission updated successfully",
         data: commission,
@@ -53,7 +60,14 @@ const addAndEditCommissionController = async (req, res, next) => {
         modelType: "Commission",
         modelId: savedCommission._id,
       });
+
       await merchantFound.save();
+
+      await ActivityLog.create({
+        userId: req.userAuth,
+        userType: req.userRole,
+        description: `New commission updated for Merchant ${merchantId} by Admin ${req.userAuth}`,
+      });
 
       res.status(200).json({
         message: "Commission added successfully",
@@ -170,24 +184,24 @@ const updateCommissionLogStatus = async (req, res) => {
     const { commissionLogId } = req.params;
 
     if (!commissionLogId) {
-      return res.status(400).json({
-        status: "fail",
-        message: "Commission Log ID are required",
-      });
+      return next(appError("Commission Log ID are required", 400));
     }
 
-    const commissionLog = await CommissionLogs.findByIdAndUpdate(
-      commissionLogId,
-      { status: "Paid" },
-      { new: true }
-    );
+    const commissionLog = await CommissionLogs.findById(commissionLogId);
 
     if (!commissionLog) {
-      return res.status(404).json({
-        status: "fail",
-        message: "No commission log found with the given ID",
-      });
+      return next(appError("No commission log found", 404));
     }
+
+    commissionLog.status = "Paid";
+
+    await commissionLog.save();
+
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `Updated commission payment status of ${commissionLog.merchantName} (${commissionLog.merchantId}) by Admin (${req.userAuth})`,
+    });
 
     res.status(200).json({
       status: "success",
