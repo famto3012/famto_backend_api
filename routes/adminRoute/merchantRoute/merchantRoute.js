@@ -23,6 +23,7 @@ const {
   downloadMerchantCSVController,
   deleteMerchantProfileByAdminController,
   getAllMerchantsForDropDownController,
+  changeMerchantStatusByMerchantControllerForToggle,
 } = require("../../../controllers/admin/merchant/merchantController");
 const { upload } = require("../../../utils/imageOperation");
 const isAdmin = require("../../../middlewares/isAdmin");
@@ -46,6 +47,12 @@ merchantRoute.patch(
   "/change-status",
   isAuthenticated,
   changeMerchantStatusByMerchantController
+);
+
+merchantRoute.patch(
+  "/change-status-toggle",
+  isAuthenticated,
+  changeMerchantStatusByMerchantControllerForToggle
 );
 
 // Get merchant profile

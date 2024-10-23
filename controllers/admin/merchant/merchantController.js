@@ -220,8 +220,88 @@ const changeMerchantStatusByMerchantController = async (req, res, next) => {
       return next(appError("Merchant not found", 404));
     }
 
-    merchantFound.status = !merchantFound.status;
-    merchantFound.openedToday = true;
+    const currentDate = new Date();
+    const currentDay = currentDate
+      .toLocaleString("en-us", { weekday: "long" })
+      .toLowerCase(); // get the current day in lowercase (e.g., 'monday')
+    const currentTime = currentDate.toLocaleTimeString("en-GB", {
+      hour12: false,
+      hour: "2-digit",
+      minute: "2-digit",
+    }); // 24-hour format time (e.g., '16:30')
+
+    // Get today's availability
+    const availability =
+      merchantFound.merchantDetail.availability?.specificDays?.[currentDay];
+
+    if (!availability) {
+      return next(appError("Merchant availability not set for today", 400));
+    }
+
+    // Check if merchant is closed all day
+    if (availability.closedAllDay) {
+      return next(appError("Merchant is closed all day.", 400));
+    }
+
+    // Check if merchant is open all day
+    if (availability.openAllDay) {
+      merchantFound.status = !merchantFound.status;
+      merchantFound.openedToday = true;
+      await merchantFound.save();
+      return res
+        .status(200)
+        .json({ message: "Merchant status changed successfully." });
+    }
+
+    // Check specific time availability
+    if (availability.specificTime) {
+      const { startTime, endTime } = availability;
+
+      if (currentTime >= startTime && currentTime <= endTime) {
+        // Toggle status as the current time falls within available hours
+        merchantFound.status = !merchantFound.status;
+        merchantFound.openedToday = true;
+        await merchantFound.save();
+        return res
+          .status(200)
+          .json({ message: "Merchant status changed successfully." });
+      } else {
+        return next(
+          appError("Merchant is not within the available hours.", 400)
+        );
+      }
+    }
+
+    // Default case: if no conditions match, assume not ready to open
+    return next(
+      appError("Merchant is not ready to open at the current time.", 400)
+    );
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const changeMerchantStatusByMerchantControllerForToggle = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const { status } = req.body;
+    const merchantFound = await Merchant.findById(req.userAuth);
+
+    if (!merchantFound) {
+      return next(appError("Merchant not found", 404));
+    }
+
+    if (status) {
+      merchantFound.status = true;
+      merchantFound.openedToday = true;
+    } else {
+      merchantFound.status = false;
+      // merchantFound.openedToday = true;
+    }
+
     await merchantFound.save();
 
     res.status(200).json({ message: "Merchant status changed" });
@@ -1816,4 +1896,5 @@ module.exports = {
   downloadMerchantCSVController,
   deleteMerchantProfileByAdminController,
   getAllMerchantsForDropDownController,
+  changeMerchantStatusByMerchantControllerForToggle,
 };
