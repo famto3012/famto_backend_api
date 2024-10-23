@@ -79,6 +79,7 @@ const {
   fetchPerDayRevenue,
   fetchMerchantDailyRevenue,
 } = require("./utils/createPerDayRevenueHelper.js");
+const activityLogRoute = require("./routes/adminRoute/activityLogRoute/activityLogRoute.js");
 // const { createSettlement } = require("./utils/razorpayPayment.js");
 
 //middlewares
@@ -152,6 +153,7 @@ app.use("/api/v1/orders", orderRoute);
 app.use("/api/v1/admin/auto-allocation", autoAllocationRoute);
 app.use("/api/v1/admin/delivery-management", taskRoute);
 app.use("/api/v1/admin/map", mapRoute);
+app.use("/api/v1/admin/activity-log", activityLogRoute);
 
 // =====================
 // --------Agent--------

@@ -176,7 +176,10 @@ const getAllScheduledOrdersOfMerchantController = async (req, res, next) => {
 
     // Count total documents for the authenticated merchant
     const totalDocuments = await ScheduledOrder.countDocuments({ merchantId });
-    const totalUnSeenDocuments = await ScheduledOrder.countDocuments({ merchantId, isViewed: false });
+    const totalUnSeenDocuments = await ScheduledOrder.countDocuments({
+      merchantId,
+      isViewed: false,
+    });
 
     // Calculate total pages
     const totalPages = Math.ceil(totalDocuments / limit);
@@ -255,6 +258,12 @@ const confirmOrderController = async (req, res, next) => {
 
       await orderFound.save();
 
+      await ActivityLog.create({
+        userId: req.userAuth,
+        userType: req.userRole,
+        description: `Order (#${orderId}) is confirmed by Merchant (${req.userAuth})`,
+      });
+
       const eventName = "orderAccepted";
 
       const { rolesToNotify, data } = await findRolesToNotify(eventName);
@@ -317,19 +326,13 @@ const confirmOrderController = async (req, res, next) => {
 
 const rejectOrderController = async (req, res, next) => {
   try {
-    const currentMerchant = req.userAuth;
-
-    if (!currentMerchant) {
-      return next(appError("Merchant is not authenticated", 401));
-    }
-
     const { orderId } = req.params;
 
     let orderFound = await Order.findById(orderId);
 
-    if (!orderFound) {
-      return next(appError("Order not found", 404));
-    }
+    if (!orderFound) return next(appError("Order not found", 404));
+
+    const currentMerchant = req.userAuth;
 
     if (orderFound.merchantId.toString() !== currentMerchant.toString()) {
       return next(appError("Access denied", 400));
@@ -412,6 +415,12 @@ const rejectOrderController = async (req, res, next) => {
       await orderFound.save();
       await customerFound.save();
     }
+
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `Order (#${orderId}) is rejected by Merchant (${req.userAuth})`,
+    });
 
     const eventName = "orderRejected";
 
@@ -973,9 +982,9 @@ const getScheduledOrderDetailController = async (req, res, next) => {
       )} || ${formatDate(orderFound.endDate)} | ${formatTime(
         orderFound.endDate
       )}`,
-      deliveryTime: `${formatDate(
+      deliveryTime: `${formatDate(orderFound.time)} | ${formatTime(
         orderFound.time
-      )} | ${formatTime(orderFound.time)}`,
+      )}`,
       isViewed: orderFound?.isViewed,
       customerDetail: {
         _id: orderFound.customerId._id,
@@ -1047,25 +1056,17 @@ const createOrderController = async (req, res, next) => {
   try {
     const { paymentMode, cartId } = req.body;
 
-    console.log("cartId", cartId);
-
     const cartFound = await CustomerCart.findById(cartId);
 
-    if (!cartFound) {
-      return next(appError("Cart not found", 404));
-    }
+    if (!cartFound) return next(appError("Cart not found", 404));
 
     const customerFound = await Customer.findById(cartFound.customerId);
 
-    if (!customerFound) {
-      return next(appError("Customer not found", 404));
-    }
+    if (!customerFound) return next(appError("Customer not found", 404));
 
     const merchant = await Merchant.findById(cartFound.merchantId);
 
-    if (!merchant) {
-      return next(appError("Merchant not found", 404));
-    }
+    if (!merchant) return next(appError("Merchant not found", 404));
 
     const deliveryTimeMinutes = parseInt(
       merchant.merchantDetail.deliveryTime,
@@ -1145,6 +1146,12 @@ const createOrderController = async (req, res, next) => {
           purchasedItems,
         });
 
+        await ActivityLog.create({
+          userId: req.userAuth,
+          userType: req.userRole,
+          description: `New order (#${newOrder._id}) is created by Merchant (${req.userAuth})`,
+        });
+
         const { payableAmountToFamto, payableAmountToMerchant } =
           await orderCommissionLogHelper(newOrder._id);
 
@@ -1189,6 +1196,12 @@ const createOrderController = async (req, res, next) => {
           purchasedItems,
         });
 
+        await ActivityLog.create({
+          userId: req.userAuth,
+          userType: req.userRole,
+          description: `New scheduled order (#${newOrder._id}) is created by Merchant (${req.userAuth})`,
+        });
+
         // Clear the cart
         await CustomerCart.deleteOne({ customerId: customerFound._id });
 
@@ -1221,10 +1234,6 @@ const createOrderController = async (req, res, next) => {
           "orderDetailStepper.accepted": stepperData,
           purchasedItems,
         });
-
-        console.log("================================");
-        console.log(newOrder);
-        console.log("================================");
 
         const { payableAmountToFamto, payableAmountToMerchant } =
           await orderCommissionLogHelper(newOrder._id);
@@ -1606,8 +1615,8 @@ const getAvailableMerchantBusinessCategoriesController = async (
 const markScheduledOrderViewedController = async (req, res, next) => {
   try {
     const { orderId, merchantId } = req.params;
-    console.log("orderId", orderId)
-    console.log("merchantId", merchantId)
+    console.log("orderId", orderId);
+    console.log("merchantId", merchantId);
     const scheduledOrder = await ScheduledOrder.findOneAndUpdate(
       { _id: orderId, merchantId },
       {

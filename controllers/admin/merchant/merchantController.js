@@ -30,6 +30,7 @@ const SubscriptionLog = require("../../../models/SubscriptionLog");
 const Category = require("../../../models/Category");
 const Product = require("../../../models/Product");
 const sharp = require("sharp");
+const ActivityLog = require("../../../models/ActivityLog");
 
 // Helper function to handle null or empty string values
 const convertNullValues = (obj) => {
@@ -433,6 +434,12 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
     merchantFound.merchantDetail = details;
 
     await merchantFound.save();
+
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `Details are updated by Merchant (${req.userAuth})`,
+    });
 
     res.status(200).json({ message: "Merchant details added successfully" });
   } catch (err) {
@@ -1009,6 +1016,12 @@ const addMerchantController = async (req, res, next) => {
       return next(appError("Error in creating new merchant"));
     }
 
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `New merchant (${newMerchant.fullName}) is added by ${req.userRole} (${req.userAuth})`,
+    });
+
     const formattedResponse = {
       _id: newMerchant._id,
       merchantName: "-",
@@ -1269,6 +1282,12 @@ const updateMerchantDetailsController = async (req, res, next) => {
     merchantFound.merchantDetail = details;
 
     await merchantFound.save();
+
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `Details of ${merchantFound.merchantDetail.merchantName} is updated by Admin (${req.userAuth})`,
+    });
 
     res.status(200).json({ message: "Merchant details updated successfully" });
   } catch (err) {

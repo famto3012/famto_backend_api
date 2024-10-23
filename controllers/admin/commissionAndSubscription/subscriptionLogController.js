@@ -1,3 +1,4 @@
+const ActivityLog = require("../../../models/ActivityLog");
 const Customer = require("../../../models/Customer");
 const CustomerSubscription = require("../../../models/CustomerSubscription");
 const Merchant = require("../../../models/Merchant");
@@ -319,23 +320,36 @@ const createSubscriptionLogUser = async (req, res, next) => {
 const setAsPaidController = async (req, res, next) => {
   try {
     const { subscriptionId } = req.params;
+
     const subscriptionLog = await SubscriptionLog.findByIdAndUpdate(
       subscriptionId,
       { paymentStatus: "Paid" },
       { new: true }
     );
+
     const typeOfUser = subscriptionLog.typeOfUser;
+
     if (typeOfUser === "Merchant") {
       const merchantFound = await Merchant.findById(subscriptionLog.userId);
+
       merchantFound.merchantDetail.pricing.push({
         modelType: "Subscription",
         modelId: subscriptionLog._id,
       });
+
       await merchantFound.save();
     }
+
     if (!subscriptionLog) {
-      return res.status(404).json({ message: "Subscription log not found" });
+      return next(appError("Subscription log not found", 404));
     }
+
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `Subscription payment status of ${typeOfUser} (${subscriptionLog.userId}) is updated by Admin (${req.userAuth})`,
+    });
+
     res.status(200).json({
       message: "Subscription log updated successfully",
       subscriptionLog,

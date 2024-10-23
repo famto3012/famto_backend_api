@@ -44,6 +44,7 @@ const mongoose = require("mongoose");
 const puppeteer = require("puppeteer");
 const AgentAnnouncementLogs = require("../../../models/AgentAnnouncementLog");
 const Task = require("../../../models/Task");
+const ActivityLog = require("../../../models/ActivityLog");
 
 const getAllOrdersForAdminController = async (req, res, next) => {
   try {
@@ -258,6 +259,12 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
 
     await orderFound.save();
 
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `Order (#${orderId}) is confirmed by Admin (${req.userAuth})`,
+    });
+
     const eventName = "orderAccepted";
 
     const { rolesToNotify, data } = await findRolesToNotify(eventName);
@@ -403,6 +410,12 @@ const rejectOrderByAdminController = async (req, res, next) => {
       await orderFound.save();
       await customerFound.save();
     }
+
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `Order (#${orderId}) is rejected by Admin (${req.userAuth})`,
+    });
 
     const eventName = "orderRejected";
 
@@ -1152,6 +1165,12 @@ const createOrderByAdminController = async (req, res, next) => {
         "orderDetailStepper.created": stepperDetail,
       });
 
+      await ActivityLog.create({
+        userId: req.userAuth,
+        userType: req.userRole,
+        description: `New order (#${newOrderCreated._id}) is created by Admin (${req.userAuth})`,
+      });
+
       const newOrder = await Order.findById(newOrderCreated._id).populate(
         "merchantId"
       );
@@ -1275,6 +1294,12 @@ const createOrderByAdminController = async (req, res, next) => {
         "orderDetailStepper.created": stepperDetail,
       });
 
+      await ActivityLog.create({
+        userId: req.userAuth,
+        userType: req.userRole,
+        description: `New order (#${newOrderCreated._id}) is created by Admin (${req.userAuth})`,
+      });
+
       const newOrder = await Order.findById(newOrderCreated._id).populate(
         "merchantId"
       );
@@ -1385,6 +1410,12 @@ const createOrderByAdminController = async (req, res, next) => {
         purchasedItems,
       });
 
+      await ActivityLog.create({
+        userId: req.userAuth,
+        userType: req.userRole,
+        description: `New scheduled order (#${newOrderCreated._id}) is created by Admin (${req.userAuth})`,
+      });
+
       // Clear the cart
       await CustomerCart.deleteOne({ customerId: customer._id });
       customer.transactionDetail.push(customerTransation);
@@ -1414,6 +1445,12 @@ const createOrderByAdminController = async (req, res, next) => {
         startDate: cartFound.cartDetail.startDate,
         endDate: cartFound.cartDetail.endDate,
         time: cartFound.cartDetail.time,
+      });
+
+      await ActivityLog.create({
+        userId: req.userAuth,
+        userType: req.userRole,
+        description: `New scheduled order (#${newOrderCreated._id}) is created by Admin (${req.userAuth})`,
       });
 
       // Clear the cart
@@ -2065,6 +2102,12 @@ const orderMarkAsReadyController = async (req, res, next) => {
       orderFound.orderDetail.isReady = true;
       await orderFound.save();
 
+      await ActivityLog.create({
+        userId: req.userAuth,
+        userType: req.userRole,
+        description: `Order (#${orderId}) is marked as ready by Admin (${req.userAuth})`,
+      });
+
       const eventName = "orderReadyCustomer";
 
       const { rolesToNotify, data } = await findRolesToNotify(eventName);
@@ -2179,6 +2222,12 @@ const markTakeAwayOrderCompletedController = async (req, res, next) => {
       taskFound.taskStatus = "Completed";
       taskFound.pickupDetail.pickupStatus = "Completed";
       await taskFound.save();
+
+      await ActivityLog.create({
+        userId: req.userAuth,
+        userType: req.userRole,
+        description: `Order (#${orderId}) is marked as collected by customer by Admin (${req.userAuth})`,
+      });
 
       res.status(200).json({ message: "Order marked as completed." });
     } else {
@@ -2419,9 +2468,9 @@ const getScheduledOrderDetailByAdminController = async (req, res, next) => {
       )} || ${formatDate(orderFound.endDate)} | ${formatTime(
         orderFound.endDate
       )}`,
-      deliveryTime: `${formatDate(
+      deliveryTime: `${formatDate(orderFound.time)} | ${formatTime(
         orderFound.time
-      )} | ${formatTime(orderFound.time)}`,
+      )}`,
       customerDetail: {
         _id: orderFound.customerId._id,
         name:
@@ -2477,7 +2526,6 @@ const getScheduledOrderDetailByAdminController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
-//
 
 module.exports = {
   getAllOrdersForAdminController,

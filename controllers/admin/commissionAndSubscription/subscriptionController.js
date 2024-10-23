@@ -5,6 +5,7 @@ const CustomerSubscription = require("../../../models/CustomerSubscription");
 const Tax = require("../../../models/Tax");
 
 const appError = require("../../../utils/appError");
+const ActivityLog = require("../../../models/ActivityLog");
 
 const addMerchantSubscriptionPlanController = async (req, res, next) => {
   const errors = validationResult(req);
@@ -38,6 +39,12 @@ const addMerchantSubscriptionPlanController = async (req, res, next) => {
     });
 
     const savedSubscriptionPlan = await subscriptionPlan.save();
+
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `New Merchant subscription plan (${name}) is created by Admin (${req.userAuth})`,
+    });
 
     res.status(201).json({
       message: "Subscription plan added successfully",
@@ -102,6 +109,12 @@ const editMerchantSubscriptionPlanController = async (req, res, next) => {
     // Save the updated subscription plan
     const updatedSubscriptionPlan = await subscriptionPlan.save();
 
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `Merchant subscription plan (${name}) is updated by Admin (${req.userAuth})`,
+    });
+
     res.status(200).json({
       message: "Subscription plan updated successfully",
       data: updatedSubscriptionPlan,
@@ -137,8 +150,14 @@ const deleteMerchantSubscriptionPlanController = async (req, res, next) => {
     const subscriptionPlan = await MerchantSubscription.findByIdAndDelete(id);
 
     if (!subscriptionPlan) {
-      return res.status(404).json({ message: "Subscription plan not found" });
+      return next(appError("Subscription plan not found", 404));
     }
+
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `Merchant subscription plan (${subscriptionPlan.name}) is deleted by Admin (${req.userAuth})`,
+    });
 
     res.status(200).json({
       message: "Subscription plan deleted successfully",
@@ -189,6 +208,12 @@ const addCustomerSubscriptionPlanController = async (req, res, next) => {
 
     const savedSubscriptionPlan = await subscriptionPlan.save();
 
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `New Customer subscription plan (${name}) is created by Admin (${req.userAuth})`,
+    });
+
     res.status(201).json({
       message: "Subscription plan added successfully",
       data: savedSubscriptionPlan,
@@ -237,12 +262,10 @@ const editCustomerSubscriptionPlanController = async (req, res, next) => {
       description,
     } = req.body;
 
-    console.log(req.body);
-
     const subscriptionPlan = await CustomerSubscription.findById(id);
 
     if (!subscriptionPlan) {
-      return res.status(404).json({ message: "Subscription plan not found" });
+      return next(appError("Subscription plan not found", 404));
     }
 
     let totalAmount = amount;
@@ -267,6 +290,12 @@ const editCustomerSubscriptionPlanController = async (req, res, next) => {
       },
       { new: true }
     );
+
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `Customer subscription plan (${name}) is updated by Admin (${req.userAuth})`,
+    });
 
     updatedSubPlan = await updatedSubPlan.populate("taxId", "taxName");
 
@@ -305,8 +334,14 @@ const deleteCustomerSubscriptionPlanController = async (req, res, next) => {
     const subscriptionPlan = await CustomerSubscription.findByIdAndDelete(id);
 
     if (!subscriptionPlan) {
-      return res.status(404).json({ message: "Subscription plan not found" });
+      return next(appError("Subscription plan not found", 404));
     }
+
+    await ActivityLog.create({
+      userId: req.userAuth,
+      userType: req.userRole,
+      description: `Customer subscription plan (${subscriptionPlan.name}) is deleted by Admin (${req.userAuth})`,
+    });
 
     res.status(200).json({
       message: "Subscription plan deleted successfully",
