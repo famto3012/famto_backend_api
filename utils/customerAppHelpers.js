@@ -1,5 +1,4 @@
 const axios = require("axios");
-const moment = require("moment");
 const Tax = require("../models/Tax");
 const Order = require("../models/Order");
 const Product = require("../models/Product");
@@ -110,19 +109,6 @@ const convertToIST = (date) => {
   const istOffset = 5 * 60 + 30; // IST is UTC + 5 hours 30 minutes
   const dateInIST = new Date(date.getTime() + istOffset * 60 * 1000);
   return dateInIST;
-};
-
-const adjustEndDate = (endDate, time) => {
-  // Parse the endDate and time using Moment.js
-  const endMoment = moment(endDate).utc(); // Ensure endDate is in UTC
-  const timeMoment = moment(time).utc(); // Ensure time is in UTC
-
-  // Set the hours and minutes of endMoment to those of timeMoment
-  endMoment.hours(timeMoment.hours());
-  endMoment.minutes(timeMoment.minutes());
-  endMoment.seconds(0); // Optional: reset seconds to 0 if you want
-
-  return endMoment.toDate(); // Convert back to Date object
 };
 
 const createOrdersFromScheduled = async (scheduledOrder) => {

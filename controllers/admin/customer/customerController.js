@@ -781,7 +781,7 @@ const getCustomersOfMerchant = async (req, res, next) => {
         fullName: customer?.fullName || "-",
         phoneNumber: customer?.phoneNumber || "-",
         email: customer?.email || "-",
-        lastPlatformUsed: customer.lastPlatformUsed,
+        lastPlatformUsed: customer.lastPlatformUsed || "-",
         registrationDate: formatDate(customer.createdAt),
         rating: Math.floor(customer?.averageRating) || 0,
       };
@@ -855,7 +855,7 @@ const searchCustomerByNameForMerchantController = async (req, res, next) => {
         email: customer.email || "-",
         customerImageURL: customer?.customerDetails?.customerImageURL || null,
         phoneNumber: customer.phoneNumber,
-        lastPlatformUsed: customer.lastPlatformUsed,
+        lastPlatformUsed: customer.lastPlatformUsed || "-",
         registrationDate: formatDate(customer.createdAt),
         averageRating: customer.customerDetails?.averageRating || 0,
         address: [
