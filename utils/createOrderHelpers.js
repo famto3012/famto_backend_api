@@ -10,7 +10,7 @@ const PickAndCustomCart = require("../models/PickAndCustomCart");
 const Product = require("../models/Product");
 const appError = require("./appError");
 
-const { convertToUTC, convertISTToUTC } = require("./formatters");
+const { convertISTToUTC } = require("./formatters");
 
 const geoLocation = require("./getGeoLocation");
 
@@ -398,7 +398,7 @@ const handleAddressDetails = async (
   }
 
   // Handling Pick and Drop
-  else if (deliveryMode === "Pick and Drop") {
+  if (deliveryMode === "Pick and Drop") {
     if (newPickupAddress) {
       pickupLocation = [newPickupAddress.latitude, newPickupAddress.longitude];
       pickupAddress = newPickupAddress;
@@ -438,7 +438,7 @@ const handleAddressDetails = async (
   }
 
   // Handling Custom Order
-  else if (deliveryMode === "Custom Order") {
+  if (deliveryMode === "Custom Order") {
     if (customPickupLocation) {
       pickupLocation = [customPickupLocation[0], customPickupLocation[1]];
     }
@@ -1130,6 +1130,64 @@ const saveCustomerCart = async (
   }
 };
 
+// APP
+const processDeliverydetailInApp = async (
+  customer,
+  pickUpAddressType,
+  pickUpAddressOtherAddressId,
+  newPickupAddress,
+  deliveryAddressType,
+  deliveryAddressOtherAddressId,
+  newDeliveryAddress
+) => {
+  let pickupLocation, pickupAddress, deliveryLocation, deliveryAddress;
+  if (newPickupAddress) {
+    pickupLocation = [newPickupAddress.latitude, newPickupAddress.longitude];
+    pickupAddress = newPickupAddress;
+  }
+  if (pickUpAddressType) {
+    const address = getAddressDetails(
+      customer,
+      pickUpAddressType,
+      pickUpAddressOtherAddressId
+    );
+    if (!address) throw new Error("Pickup address not found");
+    pickupLocation = address.coordinates;
+    pickupAddress = address;
+  }
+  if (newDeliveryAddress) {
+    deliveryLocation = [
+      newDeliveryAddress.latitude,
+      newDeliveryAddress.longitude,
+    ];
+    deliveryAddress = newDeliveryAddress;
+  }
+  if (deliveryAddressType) {
+    const address = getAddressDetails(
+      customer,
+      deliveryAddressType,
+      deliveryAddressOtherAddressId
+    );
+    if (!address) throw new Error("Delivery address not found");
+    deliveryLocation = address.coordinates;
+    deliveryAddress = address;
+  }
+  if (
+    !pickupLocation ||
+    !pickupAddress ||
+    !deliveryLocation ||
+    !deliveryAddress
+  ) {
+    throw new Error("Incomplete address details");
+  }
+  return {
+    pickupLocation,
+    pickupAddress,
+    deliveryLocation,
+    deliveryAddress,
+  };
+};
+
 module.exports = {
   findOrCreateCustomer,
   processSchedule,
@@ -1152,4 +1210,6 @@ module.exports = {
   handleDeliveryModeForAdmin,
   calculateDeliveryChargeHelperForAdmin,
   saveCustomerCart,
+  //
+  processDeliverydetailInApp,
 };

@@ -145,6 +145,8 @@ const listRestaurantsController = async (req, res, next) => {
       return next(appError("Geofence not found", 404));
     }
 
+    console.log(foundGeofence._id);
+
     const merchants = await Merchant.find({
       "merchantDetail.geofenceId": foundGeofence._id,
       "merchantDetail.businessCategoryId": { $in: [businessCategoryId] },
@@ -197,6 +199,124 @@ const listRestaurantsController = async (req, res, next) => {
     res.status(200).json({
       message: "Available merchants",
       data: simplifiedMerchants,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Search Restaurants or Products in a businesscategory
+const searchMerchantsOrProducts = async (req, res, next) => {
+  try {
+    const { query, businessCategoryId, latitude, longitude } = req.query;
+
+    const foundGeofence = await geoLocation(latitude, longitude);
+
+    if (!foundGeofence) {
+      return next(appError("Geofence not found", 404));
+    }
+
+    const customerId = req.userAuth;
+
+    const currentCustomer = await Customer.findById(customerId)
+      .select("customerDetails.favoriteMerchants")
+      .exec();
+
+    if (!currentCustomer) return next(appError("Customer not found", 404));
+
+    const customerLocation = [latitude, longitude];
+
+    const availableMerchants = await Merchant.find({
+      "merchantDetail.merchantName": { $regex: query, $options: "i" },
+      "merchantDetail.geofenceId": foundGeofence._id,
+      "merchantDetail.businessCategoryId": { $in: [businessCategoryId] },
+      "merchantDetail.pricing.0": { $exists: true },
+      "merchantDetail.pricing.modelType": { $exists: true },
+      "merchantDetail.pricing.modelId": { $exists: true },
+      "merchantDetail.location": { $ne: [] },
+      isBlocked: false,
+      isApproved: "Approved",
+    });
+
+    const filteredMerchants = availableMerchants?.filter((merchant) => {
+      const servingRadius = merchant.merchantDetail.servingRadius || 0;
+      if (servingRadius > 0) {
+        const merchantLocation = merchant.merchantDetail.location;
+        const distance = turf.distance(
+          turf.point(merchantLocation),
+          turf.point(customerLocation),
+          { units: "kilometers" }
+        );
+        return distance <= servingRadius;
+      }
+      return true;
+    });
+
+    const sortedMerchants = await sortMerchantsBySponsorship(filteredMerchants);
+
+    const simplifiedMerchants = await Promise.all(
+      sortedMerchants.map(async (merchant) => {
+        const isFavorite =
+          currentCustomer?.customerDetails?.favoriteMerchants?.includes(
+            merchant._id
+          ) ?? false;
+
+        return {
+          id: merchant._id,
+          merchantName: merchant.merchantDetail.merchantName,
+          description: merchant.merchantDetail.description,
+          averageRating: merchant.merchantDetail.averageRating,
+          status: merchant.status,
+          restaurantType: merchant.merchantDetail.merchantFoodType || "-",
+          merchantImageURL: merchant.merchantDetail.merchantImageURL,
+          displayAddress: merchant.merchantDetail.displayAddress || "-",
+          preOrderStatus: merchant.merchantDetail.preOrderStatus,
+          isFavorite,
+        };
+      })
+    );
+
+    const categories = await Category.find({
+      businessCategoryId,
+    });
+
+    // Extract all category ids to search products within all these categories
+    const categoryIds = categories.map((category) => category._id);
+
+    // Search products within the found categoryIds
+    const products = await Product.find({
+      categoryId: { $in: categoryIds }, // Search within all relevant categories
+      $or: [
+        { productName: { $regex: query, $options: "i" } },
+        // { description: { $regex: query, $options: "i" } },
+        { searchTags: { $elemMatch: { $regex: query, $options: "i" } } },
+      ],
+    })
+      .select(
+        "_id productName price description productImageURL inventory variants"
+      )
+      .sort({ order: 1 });
+
+    const formattedResponse = products?.map((product) => ({
+      id: product._id,
+      productName: product.productName,
+      price: product.price,
+      description: product.description,
+      productImageUrl: product?.productImageURL || null,
+      variants: product.variants.map((variant) => ({
+        id: variant._id,
+        variantName: variant.variantName,
+        variantTypes: variant.variantTypes.map((variantType) => ({
+          id: variantType._id,
+          typeName: variantType.typeName,
+          price: variantType.price,
+        })),
+      })),
+    }));
+
+    res.status(200).json({
+      merchants: simplifiedMerchants,
+      products: formattedResponse,
     });
   } catch (err) {
     next(appError(err.message));
@@ -527,7 +647,7 @@ const searchProductsInMerchantController = async (req, res, next) => {
       categoryId: { $in: categoryIds }, // Search within all relevant categories
       $or: [
         { productName: { $regex: query, $options: "i" } },
-        { description: { $regex: query, $options: "i" } },
+        // { description: { $regex: query, $options: "i" } },
         { searchTags: { $elemMatch: { $regex: query, $options: "i" } } },
       ],
     })
@@ -536,11 +656,7 @@ const searchProductsInMerchantController = async (req, res, next) => {
       )
       .sort({ order: 1 });
 
-    if (!products || products.length === 0) {
-      return next(appError("No products found", 404));
-    }
-
-    const formattedResponse = products.map((product) => ({
+    const formattedResponse = products?.map((product) => ({
       id: product._id,
       productName: product.productName,
       price: product.price,
@@ -2572,4 +2688,5 @@ module.exports = {
   orderPaymentController,
   verifyOnlinePaymentController,
   cancelOrderBeforeCreationController,
+  searchMerchantsOrProducts,
 };

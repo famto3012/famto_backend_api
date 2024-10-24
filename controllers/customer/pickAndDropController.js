@@ -22,7 +22,6 @@ const {
   razorpayRefund,
 } = require("../../utils/razorpayPayment");
 const {
-  convertToUTC,
   convertStartDateToUTC,
   convertEndDateToUTC,
   formatDate,
@@ -34,20 +33,22 @@ const {
 } = require("../../utils/imageOperation");
 
 const { sendNotification, sendSocketData } = require("../../socket/socket");
-const { processSchedule } = require("../../utils/createOrderHelpers");
+const {
+  processSchedule,
+  processDeliverydetailInApp,
+} = require("../../utils/createOrderHelpers");
 
+// Add pick and drop address
 const addPickUpAddressController = async (req, res, next) => {
   try {
     const {
-      pickupAddressType,
-      pickupAddressOtherAddressId,
-      newPickupAddress,
-      addNewPickupToAddressBook,
-      instructionInPickup,
+      pickUpAddressType,
+      pickUpAddressOtherAddressId,
       deliveryAddressType,
       deliveryAddressOtherAddressId,
-      newDropAddress,
-      addNewDeliveryToAddressBook,
+      newPickupAddress,
+      newDeliveryAddress,
+      instructionInPickup,
       instructionInDelivery,
       startDate,
       endDate,
@@ -62,97 +63,18 @@ const addPickUpAddressController = async (req, res, next) => {
       return next(appError("Customer not found", 404));
     }
 
-    // Retrieve the specified pickup address coordinates from the customer data
-    let pickupCoordinates;
-    let pickupAddress = {};
+    const { pickupLocation, pickupAddress, deliveryLocation, deliveryAddress } =
+      await processDeliverydetailInApp(
+        customer,
+        pickUpAddressType,
+        pickUpAddressOtherAddressId,
+        newPickupAddress,
+        deliveryAddressType,
+        deliveryAddressOtherAddressId,
+        newDeliveryAddress
+      );
 
-    if (newPickupAddress) {
-      pickupAddress = {
-        ...newPickupAddress,
-      };
-
-      pickupCoordinates = newPickupAddress.coordinates;
-
-      if (addNewPickupToAddressBook) {
-        if (pickupAddressType === "home") {
-          customer.customerDetails.homeAddress = pickupAddress;
-        } else if (pickupAddressType === "work") {
-          customer.customerDetails.workAddress = pickupAddress;
-        } else if (pickupAddressType === "other") {
-          customer.customerDetails.otherAddress.push({
-            id: new mongoose.Types.ObjectId(),
-            ...pickupAddress,
-          });
-        }
-
-        await customer.save();
-      }
-    } else {
-      if (pickupAddressType === "home") {
-        pickupCoordinates = customer.customerDetails.homeAddress.coordinates;
-        pickupAddress = { ...customer.customerDetails.homeAddress };
-      } else if (pickupAddressType === "work") {
-        pickupCoordinates = customer.customerDetails.workAddress.coordinates;
-        pickupAddress = { ...customer.customerDetails.workAddress };
-      } else {
-        const otherAddress = customer.customerDetails.otherAddress.find(
-          (addr) => addr.id.toString() === pickupAddressOtherAddressId
-        );
-        if (otherAddress) {
-          pickupCoordinates = otherAddress.coordinates;
-          pickupAddress = { ...otherAddress };
-        } else {
-          return res.status(404).json({ error: "Address not found" });
-        }
-      }
-    }
-
-    // Retrieve the specified drop address coordinates from the customer data
-    let deliveryCoordinates;
-    let deliveryAddress = {};
-
-    if (newDropAddress) {
-      deliveryAddress = {
-        ...newDropAddress,
-      };
-
-      deliveryCoordinates = newDropAddress.coordinates;
-
-      if (addNewDeliveryToAddressBook) {
-        if (deliveryAddressType === "home") {
-          customer.customerDetails.homeAddress = deliveryAddress;
-        } else if (deliveryAddressType === "work") {
-          customer.customerDetails.workAddress = deliveryAddress;
-        } else if (deliveryAddressType === "other") {
-          customer.customerDetails.otherAddress.push({
-            id: new mongoose.Types.ObjectId(),
-            ...deliveryAddress,
-          });
-        }
-
-        await customer.save();
-      }
-    } else {
-      if (deliveryAddressType === "home") {
-        deliveryCoordinates = customer.customerDetails.homeAddress.coordinates;
-        deliveryAddress = { ...customer.customerDetails.homeAddress };
-      } else if (deliveryAddressType === "work") {
-        deliveryCoordinates = customer.customerDetails.workAddress.coordinates;
-        deliveryAddress = { ...customer.customerDetails.workAddress };
-      } else {
-        const otherAddress = customer.customerDetails.otherAddress.find(
-          (addr) => addr.id.toString() === deliveryAddressOtherAddressId
-        );
-        if (otherAddress) {
-          deliveryCoordinates = otherAddress.coordinates;
-          deliveryAddress = { ...otherAddress };
-        } else {
-          return res.status(404).json({ error: "Address not found" });
-        }
-      }
-    }
-
-    const cartFound = await PickAndCustomCart.findOne({ customerId });
+    let cartFound = await PickAndCustomCart.findOne({ customerId });
 
     let voiceInstructionInPickupURL =
       cartFound?.cartDetail?.voiceInstructionInPickup || "";
@@ -196,19 +118,19 @@ const addPickUpAddressController = async (req, res, next) => {
     }
 
     let updatedCartDetail = {
-      pickupAddress: pickupAddress._doc,
-      pickupLocation: pickupCoordinates,
-      deliveryAddress: deliveryAddress._doc,
-      deliveryLocation: deliveryCoordinates,
+      pickupAddress: pickupAddress,
+      pickupLocation: pickupLocation,
+      deliveryAddress: deliveryAddress,
+      deliveryLocation: deliveryLocation,
       deliveryMode: "Pick and Drop",
       deliveryOption: startDate && endDate && time ? "Scheduled" : "On-demand",
       instructionInPickup,
       instructionInDelivery,
       voiceInstructionInPickup: voiceInstructionInPickupURL,
       voiceInstructionInDelivery: voiceInstructionInDeliveryURL,
-      startDate: scheduled.startDate,
-      endDate: scheduled.endDate,
-      time: scheduled.time,
+      startDate: scheduled?.startDate,
+      endDate: scheduled?.endDate,
+      time: scheduled?.time,
     };
 
     if (startDate && endDate && time) {
@@ -221,15 +143,55 @@ const addPickUpAddressController = async (req, res, next) => {
 
     // Calculate distance using MapMyIndia API
     const { distanceInKM, durationInMinutes } =
-      await getDistanceFromPickupToDelivery(
-        pickupCoordinates,
-        deliveryCoordinates
-      );
+      await getDistanceFromPickupToDelivery(pickupLocation, deliveryLocation);
 
     updatedCartDetail.distance = parseFloat(distanceInKM);
     updatedCartDetail.duration = parseFloat(durationInMinutes);
 
-    // Fetch all available vehicle types from the Agent model
+    if (cartFound) {
+      await PickAndCustomCart.findByIdAndUpdate(
+        cartFound._id,
+        {
+          cartDetail: updatedCartDetail,
+        },
+        {
+          new: true,
+        }
+      );
+    } else {
+      cartFound = await PickAndCustomCart.create({
+        customerId,
+        cartDetail: updatedCartDetail,
+      });
+    }
+
+    res.status(200).json({
+      message: "Pick and Drop locations added successfully",
+      data: cartFound._id,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get vehicle charges
+const getVehiclePricingDetalsController = async (req, res, next) => {
+  try {
+    const customerId = req.userAuth;
+
+    const customer = await Customer.findById(customerId);
+
+    if (!customer) return next(appError("Customer not found", 404));
+
+    const { cartId } = req.params;
+
+    const cartFound = await PickAndCustomCart.findOne({
+      _id: cartId,
+      customerId,
+    });
+
+    if (!cartFound) return next(appError("Customer cart not found", 404));
+
     const agents = await Agent.find({});
     const vehicleTypes = agents.flatMap((agent) =>
       agent.vehicleDetail.map((vehicle) => vehicle.type)
@@ -255,13 +217,15 @@ const addPickUpAddressController = async (req, res, next) => {
 
     let surgeCharges;
 
+    const { distance, duration } = cartFound.cartDetail;
+
     if (customerSurge) {
       let surgeBaseFare = customerSurge.baseFare;
       let surgeBaseDistance = customerSurge.baseDistance;
       let surgeFareAfterBaseDistance = customerSurge.fareAfterBaseDistance;
 
       surgeCharges = calculateDeliveryCharges(
-        distanceInKM,
+        distance,
         surgeBaseFare,
         surgeBaseDistance,
         surgeFareAfterBaseDistance
@@ -269,7 +233,7 @@ const addPickUpAddressController = async (req, res, next) => {
     }
 
     const vehicleCharges = uniqueVehicleTypes
-      .map((vehicleType) => {
+      ?.map((vehicleType) => {
         const pricing = customerPricingArray.find(
           (price) => price.vehicleType === vehicleType
         );
@@ -280,7 +244,7 @@ const addPickUpAddressController = async (req, res, next) => {
           const fareAfterBaseDistance = pricing.fareAfterBaseDistance;
 
           const deliveryCharges = calculateDeliveryCharges(
-            distanceInKM,
+            distance,
             baseFare,
             baseDistance,
             fareAfterBaseDistance
@@ -288,8 +252,7 @@ const addPickUpAddressController = async (req, res, next) => {
 
           return {
             vehicleType,
-            deliveryCharges:
-              parseFloat(deliveryCharges.toFixed(2)) + (surgeCharges || 0),
+            deliveryCharges: parseFloat(deliveryCharges) + (surgeCharges || 0),
           };
         } else {
           return null;
@@ -297,37 +260,13 @@ const addPickUpAddressController = async (req, res, next) => {
       })
       .filter(Boolean);
 
-    if (cartFound) {
-      await PickAndCustomCart.findByIdAndUpdate(
-        cartFound._id,
-        {
-          cartDetail: updatedCartDetail,
-        },
-        {
-          new: true,
-        }
-      );
-    } else {
-      await PickAndCustomCart.create({
-        customerId,
-        cartDetail: updatedCartDetail,
-      });
-    }
-
-    res.status(200).json({
-      message: "Pick and Drop locations added successfully",
-      data: {
-        cart: {
-          ...updatedCartDetail,
-          vehicleCharges,
-        },
-      },
-    });
+    res.status(200).json({ distance, duration, vehicleCharges });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
+// Add Items
 const addPickandDropItemsController = async (req, res, next) => {
   try {
     const { items, vehicleType, deliveryCharge } = req.body;
@@ -381,6 +320,7 @@ const addPickandDropItemsController = async (req, res, next) => {
   }
 };
 
+// Add tip and promocode
 const addTipAndApplyPromocodeInPickAndDropController = async (
   req,
   res,
@@ -496,7 +436,7 @@ const addTipAndApplyPromocodeInPickAndDropController = async (
   }
 };
 
-//
+// Confirm pick and drop
 const confirmPickAndDropController = async (req, res, next) => {
   try {
     const { paymentMode } = req.body;
@@ -746,6 +686,7 @@ const confirmPickAndDropController = async (req, res, next) => {
   }
 };
 
+// Verify pick and drop
 const verifyPickAndDropPaymentController = async (req, res, next) => {
   try {
     const { paymentDetails } = req.body;
@@ -975,6 +916,7 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
   }
 };
 
+// Cancel order before creation
 const cancelPickBeforeOrderCreationController = async (req, res, next) => {
   try {
     const { orderId } = req.params;
@@ -1059,6 +1001,7 @@ const cancelPickBeforeOrderCreationController = async (req, res, next) => {
 
 module.exports = {
   addPickUpAddressController,
+  getVehiclePricingDetalsController,
   addPickandDropItemsController,
   addTipAndApplyPromocodeInPickAndDropController,
   confirmPickAndDropController,

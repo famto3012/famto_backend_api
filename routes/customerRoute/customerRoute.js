@@ -57,6 +57,7 @@ const {
   cancelOrderBeforeCreationController,
   getAllCategoriesOfMerchants,
   getAllProductsOfMerchantController,
+  searchMerchantsOrProducts,
 } = require("../../controllers/customer/universalOrderController");
 const {
   addPickUpAddressController,
@@ -65,6 +66,7 @@ const {
   confirmPickAndDropController,
   verifyPickAndDropPaymentController,
   cancelPickBeforeOrderCreationController,
+  getVehiclePricingDetalsController,
 } = require("../../controllers/customer/pickAndDropController");
 const {
   addShopController,
@@ -134,6 +136,13 @@ customerRoute.post(
   "/list-restaurants",
   isAuthenticated,
   listRestaurantsController
+);
+
+// List all restaurants in customers geofence
+customerRoute.get(
+  "/search-merchant-or-product",
+  isAuthenticated,
+  searchMerchantsOrProducts
 );
 
 // Get all categories a merchant
@@ -312,6 +321,12 @@ customerRoute.post(
   ]),
   isAuthenticated,
   addPickUpAddressController
+);
+
+customerRoute.get(
+  "/get-vehicle-charges/:cartId",
+  isAuthenticated,
+  getVehiclePricingDetalsController
 );
 
 customerRoute.post(
