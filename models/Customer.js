@@ -240,6 +240,19 @@ const customerSchema = new mongoose.Schema(
     walletTransactionDetail: [walletTransactionDetailSchema],
     transactionDetail: [transactionDetailSchema],
     referralDetail: referralDetailSchema,
+    loyaltyPointDetails: [
+      {
+        earnedOn: {
+          type: Date,
+          default: Date.now,
+        },
+        point: {
+          type: Number,
+          required: true,
+          min: 0,
+        },
+      },
+    ],
   },
   {
     timestamps: true,

@@ -10,7 +10,7 @@ const addLoyaltyPointController = async (req, res, next) => {
     earningCriteriaRupee,
     earningCriteriaPoint,
     minOrderAmountForEarning,
-    maxEarningPoint,
+    maxEarningPointPerOrder,
     expiryDuration,
     redemptionCriteriaPoint,
     redemptionCriteriaRupee,
@@ -35,7 +35,7 @@ const addLoyaltyPointController = async (req, res, next) => {
       newCriteria.earningCriteriaRupee = earningCriteriaRupee;
       newCriteria.earningCriteriaPoint = earningCriteriaPoint;
       newCriteria.minOrderAmountForEarning = minOrderAmountForEarning;
-      newCriteria.maxEarningPoint = maxEarningPoint;
+      newCriteria.maxEarningPointPerOrder = maxEarningPointPerOrder;
       newCriteria.expiryDuration = expiryDuration;
       newCriteria.redemptionCriteriaPoint = redemptionCriteriaPoint;
       newCriteria.redemptionCriteriaRupee = redemptionCriteriaRupee;
@@ -50,7 +50,7 @@ const addLoyaltyPointController = async (req, res, next) => {
         earningCriteriaRupee,
         earningCriteriaPoint,
         minOrderAmountForEarning,
-        maxEarningPoint,
+        maxEarningPointPerOrder,
         expiryDuration,
         redemptionCriteriaPoint,
         redemptionCriteriaRupee,
@@ -99,8 +99,6 @@ const updateStatusController = async (req, res, next) => {
       existingCriteria.status = !existingCriteria.status;
 
       await existingCriteria.save();
-
-      console.log(existingCriteria.status);
 
       return res.status(200).json({
         mesage: "Loyalty point criteria status updated successfully",

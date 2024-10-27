@@ -18,7 +18,7 @@ const loyaltyPointSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
-    maxEarningPoint: {
+    maxEarningPointPerOrder: {
       type: Number,
       required: true,
     },

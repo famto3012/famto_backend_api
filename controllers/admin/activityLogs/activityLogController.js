@@ -4,7 +4,7 @@ const { formatDate, formatTime } = require("../../../utils/formatters");
 
 const getAllActivityLogsController = async (req, res, next) => {
   try {
-    const allLogs = await ActivityLog.find({});
+    const allLogs = await ActivityLog.find({}).sort({ createdAt: -1 });
 
     const formattedResponse = allLogs?.map((logs) => ({
       date: formatDate(logs.createdAt),

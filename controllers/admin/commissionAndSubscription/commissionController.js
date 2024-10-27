@@ -47,6 +47,12 @@ const addAndEditCommissionController = async (req, res, next) => {
         data: commission,
       });
     } else {
+      const merchantFound = await Merchant.findById(merchantId);
+
+      if (!merchantFound) return next(appError("Merchant not found", 404));
+
+      merchantFound.merchantDetail.pricing = [];
+
       const savedCommission = new Commission({
         commissionType,
         merchantId,
@@ -55,7 +61,6 @@ const addAndEditCommissionController = async (req, res, next) => {
 
       await savedCommission.save();
 
-      const merchantFound = await Merchant.findById(merchantId);
       merchantFound.merchantDetail.pricing.push({
         modelType: "Commission",
         modelId: savedCommission._id,
