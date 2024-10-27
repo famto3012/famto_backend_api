@@ -81,60 +81,39 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
 };
 
 const updateLoyaltyPoints = (customer, criteria, orderAmount) => {
-  const loyaltyPointEarnedToday =
+  if (!criteria || !orderAmount || orderAmount <= 0) {
+    console.error("Invalid criteria or orderAmount.");
+    return;
+  }
+
+  const {
+    earningCriteriaRupee,
+    earningCriteriaPoint,
+    maxEarningPointPerOrder,
+  } = criteria;
+
+  let loyaltyPointEarnedToday =
     customer.customerDetails?.loyaltyPointEarnedToday || 0;
 
-  if (loyaltyPointEarnedToday < criteria.maxEarningPoint) {
-    const calculatedLoyaltyPoint = Math.min(
-      orderAmount * criteria.earningCriteriaPoint,
-      criteria.maxEarningPoint - loyaltyPointEarnedToday
-    );
+  // Calculate points for the current order
+  const calculatedPoints =
+    Math.floor(orderAmount / earningCriteriaRupee) * earningCriteriaPoint;
 
-    customer.customerDetails.loyaltyPointEarnedToday += Number(
-      calculatedLoyaltyPoint
-    );
+  // Cap points at maxEarningPointPerOrder if it exceeds
+  const pointsOfOrder = Math.min(calculatedPoints, maxEarningPointPerOrder);
 
-    customer.customerDetails.loyaltyPointLeftForRedemption += Number(
-      calculatedLoyaltyPoint
-    );
+  loyaltyPointEarnedToday += pointsOfOrder;
 
-    customer.customerDetails.totalLoyaltyPointEarned += Number(
-      calculatedLoyaltyPoint
-    );
+  // Update customer details
+  customer.customerDetails.loyaltyPointEarnedToday = loyaltyPointEarnedToday;
+  customer.customerDetails.loyaltyPointLeftForRedemption += pointsOfOrder;
+  customer.customerDetails.totalLoyaltyPointEarned += pointsOfOrder;
 
-    if (
-      customer.customerDetails.loyaltyPointLeftForRedemption >=
-      criteria.minLoyaltyPointForRedemption
-    ) {
-      const totalPoints =
-        customer.customerDetails.loyaltyPointLeftForRedemption /
-        criteria.redemptionCriteriaPoint;
-
-      const redeemedAmount = totalPoints * redemptionCriteriaRupee;
-
-      const updatedWalletTransaction = {
-        closingBalance: customer.customerDetails.walletBalance,
-        transactionAmount: redeemedAmount,
-        date: new Date(),
-        type: "Credit",
-      };
-
-      const updatedTransactionDetail = {
-        transactionAmount: redeemedAmount,
-        transactionType: "Loyalty point redemption",
-        madeOn: new Date(),
-        type: "Credit",
-      };
-
-      customer.walletTransactionDetail.push(updatedWalletTransaction);
-      customer.transactionDetail.push(updatedTransactionDetail);
-
-      // TODO: check if it works fine
-      customer.customerDetails.loyaltyPointLeftForRedemption =
-        customer.customerDetails.loyaltyPointLeftForRedemption -
-        totalPoints * criteria.redemptionCriteriaPoint;
-    }
-  }
+  // Add new loyalty point entry
+  customer.loyaltyPointDetails.push({
+    earnedOn: new Date(),
+    point: pointsOfOrder,
+  });
 };
 
 const processReferralRewards = async (customer, orderAmount) => {

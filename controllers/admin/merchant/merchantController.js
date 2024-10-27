@@ -35,7 +35,7 @@ const ActivityLog = require("../../../models/ActivityLog");
 // Helper function to handle null or empty string values
 const convertNullValues = (obj) => {
   Object.keys(obj).forEach((key) => {
-    if (obj[key] === "null" || obj[key] === "") {
+    if (obj[key] === "null" || obj[key] === "" || obj[key] === null) {
       obj[key] = null;
     }
   });
@@ -389,9 +389,7 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
 
     const merchantFound = await Merchant.findById(merchantId);
 
-    if (!merchantFound) {
-      return next(appError("Merchant not found", 404));
-    }
+    if (!merchantFound) return next(appError("Merchant not found", 404));
 
     // Apply the helper function to handle null or empty string values
     if (merchantDetail) {
@@ -496,6 +494,7 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
 
     const details = {
       ...merchantDetail,
+      "availability.specificDays": modifiedAvailability,
       geofenceId: merchantDetail?.geofenceId || null,
       businessCategoryId: merchantDetail?.businessCategoryId || null,
       pricing: merchantFound?.merchantDetail?.pricing
@@ -1229,8 +1228,6 @@ const updateMerchantDetailsController = async (req, res, next) => {
       return next(appError("Merchant not found", 404));
     }
 
-    console.log("Here");
-
     // Apply the helper function to handle null or empty string values
     if (merchantDetail) {
       convertNullValues(merchantDetail);
@@ -1242,10 +1239,6 @@ const updateMerchantDetailsController = async (req, res, next) => {
         merchantDetail.availability.specificDays
       );
     }
-
-    console.log("Modified", modifiedAvailability);
-
-    console.log("Here 2");
 
     let merchantImageURL =
       merchantFound?.merchantDetail?.merchantImageURL || "";
@@ -1272,6 +1265,7 @@ const updateMerchantDetailsController = async (req, res, next) => {
           "MerchantImages"
         );
       }
+
       if (pancardImage && pancardImage[0]) {
         if (pancardImageURL) {
           await deleteFromFirebase(pancardImageURL);
@@ -1281,18 +1275,21 @@ const updateMerchantDetailsController = async (req, res, next) => {
           "PancardImages"
         );
       }
+
       if (GSTINImage && GSTINImage[0]) {
         if (GSTINImageURL) {
           await deleteFromFirebase(GSTINImageURL);
         }
         GSTINImageURL = await uploadToFirebase(GSTINImage[0], "GSTINImages");
       }
+
       if (FSSAIImage && FSSAIImage[0]) {
         if (FSSAIImageURL) {
           await deleteFromFirebase(FSSAIImageURL);
         }
         FSSAIImageURL = await uploadToFirebase(FSSAIImage[0], "FSSAIImages");
       }
+
       if (aadharImage && aadharImage[0]) {
         if (aadharImageURL) {
           await deleteFromFirebase(aadharImageURL);

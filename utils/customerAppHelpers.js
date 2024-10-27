@@ -15,6 +15,7 @@ const ScheduledPickAndCustom = require("../models/ScheduledPickAndCustom");
 const MerchantNotificationLogs = require("../models/MerchantNotificationLog");
 
 const appError = require("./appError");
+const LoyaltyPoint = require("../models/LoyaltyPoint");
 
 // Helper function to sort merchants by sponsorship
 const sortMerchantsBySponsorship = (merchants) => {
@@ -94,9 +95,10 @@ const getTaxAmount = async (
 
     const taxPercentage = taxFound.tax;
 
-    const taxAmount =
-      ((parseFloat(itemTotal) + parseFloat(deliveryCharges)) * taxPercentage) /
-      100;
+    // const taxAmount =
+    //   ((parseFloat(itemTotal) + parseFloat(deliveryCharges)) * taxPercentage) /
+    //   100;
+    const taxAmount = (parseFloat(itemTotal) * taxPercentage) / 100;
 
     return parseFloat(taxAmount.toFixed(2));
   } catch (err) {
@@ -769,6 +771,80 @@ const calculateEligibleDates = (
   return eligibleDates;
 };
 
+// TODO: Re discuss the discount for loyaltypoint
+const getDiscountAmountFromLoyalty = async (customer, orderAmount) => {
+  try {
+    const loyaltyPoint = await LoyaltyPoint.findOne();
+
+    const discountAmount = 0;
+
+    const pointsLeftForRedemption =
+      customer.customerDetails.loyaltyPointLeftForRedemption;
+
+    if (
+      loyaltyPoint.status &&
+      orderAmount >= loyaltyPoint.maxEarningPointPerOrder &&
+      pointsLeftForRedemption >= loyaltyPoint.redemptionCriteriaPoint
+    ) {
+      const calculatedDiscount = Math.floor(
+        orderAmount / loyaltyPoint.redemptionCriteriaPoint
+      );
+
+      discountAmount = Math.min(calculatedDiscount);
+    }
+
+    return discountAmount;
+  } catch (err) {
+    throw new Error(err.message);
+  }
+};
+
+const deleteOldLoyaltyPoints = async () => {
+  try {
+    const isLoyaltyActive = await LoyaltyPoint.findOne();
+
+    if (isLoyaltyActive.status) {
+      const date180DaysAgo = new Date();
+      date180DaysAgo.setDate(date180DaysAgo.getDate() - 180);
+
+      // Find all customers
+      const customers = await Customer.find();
+
+      for (const customer of customers) {
+        // Filter loyalty points older than 180 days
+        const oldPoints = customer.loyaltyPointDetails.filter(
+          (detail) => detail.earnedOn < date180DaysAgo
+        );
+
+        if (oldPoints.length > 0) {
+          // Calculate points to be deleted for this customer
+          const pointsToDelete = oldPoints.reduce(
+            (sum, detail) => sum + detail.point,
+            0
+          );
+
+          // Remove old points from loyaltyPointDetails array
+          customer.loyaltyPointDetails = customer.loyaltyPointDetails.filter(
+            (detail) => detail.earnedOn >= date180DaysAgo
+          );
+
+          // Update loyaltyPointLeftForRedemption
+          customer.customerDetails.loyaltyPointLeftForRedemption -=
+            pointsToDelete;
+
+          // Save changes to the customer document
+          await customer.save();
+        }
+      }
+
+      console.log("Old loyalty points removed successfully.");
+    }
+    console.log("Loyalty Point is not active");
+  } catch (error) {
+    console.error("Error deleting old loyalty points:", error);
+  }
+};
+
 module.exports = {
   sortMerchantsBySponsorship,
   getDistanceFromPickupToDelivery,
@@ -783,4 +859,5 @@ module.exports = {
   filterProductIdAndQuantity,
   reduceProductAvailableQuantity,
   calculateMerchantDiscount,
+  deleteOldLoyaltyPoints,
 };

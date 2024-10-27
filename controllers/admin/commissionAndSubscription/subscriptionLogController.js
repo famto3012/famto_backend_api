@@ -23,14 +23,13 @@ const createSubscriptionLog = async (req, res, next) => {
     } else {
       subscriptionPlan = await CustomerSubscription.findById(planId);
     }
-    console.log("subscriptionPlan", subscriptionPlan);
-    if (!subscriptionPlan) {
-      return res.status(404).json({ message: "Subscription plan not found" });
-    }
+
+    if (!subscriptionPlan) return next(appError("Subscription not found", 404));
 
     const { amount, duration } = subscriptionPlan;
 
     let responseOrderId;
+
     if (paymentMode === "Online") {
       const { orderId, success, error } = await createRazorpayOrderId(amount);
 
@@ -201,11 +200,16 @@ const verifyRazorpayPayment = async (req, res, next) => {
     };
 
     if (typeOfUser === "Merchant") {
+      if (merchantFound.merchantDetail.pricing[0].modelType === "Commission") {
+        merchantFound.merchantDetail.pricing = [];
+      }
+
       const merchantFound = await Merchant.findById(userId);
       merchantFound.merchantDetail.pricing.push({
         modelType: "Subscription",
         modelId: subscriptionLog._id,
       });
+
       await merchantFound.save();
     } else {
       const customerFound = await Customer.findById(userId);

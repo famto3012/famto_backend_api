@@ -405,10 +405,12 @@ const rejectOrderByAdminController = async (req, res, next) => {
         orderFound.refundId = refundResponse?.refundId;
       }
 
+      console.log("Order status Before : ", orderFound.status);
       updateOrderStatus(orderFound);
 
       await orderFound.save();
       await customerFound.save();
+      console.log("Order status After : ", orderFound.status);
     }
 
     await ActivityLog.create({
@@ -659,12 +661,20 @@ const searchScheduledOrderByIdByAdminController = async (req, res, next) => {
 
 const filterOrdersByAdminController = async (req, res, next) => {
   try {
-    let { status, paymentMode, deliveryMode, page = 1, limit = 15 } = req.query;
+    let {
+      status,
+      paymentMode,
+      deliveryMode,
+      merchantId,
+      date,
+      page = 1,
+      limit = 15,
+    } = req.query;
 
-    if (!status && !paymentMode && !deliveryMode) {
-      return res
-        .status(400)
-        .json({ message: "At least one filter is required" });
+    if (!status && !paymentMode && !deliveryMode && !merchantId && !date) {
+      return res.status(400).json({
+        message: "At least one filter is required",
+      });
     }
 
     // Convert to integers
@@ -692,6 +702,20 @@ const filterOrdersByAdminController = async (req, res, next) => {
         $regex: deliveryMode.trim(),
         $options: "i",
       };
+    }
+
+    if (merchantId && merchantId.trim().toLowerCase() !== "all") {
+      filterCriteria.merchantId = merchantId;
+    }
+
+    if (date) {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      filterCriteria.createdAt = { $gte: startOfDay, $lte: endOfDay };
     }
 
     const filteredOrderResults = await Order.find(filterCriteria)
@@ -1473,7 +1497,8 @@ const createOrderByAdminController = async (req, res, next) => {
 
 const downloadOrdersCSVByAdminController = async (req, res, next) => {
   try {
-    const { orderStatus, paymentMode, deliveryMode, query } = req.query;
+    const { orderStatus, paymentMode, deliveryMode, merchantId, date, query } =
+      req.query;
 
     // Build query object based on filters
     const filter = {};
@@ -1483,6 +1508,19 @@ const downloadOrdersCSVByAdminController = async (req, res, next) => {
       filter["orderDetail.deliveryMode"] = deliveryMode;
     if (query) {
       filter.$or = [{ _id: { $regex: query, $options: "i" } }];
+    }
+    if (merchantId && merchantId.trim().toLowerCase() !== "all") {
+      filter.merchantId = merchantId;
+    }
+
+    if (date) {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      filter.createdAt = { $gte: startOfDay, $lte: endOfDay };
     }
 
     // Fetch the data based on filter
@@ -1673,151 +1711,427 @@ const downloadInvoiceBillController = async (req, res, next) => {
     }
 
     // HTML Template for the invoice
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html lang="en">
+    // const htmlContent = `
+    //   <!DOCTYPE html>
+    //   <html lang="en">
 
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <style>
-              body {
-                  font-family: Arial, sans-serif;
-                  margin: 20px;
-              }
+    //     <head>
+    //       <meta charset="UTF-8">
+    //       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    //       <style>
+    //           body {
+    //               font-family: Arial, sans-serif;
+    //               margin: 20px;
+    //           }
 
-              h1,
-              h2 {
-                  text-align: center;
-              }
+    //           h1,
+    //           h2 {
+    //               text-align: center;
+    //           }
 
-              table {
-                  width: 100%;
-                  border-collapse: collapse;
-                  margin-top: 20px;
-              }
+    //           table {
+    //               width: 100%;
+    //               border-collapse: collapse;
+    //               margin-top: 20px;
+    //           }
 
-              table,
-              th,
-              td {
-                  padding: 10px;
-              }
+    //           table,
+    //           th,
+    //           td {
+    //               padding: 10px;
+    //           }
 
-              th {
-                  background-color: #f2f2f2;
-              }
+    //           th {
+    //               background-color: #f2f2f2;
+    //           }
 
-              .total {
-                  text-align: right;
-                  padding-top: 10px;
-              }
-          </style>
-        </head>
+    //           .total {
+    //               text-align: right;
+    //               padding-top: 10px;
+    //           }
+    //       </style>
+    //     </head>
 
-        <body>
-          <h3 style="text-align: center;">${
-            cartFound.merchantId.merchantDetail.merchantName || " "
-          }</h3>
-          <h3 style="text-align: center;">${
-            cartFound.merchantId.phoneNumber || " "
-          }</h3>
-          <h3 style="text-align: center;">${
-            cartFound.cartDetail.deliveryOption || " "
-          } (${cartFound.cartDetail.deliveryMode})</h3>
-          <h2>Order ID: # ${cartFound._id}</h2>
-          <p>${
-            cartFound.cartDetail.deliveryAddress.fullName ||
-            cartFound.customerId.fullName ||
-            ""
-          }</p>
-          <p>${cartFound.customerId.phoneNumber}</p>
-          <p>${cartFound.cartDetail.deliveryAddress.flat || ""}, ${
-      cartFound.cartDetail.deliveryAddress.area || ""
-    }, ${cartFound.cartDetail.deliveryAddress.landmark || ""}</p>
-          <p>Payment mode: ${cartFound.paymentMode || ""}</p>
-          <p>Invoice time: ${formatDate(cartFound.createdAt)} | ${formatTime(
+    //     <body>
+    //       <h3 style="text-align: center;">${
+    //         cartFound.merchantId.merchantDetail.merchantName || " "
+    //       }</h3>
+    //       <h3 style="text-align: center;">${
+    //         cartFound.merchantId.phoneNumber || " "
+    //       }</h3>
+    //       <h3 style="text-align: center;">${
+    //         cartFound.cartDetail.deliveryOption || " "
+    //       } (${cartFound.cartDetail.deliveryMode})</h3>
+    //       <h2>Order ID: # ${cartFound._id}</h2>
+    //       <p>${
+    //         cartFound.cartDetail.deliveryAddress.fullName ||
+    //         cartFound.customerId.fullName ||
+    //         ""
+    //       }</p>
+    //       <p>${cartFound.customerId.phoneNumber}</p>
+    //       <p>${cartFound.cartDetail.deliveryAddress.flat || ""}, ${
+    //   cartFound.cartDetail.deliveryAddress.area || ""
+    // }, ${cartFound.cartDetail.deliveryAddress.landmark || ""}</p>
+    //       <p>Payment mode: ${cartFound.paymentMode || ""}</p>
+    //       <p>Invoice time: ${formatDate(cartFound.createdAt)} | ${formatTime(
+    //   cartFound.createdAt
+    // )}</p>
+    //       <h3>Items:</h3>
+    //       <table style="border: 1px solid black;">
+    //         <thead>
+    //             <tr style="border: 1px solid black;">
+    //                 <th>Item Name</th>
+    //                 <th>Quantity</th>
+    //                 <th>Price</th>
+    //                 <th>Subtotal</th>
+    //             </tr>
+    //         </thead>
+    //           <tbody>
+    //               ${formattedItems
+    //                 .map((item) => {
+    //                   let subtotal = item.quantity * item.price;
+    //                   return `
+    //               <tr style="border: 1px solid black;">
+    //                   <td style="border: 1px solid black;">${item.itemName} ${
+    //                     item.variantTypeName ? `(${item.variantTypeName})` : ""
+    //                   }</td>
+    //                   <td style="border: 1px solid black; text-align: center;">${
+    //                     item?.quantity || ""
+    //                   }</td>
+    //                   <td style="border: 1px solid black; text-align: center;">${
+    //                     item?.price?.toFixed(2) || ""
+    //                   }</td>
+    //                   <td style="text-align: right;">${
+    //                     subtotal.toFixed(2) || ""
+    //                   }</td>
+    //               </tr>
+    //               `;
+    //                 })
+    //                 .join("")}
+    //               <tr style="border: 1px solid black;">
+    //                   <td colspan="3">Sub total</td>
+    //                   <td style="text-align: right; border: 1px solid black;">${
+    //                     <td>${price?.toFixed(2) || 0}</td>
+    //                   }</td>
+    //               </tr>
+    //               <tr style="border: 1px solid black;">
+    //                   <td colspan="3">Delivery charge</td>
+    //                   <td style="text-align: right; border: 1px solid black;">${deliveryCharge.toFixed(
+    //                     2
+    //                   )}</td>
+    //               </tr>
+    //               <tr style="border: 1px solid black;">
+    //                   <td colspan="3">Tax</td>
+    //                   <td style="text-align: right; border: 1px solid black;">${
+    //                     taxAmount?.toFixed(2) || ""
+    //                   }</td>
+    //               </tr>
+    //               <tr style="border: 1px solid black;">
+    //                   <td colspan="3">Surge charge</td>
+    //                   <td style="text-align: right; border: 1px solid black;">${
+    //                     surgePrice.toFixed(2) || ""
+    //                   }</td>
+    //               </tr>
+    //               <tr style="border: 1px solid black;">
+    //                   <td colspan="3">Discount</td>
+    //                   <td style="text-align: right; border: 1px solid black;">${
+    //                     discountedAmount.toFixed(2) || ""
+    //                   }</td>
+    //               </tr>
+    //               <tr style="border: 1px solid black;">
+    //                   <td colspan="3">Added Tip</td>
+    //                   <td style="text-align: right; border: 1px solid black;">${
+    //                     addedTip.toFixed(2) || ""
+    //                   }</td>
+    //               </tr>
+    //               <tr style="border: 1px solid black;">
+    //                   <td colspan="3">Grand total</td>
+    //                   <td style="text-align: right; border: 1px solid black;">${
+    //                     grandTotal.toFixed(2) || ""
+    //                   }</td>
+    //               </tr>
+    //           </tbody>
+    //       </table>
+    //     </body>
+
+    //   </html>
+    // `;
+
+    const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            position: relative;
+            min-height: 100vh;
+            padding-bottom: 100px;
+            margin: 0 auto;
+            width: 90%;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo img {
+            height: 50px;
+            width: 50px;
+            object-fit: contain;
+        }
+
+        .header-info h3,
+        .header-info h5 {
+            margin: 0;
+        }
+
+        .date p {
+            font-size: 16px;
+        }
+
+        .invoice-title {
+            text-align: center;
+            font-size: 22px;
+            font-weight: 600;
+            margin: 10px 0;
+        }
+
+        .info-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .info-box {
+            background-color: white;
+            padding: 20px;
+            width: 370px;
+        }
+
+        .info-box div {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .info-box label {
+            font-size: 14px;
+            color: gray;
+            width: 50%;
+        }
+
+        .info-box p {
+            font-size: 14px;
+            font-weight: 500;
+            width: 50%;
+            text-align: left;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table,
+        th,
+        td {
+            border: 1px solid gray;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            text-align: left;
+        }
+
+        thead {
+            background-color: #f1f1f1;
+        }
+
+        .total-row {
+            font-weight: 600;
+        }
+
+        .thank-you {
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .footer {
+            text-align: center;
+            position: absolute;
+            bottom: 15px;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <!-- Header Section -->
+        <header>
+            <div class="logo">
+                <img src="./Famto Logo.png" alt="Logo">
+                <div class="header-info">
+                    <h3>My Famto</h3>
+                    <h5>Private Limited</h5>
+                </div>
+            </div>
+            <div class="date">
+                <p>Date: <span style="color:gray;">${formatDate(
+                  new Date()
+                )}</span></p>
+            </div>
+        </header>
+
+        <!-- Invoice Title -->
+        <div class="invoice-title">
+            <p>Invoice - ${cartFound._id}</p>
+        </div>
+
+        <!-- Merchant and Order Information -->
+        <div class="info-section">
+            <!-- Merchant Info -->
+            <div class="info-box">
+                <div style="margin-bottom: -10px;">
+                    <p style="color: #919191;">Merchant Name</p>
+                    <p>${
+                      cartFound.merchantId.merchantDetail.merchantName || " "
+                    }</p>
+                </div>
+                <div style="margin-bottom: -10px;">
+                    <p style="color: #919191;">Phone Number</p>
+                    <p>${cartFound.merchantId.phoneNumber || " "}</p>
+                </div>
+                <div style="margin-bottom: -10px;">
+                    <p style="color: #919191;">Address</p>
+                    <p>${
+                      cartFound.merchantId.merchantDetail.displayAddress || " "
+                    }</p>
+                </div>
+            </div>
+
+            <!-- Order Info -->
+            <div class="info-box">
+                <div style="margin-bottom: -10px;">
+                    <p style="color: #919191;">Order ID</p>
+                    <p>${cartFound._id}</p>
+                </div>
+                <div style="margin-bottom: -10px;">
+                    <p style="color: #919191;">Order Date</p>
+                    <p>${formatDate(cartFound.createdAt)} at ${formatTime(
       cartFound.createdAt
     )}</p>
-          <h3>Items:</h3>
-          <table style="border: 1px solid black;">
+                </div>
+                <div style="margin-bottom: -10px;">
+                    <p style="color: #919191;">Delivery Mode</p>
+                    <p>${cartFound.cartDetail.deliveryMode}</p>
+                </div>
+                <div style="margin-bottom: -10px;">
+                    <p style="color: #919191;">Delivery Option</p>
+                    <p>${cartFound.cartDetail.deliveryOption}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Invoice Table -->
+        <table>
             <thead>
-                <tr style="border: 1px solid black;">
-                    <th>Item Name</th>
+                <tr>
+                    <th>Item</th>
+                    <th>Rate</th>
                     <th>Quantity</th>
                     <th>Price</th>
-                    <th>Subtotal</th>
                 </tr>
             </thead>
-              <tbody>
-                  ${formattedItems
-                    .map((item) => {
-                      let subtotal = item.quantity * item.price;
-                      return `
-                  <tr style="border: 1px solid black;">
-                      <td style="border: 1px solid black;">${item.itemName} ${
-                        item.variantTypeName ? `(${item.variantTypeName})` : ""
-                      }</td>
-                      <td style="border: 1px solid black; text-align: center;">${
-                        item?.quantity || ""
-                      }</td>
-                      <td style="border: 1px solid black; text-align: center;">${
-                        item?.price?.toFixed(2) || ""
-                      }</td>
-                      <td style="text-align: right;">${
-                        subtotal.toFixed(2) || ""
-                      }</td>
-                  </tr>
+            <tbody>
+                ${formattedItems?.map((item) => {
+                  let price = item.quantity * item.price;
+
+                  return `
+                  <tr>
+                    <td>${item.itemName} ${
+                    item.variantTypeName ? `(${item.variantTypeName})` : ""
+                  }</td>
+                    <td>${item?.price || 0}</td>
+                    <td>${item?.quantity || 0}</td>
+                    <td>${price?.toFixed(2) || 0}</td>
+                </tr>
                   `;
-                    })
-                    .join("")}
-                  <tr style="border: 1px solid black;">
-                      <td colspan="3">Sub total</td>
-                      <td style="text-align: right; border: 1px solid black;">${
-                        itemTotal?.toFixed(2) || ""
-                      }</td>
-                  </tr>
-                  <tr style="border: 1px solid black;">
-                      <td colspan="3">Delivery charge</td>
-                      <td style="text-align: right; border: 1px solid black;">${deliveryCharge.toFixed(
-                        2
-                      )}</td>
-                  </tr>
-                  <tr style="border: 1px solid black;">
-                      <td colspan="3">Tax</td>
-                      <td style="text-align: right; border: 1px solid black;">${
-                        taxAmount?.toFixed(2) || ""
-                      }</td>
-                  </tr>
-                  <tr style="border: 1px solid black;">
-                      <td colspan="3">Surge charge</td>
-                      <td style="text-align: right; border: 1px solid black;">${
-                        surgePrice.toFixed(2) || ""
-                      }</td>
-                  </tr>
-                  <tr style="border: 1px solid black;">
-                      <td colspan="3">Discount</td>
-                      <td style="text-align: right; border: 1px solid black;">${
-                        discountedAmount.toFixed(2) || ""
-                      }</td>
-                  </tr>
-                  <tr style="border: 1px solid black;">
-                      <td colspan="3">Added Tip</td>
-                      <td style="text-align: right; border: 1px solid black;">${
-                        addedTip.toFixed(2) || ""
-                      }</td>
-                  </tr>
-                  <tr style="border: 1px solid black;">
-                      <td colspan="3">Grand total</td>
-                      <td style="text-align: right; border: 1px solid black;">${
-                        grandTotal.toFixed(2) || ""
-                      }</td>
-                  </tr>
-              </tbody>
-          </table>
-        </body>
-                    
-      </html>
-    `;
+                })}
+                <!-- Item Total -->
+                <tr>
+                    <td colspan="3">Item Total</td>
+                    <td>${itemTotal?.toFixed(2) || 0}</td>
+                </tr>
+                <!-- Tip -->
+                <tr>
+                    <td colspan="3">Added Tip</td>
+                    <td>${addedTip?.toFixed(2) || 0}</td>
+                </tr>
+                <!-- Tip -->
+                <tr>
+                    <td colspan="3">Surge Charge</td>
+                    <td>${surgePrice?.toFixed(2) || 0}</td>
+                </tr>
+                <!-- Subtotal -->
+                <tr>
+                    <td colspan="3">Surge Charge</td>
+                    <td>${surgePrice?.toFixed(2) || 0}</td>
+                </tr>
+                ${
+                  discountedAmount &&
+                  `
+      <!-- Discount -->
+                <tr>
+                    <td colspan="3">Discount</td>
+                    <td>${discountedAmount?.toFixed(2) || 0}</td>
+                </tr>
+                  `
+                }
+                <!-- GST -->
+                <tr>
+                    <td colspan="3">GST</td>
+                    <td>${taxAmount?.toFixed(2) || 0}</td>
+                </tr>
+                <!-- Grand Total -->
+                <tr class="total-row">
+                    <td colspan="3">Grand Total</td>
+                    <td>${grandTotal?.toFixed(2) || 0}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Thank You Message -->
+        <p class="thank-you">~~~~~~~~~~ Thank you for choosing us ~~~~~~~~~~</p>
+
+        <!-- Footer Contact Info -->
+        <div class="footer">
+            <p>For any enquiry, reach out via email at support@famto.in, or call on +91 97781 80794</p>
+        </div>
+    </div>
+
+</body>
+
+</html>`;
 
     // Launch Puppeteer and generate PDF
     const browser = await puppeteer.launch();
@@ -1907,150 +2221,426 @@ const downloadOrderBillController = async (req, res, next) => {
       );
     }
 
-    // HTML Template for the invoice
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html lang="en">
+    // // HTML Template for the invoice
+    // const htmlContent = `
+    //   <!DOCTYPE html>
+    //   <html lang="en">
 
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <style>
-              body {
-                  font-family: Arial, sans-serif;
-                  margin: 20px;
-              }
+    //     <head>
+    //       <meta charset="UTF-8">
+    //       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    //       <style>
+    //           body {
+    //               font-family: Arial, sans-serif;
+    //               margin: 20px;
+    //           }
 
-              h1,
-              h2 {
-                  text-align: center;
-              }
+    //           h1,
+    //           h2 {
+    //               text-align: center;
+    //           }
 
-              table {
-                  width: 100%;
-                  border-collapse: collapse;
-                  margin-top: 20px;
-              }
+    //           table {
+    //               width: 100%;
+    //               border-collapse: collapse;
+    //               margin-top: 20px;
+    //           }
 
-              table,
-              th,
-              td {
-                  padding: 10px;
-              }
+    //           table,
+    //           th,
+    //           td {
+    //               padding: 10px;
+    //           }
 
-              th {
-                  background-color: #f2f2f2;
-              }
+    //           th {
+    //               background-color: #f2f2f2;
+    //           }
 
-              .total {
-                  text-align: right;
-                  padding-top: 10px;
-              }
-          </style>
-        </head>
+    //           .total {
+    //               text-align: right;
+    //               padding-top: 10px;
+    //           }
+    //       </style>
+    //     </head>
 
-        <body>
-          <h3 style="text-align: center;">${
-            orderFound.merchantId.merchantDetail.merchantName || " "
-          }</h3>
-          <h3 style="text-align: center;">${
-            orderFound.merchantId.phoneNumber || " "
-          }</h3>
-          <h3 style="text-align: center;">${
-            orderFound.orderDetail.deliveryOption || " "
-          } (${orderFound.orderDetail.deliveryMode})</h3>
-          <h2>Order ID: # ${orderFound._id}</h2>
-          <p>${
-            orderFound.orderDetail.deliveryAddress.fullName ||
-            orderFound.customerId.fullName ||
-            ""
-          }</p>
-          <p>${orderFound.customerId.phoneNumber}</p>
-          <p>${orderFound.orderDetail.deliveryAddress.flat || ""}, ${
-      orderFound.orderDetail.deliveryAddress.area || ""
-    }, ${orderFound.orderDetail.deliveryAddress.landmark || ""}</p>
-          <p>Payment mode: ${orderFound.paymentMode}</p>
-          <p>Order time: ${formatDate(orderFound.createdAt)} | ${formatTime(
+    //     <body>
+    //       <h3 style="text-align: center;">${
+    //         orderFound.merchantId.merchantDetail.merchantName || " "
+    //       }</h3>
+    //       <h3 style="text-align: center;">${
+    //         orderFound.merchantId.phoneNumber || " "
+    //       }</h3>
+    //       <h3 style="text-align: center;">${
+    //         orderFound.orderDetail.deliveryOption || " "
+    //       } (${orderFound.orderDetail.deliveryMode})</h3>
+    //       <h2>Order ID: # ${orderFound._id}</h2>
+    //       <p>${
+    //         orderFound.orderDetail.deliveryAddress.fullName ||
+    //         orderFound.customerId.fullName ||
+    //         ""
+    //       }</p>
+    //       <p>${orderFound.customerId.phoneNumber}</p>
+    //       <p>${orderFound.orderDetail.deliveryAddress.flat || ""}, ${
+    //   orderFound.orderDetail.deliveryAddress.area || ""
+    // }, ${orderFound.orderDetail.deliveryAddress.landmark || ""}</p>
+    //       <p>Payment mode: ${orderFound.paymentMode}</p>
+    //       <p>Order time: ${formatDate(orderFound.createdAt)} | ${formatTime(
+    //   orderFound.createdAt
+    // )}</p>
+    //       <h3>Items:</h3>
+    //       <table style="border: 1px solid black;">
+    //         <thead>
+    //             <tr style="border: 1px solid black;">
+    //                 <th>Item Name</th>
+    //                 <th>Quantity</th>
+    //                 <th>Price</th>
+    //                 <th>Subtotal</th>
+    //             </tr>
+    //         </thead>
+    //           <tbody>
+    //               ${formattedItems
+    //                 .map((item) => {
+    //                   let subtotal = item.quantity * item.price;
+    //                   return `
+    //               <tr style="border: 1px solid black;">
+    //                   <td style="border: 1px solid black;">${item.itemName} ${
+    //                     item.variantTypeName ? `(${item.variantTypeName})` : ""
+    //                   }</td>
+    //                   <td style="border: 1px solid black; text-align: center;">${
+    //                     item.quantity
+    //                   }</td>
+    //                   <td style="border: 1px solid black; text-align: center;">${item.price.toFixed(
+    //                     2
+    //                   )}</td>
+    //                   <td style="text-align: right;">${subtotal.toFixed(2)}</td>
+    //               </tr>
+    //               `;
+    //                 })
+    //                 .join("")}
+    //               <tr style="border: 1px solid black;">
+    //                   <td colspan="3">Sub total</td>
+    //                   <td style="text-align: right; border: 1px solid black;">${itemTotal.toFixed(
+    //                     2
+    //                   )}</td>
+    //               </tr>
+    //               <tr style="border: 1px solid black;">
+    //                   <td colspan="3">Delivery charge</td>
+    //                   <td style="text-align: right; border: 1px solid black;">${deliveryCharge.toFixed(
+    //                     2
+    //                   )}</td>
+    //               </tr>
+    //               <tr style="border: 1px solid black;">
+    //                   <td colspan="3">Tax</td>
+    //                   <td style="text-align: right; border: 1px solid black;">${taxAmount.toFixed(
+    //                     2
+    //                   )}</td>
+    //               </tr>
+    //               <tr style="border: 1px solid black;">
+    //                   <td colspan="3">Surge charge</td>
+    //                   <td style="text-align: right; border: 1px solid black;">${surgePrice.toFixed(
+    //                     2
+    //                   )}</td>
+    //               </tr>
+    //               <tr style="border: 1px solid black;">
+    //                   <td colspan="3">Discount</td>
+    //                   <td style="text-align: right; border: 1px solid black;">${discountedAmount.toFixed(
+    //                     2
+    //                   )}</td>
+    //               </tr>
+    //               <tr style="border: 1px solid black;">
+    //                   <td colspan="3">Added Tip</td>
+    //                   <td style="text-align: right; border: 1px solid black;">${addedTip.toFixed(
+    //                     2
+    //                   )}</td>
+    //               </tr>
+    //               <tr style="border: 1px solid black;">
+    //                   <td colspan="3">Grand total</td>
+    //                   <td style="text-align: right; border: 1px solid black;">${grandTotal.toFixed(
+    //                     2
+    //                   )}</td>
+    //               </tr>
+    //           </tbody>
+    //       </table>
+    //     </body>
+
+    //   </html>
+    // `;
+
+    const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            position: relative;
+            min-height: 100vh;
+            padding-bottom: 100px;
+            margin: 0 auto;
+            width: 90%;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo img {
+            height: 50px;
+            width: 50px;
+            object-fit: contain;
+        }
+
+        .header-info h3,
+        .header-info h5 {
+            margin: 0;
+        }
+
+        .date p {
+            font-size: 16px;
+        }
+
+        .invoice-title {
+            text-align: center;
+            font-size: 22px;
+            font-weight: 600;
+            margin: 10px 0;
+        }
+
+        .info-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .info-box {
+            background-color: white;
+            padding: 20px;
+            width: 370px;
+        }
+
+        .info-box div {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .info-box label {
+            font-size: 14px;
+            color: gray;
+            width: 50%;
+        }
+
+        .info-box p {
+            font-size: 14px;
+            font-weight: 500;
+            width: 50%;
+            text-align: left;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table,
+        th,
+        td {
+            border: 1px solid gray;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            text-align: left;
+        }
+
+        thead {
+            background-color: #f1f1f1;
+        }
+
+        .total-row {
+            font-weight: 600;
+        }
+
+        .thank-you {
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .footer {
+            text-align: center;
+            position: absolute;
+            bottom: 15px;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <!-- Header Section -->
+        <header>
+            <div class="logo">
+                <img src="https://firebasestorage.googleapis.com/v0/b/famtowebsite.appspot.com/o/images%2FNew%20logo%20(30).svg?alt=media&token=b4f017ae-6284-4945-8581-d3dd0a45d0ca" alt="Logo">
+                <div class="header-info">
+                    <h3>My Famto</h3>
+                    <h5>Private Limited</h5>
+                </div>
+            </div>
+            <div class="date">
+                <p>Date: <span style="color:gray;">${formatDate(
+                  new Date()
+                )}</span></p>
+            </div>
+        </header>
+
+        <!-- Invoice Title -->
+        <div class="invoice-title">
+            <p>Invoice - ${orderId}</p>
+        </div>
+
+        <!-- Merchant and Order Information -->
+        <div class="info-section">
+            <!-- Merchant Info -->
+            <div class="info-box">
+                <div style="margin-bottom: -10px;">
+                    <p style="color: #919191;">Merchant Name</p>
+                    <p>${
+                      orderFound.merchantId.merchantDetail.merchantName || "-"
+                    }</p>
+                </div>
+                <div style="margin-bottom: -10px;">
+                    <p style="color: #919191;">Phone Number</p>
+                    <p>${orderFound.merchantId.merchantName || "-"}</p>
+                </div>
+                <div style="margin-bottom: -10px;">
+                    <p style="color: #919191;">Address</p>
+                    <p>${
+                      orderFound.merchantId.merchantDetail.displayAddress || " "
+                    }</p>
+                </div>
+            </div>
+
+            <!-- Order Info -->
+            <div class="info-box">
+                <div style="margin-bottom: -10px;">
+                    <p style="color: #919191;">Order ID</p>
+                    <p>${orderId}</p>
+                </div>
+                <div style="margin-bottom: -10px;">
+                    <p style="color: #919191;">Order Date</p>
+                    <p>${formatDate(orderFound.createdAt)} at ${formatTime(
       orderFound.createdAt
     )}</p>
-          <h3>Items:</h3>
-          <table style="border: 1px solid black;">
+                </div>
+                <div style="margin-bottom: -10px;">
+                    <p style="color: #919191;">Delivery Mode</p>
+                    <p>${orderFound.orderDetail.deliveryMode}</p>
+                </div>
+                <div style="margin-bottom: -10px;">
+                    <p style="color: #919191;">Delivery Option</p>
+                    <p>${orderFound.orderDetail.deliveryOption}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Invoice Table -->
+        <table>
             <thead>
-                <tr style="border: 1px solid black;">
-                    <th>Item Name</th>
+                <tr>
+                    <th>Item</th>
+                    <th>Rate</th>
                     <th>Quantity</th>
                     <th>Price</th>
-                    <th>Subtotal</th>
                 </tr>
             </thead>
-              <tbody>
-                  ${formattedItems
-                    .map((item) => {
-                      let subtotal = item.quantity * item.price;
-                      return `
-                  <tr style="border: 1px solid black;">
-                      <td style="border: 1px solid black;">${item.itemName} ${
-                        item.variantTypeName ? `(${item.variantTypeName})` : ""
-                      }</td>
-                      <td style="border: 1px solid black; text-align: center;">${
-                        item.quantity
-                      }</td>
-                      <td style="border: 1px solid black; text-align: center;">${item.price.toFixed(
-                        2
-                      )}</td>
-                      <td style="text-align: right;">${subtotal.toFixed(2)}</td>
-                  </tr>
+            <tbody>
+                ${formattedItems?.map((item) => {
+                  let price = item.quantity * item.price;
+
+                  return `
+                  <tr>
+                    <td>${item.itemName} ${
+                    item.variantTypeName ? `(${item.variantTypeName})` : ""
+                  }</td>
+                    <td>${item?.price || 0}</td>
+                    <td>${item?.quantity || 0}</td>
+                    <td>${price?.toFixed(2) || 0}</td>
+                </tr>
                   `;
-                    })
-                    .join("")}
-                  <tr style="border: 1px solid black;">
-                      <td colspan="3">Sub total</td>
-                      <td style="text-align: right; border: 1px solid black;">${itemTotal.toFixed(
-                        2
-                      )}</td>
-                  </tr>
-                  <tr style="border: 1px solid black;">
-                      <td colspan="3">Delivery charge</td>
-                      <td style="text-align: right; border: 1px solid black;">${deliveryCharge.toFixed(
-                        2
-                      )}</td>
-                  </tr>
-                  <tr style="border: 1px solid black;">
-                      <td colspan="3">Tax</td>
-                      <td style="text-align: right; border: 1px solid black;">${taxAmount.toFixed(
-                        2
-                      )}</td>
-                  </tr>
-                  <tr style="border: 1px solid black;">
-                      <td colspan="3">Surge charge</td>
-                      <td style="text-align: right; border: 1px solid black;">${surgePrice.toFixed(
-                        2
-                      )}</td>
-                  </tr>
-                  <tr style="border: 1px solid black;">
-                      <td colspan="3">Discount</td>
-                      <td style="text-align: right; border: 1px solid black;">${discountedAmount.toFixed(
-                        2
-                      )}</td>
-                  </tr>
-                  <tr style="border: 1px solid black;">
-                      <td colspan="3">Added Tip</td>
-                      <td style="text-align: right; border: 1px solid black;">${addedTip.toFixed(
-                        2
-                      )}</td>
-                  </tr>
-                  <tr style="border: 1px solid black;">
-                      <td colspan="3">Grand total</td>
-                      <td style="text-align: right; border: 1px solid black;">${grandTotal.toFixed(
-                        2
-                      )}</td>
-                  </tr>
-              </tbody>
-          </table>
-        </body>
-                    
-      </html>
-    `;
+                })}
+                <!-- Item Total -->
+                <tr>
+                    <td colspan="3">Item Total</td>
+                    <td>${itemTotal?.toFixed(2) || 0}</td>
+                </tr>
+                <!-- Tip -->
+                <tr>
+                    <td colspan="3">Added Tip</td>
+                    <td>${addedTip?.toFixed(2) || 0}</td>
+                </tr>
+                <!-- Tip -->
+                <tr>
+                    <td colspan="3">Surge Charge</td>
+                    <td>${surgePrice?.toFixed(2) || 0}</td>
+                </tr>
+                <!-- Subtotal -->
+                <tr>
+                    <td colspan="3">Surge Charge</td>
+                    <td>${surgePrice?.toFixed(2) || 0}</td>
+                </tr>
+                ${
+                  discountedAmount &&
+                  `
+                  <!-- Discount -->
+                <tr>
+                    <td colspan="3">Discount</td>
+                    <td>${discountedAmount?.toFixed(2) || 0}</td>
+                </tr>
+                  `
+                }
+                <!-- GST -->
+                <tr>
+                    <td colspan="3">GST</td>
+                    <td>${taxAmount?.toFixed(2) || 0}</td>
+                </tr>
+                <!-- Grand Total -->
+                <tr class="total-row">
+                    <td colspan="3">Grand Total</td>
+                    <td>${grandTotal?.toFixed(2) || 0}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Thank You Message -->
+        <p class="thank-you">~~~~~~~~~~ Thank you for choosing us ~~~~~~~~~~</p>
+
+        <!-- Footer Contact Info -->
+        <div class="footer">
+            <p>For any enquiry, reach out via email at support@famto.in, or call on +91 97781 80794</p>
+        </div>
+    </div>
+
+</body>
+
+</html>`;
 
     // Launch Puppeteer and generate PDF
     const browser = await puppeteer.launch();

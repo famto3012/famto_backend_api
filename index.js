@@ -56,6 +56,7 @@ const {
   createOrdersFromScheduled,
   updateOneDayLoyaltyPointEarning,
   createOrdersFromScheduledPickAndDrop,
+  deleteOldLoyaltyPoints,
 } = require("./utils/customerAppHelpers");
 const { app, server, populateUserSocketMap } = require("./socket/socket.js");
 const ScheduledOrder = require("./models/ScheduledOrder.js");
@@ -188,9 +189,11 @@ cron.schedule("30 18 * * *", async () => {
   await fetchMerchantDailyRevenue(now);
   await generateMapplsAuthToken();
   await resetAllAgentTaskHelper();
+  await deleteOldLoyaltyPoints();
 });
 
 cron.schedule("* * * * *", async () => {
+  await generateMapplsAuthToken();
   // await createSettlement();
   deleteExpiredConversationsAndMessages();
   populateUserSocketMap();

@@ -328,12 +328,15 @@ const getAllCategoriesOfMerchants = async (req, res, next) => {
   try {
     const { merchantId, businessCategoryId } = req.params;
     const { latitude, longitude } = req.query;
+    const customerId = req.userAuth;
 
     const merchantFound = await Merchant.findById(merchantId);
 
-    if (!merchantFound) {
-      return next(appError("Merchant not found", 404));
-    }
+    if (!merchantFound) return next(appError("Merchant not found", 404));
+
+    const customerFound = await Customer.findById(customerId);
+
+    if (!customerFound) return next(appError("Customer not found", 404));
 
     const merchantLocation = merchantFound.merchantDetail.location;
     const customerLocation = [latitude, longitude];
@@ -353,6 +356,16 @@ const getAllCategoriesOfMerchants = async (req, res, next) => {
       distanceWarning = true;
     }
 
+    let isFavourite = false;
+
+    if (
+      customerFound.customerDetails.favoriteMerchants.includes(
+        merchantFound._id
+      )
+    ) {
+      isFavourite = true;
+    }
+
     const merchantData = {
       merchantName: merchantFound.merchantDetail.merchantName,
       distanceInKM: distanceInKM || null,
@@ -361,6 +374,8 @@ const getAllCategoriesOfMerchants = async (req, res, next) => {
       description: merchantFound.merchantDetail.description,
       displayAddress: merchantFound.merchantDetail.displayAddress,
       preOrderStatus: merchantFound.merchantDetail.preOrderStatus,
+      rating: merchantFound.merchantDetail.averageRating,
+      isFavourite,
       distanceWarning,
     };
 
@@ -494,7 +509,7 @@ const getAllProductsOfMerchantController = async (req, res, next) => {
         productId: product._id,
         productName: product.productName || null,
         price: product.price || null,
-        discountPrice,
+        discountPrice: discountPrice || null,
         minQuantityToOrder: product.minQuantityToOrder || null,
         maxQuantityPerOrder: product.maxQuantityPerOrder || null,
         isFavorite,
@@ -504,15 +519,16 @@ const getAllProductsOfMerchantController = async (req, res, next) => {
         type: product.type || null,
         productImageURL: product.productImageURL || null,
         inventory: product.inventory || null,
-        variants: variantsWithDiscount?.map((variant) => ({
-          variantName: variant.variantName,
-          variantTypes: variant.variantTypes.map((type) => ({
-            variantTypeId: type._id,
-            typeName: type.typeName,
-            price: type.price,
-            discountPrice: type.discountPrice || null,
-          })),
-        })),
+        variants:
+          variantsWithDiscount?.map((variant) => ({
+            variantName: variant.variantName,
+            variantTypes: variant.variantTypes.map((type) => ({
+              variantTypeId: type._id,
+              typeName: type.typeName,
+              price: type.price,
+              discountPrice: type.discountPrice || null,
+            })),
+          })) || null,
       };
     });
 
