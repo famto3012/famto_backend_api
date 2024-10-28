@@ -59,6 +59,8 @@ const {
   getAllProductsOfMerchantController,
   searchMerchantsOrProducts,
   getProductVariantsByProductIdController,
+  getdeliveryOptionOfMerchantController,
+  clearCartController,
 } = require("../../controllers/customer/universalOrderController");
 const {
   addPickUpAddressController,
@@ -224,6 +226,13 @@ customerRoute.put(
   addOrUpdateCartItemController
 );
 
+// Get merchant delivery option
+customerRoute.post(
+  "/merchant/:merchantId/delivery-option",
+  isAuthenticated,
+  getdeliveryOptionOfMerchantController
+);
+
 // Update cart address details
 customerRoute.post(
   "/cart/add-details",
@@ -249,6 +258,12 @@ customerRoute.post(
   "/cancel-universal-order/:orderId",
   isAuthenticated,
   cancelOrderBeforeCreationController
+);
+
+customerRoute.delete(
+  "/clear-cart/:cartId",
+  isAuthenticated,
+  clearCartController
 );
 
 customerRoute.post(
