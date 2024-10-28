@@ -42,7 +42,10 @@ const appError = require("../../utils/appError");
 const geoLocation = require("../../utils/getGeoLocation");
 
 const { sendNotification, sendSocketData } = require("../../socket/socket");
-const { processSchedule } = require("../../utils/createOrderHelpers");
+const {
+  processSchedule,
+  validateDeliveryOption,
+} = require("../../utils/createOrderHelpers");
 
 // Get all available business categories according to the order
 const getAllBusinessCategoryController = async (req, res, next) => {
@@ -1145,7 +1148,7 @@ const getdeliveryOptionOfMerchantController = async (req, res, next) => {
   }
 };
 
-// Add Cart details (Address, Tip, Instrunctions)
+// Add Cart details (Address, Instrunctions)
 const addCartDetailsController = async (req, res, next) => {
   try {
     const {
@@ -1162,7 +1165,6 @@ const addCartDetailsController = async (req, res, next) => {
       deliveryMode,
       instructionToMerchant,
       instructionToDeliveryAgent,
-      addedTip = 0,
       startDate,
       endDate,
       time,
@@ -1349,7 +1351,6 @@ const addCartDetailsController = async (req, res, next) => {
     discountedAmount += merchantDiscount;
 
     let updatedBill = {
-      addedTip,
       itemTotal: parseFloat(itemTotal).toFixed(2),
       // discountedAmount: discountedAmount || null,
       merchantDiscount: discountedAmount || null,
@@ -1412,7 +1413,6 @@ const addCartDetailsController = async (req, res, next) => {
         businessCategoryId
       );
 
-      console.log("HEre");
       let actualDeliveryCharge = 0;
 
       // ? Subscription count is increasing only after the successful completion of order
@@ -1435,8 +1435,6 @@ const addCartDetailsController = async (req, res, next) => {
       } else {
         actualDeliveryCharge = deliveryCharges;
       }
-
-      console.log("HEre2 ");
 
       updatedBill.surgeCharges = surgeCharges;
 
@@ -1471,7 +1469,6 @@ const addCartDetailsController = async (req, res, next) => {
         const grandTotal = (
           parseFloat(cartTotal) +
           parseFloat(scheduledDeliveryCharge) +
-          parseFloat(addedTip) +
           parseFloat(taxAmount) -
           parseFloat(discountedAmount)
         ).toFixed(2);
@@ -1479,8 +1476,7 @@ const addCartDetailsController = async (req, res, next) => {
         updatedBill.originalGrandTotal = parseFloat(grandTotal);
         subTotal =
           parseFloat(itemTotal) * diffDays +
-          parseFloat(scheduledDeliveryCharge) +
-          parseFloat(addedTip) -
+          parseFloat(scheduledDeliveryCharge) -
           parseFloat(discountedAmount);
       } else {
         updatedBill.originalDeliveryCharge =
@@ -1497,8 +1493,7 @@ const addCartDetailsController = async (req, res, next) => {
 
         subTotal =
           parseFloat(itemTotal) +
-          parseFloat(actualDeliveryCharge) +
-          parseFloat(addedTip) -
+          parseFloat(actualDeliveryCharge) -
           parseFloat(discountedAmount);
 
         const grandTotal = (
@@ -1572,10 +1567,37 @@ const addCartDetailsController = async (req, res, next) => {
   }
 };
 
+// Apply Tip
+const applyTipController = async (req, res, next) => {
+  try {
+    const { tip = 0 } = req.body;
+
+    const customerId = req.userAuth;
+
+    const cartFound = await CustomerCart.findOne({ customerId });
+
+    if (!cartFound) return next(appError("Cart not found", 404));
+
+    const { billDetail: cartBill } = cartFound;
+
+    cartBill.addedTip = parseFloat(tip);
+    cartBill.subTotal = cartBill.subTotal + parseFloat(tip);
+    cartBill.discountedGrandTotal =
+      cartBill.discountedGrandTotal + parseFloat(tip);
+    cartBill.originalGrandTotal = cartBill.originalGrandTotal + parseFloat(tip);
+
+    await cartFound.save();
+
+    res.status(200).json(cartFound.billDetail);
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 // Apply promocode
 const applyPromocodeController = async (req, res, next) => {
   try {
-    const { promoCode } = req.body;
+    const { promoCode, addedTip = 0 } = req.body;
     const customerId = req.userAuth;
 
     // Ensure customer is authenticated
@@ -1584,9 +1606,8 @@ const applyPromocodeController = async (req, res, next) => {
     }
 
     const customerFound = await Customer.findById(customerId);
-    if (!customerFound) {
-      return next(appError("Customer not found", 404));
-    }
+
+    if (!customerFound) return next(appError("Customer not found", 404));
 
     // Find the customer's cart
     const cart = await CustomerCart.findOne({ customerId });
@@ -2737,6 +2758,7 @@ const cancelOrderBeforeCreationController = async (req, res, next) => {
   }
 };
 
+// Clear cart
 const clearCartController = async (req, res, next) => {
   try {
     const { cartId } = req.params;
@@ -2751,6 +2773,39 @@ const clearCartController = async (req, res, next) => {
     }
 
     res.status(200).json({ message: "Cart cleared" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const confirmOrderDetailController = async (req, res, next) => {
+  try {
+    const {
+      businessCategoryId,
+      deliveryAddressType,
+      deliveryAddressOtherAddressId,
+      newDeliveryAddress,
+      deliveryMode,
+      instructionToMerchant,
+      instructionToDeliveryAgent,
+      ifScheduled,
+    } = req.body;
+
+    const { customer, cart, merchant } = fetchcustomerAndMerchantAndCart(
+      req.userAuth,
+      next
+    );
+
+    let deliveryOption = "On-demand";
+    if (ifScheduled.startDate && ifScheduled.endDate && ifScheduled.time) {
+      deliveryOption = "Scheduled";
+    }
+
+    validateDeliveryOption(deliveryOption, merchant, next);
+
+    const { startDate, endDate, time, numOfDays } = processSchedule(
+      req.body.ifScheduled
+    );
   } catch (err) {
     next(appError(err.message));
   }
@@ -2779,4 +2834,5 @@ module.exports = {
   cancelOrderBeforeCreationController,
   searchMerchantsOrProducts,
   clearCartController,
+  applyTipController,
 };

@@ -2870,16 +2870,13 @@ const createInvoiceByAdminController = async (req, res, next) => {
       addedTip = 0,
     } = req.body;
 
-    // Step 1: Fetch merchant details if applicable
     const merchantFound = await fetchMerchantDetails(
       merchantId,
       deliveryMode,
       deliveryOption,
       next
     );
-    // console.log("Step 1 finished");
 
-    // Step 2: Validate customer address if necessary
     validateCustomerAddress(
       newCustomer,
       deliveryMode,
@@ -2887,12 +2884,10 @@ const createInvoiceByAdminController = async (req, res, next) => {
       newPickupAddress,
       newDeliveryAddress
     );
-    // console.log("Step 2 finished");
 
     const customerAddress =
       newCustomerAddress || newPickupAddress || newDeliveryAddress;
 
-    // Step 3: Find or create customer
     const customer = await findOrCreateCustomer({
       customerId,
       newCustomer,
@@ -2900,9 +2895,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
       formattedErrors,
     });
     if (!customer) return res.status(409).json({ errors: formattedErrors });
-    // console.log("Step 3 finished");
 
-    // Step 4: Get Pick and Delivery details
     const {
       pickupLocation,
       pickupAddress,
@@ -2925,13 +2918,9 @@ const createInvoiceByAdminController = async (req, res, next) => {
       newDeliveryAddress,
       customPickupLocation
     );
-    // console.log("Step 4 finished");
 
-    // Step 5: Process schedule details if necessary
     const scheduledDetails = processScheduledDelivery(deliveryOption, req);
-    // console.log("Step 5 finished");
 
-    // Step 6: Calculate charges for the order
     const {
       oneTimeDeliveryCharge,
       surgeCharges,
@@ -2949,9 +2938,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
       pickupLocation,
       selectedBusinessCategory
     );
-    // console.log("Step 6 finished");
 
-    // Step 7: Apply merchant discount if applicable (For Take Away and Home Delivery only)
     let merchantDiscountAmount;
     if (merchantFound) {
       merchantDiscountAmount = await applyDiscounts({
@@ -2960,9 +2947,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
         merchantId,
       });
     }
-    // console.log("Step 7 finished");
 
-    // Step 8: Calculate order bill
     const billDetail = calculateBill(
       itemTotal || 0,
       deliveryChargeForScheduledOrder || oneTimeDeliveryCharge || 0,
@@ -2972,9 +2957,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
       taxAmount || 0,
       addedTip || 0
     );
-    // console.log("Step 8 finished");
 
-    // Step 9: Save customer cart
     const cart = await saveCustomerCart(
       deliveryMode,
       deliveryOption,
@@ -2994,7 +2977,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
       instructionInPickup,
       instructionInDelivery
     );
-    // console.log("Step 9 finished");
 
     let populatedCartWithVariantNames;
     let formattedItems;

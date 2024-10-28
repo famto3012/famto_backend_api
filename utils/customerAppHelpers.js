@@ -16,6 +16,7 @@ const MerchantNotificationLogs = require("../models/MerchantNotificationLog");
 
 const appError = require("./appError");
 const LoyaltyPoint = require("../models/LoyaltyPoint");
+const CustomerCart = require("../models/CustomerCart");
 
 // Helper function to sort merchants by sponsorship
 const sortMerchantsBySponsorship = (merchants) => {
@@ -36,7 +37,7 @@ const getDistanceFromPickupToDelivery = async (
   // distance_matrix_traffic;
 
   const { data } = await axios.get(
-    `https://apis.mapmyindia.com/advancedmaps/v1/${process.env.MapMyIndiaAPIKey}/distance_matrix_eta/${profile}/${pickupCoordinates[1]},${pickupCoordinates[0]};${deliveryCoordinates[1]},${deliveryCoordinates[0]}`
+    `https://apis.mapmyindia.com/advancedmaps/v1/${process.env.MapMyIndiaAPIKey}/distance_matrix/${profile}/${pickupCoordinates[1]},${pickupCoordinates[0]};${deliveryCoordinates[1]},${deliveryCoordinates[0]}`
   );
 
   if (
@@ -843,6 +844,23 @@ const deleteOldLoyaltyPoints = async () => {
   } catch (error) {
     console.error("Error deleting old loyalty points:", error);
   }
+};
+
+// Universal
+
+const fetchcustomerAndMerchantAndCart = async (customerId, next) => {
+  const [customer, cart] = await Promise.all([
+    Customer.findById(customerId),
+    CustomerCart.findOne({ customerId }),
+  ]);
+
+  if (!customer) return next(appError("Customer not found", 404));
+  if (!cart) return next(appError("Cart not found", 404));
+
+  const merchant = await Merchant.findById(cart.merchantId);
+  if (!merchant) return next(appError("Merchant not found", 404));
+
+  return { customer, cart, merchant };
 };
 
 module.exports = {

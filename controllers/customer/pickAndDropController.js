@@ -269,7 +269,7 @@ const getVehiclePricingDetalsController = async (req, res, next) => {
 // Add Items
 const addPickandDropItemsController = async (req, res, next) => {
   try {
-    const { items, vehicleType, deliveryCharge } = req.body;
+    const { items, vehicleType, deliveryCharges } = req.body;
     const customerId = req.userAuth;
 
     // Find the cart for the customer
@@ -292,9 +292,9 @@ const addPickandDropItemsController = async (req, res, next) => {
     });
 
     let updatedBill = {
-      originalDeliveryCharge: Math.round(deliveryCharge),
+      originalDeliveryCharge: Math.round(deliveryCharges),
       vehicleType,
-      originalGrandTotal: Math.round(deliveryCharge),
+      originalGrandTotal: Math.round(deliveryCharges),
     };
 
     cart.billDetail = updatedBill;
