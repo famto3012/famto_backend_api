@@ -31,6 +31,8 @@ const Category = require("../../../models/Category");
 const Product = require("../../../models/Product");
 const sharp = require("sharp");
 const ActivityLog = require("../../../models/ActivityLog");
+const ejs = require("ejs");
+const fs = require("fs");
 
 // Helper function to handle null or empty string values
 const convertNullValues = (obj) => {
@@ -869,7 +871,16 @@ const rejectRegistrationController = async (req, res, next) => {
     }
 
     // Send email with message
-    const message = `We're sorry to inform you that your registration on My Famto was rejected.`;
+    const rejectionTemplatePath = path.join(
+      __dirname,
+      "../../../templates/rejectionTemplate.ejs"
+    );
+
+    const htmlContent = await ejs.renderFile(rejectionTemplatePath, {
+      recipientName: merchantFound.fullName,
+      app: "merchant",
+      email: "contact@famto.in"
+    });
 
     // Set up nodemailer transport
     const transporter = createTransport({
@@ -885,7 +896,7 @@ const rejectRegistrationController = async (req, res, next) => {
     await transporter.sendMail({
       to: merchantFound.email,
       subject: "Registration rejection",
-      text: message,
+      html: htmlContent,
     });
 
     await Merchant.findByIdAndDelete(req.params.merchantId);

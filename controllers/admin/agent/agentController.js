@@ -16,6 +16,8 @@ const AccountLogs = require("../../../models/AccountLogs");
 const { formatDate } = require("../../../utils/formatters");
 const { formatToHours } = require("../../../utils/agentAppHelpers");
 const AgentPricing = require("../../../models/AgentPricing");
+const ejs = require("ejs");
+const fs = require("fs");
 
 const addAgentByAdminController = async (req, res, next) => {
   const {
@@ -513,7 +515,16 @@ const rejectAgentRegistrationController = async (req, res, next) => {
     }
 
     // Send email with message
-    const message = `We're sorry to inform you that your registration on My Famto was rejected.`;
+    const rejectionTemplatePath = path.join(
+      __dirname,
+      "../../../templates/rejectionTemplate.ejs"
+    );
+
+    const htmlContent = await ejs.renderFile(rejectionTemplatePath, {
+      recipientName: agentFound.fullName,
+      app: "agent",
+      email: "hr@famto.in"
+    });
 
     // Set up nodemailer transport
     const transporter = createTransport({
@@ -529,7 +540,7 @@ const rejectAgentRegistrationController = async (req, res, next) => {
     await transporter.sendMail({
       to: agentFound.email,
       subject: "Registration rejection",
-      text: message,
+      html: htmlContent,
     });
 
     await Agent.findByIdAndDelete(req.params.agentId);

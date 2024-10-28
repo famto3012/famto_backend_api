@@ -8,6 +8,9 @@ const Manager = require("../../models/Manager");
 const Agent = require("../../models/Agent");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
+const ejs = require("ejs");
+const fs = require("fs");
+const path = require("path");
 
 //For Admin and Merchant
 // -----------------------------
@@ -189,8 +192,15 @@ const forgotPassword = async (req, res, next) => {
     await user.save();
 
     // Send email with reset link
+    const resetTemplatePath = path.join(
+      __dirname,
+      "../../templates/resetPasswordTemplate.ejs"
+    );
     const resetURL = `${process.env.BASE_URL}/auth/reset-password/?resetToken=${resetToken}&role=${role}`;
-    const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please make a request to:\n\n${resetURL}`;
+
+    const htmlContent = await ejs.renderFile(resetTemplatePath, {
+      resetURL,
+    });
 
     // Set up nodemailer transport
     const transporter = nodemailer.createTransport({
@@ -206,7 +216,7 @@ const forgotPassword = async (req, res, next) => {
     await transporter.sendMail({
       to: email,
       subject: "Password Reset",
-      text: message,
+      html: htmlContent,
     });
 
     res.status(200).json({ message: "Password reset link sent to email" });
