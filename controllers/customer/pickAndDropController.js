@@ -276,12 +276,7 @@ const addPickandDropItemsController = async (req, res, next) => {
     const cart = await PickAndCustomCart.findOne({ customerId });
 
     // If cart doesn't exist, return an error
-    if (!cart) {
-      return res.status(404).json({
-        status: "Failed",
-        message: "Cart not found",
-      });
-    }
+    if (!cart) return next(appError("Cart not found", 400));
 
     // Add the new items to the cart
     items.forEach((item) => {

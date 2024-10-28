@@ -18,17 +18,13 @@ const addAndEditCommissionController = async (req, res, next) => {
     });
     return res.status(500).json({ errors: formattedErrors });
   }
+
   try {
-    // TODO: Fix commission
     const { commissionType, merchantId, commissionValue } = req.body;
 
     const commission = await Commission.findOne({ merchantId });
 
-    console.log("Commission found", commission);
-
     if (commission) {
-      console.log("Commission is already active");
-
       commission.commissionType = commissionType ?? commission.commissionType;
       commission.merchantId = merchantId ?? commission.merchantId;
       commission.commissionValue =
@@ -47,25 +43,22 @@ const addAndEditCommissionController = async (req, res, next) => {
         data: commission,
       });
     } else {
-      console.log("Preparing new commission");
       const merchantFound = await Merchant.findById(merchantId);
 
       if (!merchantFound) return next(appError("Merchant not found", 404));
 
       if (merchantFound.merchantDetail.pricing.length >= 1) {
-        console.log("Have pricing");
         const lastData =
           merchantFound.merchantDetail.pricing[
             merchantFound.merchantDetail.pricing.length - 1
           ];
 
-        console.log("lastData", lastData);
-
-        const subscriptionLogFound = await SubscriptionLog(lastData.modelId);
-        console.log("subscriptionLogFound", subscriptionLogFound);
+        const subscriptionLogFound = await SubscriptionLog.findById(
+          lastData.modelId
+        );
 
         if (subscriptionLogFound.endDate > new Date()) {
-          return next(appError("Current subscription have not ended yet", 500));
+          return next(appError("Current subscription have not ended yet", 400));
         }
       }
 

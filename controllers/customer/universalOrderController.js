@@ -1128,6 +1128,23 @@ const addOrUpdateCartItemController = async (req, res, next) => {
   }
 };
 
+// Get delivery option of merchant
+const getdeliveryOptionOfMerchantController = async (req, res, next) => {
+  try {
+    const { merchantId } = req.params;
+
+    const merchantFound = await Merchant.findById(merchantId);
+
+    if (!merchantFound) return next(appError("Merchant not found", 404));
+
+    res.status(200).json({
+      data: merchantFound.merchantDetail.deliveryOption || null,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 // Add Cart details (Address, Tip, Instrunctions)
 const addCartDetailsController = async (req, res, next) => {
   try {
@@ -2720,6 +2737,25 @@ const cancelOrderBeforeCreationController = async (req, res, next) => {
   }
 };
 
+const clearCartController = async (req, res, next) => {
+  try {
+    const { cartId } = req.params;
+
+    const deleteResult = await CustomerCart.deleteOne({
+      _id: cartId,
+      customerId: req.userAuth,
+    });
+
+    if (deleteResult.deletedCount === 0) {
+      return next(appError("Cart not found", 404));
+    }
+
+    res.status(200).json({ message: "Cart cleared" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getAllBusinessCategoryController,
   homeSearchController,
@@ -2735,10 +2771,12 @@ module.exports = {
   addRatingToMerchantController,
   getTotalRatingOfMerchantController,
   addOrUpdateCartItemController,
+  getdeliveryOptionOfMerchantController,
   addCartDetailsController,
   applyPromocodeController,
   orderPaymentController,
   verifyOnlinePaymentController,
   cancelOrderBeforeCreationController,
   searchMerchantsOrProducts,
+  clearCartController,
 };
