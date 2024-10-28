@@ -413,7 +413,6 @@ const getAllCategoriesOfMerchants = async (req, res, next) => {
 const getAllProductsOfMerchantController = async (req, res, next) => {
   try {
     const { categoryId } = req.params;
-
     const customerId = req.userAuth;
 
     const currentCustomer = await Customer.findById(customerId)
@@ -438,14 +437,8 @@ const getAllProductsOfMerchantController = async (req, res, next) => {
       validTo?.setHours(23, 59, 59, 999);
 
       let discountPrice = null;
-      let variantsWithDiscount = product?.variants?.map((variant) => ({
-        ...variant._doc,
-        variantTypes: variant.variantTypes.map((variantType) => ({
-          ...variantType._doc,
-          discountPrice: null,
-        })),
-      }));
 
+      // Calculate the discount price if applicable
       if (
         product?.discountId &&
         validFrom <= currentDate &&
@@ -462,41 +455,6 @@ const getAllProductsOfMerchantController = async (req, res, next) => {
           discountPrice = Math.max(0, product.price - discountAmount);
         } else if (discount.discountType === "Flat-discount") {
           discountPrice = Math.max(0, product.price - discount.discountValue);
-        }
-
-        if (discount.onAddOn) {
-          variantsWithDiscount = product.variants.map((variant) => {
-            const variantTypesWithDiscount = variant.variantTypes.map(
-              (variantType) => {
-                let variantDiscountPrice = variantType.price;
-                if (discount.discountType === "Percentage-discount") {
-                  let discountAmount =
-                    (variantType.price * discount.discountValue) / 100;
-                  if (discountAmount > discount.maxAmount) {
-                    discountAmount = discount.maxAmount;
-                  }
-                  variantDiscountPrice = Math.max(
-                    0,
-                    variantType.price - discountAmount
-                  );
-                } else if (discount.discountType === "Flat-discount") {
-                  variantDiscountPrice = Math.max(
-                    0,
-                    variantType.price - discount.discountValue
-                  );
-                }
-
-                return {
-                  ...variantType._doc,
-                  discountPrice: variantDiscountPrice,
-                };
-              }
-            );
-            return {
-              ...variant._doc,
-              variantTypes: variantTypesWithDiscount,
-            };
-          });
         }
       }
 
@@ -519,22 +477,96 @@ const getAllProductsOfMerchantController = async (req, res, next) => {
         type: product.type || null,
         productImageURL: product.productImageURL || null,
         inventory: product.inventory || null,
-        variants:
-          variantsWithDiscount?.map((variant) => ({
-            variantName: variant.variantName,
-            variantTypes: variant.variantTypes.map((type) => ({
-              variantTypeId: type._id,
-              typeName: type.typeName,
-              price: type.price,
-              discountPrice: type.discountPrice || null,
-            })),
-          })) || null,
+        variantAvailable: product.variants && product.variants.length > 0, // Check if variants are available
       };
     });
 
     res.status(200).json({
       message: "All products",
       data: productsWithDetails,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get variants of a product
+const getProductVariantsByProductIdController = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+
+    const product = await Product.findById(productId)
+      .populate(
+        "discountId",
+        "discountType discountValue maxAmount status validFrom validTo onAddOn"
+      )
+      .exec();
+
+    if (!product) return next(appError("Product not found", 404));
+
+    const currentDate = new Date();
+    const validFrom = new Date(product?.discountId?.validFrom);
+    const validTo = new Date(product?.discountId?.validTo);
+    validTo?.setHours(23, 59, 59, 999);
+
+    let variantsWithDiscount = product.variants.map((variant) => {
+      return {
+        ...variant._doc,
+        variantTypes: variant.variantTypes.map((variantType) => ({
+          ...variantType._doc,
+          discountPrice: null, // Default discount price is null
+        })),
+      };
+    });
+
+    // Apply discount if applicable
+    if (
+      product?.discountId &&
+      validFrom <= currentDate &&
+      validTo >= currentDate &&
+      product?.discountId?.status
+    ) {
+      const discount = product.discountId;
+
+      if (discount.onAddOn) {
+        variantsWithDiscount = product.variants.map((variant) => {
+          const variantTypesWithDiscount = variant.variantTypes.map(
+            (variantType) => {
+              let variantDiscountPrice = variantType.price;
+              if (discount.discountType === "Percentage-discount") {
+                let discountAmount =
+                  (variantType.price * discount.discountValue) / 100;
+                if (discountAmount > discount.maxAmount) {
+                  discountAmount = discount.maxAmount;
+                }
+                variantDiscountPrice = Math.max(
+                  0,
+                  variantType.price - discountAmount
+                );
+              } else if (discount.discountType === "Flat-discount") {
+                variantDiscountPrice = Math.max(
+                  0,
+                  variantType.price - discount.discountValue
+                );
+              }
+
+              return {
+                ...variantType._doc,
+                discountPrice: variantDiscountPrice,
+              };
+            }
+          );
+          return {
+            ...variant._doc,
+            variantTypes: variantTypesWithDiscount,
+          };
+        });
+      }
+    }
+
+    res.status(200).json({
+      message: "Product variants",
+      data: variantsWithDiscount,
     });
   } catch (err) {
     next(appError(err.message));
@@ -1278,9 +1310,9 @@ const addCartDetailsController = async (req, res, next) => {
       instructionToDeliveryAgent,
       voiceInstructiontoMerchant: voiceInstructiontoMerchantURL,
       voiceInstructiontoAgent: voiceInstructiontoAgentURL,
-      startDate: scheduled.startDate,
-      endDate: scheduled.endDate,
-      time: scheduled.time,
+      startDate: scheduled?.startDate,
+      endDate: scheduled?.endDate,
+      time: scheduled?.time,
     };
 
     const subscriptionOfCustomer = await Customer.findById(customerId).select(
@@ -1363,6 +1395,7 @@ const addCartDetailsController = async (req, res, next) => {
         businessCategoryId
       );
 
+      console.log("HEre");
       let actualDeliveryCharge = 0;
 
       // ? Subscription count is increasing only after the successful completion of order
@@ -1375,9 +1408,9 @@ const addCartDetailsController = async (req, res, next) => {
           const now = new Date();
 
           if (
-            (new Date(subscriptionLog.startDate) < now ||
-              new Date(subscriptionLog.endDate) > now) &&
-            subscriptionLog.currentNumberOfOrders < subscriptionLog.maxOrders
+            (new Date(subscriptionLog?.startDate) < now ||
+              new Date(subscriptionLog?.endDate) > now) &&
+            subscriptionLog?.currentNumberOfOrders < subscriptionLog?.maxOrders
           ) {
             actualDeliveryCharge = 0;
           }
@@ -1385,6 +1418,8 @@ const addCartDetailsController = async (req, res, next) => {
       } else {
         actualDeliveryCharge = deliveryCharges;
       }
+
+      console.log("HEre2 ");
 
       updatedBill.surgeCharges = surgeCharges;
 
@@ -2691,6 +2726,7 @@ module.exports = {
   listRestaurantsController,
   getAllCategoriesOfMerchants,
   getAllProductsOfMerchantController,
+  getProductVariantsByProductIdController,
   filterMerchantController,
   searchProductsInMerchantController,
   filterAndSortProductsController,
