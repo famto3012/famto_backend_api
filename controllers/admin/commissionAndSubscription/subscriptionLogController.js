@@ -51,15 +51,25 @@ const createSubscriptionLog = async (req, res, next) => {
       let startDate;
 
       if (merchant?.merchantDetail?.pricing?.length === 0) {
+        console.log("No data");
         startDate = new Date();
+        console.log(startDate);
       } else {
-        let sub = await SubscriptionLog.findById(
-          merchant.merchantDetail.pricing[
-            merchant.merchantDetail.pricing.length - 1
-          ].modelId
-        );
+        console.log("data available");
 
-        startDate = sub.endDate;
+        let sub;
+        if (merchant.merchantDetail.pricing[0].modelType === "Commission") {
+          merchant.merchantDetail.pricing = [];
+        } else {
+          sub = await SubscriptionLog.findById(
+            merchant.merchantDetail.pricing[
+              merchant.merchantDetail.pricing.length - 1
+            ].modelId
+          );
+        }
+
+        startDate = sub?.endDate || new Date();
+        console.log(startDate);
       }
 
       const endDate = addDays(startDate, duration);
@@ -335,6 +345,10 @@ const setAsPaidController = async (req, res, next) => {
 
     if (typeOfUser === "Merchant") {
       const merchantFound = await Merchant.findById(subscriptionLog.userId);
+
+      if (merchantFound.merchantDetail.pricing.length >= 1) {
+        merchantFound.merchantDetail.pricing = [];
+      }
 
       merchantFound.merchantDetail.pricing.push({
         modelType: "Subscription",

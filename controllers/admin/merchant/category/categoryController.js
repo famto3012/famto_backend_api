@@ -146,6 +146,8 @@ const editCategoryByAdminController = async (req, res, next) => {
   const { businessCategoryId, merchantId, categoryName, description, type } =
     req.body;
 
+  console.log(req.body);
+
   const errors = validationResult(req);
 
   let formattedErrors = {};
@@ -179,7 +181,7 @@ const editCategoryByAdminController = async (req, res, next) => {
     const updatedCategory = await Category.findByIdAndUpdate(
       req.params.categoryId,
       {
-        businessCategoryId: businessCategoryId._id,
+        businessCategoryId,
         merchantId,
         categoryName,
         description,

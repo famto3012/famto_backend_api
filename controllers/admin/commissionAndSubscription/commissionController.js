@@ -6,6 +6,7 @@ const Merchant = require("../../../models/Merchant");
 
 const appError = require("../../../utils/appError");
 const ActivityLog = require("../../../models/ActivityLog");
+const SubscriptionLog = require("../../../models/SubscriptionLog");
 
 const addAndEditCommissionController = async (req, res, next) => {
   const errors = validationResult(req);
@@ -18,21 +19,20 @@ const addAndEditCommissionController = async (req, res, next) => {
     return res.status(500).json({ errors: formattedErrors });
   }
   try {
+    // TODO: Fix commission
     const { commissionType, merchantId, commissionValue } = req.body;
 
     const commission = await Commission.findOne({ merchantId });
 
+    console.log("Commission found", commission);
+
     if (commission) {
-      commission.commissionType =
-        commissionType !== undefined
-          ? commissionType
-          : commission.commissionType;
-      commission.merchantId =
-        merchantId !== undefined ? merchantId : commission.merchantId;
+      console.log("Commission is already active");
+
+      commission.commissionType = commissionType ?? commission.commissionType;
+      commission.merchantId = merchantId ?? commission.merchantId;
       commission.commissionValue =
-        commissionValue !== undefined
-          ? commissionValue
-          : commission.commissionValue;
+        commissionValue ?? commission.commissionValue;
 
       await commission.save();
 
@@ -47,11 +47,27 @@ const addAndEditCommissionController = async (req, res, next) => {
         data: commission,
       });
     } else {
+      console.log("Preparing new commission");
       const merchantFound = await Merchant.findById(merchantId);
 
       if (!merchantFound) return next(appError("Merchant not found", 404));
 
-      merchantFound.merchantDetail.pricing = [];
+      if (merchantFound.merchantDetail.pricing.length >= 1) {
+        console.log("Have pricing");
+        const lastData =
+          merchantFound.merchantDetail.pricing[
+            merchantFound.merchantDetail.pricing.length - 1
+          ];
+
+        console.log("lastData", lastData);
+
+        const subscriptionLogFound = await SubscriptionLog(lastData.modelId);
+        console.log("subscriptionLogFound", subscriptionLogFound);
+
+        if (subscriptionLogFound.endDate > new Date()) {
+          return next(appError("Current subscription have not ended yet", 500));
+        }
+      }
 
       const savedCommission = new Commission({
         commissionType,

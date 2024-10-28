@@ -58,6 +58,7 @@ const {
   getAllCategoriesOfMerchants,
   getAllProductsOfMerchantController,
   searchMerchantsOrProducts,
+  getProductVariantsByProductIdController,
 } = require("../../controllers/customer/universalOrderController");
 const {
   addPickUpAddressController,
@@ -157,6 +158,13 @@ customerRoute.get(
   "/merchant/:categoryId/products/:customerId",
   isAuthenticated,
   getAllProductsOfMerchantController
+);
+
+// Get variants of a product
+customerRoute.get(
+  "/merchant/product/:productId/variants",
+  isAuthenticated,
+  getProductVariantsByProductIdController
 );
 
 // Filter merchants by criteria (Pure veg, Rating, Nearby)
