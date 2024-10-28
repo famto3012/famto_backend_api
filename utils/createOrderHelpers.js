@@ -1141,10 +1141,12 @@ const processDeliverydetailInApp = async (
   newDeliveryAddress
 ) => {
   let pickupLocation, pickupAddress, deliveryLocation, deliveryAddress;
+
   if (newPickupAddress) {
     pickupLocation = [newPickupAddress.latitude, newPickupAddress.longitude];
     pickupAddress = newPickupAddress;
   }
+
   if (pickUpAddressType) {
     const address = getAddressDetails(
       customer,
@@ -1155,6 +1157,7 @@ const processDeliverydetailInApp = async (
     pickupLocation = address.coordinates;
     pickupAddress = address;
   }
+
   if (newDeliveryAddress) {
     deliveryLocation = [
       newDeliveryAddress.latitude,
@@ -1162,6 +1165,7 @@ const processDeliverydetailInApp = async (
     ];
     deliveryAddress = newDeliveryAddress;
   }
+
   if (deliveryAddressType) {
     const address = getAddressDetails(
       customer,
@@ -1172,6 +1176,7 @@ const processDeliverydetailInApp = async (
     deliveryLocation = address.coordinates;
     deliveryAddress = address;
   }
+
   if (
     !pickupLocation ||
     !pickupAddress ||
@@ -1180,6 +1185,66 @@ const processDeliverydetailInApp = async (
   ) {
     throw new Error("Incomplete address details");
   }
+  return {
+    pickupLocation,
+    pickupAddress,
+    deliveryLocation,
+    deliveryAddress,
+  };
+};
+
+const processHomeDeliveryDetailInApp = async (
+  customer,
+  merchant,
+  deliveryAddressType,
+  deliveryAddressOtherAddressId,
+  newDeliveryAddress
+) => {
+  let pickupLocation = [],
+    pickupAddress = {},
+    deliveryLocation = [],
+    deliveryAddress = {};
+
+  if (merchant) {
+    pickupLocation = merchant.merchantDetail.location;
+
+    pickupAddress = {
+      fullName: merchant.merchantDetail.merchantName,
+      area: merchant.merchantDetail.displayAddress,
+      phoneNumber: merchant.phoneNumber,
+    };
+  }
+
+  if (deliveryMode === "Home Delivery") {
+    if (deliveryAddressType) {
+      const address = getAddressDetails(
+        customer,
+        deliveryAddressType,
+        deliveryAddressOtherAddressId
+      );
+      if (!address) throw new Error("Delivery address not found");
+      deliveryLocation = address.coordinates;
+      deliveryAddress = address;
+    }
+
+    if (newDeliveryAddress) {
+      deliveryLocation = [
+        newDeliveryAddress.latitude,
+        newDeliveryAddress.longitude,
+      ];
+      deliveryAddress = newDeliveryAddress;
+    }
+
+    if (
+      !pickupLocation ||
+      !pickupAddress ||
+      !deliveryLocation ||
+      !deliveryAddress
+    ) {
+      throw new Error("Incomplete address details");
+    }
+  }
+
   return {
     pickupLocation,
     pickupAddress,
@@ -1199,6 +1264,7 @@ module.exports = {
   getTotalDaysBetweenDates,
   formattedCartItems,
   handleAddressDetails,
+  validateDeliveryOption,
   // Changes
   processScheduledDelivery,
   handleDeliveryMode,
@@ -1212,4 +1278,5 @@ module.exports = {
   saveCustomerCart,
   //
   processDeliverydetailInApp,
+  processHomeDeliveryDetailInApp,
 };

@@ -61,6 +61,7 @@ const {
   getProductVariantsByProductIdController,
   getdeliveryOptionOfMerchantController,
   clearCartController,
+  applyTipController,
 } = require("../../controllers/customer/universalOrderController");
 const {
   addPickUpAddressController,
@@ -245,6 +246,8 @@ customerRoute.post(
   isAuthenticated,
   applyPromocodeController
 );
+
+customerRoute.post("/add-tip", isAuthenticated, applyTipController);
 
 customerRoute.post("/confirm-order", isAuthenticated, orderPaymentController);
 
