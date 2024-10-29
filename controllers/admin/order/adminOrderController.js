@@ -666,23 +666,25 @@ const filterOrdersByAdminController = async (req, res, next) => {
       paymentMode,
       deliveryMode,
       merchantId,
-      date,
-      page = 1,
-      limit = 15,
+      date
     } = req.query;
 
-    if (!status && !paymentMode && !deliveryMode && !merchantId && !date) {
-      return res.status(400).json({
-        message: "At least one filter is required",
-      });
-    }
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;  
+    const skip = (page - 1) * limit;
+
+    // if (!status && !paymentMode && !deliveryMode && !merchantId && !date) {
+    //   return res.status(400).json({
+    //     message: "At least one filter is required",
+    //   });
+    // }
 
     // Convert to integers
-    page = parseInt(page, 10);
-    limit = parseInt(limit, 10);
+    // page = parseInt(page, 10);
+    // limit = parseInt(limit, 10);
 
-    // Calculate the number of documents to skip
-    const skip = (page - 1) * limit;
+    // // Calculate the number of documents to skip
+    // const skip = (page - 1) * limit;
 
     const filterCriteria = {};
 
