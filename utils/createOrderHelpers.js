@@ -120,9 +120,6 @@ const processSchedule = (ifScheduled) => {
     ifScheduled.time &&
     convertISTToUTC(ifScheduled.startDate, ifScheduled.time);
   let numOfDays;
-  console.log("Start date", ifScheduled.startDate);
-  console.log("End date", ifScheduled.endDate);
-  console.log("Time", ifScheduled.time);
 
   if (startDate && endDate && time) {
     startDate = new Date(startDate);
@@ -136,11 +133,6 @@ const processSchedule = (ifScheduled) => {
 
     numOfDays = getTotalDaysBetweenDates(startDate, endDate);
   }
-
-  console.log("startDate", startDate);
-  console.log("endDate", endDate);
-  console.log("time", time);
-  console.log("numOfDays", numOfDays);
 
   return { startDate, endDate, time, numOfDays };
 };
@@ -674,7 +666,7 @@ const calculateBill = (
   flatDiscount,
   merchantDiscountAmount,
   taxAmount,
-  addedTip
+  addedTip = 0
 ) => {
   const totalDiscountAmount = parseFloat(flatDiscount) + merchantDiscountAmount;
 
@@ -1194,6 +1186,7 @@ const processDeliverydetailInApp = async (
 };
 
 const processHomeDeliveryDetailInApp = async (
+  deliveryMode,
   customer,
   merchant,
   deliveryAddressType,
@@ -1204,6 +1197,7 @@ const processHomeDeliveryDetailInApp = async (
     pickupAddress = {},
     deliveryLocation = [],
     deliveryAddress = {};
+  distance = 0;
 
   if (merchant) {
     pickupLocation = merchant.merchantDetail.location;
@@ -1222,6 +1216,7 @@ const processHomeDeliveryDetailInApp = async (
         deliveryAddressType,
         deliveryAddressOtherAddressId
       );
+
       if (!address) throw new Error("Delivery address not found");
       deliveryLocation = address.coordinates;
       deliveryAddress = address;
@@ -1243,6 +1238,13 @@ const processHomeDeliveryDetailInApp = async (
     ) {
       throw new Error("Incomplete address details");
     }
+
+    const { distanceInKM } = await getDistanceFromPickupToDelivery(
+      pickupLocation,
+      deliveryLocation
+    );
+
+    distance = distanceInKM;
   }
 
   return {
@@ -1250,6 +1252,7 @@ const processHomeDeliveryDetailInApp = async (
     pickupAddress,
     deliveryLocation,
     deliveryAddress,
+    distance,
   };
 };
 
