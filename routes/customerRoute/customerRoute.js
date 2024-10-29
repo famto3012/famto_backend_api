@@ -228,7 +228,7 @@ customerRoute.put(
 );
 
 // Get merchant delivery option
-customerRoute.post(
+customerRoute.get(
   "/merchant/:merchantId/delivery-option",
   isAuthenticated,
   getdeliveryOptionOfMerchantController
@@ -458,6 +458,8 @@ customerRoute.get("/custom-order-banners", getCustomOrderBannersController);
 customerRoute.get("/available-services", getAvailableServiceController);
 
 customerRoute.get("/generate-referral", isAuthenticated, generateReferralCode);
+
+customerRoute.get("/referral-status", generateReferralCode);
 
 customerRoute.get(
   "/all-notifications",

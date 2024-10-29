@@ -37,14 +37,13 @@ const fs = require("fs");
 // Helper function to handle null or empty string values
 const convertNullValues = (obj) => {
   Object.keys(obj).forEach((key) => {
-    if (obj[key] === "null" || obj[key] === "" || obj[key] === null) {
+    if (obj[key] === "null" || obj[key] === "") {
       obj[key] = null;
     }
   });
 };
 
 const transformAvailabilityValues = (availability) => {
-  // Ensure availability is a plain object
   if (typeof availability !== "object" || availability === null) {
     return availability;
   }
@@ -54,21 +53,18 @@ const transformAvailabilityValues = (availability) => {
   for (const day in availability) {
     if (Object.prototype.hasOwnProperty.call(availability, day)) {
       const dayData = availability[day];
-
-      // Check if dayData is an object and has the expected properties
-      if (dayData && typeof dayData === "object") {
-        transformedAvailability[day] = {
-          ...dayData,
-          openAllDay: dayData.openAllDay === "true" ? true : false,
-          closedAllDay: dayData.closedAllDay === "true" ? true : false,
-          specificTime: dayData.specificTime === "true" ? true : false,
-          startTime: dayData.startTime === "null" ? null : dayData.startTime,
-          endTime: dayData.endTime === "null" ? null : dayData.endTime,
-        };
-      } else {
-        // If dayData is not an object, just copy it as is
-        transformedAvailability[day] = dayData;
-      }
+      transformedAvailability[day] =
+        dayData && typeof dayData === "object"
+          ? {
+              ...dayData,
+              openAllDay: dayData.openAllDay === "true",
+              closedAllDay: dayData.closedAllDay === "true",
+              specificTime: dayData.specificTime === "true",
+              startTime:
+                dayData.startTime === "null" ? null : dayData.startTime,
+              endTime: dayData.endTime === "null" ? null : dayData.endTime,
+            }
+          : dayData;
     }
   }
 
@@ -377,13 +373,12 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
   const { fullName, email, phoneNumber, merchantDetail } = req.body;
 
   const errors = validationResult(req);
-
-  let formattedErrors = {};
   if (!errors.isEmpty()) {
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
-    return res.status(500).json({ errors: formattedErrors });
+    const formattedErrors = errors.array().reduce((acc, error) => {
+      acc[error.path] = error.msg;
+      return acc;
+    }, {});
+    return res.status(400).json({ errors: formattedErrors });
   }
 
   try {
@@ -394,14 +389,14 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
     if (!merchantFound) return next(appError("Merchant not found", 404));
 
     // Apply the helper function to handle null or empty string values
+
     if (merchantDetail) {
       convertNullValues(merchantDetail);
-    }
-
-    if (merchantDetail && merchantDetail.availability) {
-      merchantDetail.availability.specificDays = transformAvailabilityValues(
-        merchantDetail.availability.specificDays
-      );
+      if (merchantDetail.availability) {
+        merchantDetail.availability.specificDays = transformAvailabilityValues(
+          merchantDetail.availability.specificDays
+        );
+      }
     }
 
     let merchantImageURL =
@@ -496,7 +491,11 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
 
     const details = {
       ...merchantDetail,
-      "availability.specificDays": modifiedAvailability,
+      "availability.type":
+        merchantDetail?.availability?.type === "null"
+          ? null
+          : merchantDetail?.availability?.type,
+      "availability.specificDays": merchantDetail?.availability?.specificDays,
       geofenceId: merchantDetail?.geofenceId || null,
       businessCategoryId: merchantDetail?.businessCategoryId || null,
       pricing: merchantFound?.merchantDetail?.pricing
@@ -879,7 +878,7 @@ const rejectRegistrationController = async (req, res, next) => {
     const htmlContent = await ejs.renderFile(rejectionTemplatePath, {
       recipientName: merchantFound.fullName,
       app: "merchant",
-      email: "contact@famto.in"
+      email: "contact@famto.in",
     });
 
     // Set up nodemailer transport
@@ -1351,6 +1350,10 @@ const updateMerchantDetailsController = async (req, res, next) => {
 
     const details = {
       ...merchantDetail,
+      "availability.type":
+        merchantDetail?.availability?.type === "null"
+          ? null
+          : merchantDetail?.availability?.type,
       "availability.specificDays": modifiedAvailability,
       geofenceId: merchantDetail?.geofenceId || null,
       businessCategoryId: merchantDetail?.businessCategoryId || null,

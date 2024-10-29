@@ -644,11 +644,11 @@ const filterOrdersController = async (req, res, next) => {
 
     let { status, paymentMode, deliveryMode, page = 1, limit = 15 } = req.query;
 
-    if (!status && !paymentMode && !deliveryMode) {
-      return res
-        .status(400)
-        .json({ message: "At least one filter is required" });
-    }
+    // if (!status && !paymentMode && !deliveryMode) {
+    //   return res
+    //     .status(400)
+    //     .json({ message: "At least one filter is required" });
+    // }
 
     // Convert to integers
     page = parseInt(page, 10);

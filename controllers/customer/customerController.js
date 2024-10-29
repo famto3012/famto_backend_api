@@ -38,6 +38,7 @@ const { formatToHours } = require("../../utils/agentAppHelpers");
 
 const { sendNotification, sendSocketData } = require("../../socket/socket");
 const Geofence = require("../../models/Geofence");
+const Referral = require("../../models/Referral");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -1204,6 +1205,18 @@ const getAllNotificationsOfCustomerController = async (req, res, next) => {
   }
 };
 
+const getVisibilityOfReferal = async (req, res, next) => {
+  try {
+    const referalFound = await Referral.find({ status: true });
+
+    let status = referalFound.length >= 1 ? true : false;
+
+    res.status(200).json({ status });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerAndLoginController,
   getAvailableGeofences,
@@ -1233,4 +1246,5 @@ module.exports = {
   generateReferralCode,
   getCurrentOrderDetailcontroller,
   getAllNotificationsOfCustomerController,
+  getVisibilityOfReferal,
 };

@@ -558,7 +558,6 @@ const deleteCategoryByMerchantController = async (req, res, next) => {
       userType: req.userRole,
       description: `Category (${categoryToDelete.categoryName}) is deleted by Merchant (${req.userAuth})`,
     });
-    s;
 
     res.status(200).json({
       message: "Category deleted successfully",

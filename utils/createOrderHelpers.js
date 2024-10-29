@@ -1,5 +1,4 @@
 const Agent = require("../models/Agent");
-const BusinessCategory = require("../models/BusinessCategory");
 const Customer = require("../models/Customer");
 const CustomerCart = require("../models/CustomerCart");
 const CustomerPricing = require("../models/CustomerPricing");
@@ -26,29 +25,25 @@ const findOrCreateCustomer = async ({
   newCustomer,
   customerAddress,
   deliveryMode,
-  res,
 }) => {
   if (customerId) {
     const customer = await Customer.findById(customerId);
     if (!customer) throw new Error("Customer not found");
     return customer;
-  } else if (customerAddress) {
-    // Check if the customer already exists by phone number
-    const existingCustomerByPhone = await Customer.findOne({
-      phoneNumber: newCustomer.phoneNumber,
-    });
+  }
 
-    // Check if the customer already exists by email
-    const existingCustomerByEmail = await Customer.findOne({
-      email: newCustomer.email,
-    });
+  const existingCustomer = await Customer.findOne({
+    $or: [
+      { phoneNumber: newCustomer.phoneNumber },
+      { email: newCustomer.email },
+    ],
+  });
 
-    if (existingCustomerByPhone || existingCustomerByEmail) {
-      // If customer exists, return the existing customer instead of creating a new one
-      return existingCustomerByPhone || existingCustomerByEmail;
-    }
+  if (existingCustomer) {
+    return existingCustomer;
+  }
 
-    // If customer does not exist, create a new customer
+  if (customerAddress) {
     const location = [customerAddress.latitude, customerAddress.longitude];
     const updatedAddress = {
       fullName: customerAddress.fullName,
@@ -63,47 +58,30 @@ const findOrCreateCustomer = async ({
       customerAddress.latitude,
       customerAddress.longitude
     );
-
     if (!geofence) {
-      return {
-        message: "User coordinates are outside defined geofences",
-      };
+      return { message: "User coordinates are outside defined geofences" };
     }
-
-    const updatedCustomerDetails = {
-      location: location,
-      geofenceId: geofence ? geofence._id : null,
-      homeAddress:
-        customerAddress.addressType === "home" ? updatedAddress : null,
-      workAddress:
-        customerAddress.addressType === "work" ? updatedAddress : null,
-      otherAddress:
-        customerAddress.addressType === "other" ? [updatedAddress] : [],
-    };
 
     const updatedNewCustomer = {
       fullName: newCustomer.fullName,
       email: newCustomer.email,
       phoneNumber: newCustomer.phoneNumber,
-      customerDetails: updatedCustomerDetails,
+      customerDetails: {
+        location,
+        geofenceId: geofence._id,
+        homeAddress:
+          customerAddress.addressType === "home" ? updatedAddress : null,
+        workAddress:
+          customerAddress.addressType === "work" ? updatedAddress : null,
+        otherAddress:
+          customerAddress.addressType === "other" ? [updatedAddress] : [],
+      },
     };
 
     return await Customer.create(updatedNewCustomer);
-  } else if (newCustomer && deliveryMode === "Take Away") {
-    const existingCustomerByPhone = await Customer.findOne({
-      phoneNumber: newCustomer.phoneNumber,
-    });
+  }
 
-    // Check if the customer already exists by email
-    const existingCustomerByEmail = await Customer.findOne({
-      email: newCustomer.email,
-    });
-
-    if (existingCustomerByPhone || existingCustomerByEmail) {
-      // If customer exists, return the existing customer instead of creating a new one
-      return existingCustomerByPhone || existingCustomerByEmail;
-    }
-
+  if (newCustomer && deliveryMode === "Take Away") {
     return await Customer.create({
       fullName: newCustomer.fullName,
       email: newCustomer.email,
@@ -114,46 +92,44 @@ const findOrCreateCustomer = async ({
 
 // Get the scheduled details
 const processSchedule = (ifScheduled) => {
-  let startDate = ifScheduled.startDate;
-  let endDate = ifScheduled.endDate;
-  let time =
-    ifScheduled.time &&
-    convertISTToUTC(ifScheduled.startDate, ifScheduled.time);
-  let numOfDays;
+  const { startDate, endDate } = ifScheduled;
+  const time = ifScheduled.time
+    ? convertISTToUTC(startDate, ifScheduled.time)
+    : null;
 
-  if (startDate && endDate && time) {
-    startDate = new Date(startDate);
-    startDate.setUTCDate(startDate.getUTCDate() - 1);
-    startDate.setUTCHours(18, 30, 0, 0);
-
-    time.setUTCHours(time.getUTCHours() - 1);
-
-    endDate = new Date(endDate);
-    endDate.setUTCHours(18, 29, 59, 999);
-
-    numOfDays = getTotalDaysBetweenDates(startDate, endDate);
+  if (!startDate || !endDate || !time) {
+    return { startDate: null, endDate: null, time: null, numOfDays: null };
   }
 
-  return { startDate, endDate, time, numOfDays };
+  const adjustedStartDate = new Date(startDate);
+  adjustedStartDate.setUTCDate(adjustedStartDate.getUTCDate() - 1);
+  adjustedStartDate.setUTCHours(18, 30, 0, 0);
+
+  const adjustedTime = new Date(time);
+  adjustedTime.setUTCHours(adjustedTime.getUTCHours() - 1);
+
+  const adjustedEndDate = new Date(endDate);
+  adjustedEndDate.setUTCHours(18, 29, 59, 999);
+
+  const numOfDays = getTotalDaysBetweenDates(
+    adjustedStartDate,
+    adjustedEndDate
+  );
+
+  return {
+    startDate: adjustedStartDate,
+    endDate: adjustedEndDate,
+    time: adjustedTime,
+    numOfDays,
+  };
 };
 
 // Calculat the item total in cart
 const calculateItemTotal = (items, numOfDays) => {
-  let calculatedTotal;
-
-  if (numOfDays) {
-    const amount = items
-      .reduce((total, item) => total + item.price * item.quantity, 0)
-      .toFixed(2);
-
-    calculatedTotal = amount * numOfDays;
-  } else {
-    calculatedTotal = items
-      .reduce((total, item) => total + item.price * item.quantity, 0)
-      .toFixed(2);
-  }
-
-  return calculatedTotal;
+  const calculatedTotal = items
+    .reduce((total, item) => total + item.price * item.quantity, 0)
+    .toFixed(2);
+  return numOfDays ? (calculatedTotal * numOfDays).toFixed(2) : calculatedTotal;
 };
 
 // Calculate the total weight of items
@@ -179,13 +155,12 @@ const calculateAdditionalWeightCharge = (
   baseWeight,
   fareAfterBaseWeight
 ) => {
-  if (totalWeight > baseWeight) {
-    const fare = (
-      (parseFloat(totalWeight) - parseFloat(baseWeight)) *
-      parseFloat(fareAfterBaseWeight)
-    ).toFixed(2);
+  const weightDifference = totalWeight - baseWeight;
 
-    return parseFloat(fare);
+  if (weightDifference > 0) {
+    return parseFloat(
+      (weightDifference * parseFloat(fareAfterBaseWeight)).toFixed(2)
+    );
   }
 
   return 0;
@@ -198,14 +173,15 @@ const calculateSubTotal = ({
   deliveryCharge,
   addedTip = 0,
   totalDiscountAmount = 0,
-}) =>
-  (
-    parseFloat(itemTotal) +
-    parseFloat(surgeCharge) +
-    parseFloat(deliveryCharge) +
-    parseFloat(addedTip) -
-    parseFloat(totalDiscountAmount)
-  ).toFixed(2);
+}) => {
+  const total = parseFloat(itemTotal) || 0;
+  const surge = parseFloat(surgeCharge) || 0;
+  const delivery = parseFloat(deliveryCharge) || 0;
+  const tip = parseFloat(addedTip) || 0;
+  const discount = parseFloat(totalDiscountAmount) || 0;
+
+  return (total + surge + delivery + tip - discount).toFixed(2);
+};
 
 // Calculate the grandTotal of cart
 const calculateGrandTotal = ({
@@ -215,13 +191,15 @@ const calculateGrandTotal = ({
   addedTip = 0,
   taxAmount,
 }) => {
-  return Math.round(
-    parseFloat(itemTotal) +
-      parseFloat(surgeCharges) +
-      parseFloat(deliveryCharge) +
-      parseFloat(addedTip) +
-      parseFloat(taxAmount)
-  ).toFixed(2);
+  const total = [
+    parseFloat(itemTotal) || 0,
+    parseFloat(surgeCharges) || 0,
+    parseFloat(deliveryCharge) || 0,
+    parseFloat(addedTip) || 0,
+    parseFloat(taxAmount) || 0,
+  ].reduce((acc, curr) => acc + curr, 0);
+
+  return Number(total.toFixed(2));
 };
 
 // Get the number of days betweeb scheduled dates
@@ -234,23 +212,25 @@ const formattedCartItems = async (cart) => {
 
   // Populate the product details for each item
   const productIds = populatedCart.items.map((item) => item.productId);
-  const products = await Product.find({ _id: { $in: productIds } });
+  const products = await Product.find({ _id: { $in: productIds } }).lean();
+
+  const productMap = new Map(
+    products.map((product) => [product._id.toString(), product])
+  ); // Create a map for quick access
 
   populatedCart.items = populatedCart.items.map((item) => {
-    const product = products.find((p) => p._id.equals(item.productId));
-    let variantTypeName = null;
+    const product = productMap.get(item.productId.toString());
     let variantTypeData = null;
 
-    if (item.variantTypeId && product && product.variants) {
+    if (item.variantTypeId && product?.variants) {
       const variantType = product.variants
         .flatMap((variant) => variant.variantTypes)
         .find((type) => type._id.equals(item.variantTypeId));
 
       if (variantType) {
-        variantTypeName = variantType.typeName;
         variantTypeData = {
           _id: variantType._id,
-          variantTypeName: variantTypeName,
+          variantTypeName: variantType.typeName,
         };
       }
     }
@@ -280,20 +260,26 @@ const updateCustomerAddress = async (
   const location = [newAddress.latitude, newAddress.longitude];
   newAddress.coordinates = location;
 
-  if (addressType === "home") {
-    customer.customerDetails.homeAddress = newAddress;
-  } else if (addressType === "work") {
-    customer.customerDetails.workAddress = newAddress;
-  } else if (addressType === "other") {
-    const otherIndex = customer.customerDetails.otherAddress.findIndex(
-      (addr) => addr.id.toString() === customerAddressOtherAddressId
-    );
+  switch (addressType) {
+    case "home":
+      customer.customerDetails.homeAddress = newAddress;
+      break;
+    case "work":
+      customer.customerDetails.workAddress = newAddress;
+      break;
+    case "other":
+      const otherIndex = customer.customerDetails.otherAddress.findIndex(
+        (addr) => addr.id.toString() === customerAddressOtherAddressId
+      );
 
-    if (otherIndex !== -1) {
-      customer.customerDetails.otherAddress[otherIndex] = newAddress;
-    } else {
-      customer.customerDetails.otherAddress.push(newAddress);
-    }
+      if (otherIndex !== -1) {
+        customer.customerDetails.otherAddress[otherIndex] = newAddress;
+      } else {
+        customer.customerDetails.otherAddress.push(newAddress);
+      }
+      break;
+    default:
+      throw new Error("Invalid address type");
   }
 
   await customer.save();
@@ -302,16 +288,20 @@ const updateCustomerAddress = async (
 
 // Helper function to retrieve address details based on type
 const getAddressDetails = (customer, addressType, addressId) => {
-  if (addressType === "home") {
-    return customer.customerDetails.homeAddress;
-  } else if (addressType === "work") {
-    return customer.customerDetails.workAddress;
-  } else if (addressType === "other") {
-    return customer.customerDetails.otherAddress.find(
-      (addr) => addr.id.toString() === addressId
-    );
+  switch (addressType) {
+    case "home":
+      return customer.customerDetails.homeAddress || null;
+    case "work":
+      return customer.customerDetails.workAddress || null;
+    case "other":
+      return (
+        customer.customerDetails.otherAddress.find(
+          (addr) => addr.id.toString() === addressId
+        ) || null
+      );
+    default:
+      return null;
   }
-  return null;
 };
 
 // Main function to handle address details
@@ -333,30 +323,24 @@ const handleAddressDetails = async (
 ) => {
   let pickupLocation, pickupAddress, deliveryLocation, deliveryAddress;
 
-  // Handling Take Away
+  const merchantLocation = merchantFound?.merchantDetail?.location;
+  const merchantInfo = {
+    fullName: merchantFound?.merchantDetail?.merchantName,
+    area: merchantFound?.merchantDetail?.displayAddress,
+    phoneNumber: merchantFound?.phoneNumber,
+  };
+
+  // Set pickup and delivery details for "Take Away"
   if (deliveryMode === "Take Away") {
-    pickupLocation = merchantFound.merchantDetail.location;
-    pickupAddress = {
-      fullName: merchantFound.merchantDetail.merchantName,
-      area: merchantFound.merchantDetail.displayAddress,
-      phoneNumber: merchantFound.phoneNumber,
-    };
-    deliveryLocation = merchantFound.merchantDetail.location;
-    deliveryAddress = {
-      fullName: merchantFound.merchantDetail.merchantName,
-      area: merchantFound.merchantDetail.displayAddress,
-      phoneNumber: merchantFound.phoneNumber,
-    };
+    pickupLocation = deliveryLocation = merchantLocation;
+    pickupAddress = deliveryAddress = merchantInfo;
+    return { pickupLocation, pickupAddress, deliveryLocation, deliveryAddress };
   }
 
-  // Handling Home Delivery
+  // Set pickup details for "Home Delivery"
   if (deliveryMode === "Home Delivery") {
-    pickupLocation = merchantFound.merchantDetail.location;
-    pickupAddress = {
-      fullName: merchantFound.merchantDetail.merchantName,
-      area: merchantFound.merchantDetail.displayAddress,
-      phoneNumber: merchantFound.phoneNumber,
-    };
+    pickupLocation = merchantLocation;
+    pickupAddress = merchantInfo;
 
     if (newCustomer) {
       deliveryLocation = [
@@ -364,9 +348,7 @@ const handleAddressDetails = async (
         newCustomerAddress.longitude,
       ];
       deliveryAddress = newCustomerAddress;
-    }
-
-    if (newCustomerAddress) {
+    } else if (newCustomerAddress) {
       deliveryLocation = await updateCustomerAddress(
         newCustomerAddress.type,
         newCustomerAddress,
@@ -374,22 +356,19 @@ const handleAddressDetails = async (
         customerAddressOtherAddressId
       );
       deliveryAddress = newCustomerAddress;
-    }
-
-    if (customerAddressType) {
+    } else if (customerAddressType) {
       const address = getAddressDetails(
         customer,
         customerAddressType,
         customerAddressOtherAddressId
       );
-
       if (!address) throw new Error("Address not found");
       deliveryLocation = address.coordinates;
       deliveryAddress = address;
     }
   }
 
-  // Handling Pick and Drop
+  // Set pickup and delivery details for "Pick and Drop"
   if (deliveryMode === "Pick and Drop") {
     if (newPickupAddress) {
       pickupLocation = [newPickupAddress.latitude, newPickupAddress.longitude];
@@ -429,10 +408,10 @@ const handleAddressDetails = async (
     }
   }
 
-  // Handling Custom Order
+  // Handle "Custom Order"
   if (deliveryMode === "Custom Order") {
     if (customPickupLocation) {
-      pickupLocation = [customPickupLocation[0], customPickupLocation[1]];
+      pickupLocation = [...customPickupLocation];
     }
 
     if (newDeliveryAddress) {
@@ -458,14 +437,13 @@ const handleAddressDetails = async (
         deliveryAddressType,
         deliveryAddressOtherAddressId
       );
-
       if (!address) throw new Error("Delivery address not found");
       deliveryLocation = address.coordinates;
       deliveryAddress = address;
     }
   }
 
-  // Check if required details are present
+  // Validate required details for Home Delivery and Pick and Drop
   if (
     (deliveryMode === "Home Delivery" || deliveryMode === "Pick and Drop") &&
     (!pickupLocation || !pickupAddress || !deliveryLocation || !deliveryAddress)
@@ -473,21 +451,13 @@ const handleAddressDetails = async (
     throw new Error("Incomplete address details");
   }
 
-  return {
-    pickupLocation,
-    pickupAddress,
-    deliveryLocation,
-    deliveryAddress,
-  };
+  return { pickupLocation, pickupAddress, deliveryLocation, deliveryAddress };
 };
 
 // Helper function to process scheduled delivery
 const processScheduledDelivery = (deliveryOption, req) => {
   if (deliveryOption === "Scheduled") {
-    const { startDate, endDate, time, numOfDays } = processSchedule(
-      req.body.ifScheduled
-    );
-    return { startDate, endDate, time, numOfDays };
+    return processSchedule(req.body.ifScheduled);
   }
   return {};
 };
@@ -502,32 +472,29 @@ const handleDeliveryMode = async (
   newCustomerAddress,
   merchant
 ) => {
-  const { pickupLocation, pickupAddress, deliveryLocation, deliveryAddress } =
-    await handleAddressDetails(
-      deliveryMode,
-      customer,
-      customerAddressType,
-      customerAddressOtherAddressId,
-      newCustomer,
-      newCustomerAddress,
-      merchant
-    );
+  const addressDetails = await handleAddressDetails(
+    deliveryMode,
+    customer,
+    customerAddressType,
+    customerAddressOtherAddressId,
+    newCustomer,
+    newCustomerAddress,
+    merchant
+  );
 
   let distance = 0;
+
+  // Calculate distance only if the delivery mode is not "Take Away"
   if (deliveryMode !== "Take Away") {
     const { distanceInKM } = await getDistanceFromPickupToDelivery(
       merchant.merchantDetail.location,
-      deliveryLocation
+      addressDetails.deliveryLocation
     );
-
     distance = distanceInKM;
   }
 
   return {
-    pickupLocation,
-    pickupAddress,
-    deliveryLocation,
-    deliveryAddress,
+    ...addressDetails,
     distanceInKM: distance,
   };
 };
@@ -542,16 +509,15 @@ const calculateDeliveryChargesHelper = async (
   scheduledDetails,
   selectedBusinessCategory
 ) => {
-  let oneTimeDeliveryCharge,
-    surgeCharges,
-    deliveryChargeForScheduledOrder,
-    taxAmount;
+  let oneTimeDeliveryCharge = null;
+  let surgeCharges = null;
+  let deliveryChargeForScheduledOrder = null;
+  let taxAmount = null;
 
   const itemTotal = calculateItemTotal(items, scheduledDetails?.numOfDays);
 
   if (deliveryMode === "Home Delivery") {
     const businessCategoryId = selectedBusinessCategory;
-
     if (!businessCategoryId) throw new Error("Business category not found");
 
     const customerPricing = await CustomerPricing.findOne({
@@ -603,10 +569,10 @@ const calculateDeliveryChargesHelper = async (
   }
 
   return {
-    oneTimeDeliveryCharge: oneTimeDeliveryCharge || null,
-    surgeCharges: surgeCharges || null,
-    deliveryChargeForScheduledOrder: deliveryChargeForScheduledOrder || null,
-    taxAmount: taxAmount || null,
+    oneTimeDeliveryCharge,
+    surgeCharges,
+    deliveryChargeForScheduledOrder,
+    taxAmount,
     itemTotal,
   };
 };
@@ -615,19 +581,25 @@ const calculateDeliveryChargesHelper = async (
 const applyDiscounts = async ({ items, itemTotal, merchantId }) => {
   let merchantDiscountAmount = 0;
 
+  // Fetch all products with their discounts in a single query
+  const productIds = items.map((item) => item.productId);
+  const products = await Product.find({ _id: { $in: productIds } })
+    .populate("discountId")
+    .exec();
+
+  const currentDate = new Date();
+
   for (const item of items) {
-    const product = await Product.findById(item.productId)
-      .populate("discountId")
-      .exec();
+    const product = products.find((p) => p._id.equals(item.productId));
     if (!product) continue;
 
     // Check if product has a valid discount
     const validProductDiscount =
       product.discountId &&
       product.discountId.status &&
-      new Date(product.discountId.validFrom) <= new Date() &&
+      new Date(product.discountId.validFrom) <= currentDate &&
       new Date(product.discountId.validTo).setHours(23, 59, 59, 999) >=
-        new Date();
+        currentDate;
 
     if (validProductDiscount) continue;
 
@@ -636,8 +608,8 @@ const applyDiscounts = async ({ items, itemTotal, merchantId }) => {
       merchantId,
       status: true,
     });
+
     if (merchantDiscount && itemTotal >= merchantDiscount.maxCheckoutValue) {
-      const currentDate = new Date();
       if (
         new Date(merchantDiscount.validFrom) <= currentDate &&
         new Date(merchantDiscount.validTo).setHours(23, 59, 59, 999) >=
@@ -668,8 +640,11 @@ const calculateBill = (
   taxAmount,
   addedTip = 0
 ) => {
-  const totalDiscountAmount = parseFloat(flatDiscount) + merchantDiscountAmount;
+  // Calculate total discount amount once
+  const totalDiscountAmount =
+    parseFloat(flatDiscount || 0) + parseFloat(merchantDiscountAmount || 0);
 
+  // Calculate subtotal and grand total in one go
   const subTotal = calculateSubTotal({
     itemTotal,
     surgeCharges,
@@ -685,25 +660,28 @@ const calculateBill = (
     taxAmount,
   });
 
-  const discountedGrandTotal = totalDiscountAmount
-    ? (grandTotal - totalDiscountAmount).toFixed(2)
-    : null;
+  // Calculate discounted grand total only if there is a discount
+  const discountedGrandTotal =
+    totalDiscountAmount > 0
+      ? (grandTotal - totalDiscountAmount).toFixed(2)
+      : grandTotal.toFixed(2);
 
   return {
     itemTotal,
     originalDeliveryCharge: deliveryCharges,
     addedTip,
-    subTotal,
-    taxAmount,
+    subTotal: parseFloat(subTotal).toFixed(2),
+    taxAmount: parseFloat(taxAmount).toFixed(2),
     surgePrice: surgeCharges || null,
-    discountedAmount: totalDiscountAmount || null,
+    discountedAmount: totalDiscountAmount > 0 ? totalDiscountAmount : null,
     originalGrandTotal: Math.round(grandTotal),
-    discountedGrandTotal:
-      Math.round(discountedGrandTotal) || parseFloat(grandTotal),
+    discountedGrandTotal: Math.round(discountedGrandTotal),
   };
 };
 
-// ADMIN
+// =====================
+// ========ADMIN========
+// =====================
 
 // Fetch merchant details based on deliveryMode
 const fetchMerchantDetails = async (
@@ -712,16 +690,20 @@ const fetchMerchantDetails = async (
   deliveryOption,
   next
 ) => {
-  if (
-    !merchantId ||
-    (deliveryMode !== "Take Away" && deliveryMode !== "Home Delivery")
-  )
+  if (!merchantId || !["Take Away", "Home Delivery"].includes(deliveryMode)) {
     return null;
+  }
 
   const merchantFound = await Merchant.findById(merchantId);
-  if (!merchantFound) return next(appError("Merchant not found", 404));
+  if (!merchantFound) {
+    return next(appError("Merchant not found", 404));
+  }
 
-  validateDeliveryOption(merchantFound, deliveryOption, next);
+  // Validate delivery option
+  const validationError = validateDeliveryOption(merchantFound, deliveryOption);
+  if (validationError) {
+    return next(validationError);
+  }
 
   return merchantFound;
 };
@@ -734,14 +716,14 @@ const validateCustomerAddress = (
   newPickupAddress,
   newDeliveryAddress
 ) => {
-  if (
-    newCustomer &&
-    deliveryMode !== "Take Away" &&
-    deliveryMode !== "Custom Order"
-  ) {
-    if (!newCustomerAddress && deliveryMode === "Home Delivery") {
+  // Check if the customer is new and delivery mode is not Take Away or Custom Order
+  if (newCustomer && !["Take Away", "Custom Order"].includes(deliveryMode)) {
+    // Validate Home Delivery address requirement
+    if (deliveryMode === "Home Delivery" && !newCustomerAddress) {
       throw new Error("Customer address is required");
     }
+
+    // Validate Pick and Drop address requirements
     if (
       deliveryMode === "Pick and Drop" &&
       (!newPickupAddress || !newDeliveryAddress)
@@ -779,40 +761,40 @@ const handleDeliveryModeForAdmin = async (
   newDeliveryAddress,
   customPickupLocation
 ) => {
-  const { pickupLocation, pickupAddress, deliveryLocation, deliveryAddress } =
-    await handleAddressDetails(
-      deliveryMode,
-      customer,
-      customerAddressType,
-      customerAddressOtherAddressId,
-      newCustomer,
-      newCustomerAddress,
-      merchant,
-      pickUpAddressType,
-      pickUpAddressOtherAddressId,
-      deliveryAddressType,
-      deliveryAddressOtherAddressId,
-      newPickupAddress,
-      newDeliveryAddress,
-      customPickupLocation
-    );
+  const addressDetails = await handleAddressDetails(
+    deliveryMode,
+    customer,
+    customerAddressType,
+    customerAddressOtherAddressId,
+    newCustomer,
+    newCustomerAddress,
+    merchant,
+    pickUpAddressType,
+    pickUpAddressOtherAddressId,
+    deliveryAddressType,
+    deliveryAddressOtherAddressId,
+    newPickupAddress,
+    newDeliveryAddress,
+    customPickupLocation
+  );
 
   let distance = 0;
-  if (deliveryMode !== "Take Away" && pickupLocation) {
+
+  // Calculate distance only if the delivery mode is not "Take Away" and pickupLocation is available
+  if (
+    deliveryMode !== "Take Away" &&
+    addressDetails.pickupLocation?.every((coord) => coord !== null)
+  ) {
     const { distanceInKM } = await getDistanceFromPickupToDelivery(
-      pickupLocation,
-      deliveryLocation
+      addressDetails.pickupLocation,
+      addressDetails.deliveryLocation
     );
 
     distance = distanceInKM;
-    // distance = 5;
   }
 
   return {
-    pickupLocation,
-    pickupAddress,
-    deliveryLocation,
-    deliveryAddress,
+    ...addressDetails,
     distanceInKM: distance,
   };
 };
@@ -828,6 +810,7 @@ const calculateDeliveryChargeHelperForAdmin = async (
   pickupLocation,
   selectedBusinessCategory
 ) => {
+  // Handle each delivery mode with a switch statement for clarity
   switch (deliveryMode) {
     case "Take Away":
       return {
@@ -865,6 +848,9 @@ const calculateDeliveryChargeHelperForAdmin = async (
         distanceInKM,
         scheduledDetails
       );
+
+    default:
+      throw new Error("Invalid delivery mode");
   }
 };
 
@@ -879,17 +865,18 @@ const pickAndDropCharges = async (
 
   // Fetch all available vehicle types from the Agent model
   const agents = await Agent.find({});
-  const vehicleTypes = agents.flatMap((agent) =>
-    agent.vehicleDetail.map((vehicle) => vehicle.type)
-  );
-  const uniqueVehicleTypes = [...new Set(vehicleTypes)];
+  const uniqueVehicleTypes = [
+    ...new Set(
+      agents.flatMap((agent) =>
+        agent.vehicleDetail.map((vehicle) => vehicle.type)
+      )
+    ),
+  ];
 
-  const latitude = pickupLocation[0];
-  const longitude = pickupLocation[1];
-
+  const [latitude, longitude] = pickupLocation;
   const geofenceFound = await geoLocation(latitude, longitude);
 
-  // Fetch the customer pricing details for all vehicle types
+  // Fetch customer pricing details for all vehicle types
   const customerPricingArray = await CustomerPricing.find({
     deliveryMode: "Pick and Drop",
     geofenceId: geofenceFound.id,
@@ -897,38 +884,35 @@ const pickAndDropCharges = async (
     vehicleType: { $in: uniqueVehicleTypes },
   });
 
-  if (!customerPricingArray || customerPricingArray.length === 0) {
-    return res.status(404).json({ error: "Customer pricing not found" });
+  if (!customerPricingArray.length) {
+    throw new Error("Customer pricing not found");
   }
 
+  // Calculate surge charges if applicable
   const customerSurge = await CustomerSurge.findOne({
     geofenceId: geofenceFound.id,
     status: true,
   });
 
-  let surgeCharges = 0;
+  const surgeCharges = customerSurge
+    ? calculateDeliveryCharges(
+        distanceInKM,
+        customerSurge.baseFare,
+        customerSurge.baseDistance,
+        customerSurge.fareAfterBaseDistance
+      )
+    : 0;
 
-  if (customerSurge) {
-    let surgeBaseFare = customerSurge.baseFare;
-    let surgeBaseDistance = customerSurge.baseDistance;
-    let surgeFareAfterBaseDistance = customerSurge.fareAfterBaseDistance;
-
-    surgeCharges = calculateDeliveryCharges(
-      distanceInKM,
-      surgeBaseFare,
-      surgeBaseDistance,
-      surgeFareAfterBaseDistance
-    );
-  }
-
+  // Find pricing for the selected vehicle
   const vehiclePrice = customerPricingArray.find(
     (pricing) => pricing.vehicleType === selectedVehicle.toString()
   );
 
   if (!vehiclePrice) {
-    return res.status(404).json({ error: "Vehicle pricing not found" });
+    throw new Error("Vehicle pricing not found");
   }
 
+  // Calculate delivery charges based on vehicle price
   const deliveryCharges = calculateDeliveryCharges(
     distanceInKM,
     vehiclePrice.baseFare,
@@ -936,19 +920,23 @@ const pickAndDropCharges = async (
     vehiclePrice.fareAfterBaseDistance
   );
 
+  // Calculate total weight of items for additional weight charges
   const totalWeight = getTotalItemWeight("Pick and Drop", items);
 
-  let additionalWeightCharge = calculateAdditionalWeightCharge(
+  const additionalWeightCharge = calculateAdditionalWeightCharge(
     totalWeight,
     vehiclePrice.baseWeightUpto,
     vehiclePrice.fareAfterBaseWeight
   );
 
+  // Calculate one-time delivery charge
   const oneTimeDeliveryCharge = (
     parseFloat(deliveryCharges) + parseFloat(additionalWeightCharge)
   ).toFixed(2);
 
+  // Calculate delivery charge for scheduled orders if applicable
   let deliveryChargeForScheduledOrder;
+
   if (
     scheduledDetails?.startDate &&
     scheduledDetails?.endDate &&
@@ -974,8 +962,7 @@ const customOrderCharges = async (
   distanceInKM,
   scheduledDetails
 ) => {
-  let oneTimeDeliveryCharge, surgeCharges, deliveryChargeForScheduledOrder;
-
+  // Fetch customer pricing for custom orders
   const customerPricing = await CustomerPricing.findOne({
     deliveryMode: "Custom Order",
     geofenceId: customer.customerDetails.geofenceId,
@@ -984,37 +971,43 @@ const customOrderCharges = async (
 
   if (!customerPricing) throw new Error("Customer pricing not found");
 
-  oneTimeDeliveryCharge = calculateDeliveryCharges(
+  // Calculate one-time delivery charge
+  let oneTimeDeliveryCharge = calculateDeliveryCharges(
     distanceInKM,
     customerPricing.baseFare,
     customerPricing.baseDistance,
     customerPricing.fareAfterBaseDistance
   );
 
+  // Fetch surge charges if applicable
   const customerSurge = await CustomerSurge.findOne({
     geofenceId: customer.customerDetails.geofenceId,
     status: true,
   });
 
-  if (customerSurge) {
-    surgeCharges = calculateDeliveryCharges(
-      distanceInKM,
-      customerSurge.baseFare,
-      customerSurge.baseDistance,
-      customerSurge.fareAfterBaseDistance
-    );
-  }
+  const surgeCharges = customerSurge
+    ? calculateDeliveryCharges(
+        distanceInKM,
+        customerSurge.baseFare,
+        customerSurge.baseDistance,
+        customerSurge.fareAfterBaseDistance
+      )
+    : 0;
 
+  // Calculate total weight of items for additional weight charges
   const totalWeight = getTotalItemWeight("Custom Order", items);
 
-  let additionalWeightCharge = calculateAdditionalWeightCharge(
+  const additionalWeightCharge = calculateAdditionalWeightCharge(
     totalWeight,
     customerPricing.baseWeightUpto,
     customerPricing.fareAfterBaseWeight
   );
 
-  oneTimeDeliveryCharge =
-    parseFloat(oneTimeDeliveryCharge) + parseFloat(additionalWeightCharge);
+  // Update one-time delivery charge with additional weight charge
+  oneTimeDeliveryCharge += parseFloat(additionalWeightCharge);
+
+  // Calculate delivery charge for scheduled orders if applicable
+  let deliveryChargeForScheduledOrder;
 
   if (
     scheduledDetails?.startDate &&
@@ -1027,9 +1020,9 @@ const customOrderCharges = async (
   }
 
   return {
-    oneTimeDeliveryCharge,
-    surgeCharges,
-    deliveryChargeForScheduledOrder,
+    oneTimeDeliveryCharge: oneTimeDeliveryCharge.toFixed(2),
+    surgeCharges: surgeCharges.toFixed(2),
+    deliveryChargeForScheduledOrder: deliveryChargeForScheduledOrder || null,
     taxAmount: 0,
     itemTotal: 0,
   };
@@ -1054,75 +1047,51 @@ const saveCustomerCart = async (
   instructionInPickup,
   instructionInDelivery
 ) => {
-  if (deliveryMode === "Take Away" || deliveryMode === "Home Delivery") {
+  const cartDetails = {
+    customerId: customer._id,
+    merchantId: merchant?._id || null,
+    items,
+    cartDetail: {
+      pickupLocation,
+      pickupAddress,
+      deliveryLocation,
+      deliveryAddress,
+      deliveryMode,
+      deliveryOption,
+      instructionToMerchant,
+      instructionToDeliveryAgent,
+      instructionInPickup,
+      instructionInDelivery,
+      distance,
+      startDate: scheduledDetails?.startDate || null,
+      endDate: scheduledDetails?.endDate || null,
+      time: scheduledDetails?.time || null,
+      numOfDays: scheduledDetails?.numOfDays || null,
+    },
+    billDetail:
+      deliveryMode === "Pick and Drop" || deliveryMode === "Custom Order"
+        ? { ...billDetail, vehicleType }
+        : billDetail,
+  };
+
+  if (["Take Away", "Home Delivery"].includes(deliveryMode)) {
     return await CustomerCart.findOneAndUpdate(
       { customerId: customer._id },
-      {
-        $set: {
-          customerId: customer._id,
-          merchantId: merchant._id,
-          items,
-          cartDetail: {
-            pickupLocation,
-            pickupAddress,
-            deliveryLocation,
-            deliveryAddress,
-            deliveryMode,
-            deliveryOption,
-            instructionToMerchant,
-            instructionToDeliveryAgent,
-            instructionInPickup,
-            instructionInDelivery,
-            distance,
-            startDate: scheduledDetails?.startDate || null,
-            endDate: scheduledDetails?.endDate || null,
-            time: scheduledDetails?.time || null,
-            numOfDays: scheduledDetails?.numOfDays || null,
-          },
-          billDetail,
-        },
-      },
+      { $set: cartDetails },
       { new: true, upsert: true }
     );
-  } else if (
-    deliveryMode === "Pick and Drop" ||
-    deliveryMode === "Custom Order"
-  ) {
+  } else if (["Pick and Drop", "Custom Order"].includes(deliveryMode)) {
     return await PickAndCustomCart.findOneAndUpdate(
       { customerId: customer._id },
-      {
-        $set: {
-          customerId: customer._id,
-          items,
-          cartDetail: {
-            pickupLocation,
-            pickupAddress,
-            deliveryLocation,
-            deliveryAddress,
-            deliveryMode,
-            deliveryOption,
-            instructionToMerchant,
-            instructionToDeliveryAgent,
-            instructionInPickup,
-            instructionInDelivery,
-            distance,
-            startDate: scheduledDetails?.startDate || null,
-            endDate: scheduledDetails?.endDate || null,
-            time: scheduledDetails?.time || null,
-            numOfDays: scheduledDetails?.numOfDays || null,
-          },
-          billDetail: {
-            ...billDetail,
-            vehicleType,
-          },
-        },
-      },
+      { $set: cartDetails },
       { new: true, upsert: true }
     );
   }
 };
 
-// APP
+// ==============================
+// =========Customer APP=========
+// ==============================
 const processDeliverydetailInApp = async (
   customer,
   pickUpAddressType,
