@@ -49,7 +49,6 @@ const {
   addRatingToMerchantController,
   getTotalRatingOfMerchantController,
   addOrUpdateCartItemController,
-  addCartDetailsController,
   applyPromocodeController,
   orderPaymentController,
   verifyOnlinePaymentController,
@@ -62,6 +61,7 @@ const {
   getdeliveryOptionOfMerchantController,
   clearCartController,
   applyTipController,
+  confirmOrderDetailController,
 } = require("../../controllers/customer/universalOrderController");
 const {
   addPickUpAddressController,
@@ -238,7 +238,8 @@ customerRoute.post(
 customerRoute.post(
   "/cart/add-details",
   isAuthenticated,
-  addCartDetailsController
+  // addCartDetailsController
+  confirmOrderDetailController
 );
 
 customerRoute.post(

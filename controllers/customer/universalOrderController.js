@@ -18,33 +18,32 @@ const NotificationSetting = require("../../models/NotificationSetting");
 const {
   sortMerchantsBySponsorship,
   getDistanceFromPickupToDelivery,
-  getTaxAmount,
-  getDeliveryAndSurgeCharge,
+
   calculateDiscountedPrice,
   filterProductIdAndQuantity,
-  calculateMerchantDiscount,
+
+  fetchcustomerAndMerchantAndCart,
+  processVoiceInstructions,
 } = require("../../utils/customerAppHelpers");
 const {
   createRazorpayOrderId,
   verifyPayment,
   razorpayRefund,
 } = require("../../utils/razorpayPayment");
-const {
-  convertToUTC,
-  formatDate,
-  formatTime,
-} = require("../../utils/formatters");
-const {
-  deleteFromFirebase,
-  uploadToFirebase,
-} = require("../../utils/imageOperation");
+const { formatDate, formatTime } = require("../../utils/formatters");
+
 const appError = require("../../utils/appError");
 const geoLocation = require("../../utils/getGeoLocation");
 
 const { sendNotification, sendSocketData } = require("../../socket/socket");
 const {
-  processSchedule,
   validateDeliveryOption,
+  processHomeDeliveryDetailInApp,
+
+  calculateDeliveryChargesHelper,
+  applyDiscounts,
+  calculateBill,
+  processScheduledDelivery,
 } = require("../../utils/createOrderHelpers");
 
 // Get all available business categories according to the order
@@ -1148,420 +1147,143 @@ const getdeliveryOptionOfMerchantController = async (req, res, next) => {
   }
 };
 
-// Add Cart details (Address, Instrunctions)
-const addCartDetailsController = async (req, res, next) => {
+// Confirm Order detail (Add - address, items)
+const confirmOrderDetailController = async (req, res, next) => {
   try {
     const {
       businessCategoryId,
-      addressType,
-      otherAddressId,
-      fullName,
-      phoneNumber,
-      flat,
-      area,
-      landmark,
-      coordinates,
-      addToAddressBook,
+      deliveryAddressType,
+      deliveryAddressOtherAddressId,
+      newDeliveryAddress,
       deliveryMode,
       instructionToMerchant,
       instructionToDeliveryAgent,
-      startDate,
-      endDate,
-      time,
+      ifScheduled,
     } = req.body;
 
-    const customerId = req.userAuth;
-
-    if (!customerId) {
-      return next(appError("Customer is not authenticated", 401));
-    }
-
-    const customer = await Customer.findById(customerId);
-
-    if (!customer) {
-      return res.status(404).json({ error: "Customer not found" });
-    }
-
-    const cart = await CustomerCart.findOne({ customerId });
-
-    if (!cart) {
-      return res.status(404).json({ error: "Cart not found" });
-    }
-
-    const merchant = await Merchant.findById(cart.merchantId);
-
-    if (!merchant) {
-      return res.status(404).json({ error: "Merchant not found" });
-    }
-
-    if (
-      merchant?.merchantDetail?.deliveryOption === "On-demand" &&
-      startDate &&
-      endDate &&
-      time
-    ) {
-      return next(appError("Merchant only accepts On-demand orders", 400));
-    } else if (
-      merchant?.merchantDetail?.deliveryOption === "Scheduled" &&
-      !startDate &&
-      !endDate &&
-      !time
-    ) {
-      return next(appError("Merchant only accepts Scheduled orders", 400));
-    }
-
-    // Retrieve the specified address coordinates from the customer data
-    let deliveryCoordinates;
-    let deliveryAddress = {};
-
-    if (deliveryMode === "Home Delivery") {
-      if (fullName && phoneNumber && flat && area && coordinates) {
-        deliveryAddress = {
-          fullName,
-          phoneNumber,
-          flat,
-          area,
-          landmark,
-        };
-
-        deliveryCoordinates = coordinates;
-
-        if (addToAddressBook) {
-          if (addressType === "home") {
-            customer.customerDetails.homeAddress = deliveryAddress;
-            customer.customerDetails.homeAddress.coordinates =
-              deliveryCoordinates;
-          } else if (addressType === "work") {
-            customer.customerDetails.workAddress = deliveryAddress;
-            customer.customerDetails.workAddress.coordinates =
-              deliveryCoordinates;
-          } else if (addressType === "other") {
-            customer.customerDetails.otherAddress.push({
-              id: new mongoose.Types.ObjectId(),
-              coordinates: deliveryCoordinates,
-              ...deliveryAddress,
-            });
-          }
-
-          await customer.save();
-        }
-      } else {
-        if (addressType === "home") {
-          deliveryCoordinates =
-            customer.customerDetails.homeAddress.coordinates;
-          deliveryAddress = { ...customer.customerDetails.homeAddress };
-        } else if (addressType === "work") {
-          deliveryCoordinates =
-            customer.customerDetails.workAddress.coordinates;
-          deliveryAddress = { ...customer.customerDetails.workAddress };
-        } else {
-          const otherAddress = customer.customerDetails.otherAddress.find(
-            (addr) => addr.id.toString() === otherAddressId
-          );
-          if (otherAddress) {
-            deliveryCoordinates = otherAddress.coordinates;
-            deliveryAddress = { ...otherAddress };
-          } else {
-            return res.status(404).json({ error: "Address not found" });
-          }
-        }
-      }
-    }
-
-    const pickupCoordinates = merchant.merchantDetail.location;
-
-    // Calculate itemTotal in the controller
-    const itemTotal = cart.items.reduce(
-      (total, item) => total + item.price * item.quantity,
-      0
+    const { customer, cart, merchant } = await fetchcustomerAndMerchantAndCart(
+      req.userAuth,
+      next
     );
 
-    let voiceInstructiontoMerchantURL =
-      cart?.cartDetail?.voiceInstructiontoMerchant || "";
-    let voiceInstructiontoAgentURL =
-      cart?.cartDetail?.voiceInstructiontoAgent || "";
-
-    if (req.files) {
-      const { voiceInstructiontoMerchant, voiceInstructiontoAgent } = req.files;
-
-      if (req.files.voiceInstructiontoMerchant) {
-        if (voiceInstructiontoMerchantURL) {
-          await deleteFromFirebase(voiceInstructiontoMerchantURL);
-        }
-        voiceInstructiontoMerchantURL = await uploadToFirebase(
-          voiceInstructiontoMerchant,
-          "VoiceInstructions"
-        );
-      }
-
-      if (req.files.voiceInstructiontoAgent) {
-        if (voiceInstructiontoAgentURL) {
-          await deleteFromFirebase(voiceInstructiontoAgentURL);
-        }
-        voiceInstructiontoAgentURL = await uploadToFirebase(
-          voiceInstructiontoAgent,
-          "VoiceInstructions"
-        );
-      }
+    let deliveryOption = "On-demand";
+    if (ifScheduled?.startDate && ifScheduled?.endDate && ifScheduled?.time) {
+      deliveryOption = "Scheduled";
     }
 
-    let scheduled;
-    if (startDate && endDate && time) {
-      const ifScheduled = {
-        startDate,
-        endDate,
-        time,
-      };
+    validateDeliveryOption(merchant, deliveryOption, next);
 
-      scheduled = processSchedule(ifScheduled);
-    }
+    const scheduledDetails = processScheduledDelivery(deliveryOption, req);
 
-    let updatedCartDetail = {
-      pickupLocation: pickupCoordinates,
-      pickupAddress: {
-        fullName: merchant.merchantDetail.merchantName,
-        area: merchant.merchantDetail.displayAddress,
-        phoneNumber: merchant.phoneNumber,
-      },
+    const { voiceInstructiontoMerchantURL, voiceInstructiontoAgentURL } =
+      processVoiceInstructions(req, cart, next);
+
+    const {
+      pickupLocation,
+      pickupAddress,
+      deliveryLocation,
+      deliveryAddress,
+      distance,
+    } = await processHomeDeliveryDetailInApp(
       deliveryMode,
-      deliveryOption: startDate && endDate && time ? "Scheduled" : "On-demand",
-      instructionToMerchant,
-      instructionToDeliveryAgent,
-      voiceInstructiontoMerchant: voiceInstructiontoMerchantURL,
-      voiceInstructiontoAgent: voiceInstructiontoAgentURL,
-      startDate: scheduled?.startDate,
-      endDate: scheduled?.endDate,
-      time: scheduled?.time,
-    };
-
-    const subscriptionOfCustomer = await Customer.findById(customerId).select(
-      "customerDetails.pricing"
+      customer,
+      merchant,
+      deliveryAddressType,
+      deliveryAddressOtherAddressId,
+      newDeliveryAddress
     );
 
-    let discountedAmount = 0;
+    const cartItems = cart.items;
 
-    const merchantDiscount = await calculateMerchantDiscount(
-      cart,
+    const {
+      oneTimeDeliveryCharge,
+      surgeCharges,
+      deliveryChargeForScheduledOrder,
+      taxAmount,
       itemTotal,
-      merchant._id,
-      startDate,
-      endDate
+    } = await calculateDeliveryChargesHelper(
+      deliveryMode,
+      distance,
+      merchant,
+      customer,
+      cartItems,
+      scheduledDetails,
+      businessCategoryId
     );
 
-    discountedAmount += merchantDiscount;
+    const merchantDiscountAmount = await applyDiscounts({
+      items: cartItems,
+      itemTotal,
+      merchant,
+    });
 
-    let updatedBill = {
-      itemTotal: parseFloat(itemTotal).toFixed(2),
-      // discountedAmount: discountedAmount || null,
-      merchantDiscount: discountedAmount || null,
-    };
+    let actualDeliveryCharge = 0;
 
-    let subTotal;
+    const subscriptionOfCustomer = customer.customerDetails.pricing;
 
-    if (deliveryMode === "Take Away") {
-      updatedCartDetail = {
-        ...updatedCartDetail,
-        deliveryLocation: pickupCoordinates,
-        distance: 0,
-      };
+    if (subscriptionOfCustomer?.length > 0) {
+      const subscriptionLog = await SubscriptionLog.findById(
+        subscriptionOfCustomer[0]
+      );
 
-      if (startDate && endDate && time) {
-        const diffDays = scheduled.numOfDays;
+      if (subscriptionLog) {
+        const now = new Date();
 
-        // Set subTotal, originalGrandTotal without tax and delivery charges
-        subTotal =
-          itemTotal * diffDays +
-          parseFloat(addedTip) -
-          parseFloat(discountedAmount);
-
-        updatedBill.originalGrandTotal = parseFloat(subTotal).toFixed(2);
-        updatedBill.taxAmount = 0;
-        updatedBill.originalDeliveryCharge = 0;
-
-        cart.cartDetail = updatedCartDetail;
-      } else {
-        // Set originalGrandTotal without tax and delivery charges
-        updatedBill.originalGrandTotal = parseFloat(itemTotal).toFixed(2);
-        updatedBill.taxAmount = 0;
-        updatedBill.originalDeliveryCharge = 0;
-
-        cart.cartDetail = updatedCartDetail;
-
-        subTotal =
-          itemTotal + parseFloat(addedTip) - parseFloat(discountedAmount);
+        if (
+          (new Date(subscriptionLog?.startDate) < now ||
+            new Date(subscriptionLog?.endDate) > now) &&
+          subscriptionLog?.currentNumberOfOrders < subscriptionLog?.maxOrders
+        ) {
+          actualDeliveryCharge = 0;
+        }
       }
     } else {
-      updatedCartDetail = {
-        ...updatedCartDetail,
-        deliveryLocation: deliveryCoordinates,
-        deliveryAddress,
-        distance: 0,
-      };
-
-      // Calculate distance using MapMyIndia API
-      const { distanceInKM } = await getDistanceFromPickupToDelivery(
-        pickupCoordinates,
-        deliveryCoordinates
-      );
-
-      updatedCartDetail.distance = distanceInKM;
-
-      const { deliveryCharges, surgeCharges } = await getDeliveryAndSurgeCharge(
-        customerId,
-        "Home Delivery",
-        distanceInKM,
-        businessCategoryId
-      );
-
-      let actualDeliveryCharge = 0;
-
-      // ? Subscription count is increasing only after the successful completion of order
-      if (subscriptionOfCustomer?.customerDetails?.pricing?.length > 0) {
-        const subscriptionLog = await SubscriptionLog.findById(
-          subscriptionOfCustomer.customerDetails.pricing[0]
-        );
-
-        if (subscriptionLog) {
-          const now = new Date();
-
-          if (
-            (new Date(subscriptionLog?.startDate) < now ||
-              new Date(subscriptionLog?.endDate) > now) &&
-            subscriptionLog?.currentNumberOfOrders < subscriptionLog?.maxOrders
-          ) {
-            actualDeliveryCharge = 0;
-          }
-        }
-      } else {
-        actualDeliveryCharge = deliveryCharges;
-      }
-
-      updatedBill.surgeCharges = surgeCharges;
-
-      if (startDate && endDate) {
-        const startDateTime = new Date(`${startDate} ${time}`);
-        const endDateTime = new Date(`${endDate} ${time}`);
-
-        const diffTime = Math.abs(endDateTime - startDateTime);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-
-        const scheduledDeliveryCharge = (
-          actualDeliveryCharge * diffDays
-        ).toFixed(2);
-        const cartTotal = (itemTotal * diffDays).toFixed(2);
-
-        updatedBill.originalDeliveryCharge = scheduledDeliveryCharge;
-        updatedBill.deliveryChargePerDay = actualDeliveryCharge;
-        updatedCartDetail.numOfDays = diffDays;
-
-        // Update the itemTotal with multiplied value
-        updatedBill.itemTotal = parseFloat(cartTotal);
-
-        const taxAmount = await getTaxAmount(
-          businessCategoryId,
-          merchant.merchantDetail.geofenceId,
-          parseFloat(cartTotal),
-          parseFloat(scheduledDeliveryCharge)
-        );
-
-        updatedBill.taxAmount = taxAmount.toFixed(2);
-
-        const grandTotal = (
-          parseFloat(cartTotal) +
-          parseFloat(scheduledDeliveryCharge) +
-          parseFloat(taxAmount) -
-          parseFloat(discountedAmount)
-        ).toFixed(2);
-
-        updatedBill.originalGrandTotal = parseFloat(grandTotal);
-        subTotal =
-          parseFloat(itemTotal) * diffDays +
-          parseFloat(scheduledDeliveryCharge) -
-          parseFloat(discountedAmount);
-      } else {
-        updatedBill.originalDeliveryCharge =
-          parseFloat(actualDeliveryCharge).toFixed(2);
-
-        const taxAmount = await getTaxAmount(
-          businessCategoryId,
-          merchant.merchantDetail.geofenceId,
-          parseFloat(itemTotal),
-          parseFloat(actualDeliveryCharge)
-        );
-
-        updatedBill.taxAmount = taxAmount.toFixed(2);
-
-        subTotal =
-          parseFloat(itemTotal) +
-          parseFloat(actualDeliveryCharge) -
-          parseFloat(discountedAmount);
-
-        const grandTotal = (
-          parseFloat(subTotal) + parseFloat(taxAmount)
-        ).toFixed(2);
-
-        updatedBill.originalGrandTotal = Math.round(parseFloat(grandTotal));
-      }
+      actualDeliveryCharge = oneTimeDeliveryCharge;
     }
 
-    updatedBill.subTotal = Math.round(parseFloat(subTotal).toFixed(2));
+    const billDetail = calculateBill(
+      itemTotal,
+      deliveryChargeForScheduledOrder || actualDeliveryCharge || 0,
+      surgeCharges || 0,
+      0, //
+      merchantDiscountAmount,
+      taxAmount || 0
+    );
 
-    // Ensure billDetail is initialized
-    cart.billDetail = cart.billDetail || {};
-    cart.cartDetail = updatedCartDetail;
-    cart.billDetail = updatedBill;
+    // 67163c1850479b471c1fc410
 
-    await cart.save();
-
-    // Populate the cart with product and variant details
-    const populatedCart = await CustomerCart.findOne({ customerId })
-      .populate({
-        path: "items.productId",
-        select: "productName productImageURL description variants",
-      })
-      .exec();
-
-    const populatedCartWithVariantNames = populatedCart.toObject();
-    populatedCartWithVariantNames.items =
-      populatedCartWithVariantNames.items.map((item) => {
-        const product = item.productId;
-        let variantTypeName = null;
-        let variantTypeData = null;
-        if (item.variantTypeId && product.variants) {
-          const variantType = product.variants
-            .flatMap((variant) => variant.variantTypes)
-            .find((type) => type._id.equals(item.variantTypeId));
-          if (variantType) {
-            variantTypeName = variantType.typeName;
-            variantTypeData = {
-              id: variantType._id,
-              variantTypeName: variantTypeName,
-            };
-          }
-        }
-        return {
-          ...item,
-          productId: {
-            id: product._id,
-            productName: product.productName,
-            description: product.description,
-            productImageURL: product.productImageURL,
-          },
-          variantTypeId: variantTypeData,
-        };
-      });
-
-    res.status(200).json({
-      success: "Delivery address and details added to cart successfully",
-      data: {
-        cartId: populatedCartWithVariantNames._id,
-        customerId: populatedCartWithVariantNames.customerId,
-        merchantId: populatedCartWithVariantNames.merchantId,
-        billDetail: populatedCartWithVariantNames.billDetail,
-        cartDetail: populatedCartWithVariantNames.cartDetail,
-        items: populatedCartWithVariantNames.items,
+    const customerCart = await CustomerCart.findOneAndUpdate(
+      { customerId: customer._id },
+      {
+        customerId: customer._id,
+        merchantId: merchant._id,
+        items: cart.items,
+        cartDetail: {
+          ...req.body,
+          pickupLocation,
+          pickupAddress,
+          deliveryLocation,
+          deliveryAddress,
+          instructionToDeliveryAgent,
+          instructionToMerchant,
+          voiceInstructiontoMerchantURL,
+          voiceInstructiontoAgentURL,
+          distance,
+          deliveryOption,
+          startDate: scheduledDetails?.startDate || null,
+          endDate: scheduledDetails?.endDate || null,
+          time: scheduledDetails?.time || null,
+          numOfDays: scheduledDetails?.numOfDays || null,
+        },
+        billDetail: {
+          ...billDetail,
+          deliveryChargePerDay: actualDeliveryCharge,
+        },
       },
-    });
+      { new: true, upsert: true }
+    );
+
+    res.status(200).json(customerCart.billDetail);
   } catch (err) {
     next(appError(err.message));
   }
@@ -2778,39 +2500,6 @@ const clearCartController = async (req, res, next) => {
   }
 };
 
-const confirmOrderDetailController = async (req, res, next) => {
-  try {
-    const {
-      businessCategoryId,
-      deliveryAddressType,
-      deliveryAddressOtherAddressId,
-      newDeliveryAddress,
-      deliveryMode,
-      instructionToMerchant,
-      instructionToDeliveryAgent,
-      ifScheduled,
-    } = req.body;
-
-    const { customer, cart, merchant } = fetchcustomerAndMerchantAndCart(
-      req.userAuth,
-      next
-    );
-
-    let deliveryOption = "On-demand";
-    if (ifScheduled.startDate && ifScheduled.endDate && ifScheduled.time) {
-      deliveryOption = "Scheduled";
-    }
-
-    validateDeliveryOption(deliveryOption, merchant, next);
-
-    const { startDate, endDate, time, numOfDays } = processSchedule(
-      req.body.ifScheduled
-    );
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
 module.exports = {
   getAllBusinessCategoryController,
   homeSearchController,
@@ -2827,7 +2516,6 @@ module.exports = {
   getTotalRatingOfMerchantController,
   addOrUpdateCartItemController,
   getdeliveryOptionOfMerchantController,
-  addCartDetailsController,
   applyPromocodeController,
   orderPaymentController,
   verifyOnlinePaymentController,
@@ -2835,4 +2523,6 @@ module.exports = {
   searchMerchantsOrProducts,
   clearCartController,
   applyTipController,
+  //
+  confirmOrderDetailController,
 };

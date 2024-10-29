@@ -17,6 +17,7 @@ const MerchantNotificationLogs = require("../models/MerchantNotificationLog");
 const appError = require("./appError");
 const LoyaltyPoint = require("../models/LoyaltyPoint");
 const CustomerCart = require("../models/CustomerCart");
+const { deleteFromFirebase, uploadToFirebase } = require("./imageOperation");
 
 // Helper function to sort merchants by sponsorship
 const sortMerchantsBySponsorship = (merchants) => {
@@ -863,6 +864,43 @@ const fetchcustomerAndMerchantAndCart = async (customerId, next) => {
   return { customer, cart, merchant };
 };
 
+const processVoiceInstructions = async (req, cart, next) => {
+  try {
+    let voiceInstructiontoMerchantURL =
+      cart?.cartDetail?.voiceInstructiontoMerchant || "";
+    let voiceInstructiontoAgentURL =
+      cart?.cartDetail?.voiceInstructiontoAgent || "";
+
+    if (req.files) {
+      const { voiceInstructiontoMerchant, voiceInstructiontoAgent } = req.files;
+
+      if (req.files.voiceInstructiontoMerchant) {
+        if (voiceInstructiontoMerchantURL) {
+          await deleteFromFirebase(voiceInstructiontoMerchantURL);
+        }
+        voiceInstructiontoMerchantURL = await uploadToFirebase(
+          voiceInstructiontoMerchant,
+          "VoiceInstructions"
+        );
+      }
+
+      if (req.files.voiceInstructiontoAgent) {
+        if (voiceInstructiontoAgentURL) {
+          await deleteFromFirebase(voiceInstructiontoAgentURL);
+        }
+        voiceInstructiontoAgentURL = await uploadToFirebase(
+          voiceInstructiontoAgent,
+          "VoiceInstructions"
+        );
+      }
+    }
+
+    return { voiceInstructiontoMerchantURL, voiceInstructiontoAgentURL };
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   sortMerchantsBySponsorship,
   getDistanceFromPickupToDelivery,
@@ -878,4 +916,7 @@ module.exports = {
   reduceProductAvailableQuantity,
   calculateMerchantDiscount,
   deleteOldLoyaltyPoints,
+  //
+  fetchcustomerAndMerchantAndCart,
+  processVoiceInstructions,
 };

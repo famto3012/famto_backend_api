@@ -278,18 +278,20 @@ const addPickandDropItemsController = async (req, res, next) => {
     // If cart doesn't exist, return an error
     if (!cart) return next(appError("Cart not found", 400));
 
-    // Add the new items to the cart
-    items.forEach((item) => {
-      const cartItem = {
-        itemName: item.itemName,
-        length: item.length || null,
-        width: item.width || null,
-        height: item.height || null,
-        unit: item.unit,
-        weight: item.weight,
-      };
-      cart.items.push(cartItem);
-    });
+    // Clear existing items
+    cart.items = [];
+
+    // Add the new formatted items to the cart
+    const formattedItems = items.map((item) => ({
+      itemName: item.itemName,
+      length: item.length || null,
+      width: item.width || null,
+      height: item.height || null,
+      unit: item.unit,
+      weight: item.weight,
+    }));
+
+    cart.items.push(...formattedItems);
 
     let updatedBill = {
       originalDeliveryCharge: Math.round(deliveryCharges),
