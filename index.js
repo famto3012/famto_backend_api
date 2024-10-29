@@ -244,6 +244,10 @@ cron.schedule("* * * * *", async () => {
   }
 });
 
+cron.schedule("0 0 */10 * *", async () => {
+  await deleteOldActivityLogs();
+});
+
 //global errors
 app.use(globalErrorHandler);
 

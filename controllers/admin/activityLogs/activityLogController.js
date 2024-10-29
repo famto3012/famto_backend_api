@@ -18,7 +18,7 @@ const getAllActivityLogsController = async (req, res, next) => {
   }
 };
 
-const deleteOldActivityLogsController = async (req, res, next) => {
+const deleteOldActivityLogs = async () => {
   try {
     const tenDaysAgo = new Date();
     tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
@@ -26,16 +26,12 @@ const deleteOldActivityLogsController = async (req, res, next) => {
     await ActivityLog.deleteMany({
       createdAt: { $lt: tenDaysAgo },
     });
-
-    res.status(200).json({
-      message: "Old activity logs deleted successfully",
-    });
   } catch (err) {
-    next(appError(err.message));
+    throw new Error(`Error in deleting old activity logs: ${err}`);
   }
 };
 
 module.exports = {
   getAllActivityLogsController,
-  deleteOldActivityLogsController,
+  deleteOldActivityLogs,
 };

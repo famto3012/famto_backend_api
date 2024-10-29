@@ -795,7 +795,7 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
 
     // Return countdown timer to client
     res.status(200).json({
-      message: "Custom order will be created in 1 minute.",
+      message: "Order will be created in 1 minute.",
       orderId,
       countdown: 60,
     });

@@ -64,17 +64,21 @@ const calculateDeliveryCharges = (
 ) => {
   if (fareAfterBaseDistance) {
     if (distance <= baseDistance) {
-      return parseFloat(baseFare).toFixed(2);
+      return Number(parseFloat(baseFare).toFixed(2) || 0);
     } else {
-      return parseFloat(
-        baseFare + (distance - baseDistance) * fareAfterBaseDistance
-      ).toFixed(2);
+      return Number(
+        parseFloat(
+          baseFare + (distance - baseDistance) * fareAfterBaseDistance
+        ).toFixed(2) || 0
+      );
     }
   } else {
     if (distance <= baseDistance) {
-      return parseFloat(baseFare).toFixed(2);
+      return Number(parseFloat(baseFare).toFixed(2) || 0);
     } else {
-      return parseFloat(baseFare + (distance - baseDistance)).toFixed(2);
+      return Number(
+        parseFloat(baseFare + (distance - baseDistance)).toFixed(2) || 0
+      );
     }
   }
 };
