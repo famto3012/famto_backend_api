@@ -18,6 +18,10 @@ const HomeScreenRevenueDataSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    order: {
+      type: Number,
+      default: 0,
+    },
     userId: {
       type: String,
       default: null,
