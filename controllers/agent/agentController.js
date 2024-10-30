@@ -48,34 +48,23 @@ const {
 } = require("../../socket/socket");
 const FcmToken = require("../../models/fcmToken");
 
-//Function for getting agent's manager from geofence
-const getManager = async (geofenceId) => {
-  const geofenceFound = await Geofence.findOne({
-    _id: geofenceId,
-  });
-
-  const geofenceManager = geofenceFound.orderManager;
-
-  return geofenceManager;
-};
-
 // Update location on entering APP
 const updateLocationController = async (req, res, next) => {
   try {
-    const currentAgent = req.userAuth;
+    const currentAgentId = req.userAuth;
     const { latitude, longitude } = req.body;
 
-    const agentFound = await Agent.findById(currentAgent);
+    // Retrieve agent data and geolocation concurrently
+    const [agentFound, geofence] = await Promise.all([
+      Agent.findById(currentAgentId),
+      geoLocation(latitude, longitude),
+    ]);
 
-    if (!agentFound) {
-      return next(appError("Agent not found", 404));
-    }
+    // Early return if agent is not found
+    if (!agentFound) return next(appError("Agent not found", 404));
 
-    const location = [latitude, longitude];
-
-    const geofence = await geoLocation(latitude, longitude);
-
-    agentFound.location = location;
+    // Update agent's location and geofence
+    agentFound.location = [latitude, longitude];
     agentFound.geofenceId = geofence.id;
 
     await agentFound.save();
@@ -88,78 +77,77 @@ const updateLocationController = async (req, res, next) => {
   }
 };
 
-//Agent register Controller
+// Agent register Controller
 const registerAgentController = async (req, res, next) => {
   const { fullName, email, phoneNumber, latitude, longitude } = req.body;
-  const location = [latitude, longitude];
 
+  // Consolidate validation and return errors if any
   const errors = validationResult(req);
-
-  let formattedErrors = {};
   if (!errors.isEmpty()) {
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
-    return res.status(500).json({ errors: formattedErrors });
+    const formattedErrors = errors.array().reduce((acc, error) => {
+      acc[error.path] = error.msg;
+      return acc;
+    }, {});
+    return res.status(400).json({ errors: formattedErrors });
   }
 
   try {
+    // Normalize and prepare data
     const normalizedEmail = email.toLowerCase();
-    const emailFound = await Agent.findOne({ email: normalizedEmail });
+    const location = [latitude, longitude];
 
-    const phoneNumberFound = await Agent.findOne({ phoneNumber });
+    // Check if email or phone already exists in a single call
+    const [existingAgent, geofence] = await Promise.all([
+      Agent.findOne({ $or: [{ email: normalizedEmail }, { phoneNumber }] }),
+      geoLocation(latitude, longitude),
+    ]);
 
-    if (emailFound) {
-      formattedErrors.email = "Email already exists";
-      return res.status(409).json({ errors: formattedErrors });
+    // Return early if email or phone already exists
+    if (existingAgent) {
+      const conflictErrors = {};
+      if (existingAgent.email === normalizedEmail) {
+        conflictErrors.email = "Email already exists";
+      }
+      if (existingAgent.phoneNumber === phoneNumber) {
+        conflictErrors.phoneNumber = "Phone number already exists";
+      }
+      return res.status(409).json({ errors: conflictErrors });
     }
 
-    if (phoneNumberFound) {
-      formattedErrors.phoneNumber = "Phone number already exists";
-      return res.status(409).json({ errors: formattedErrors });
-    }
+    // Handling profile image upload
+    const agentImageURL = req.file
+      ? await uploadToFirebase(req.file, "AgentImages")
+      : "";
 
-    const geofence = await geoLocation(latitude, longitude);
-
-    const manager = await getManager(geofence.id);
-
-    let agentImageURL = "";
-
-    if (req.file) {
-      agentImageURL = await uploadToFirebase(req.file, "AgentImages");
-    }
-
+    // Create new agent and notification simultaneously
     const newAgent = await Agent.create({
       fullName,
-      email,
+      email: normalizedEmail,
       phoneNumber,
       location,
       geofenceId: geofence._id,
       agentImageURL,
-      manager,
     });
 
-    if (!newAgent) {
-      return next(appError("Error in registering new agent"));
-    }
+    if (!newAgent) return next(appError("Error in registering new agent"));
 
     const notification = await NotificationSetting.findOne({
       event: "newAgent",
     });
-
-    const event = "newAgent";
-    const role = "Agent";
-
     const data = {
       title: notification.title,
       description: notification.description,
     };
+    const event = "newAgent";
+    const role = "Agent";
 
+    // Send notification and socket data
     sendNotification(process.env.ADMIN_ID, event, data, role);
     sendSocketData(process.env.ADMIN_ID, event, data);
 
+    // Send success response
     res.status(200).json({
-      message: "Agent registering successfully",
+      message: "Agent registered successfully",
       _id: newAgent._id,
       fullName: newAgent.fullName,
       token: generateToken(newAgent._id, newAgent.role),
@@ -169,47 +157,42 @@ const registerAgentController = async (req, res, next) => {
   }
 };
 
-//Agent login Controller
+// Agent login Controller
 const agentLoginController = async (req, res, next) => {
   const { phoneNumber, fcmToken } = req.body;
 
+  // Early validation check and error response
   const errors = validationResult(req);
-
-  let formattedErrors = {};
   if (!errors.isEmpty()) {
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
-    return res.status(500).json({ errors: formattedErrors });
+    const formattedErrors = errors.array().reduce((acc, error) => {
+      acc[error.path] = error.msg;
+      return acc;
+    }, {});
+    return res.status(400).json({ errors: formattedErrors });
   }
 
   try {
+    // Check if agent exists
     const agentFound = await Agent.findOne({ phoneNumber });
-
     if (!agentFound) {
-      formattedErrors.phoneNumber = "Phone number not registered";
-      return res.status(409).json({ errors: formattedErrors });
-    }
-
-    if (agentFound.isApproved === "Pending" || agentFound.isBlocked) {
-      formattedErrors.general = "Login is restricted";
-      return res.status(403).json({ errors: formattedErrors });
-    }
-
-    const user = await FcmToken.findOne({ userId: agentFound._id });
-
-    if (!user) {
-      await FcmToken.create({
-        userId: agentFound._id,
-        token: fcmToken,
+      return res.status(404).json({
+        errors: { phoneNumber: "Phone number not registered" },
       });
-    } else {
-      if (user.token === null || user.token !== fcmToken) {
-        await FcmToken.findByIdAndUpdate(user._id, {
-          token: fcmToken,
-        });
-      }
     }
+
+    // Check for approval status
+    if (agentFound.isApproved === "Pending" || agentFound.isBlocked) {
+      return res.status(403).json({
+        errors: { general: "Login is restricted" },
+      });
+    }
+
+    // Handling FCM token
+    await FcmToken.findOneAndUpdate(
+      { userId: agentFound._id },
+      { token: fcmToken },
+      { upsert: true, new: true }
+    );
 
     res.status(200).json({
       message: "Agent Login successful",
@@ -258,78 +241,93 @@ const getAppDrawerDetailsController = async (req, res, next) => {
   }
 };
 
-//Get Agent's profile
+// Get Agent's profile
 const getAgentProfileDetailsController = async (req, res, next) => {
   try {
-    const currentAgent = await Agent.findById(req.userAuth).select(
-      "fullName phoneNumber email agentImageURL governmentCertificateDetail"
-    );
+    // Use lean query with selected fields for efficiency
+    const currentAgent = await Agent.findById(req.userAuth)
+      .select(
+        "fullName phoneNumber email agentImageURL governmentCertificateDetail"
+      )
+      .lean();
 
-    if (!currentAgent) {
-      return next(appError("Agent not found", 404));
-    }
+    // Early return if agent is not found
+    if (!currentAgent) return next(appError("Agent not found", 404));
 
+    // Send agent profile data in response
     res.status(200).json({ message: "Agent profile data", data: currentAgent });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
-//Edit Agent's profile
+// Edit Agent's profile
 const editAgentProfileController = async (req, res, next) => {
   const { email, fullName } = req.body;
 
+  // Early validation check
   const errors = validationResult(req);
-
-  let formattedErrors = {};
   if (!errors.isEmpty()) {
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
-    return res.status(500).json({ errors: formattedErrors });
+    const formattedErrors = errors.array().reduce((acc, error) => {
+      acc[error.path] = error.msg;
+      return acc;
+    }, {});
+    return res.status(400).json({ errors: formattedErrors });
   }
 
   try {
     const agentToUpdate = await Agent.findById(req.userAuth);
+    if (!agentToUpdate) return next(appError("Agent not found", 404));
 
-    if (!agentToUpdate) {
-      return next(appError("Agent not Found", 404));
-    }
-
-    let agentImageURL = agentToUpdate?.agentImageURL;
-
+    // Handle profile image update concurrently
+    let agentImageURL = agentToUpdate.agentImageURL;
     if (req.file) {
-      await deleteFromFirebase(agentImageURL);
-      agentImageURL = await uploadToFirebase(req.file, "AgentImages");
+      const [_, newAgentImageURL] = await Promise.all([
+        deleteFromFirebase(agentImageURL),
+        uploadToFirebase(req.file, "AgentImages"),
+      ]);
+      agentImageURL = newAgentImageURL;
     }
 
-    await Agent.findByIdAndUpdate(
-      req.userAuth,
-      { email, fullName, agentImageURL },
-      { new: true }
-    );
+    // Update agent profile details
+    agentToUpdate.set({ email, fullName, agentImageURL });
+    await agentToUpdate.save();
 
-    res.status(200).json({
-      message: "Agent updated successfully",
-    });
+    res.status(200).json({ message: "Agent updated successfully" });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
+// Delete agent profile
 const deleteAgentProfileController = async (req, res, next) => {
   try {
     const agentId = req.userAuth;
 
+    // Find agent document to access image URLs
     const agentFound = await Agent.findById(agentId);
+    if (!agentFound) return next(appError("Agent not found", 404));
 
-    if (!agentFound) {
-      return next(appError("Agent not found", 404));
-    }
+    // Gather all image URLs to delete
+    const imagesToDelete = [
+      agentFound.agentImageURL,
+      agentFound.governmentCertificateDetail?.aadharFrontImageURL,
+      agentFound.governmentCertificateDetail?.aadharBackImageURL,
+      agentFound.governmentCertificateDetail?.drivingLicenseFrontImageURL,
+      agentFound.governmentCertificateDetail?.drivingLicenseBackImageURL,
+      ...agentFound.vehicleDetail.map((vehicle) => vehicle.rcFrontImageURL),
+      ...agentFound.vehicleDetail.map((vehicle) => vehicle.rcBackImageURL),
+    ].filter(Boolean); // Filter out undefined or null URLs
 
+    // Concurrently delete images
+    await Promise.all(imagesToDelete.map((url) => deleteFromFirebase(url)));
+
+    // Delete agent profile after images are deleted
     await Agent.findByIdAndDelete(agentId);
 
-    res.status(200).json({ message: "Agent profile deleted successfully" });
+    res.status(200).json({
+      message: "Agent profile and associated images deleted successfully",
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -375,7 +373,7 @@ const updateAgentBankDetailController = async (req, res, next) => {
   }
 };
 
-//Get Bank account details controller
+// Get Bank account details controller
 const getBankDetailController = async (req, res, next) => {
   try {
     const currentAgent = await Agent.findById(req.userAuth);
@@ -404,34 +402,31 @@ const getBankDetailController = async (req, res, next) => {
   }
 };
 
-//Add agent's vehicle details
+// Add agent's vehicle details
 const addVehicleDetailsController = async (req, res, next) => {
   const errors = validationResult(req);
-
-  let formattedErrors = {};
   if (!errors.isEmpty()) {
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
-    return res.status(500).json({ errors: formattedErrors });
+    const formattedErrors = errors.array().reduce((acc, error) => {
+      acc[error.path] = error.msg;
+      return acc;
+    }, {});
+    return res.status(400).json({ errors: formattedErrors });
   }
 
   try {
     const agentFound = await Agent.findById(req.userAuth);
-
-    if (!agentFound) {
-      return next(appError("Agent not found", 404));
-    }
+    if (!agentFound) return next(appError("Agent not found", 404));
 
     const { model, type, licensePlate } = req.body;
+    const { rcFrontImage, rcBackImage } = req.files;
 
-    const rcFrontImage = req.files.rcFrontImage[0];
-    const rcBackImage = req.files.rcBackImage[0];
+    // Upload images concurrently
+    const [rcFrontImageURL, rcBackImageURL] = await Promise.all([
+      uploadToFirebase(rcFrontImage[0], "RCImages"),
+      uploadToFirebase(rcBackImage[0], "RCImages"),
+    ]);
 
-    const rcFrontImageURL = await uploadToFirebase(rcFrontImage, "RCImages");
-    const rcBackImageURL = await uploadToFirebase(rcBackImage, "RCImages");
-
-    // Uploading vehicle images and details
+    // Add vehicle details to agent
     const newVehicle = {
       _id: new mongoose.Types.ObjectId(),
       model,
@@ -440,15 +435,12 @@ const addVehicleDetailsController = async (req, res, next) => {
       rcFrontImageURL,
       rcBackImageURL,
     };
-
-    // Adding the new vehicle to the agent's vehicle details array
     agentFound.vehicleDetail.push(newVehicle);
-
     await agentFound.save();
 
     res.status(200).json({
       message: "Agent's vehicle details added successfully",
-      data: agentFound.vehicleDetails,
+      data: newVehicle,
     });
   } catch (err) {
     next(appError(err.message));
@@ -458,58 +450,45 @@ const addVehicleDetailsController = async (req, res, next) => {
 // Edit agent's vehicle details
 const editAgentVehicleController = async (req, res, next) => {
   const errors = validationResult(req);
-
-  let formattedErrors = {};
   if (!errors.isEmpty()) {
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
+    const formattedErrors = errors.array().reduce((acc, error) => {
+      acc[error.path] = error.msg;
+      return acc;
+    }, {});
     return res.status(400).json({ errors: formattedErrors });
   }
 
   try {
     const currentAgent = await Agent.findById(req.userAuth);
-
-    if (!currentAgent) {
-      return next(appError("Agent not found", 404));
-    }
+    if (!currentAgent) return next(appError("Agent not found", 404));
 
     const { vehicleId } = req.params;
     const vehicle = currentAgent.vehicleDetail.id(vehicleId);
+    if (!vehicle) return next(appError("Vehicle not found", 404));
 
-    if (!vehicle) {
-      return next(appError("Vehicle not found", 404));
-    }
-
-    let rcFrontImageURL = vehicle.rcFrontImageURL;
-    let rcBackImageURL = vehicle.rcBackImageURL;
-
-    // If new images are provided, upload them and update URLs
-    if (req.files && req.files.rcFrontImage) {
-      await deleteFromFirebase(rcFrontImageURL);
-      rcFrontImageURL = await uploadToFirebase(
-        req.files.rcFrontImage[0],
-        "RCImages"
-      );
-    }
-    if (req.files && req.files.rcBackImage) {
-      await deleteFromFirebase(rcBackImageURL);
-      rcBackImageURL = await uploadToFirebase(
-        req.files.rcBackImage[0],
-        "RCImages"
-      );
-    }
+    // Parallel image upload handling
+    const { rcFrontImage, rcBackImage } = req.files;
+    const [newRcFrontImageURL, newRcBackImageURL] = await Promise.all([
+      rcFrontImage
+        ? uploadToFirebase(rcFrontImage[0], "RCImages")
+        : vehicle.rcFrontImageURL,
+      rcBackImage
+        ? uploadToFirebase(rcBackImage[0], "RCImages")
+        : vehicle.rcBackImageURL,
+    ]);
 
     // Update vehicle details
-    vehicle.model = req.body.model || vehicle.model;
-    vehicle.type = req.body.type || vehicle.type;
-    vehicle.licensePlate = req.body.licensePlate || vehicle.licensePlate;
-    vehicle.rcFrontImageURL = rcFrontImageURL;
-    vehicle.rcBackImageURL = rcBackImageURL;
-    vehicle.vehicleStatus =
-      req.body.vehicleStatus !== undefined
-        ? req.body.vehicleStatus
-        : vehicle.vehicleStatus;
+    Object.assign(vehicle, {
+      model: req.body.model || vehicle.model,
+      type: req.body.type || vehicle.type,
+      licensePlate: req.body.licensePlate || vehicle.licensePlate,
+      rcFrontImageURL: newRcFrontImageURL,
+      rcBackImageURL: newRcBackImageURL,
+      vehicleStatus:
+        req.body.vehicleStatus !== undefined
+          ? req.body.vehicleStatus
+          : vehicle.vehicleStatus,
+    });
 
     await currentAgent.save();
 
@@ -567,70 +546,59 @@ const getSingleVehicleDetailController = async (req, res, next) => {
   }
 };
 
-//Add agent's government certificates
+// Add agent's government certificates
 const addGovernmentCertificatesController = async (req, res, next) => {
   const errors = validationResult(req);
-
-  let formattedErrors = {};
   if (!errors.isEmpty()) {
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
-    return res.status(500).json({ errors: formattedErrors });
+    const formattedErrors = errors.array().reduce((acc, error) => {
+      acc[error.path] = error.msg;
+      return acc;
+    }, {});
+    return res.status(400).json({ errors: formattedErrors });
   }
 
   try {
     const agentFound = await Agent.findById(req.userAuth);
+    if (!agentFound) return next(appError("Agent not found", 404));
 
-    if (!agentFound) {
-      return next(appError("Agent not found", 404));
-    }
+    const { aadharNumber, drivingLicenseNumber } = req.body;
+    const {
+      aadharFrontImage,
+      aadharBackImage,
+      drivingLicenseFrontImage,
+      drivingLicenseBackImage,
+    } = req.files || {};
 
-    // Uploading government certificate images
-    let aadharFrontImageURL = "";
-    let aadharBackImageURL = "";
-    let drivingLicenseFrontImageURL = "";
-    let drivingLicenseBackImageURL = "";
-
-    if (req.files.aadharFrontImage) {
-      aadharFrontImageURL = await uploadToFirebase(
-        req.files.aadharFrontImage[0],
-        "AadharImages"
-      );
-    }
-
-    if (req.files.aadharBackImage) {
-      aadharBackImageURL = await uploadToFirebase(
-        req.files.aadharBackImage[0],
-        "AadharImages"
-      );
-    }
-
-    if (req.files.drivingLicenseFrontImage) {
-      drivingLicenseFrontImageURL = await uploadToFirebase(
-        req.files.drivingLicenseFrontImage[0],
-        "DrivingLicenseImages"
-      );
-    }
-
-    if (req.files.drivingLicenseBackImage) {
-      drivingLicenseBackImageURL = await uploadToFirebase(
-        req.files.drivingLicenseBackImage[0],
-        "DrivingLicenseImages"
-      );
-    }
-
-    const governmentCertificateDetail = {
-      aadharNumber: req.body.aadharNumber,
+    // Concurrently upload images if provided
+    const [
       aadharFrontImageURL,
       aadharBackImageURL,
-      drivingLicenseNumber: req.body.drivingLicenseNumber,
+      drivingLicenseFrontImageURL,
+      drivingLicenseBackImageURL,
+    ] = await Promise.all([
+      aadharFrontImage
+        ? uploadToFirebase(aadharFrontImage[0], "AadharImages")
+        : "",
+      aadharBackImage
+        ? uploadToFirebase(aadharBackImage[0], "AadharImages")
+        : "",
+      drivingLicenseFrontImage
+        ? uploadToFirebase(drivingLicenseFrontImage[0], "DrivingLicenseImages")
+        : "",
+      drivingLicenseBackImage
+        ? uploadToFirebase(drivingLicenseBackImage[0], "DrivingLicenseImages")
+        : "",
+    ]);
+
+    // Set government certificate details
+    agentFound.governmentCertificateDetail = {
+      aadharNumber,
+      aadharFrontImageURL,
+      aadharBackImageURL,
+      drivingLicenseNumber,
       drivingLicenseFrontImageURL,
       drivingLicenseBackImageURL,
     };
-
-    //saving government certificate detail
-    agentFound.governmentCertificateDetail = governmentCertificateDetail;
     await agentFound.save();
 
     res.status(200).json({
@@ -642,7 +610,7 @@ const addGovernmentCertificatesController = async (req, res, next) => {
   }
 };
 
-//Change agent's status to Free
+// Change agent's status to Free
 const toggleOnlineController = async (req, res, next) => {
   try {
     const currentAgent = await Agent.findById(req.userAuth);
@@ -1225,50 +1193,31 @@ const addOrderDetailsController = async (req, res, next) => {
     const { orderId } = req.params;
     const { notes } = req.body;
 
-    const orderFound = await Order.findById(orderId);
-    const agentFound = await Agent.findById(orderId.agentId);
+    const [orderFound, agentFound] = await Promise.all([
+      Order.findById(orderId),
+      Agent.findById(req.userAuth),
+    ]);
 
-    if (!orderFound || !agentFound) {
-      return next(appError("Order or Agent not found", 404));
-    }
+    if (!orderFound) return next(appError("Order not found", 404));
+    if (!agentFound) return next(appError("Agent not found", 404));
 
-    let signatureImageURL = "";
-    let imageURL = "";
+    const [signatureImageURL, imageURL] = await Promise.all([
+      req.files?.signatureImage
+        ? uploadToFirebase(req.files.signatureImage[0], "OrderDetailImages")
+        : "",
+      req.files?.image
+        ? uploadToFirebase(req.files.image[0], "OrderDetailImages")
+        : "",
+    ]);
 
-    if (req.files) {
-      if (req.files.signatureImage) {
-        const signatureImage = req.files.signatureImage[0];
-        signatureImageURL = await uploadToFirebase(
-          signatureImage,
-          "OrderDetailImages"
-        );
-      }
-
-      if (req.files.image) {
-        const image = req.files.image[0];
-        imageURL = await uploadToFirebase(image, "OrderDetailImages");
-      }
-    }
-
-    // Create the updated details object
-    let updatedDetails = {};
-    if (notes) {
-      updatedDetails.notes = notes;
-    }
-    if (signatureImageURL) {
-      updatedDetails.signatureImageURL = signatureImageURL;
-    }
-    if (imageURL) {
-      updatedDetails.imageURL = imageURL;
-    }
-
-    // Merge existing details with updated details
+    // Set updated order details
     orderFound.detailAddedByAgent = {
-      ...orderFound?.detailAddedByAgent?.toObject(),
-      ...updatedDetails,
+      ...(orderFound.detailAddedByAgent || {}),
+      notes,
+      signatureImageURL,
+      imageURL,
     };
 
-    // Save the updated order
     await orderFound.save();
 
     const stepperDetail = {
@@ -1400,18 +1349,17 @@ const completeOrderController = async (req, res, next) => {
     const { orderId } = req.body;
     const agentId = req.userAuth;
 
-    const [agentFound, orderFound] = await Promise.all([
+    const [agentFound, orderFound, customerFound] = await Promise.all([
       Agent.findById(agentId),
       Order.findById(orderId),
+      Customer.findById(orderFound.customerId),
     ]);
 
     if (!agentFound) return next(appError("Agent not found", 404));
     if (!orderFound) return next(appError("Order not found", 404));
+    if (!customerFound) return next(appError("Customer not found", 404));
     if (orderFound.status === "Completed")
       return next(appError("Order already completed", 400));
-
-    const customerFound = await Customer.findById(orderFound.customerId);
-    if (!customerFound) return next(appError("Customer not found", 404));
 
     const orderAmount = orderFound.billDetail.grandTotal;
 
@@ -1445,12 +1393,6 @@ const completeOrderController = async (req, res, next) => {
     // Update agent details
     await updateAgentDetails(agentFound, orderFound, calculatedSalary, true);
 
-    await Promise.all([
-      orderFound.save(),
-      customerFound.save(),
-      agentFound.save(),
-    ]);
-
     const stepperDetail = {
       by: agentFound.fullName,
       date: new Date(),
@@ -1458,14 +1400,16 @@ const completeOrderController = async (req, res, next) => {
 
     orderFound.orderStepperDetil.completed = stepperDetail;
 
-    await orderFound.save();
-
     const agent = await Agent.findByIdAndUpdate(agentId, {
       $inc: { taskCompleted: 1 },
       "appDetail.orders": { $inc: 1 },
     });
 
-    await agent.save();
+    await Promise.all([
+      orderFound.save(),
+      customerFound.save(),
+      agentFound.save(),
+    ]);
 
     const eventName = "orderCompleted";
 
@@ -1607,7 +1551,7 @@ const depositeCashToFamtoController = async (req, res, next) => {
   }
 };
 
-// verify deposit by razorpay
+// Verify deposit by razorpay
 const verifyDepositController = async (req, res, next) => {
   try {
     const { paymentDetails, amount } = req.body;
@@ -1646,31 +1590,27 @@ const getAgentTransactionsController = async (req, res, next) => {
   try {
     const agentId = req.userAuth;
 
-    const agentFound = await Agent.findById(agentId);
+    const agentFound = await Agent.findById(agentId)
+      .select("agentTransaction agentImageURL fullName")
+      .lean();
 
-    if (!agentFound) {
-      return next(appError("agnet not found", 404));
-    }
+    if (!agentFound) return next(appError("Agent not found", 404));
 
-    // Sort the transactions by date in descending order (latest date first)
-    const sortedTransactionHistory = agentFound?.agentTransaction?.sort(
-      (a, b) => new Date(b.date) - new Date(a.date)
-    );
-
-    const formattedResponse = sortedTransactionHistory?.map((transaction) => {
-      return {
+    // Sort and format transactions
+    const formattedTransactions = agentFound.agentTransaction
+      .sort((a, b) => new Date(b.madeOn) - new Date(a.madeOn))
+      .map((transaction) => ({
         imageURL: agentFound.agentImageURL,
         fullName: agentFound.fullName,
         date: formatDate(transaction.madeOn),
         time: formatTime(transaction.madeOn),
         amount: transaction.amount,
         type: transaction.type,
-      };
-    });
+      }));
 
     res.status(200).json({
       message: "Agent transaction history",
-      data: formattedResponse || [],
+      data: formattedTransactions,
     });
   } catch (err) {
     next(appError(err.message));
@@ -1872,11 +1812,6 @@ const verifyQrPaymentController = async (req, res, next) => {
 
       const paymentData = req.body.payload.payment.entity;
 
-      console.log("Payment Captured:");
-      console.log("Payment ID:", paymentData.id);
-      console.log("Amount:", paymentData.amount);
-      console.log("Currency:", paymentData.currency);
-
       orderFound.paymentStatus = "Completed";
       orderFound.paymentId = paymentData.id;
 
@@ -1894,6 +1829,7 @@ const verifyQrPaymentController = async (req, res, next) => {
   }
 };
 
+// Check payment status of an order
 const checkPaymentStatusOfOrder = async (req, res, next) => {
   try {
     const { orderId } = req.params;
@@ -1919,24 +1855,32 @@ const getAllNotificationsController = async (req, res, next) => {
   try {
     const agentId = req.userAuth;
 
-    const getAllNotifications = await AgentNotificationLogs.find({
-      agentId,
-    }).sort({
-      createdAt: -1,
-    });
+    // Set start and end of the day correctly
+    const startOfDay = new Date();
+    startOfDay.setDate(startOfDay.getDate() - 1);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
 
-    const formattedResponse = getAllNotifications?.map((notification) => {
-      return {
-        notificationId: notification._id || null,
-        orderId: notification?.orderId || null,
-        pickupDetail: notification?.pickupDetail?.address || null,
-        deliveryDetail: notification?.deliveryDetail?.address || null,
-        orderType: notification?.orderType || null,
-        status: notification?.status || null,
-        taskDate: formatDate(notification.createdAt) || null,
-        taskTime: formatTime(notification.createdAt) || null,
-      };
-    });
+    // Retrieve notifications within the day for the given agent, sorted by date
+    const notifications = await AgentNotificationLogs.find({
+      agentId,
+      createdAt: { $gte: startOfDay, $lte: endOfDay },
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Format response
+    const formattedResponse = notifications.map((notification) => ({
+      notificationId: notification._id || null,
+      orderId: notification.orderId || null,
+      pickupDetail: notification.pickupDetail?.address || null,
+      deliveryDetail: notification.deliveryDetail?.address || null,
+      orderType: notification.orderType || null,
+      status: notification.status || null,
+      taskDate: formatDate(notification.createdAt) || null,
+      taskTime: formatTime(notification.createdAt) || null,
+    }));
 
     res.status(200).json({
       message: "All notification logs",
@@ -1997,7 +1941,7 @@ const getAllAnnouncementsController = async (req, res, next) => {
   }
 };
 
-//
+// Get pocket balance (un-settled balance)
 const getPocketBalanceForAgent = async (req, res, next) => {
   try {
     // Find the agent by ID
