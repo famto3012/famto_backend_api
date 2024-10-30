@@ -43,21 +43,17 @@ const Referral = require("../../models/Referral");
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
   const errors = validationResult(req);
-
-  let formattedErrors = {};
   if (!errors.isEmpty()) {
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
+    const formattedErrors = errors.array().reduce((acc, error) => {
+      acc[error.path] = error.msg;
+      return acc;
+    }, {});
     return res.status(500).json({ errors: formattedErrors });
   }
 
   try {
     const { phoneNumber, latitude, longitude, referralCode } = req.body;
     const location = [latitude, longitude];
-
-    const customer = await Customer.findOne({ phoneNumber });
-
     const geofence = await geoLocation(latitude, longitude, next);
 
     if (!geofence) {
@@ -66,28 +62,12 @@ const registerAndLoginController = async (req, res, next) => {
       });
     }
 
-    if (customer) {
-      if (customer?.customerDetails?.isBlocked) {
-        return res.status(403).json({
-          message: "Account is Blocked",
-        });
-      }
+    // Check if customer exists; if not, create a new one
+    let customer = await Customer.findOne({ phoneNumber });
 
-      customer.lastPlatformUsed = os.platform();
-      customer.customerDetails.location = location;
-      customer.customerDetails.geofenceId = geofence._id;
-
-      await customer.save();
-
-      return res.status(200).json({
-        success: "User logged in successfully",
-        id: customer.id,
-        token: generateToken(customer.id, customer.role),
-        role: customer.role,
-        geofenceName: geofence.name,
-      });
-    } else {
-      const newCustomer = await Customer.create({
+    const isNewCustomer = !customer;
+    if (!customer) {
+      customer = new Customer({
         phoneNumber,
         lastPlatformUsed: os.platform(),
         customerDetails: {
@@ -95,33 +75,47 @@ const registerAndLoginController = async (req, res, next) => {
           geofenceId: geofence._id,
         },
       });
+      await customer.save();
+    } else {
+      // Update the existing customer's details
+      customer.lastPlatformUsed = os.platform();
+      customer.customerDetails.location = location;
+      customer.customerDetails.geofenceId = geofence._id;
+      await customer.save();
+    }
 
-      if (referralCode) {
-        await completeReferralDetail(newCustomer, referralCode);
-      }
+    if (customer.customerDetails.isBlocked) {
+      return res.status(403).json({ message: "Account is Blocked" });
+    }
+
+    if (isNewCustomer) {
+      if (referralCode) await completeReferralDetail(customer, referralCode);
 
       const notification = await NotificationSetting.findOne({
         event: "newCustomer",
       });
-
-      const event = "newCustomer";
-      const role = "Customer";
-
-      const data = {
-        title: notification.title,
-        description: notification.description,
-      };
-
-      sendNotification(process.env.ADMIN_ID, event, data, role);
-      sendSocketData(process.env.ADMIN_ID, event, data);
-
-      return res.status(201).json({
-        success: "User created successfully",
-        id: newCustomer.id,
-        token: generateToken(newCustomer.id),
-        geofenceName: geofence.name,
-      });
+      if (notification) {
+        const eventData = {
+          title: notification.title,
+          description: notification.description,
+        };
+        sendNotification(
+          process.env.ADMIN_ID,
+          "newCustomer",
+          eventData,
+          "Customer"
+        );
+        sendSocketData(process.env.ADMIN_ID, "newCustomer", eventData);
+      }
     }
+
+    res.status(isNewCustomer ? 201 : 200).json({
+      success: `User ${isNewCustomer ? "created" : "logged in"} successfully`,
+      id: customer.id,
+      token: generateToken(customer.id, customer.role),
+      role: customer.role,
+      geofenceName: geofence.name,
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -200,17 +194,17 @@ const getCustomerProfileController = async (req, res, next) => {
 
 // Update profile details of customer
 const updateCustomerProfileController = async (req, res, next) => {
-  const { fullName, email } = req.body;
-
   const errors = validationResult(req);
-
-  let formattedErrors = {};
   if (!errors.isEmpty()) {
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
+    const formattedErrors = errors.array().reduce((acc, error) => {
+      acc[error.path] = error.msg;
+      return acc;
+    }, {});
     return res.status(500).json({ errors: formattedErrors });
   }
+
+  const { fullName, email } = req.body;
+  const normalizedEmail = email ? email.toLowerCase() : null;
 
   try {
     const currentCustomer = await Customer.findById(req.userAuth);
@@ -219,47 +213,39 @@ const updateCustomerProfileController = async (req, res, next) => {
       return next(appError("Customer not found", 404));
     }
 
-    const normalizedEmail = email.toLowerCase();
-
-    if (normalizedEmail !== currentCustomer.email) {
-      const emailExists = await Customer.findOne({
+    // Check if the new email is already in use by another user, only if email is provided
+    if (normalizedEmail && normalizedEmail !== currentCustomer.email) {
+      const emailExists = await Customer.exists({
         _id: { $ne: req.userAuth },
         email: normalizedEmail,
       });
-
       if (emailExists) {
-        formattedErrors.email = "Email already exists";
-        return res.status(409).json({ errors: formattedErrors });
+        return res.status(409).json({
+          errors: { email: "Email already exists" },
+        });
       }
     }
 
+    // Handle image update if provided
     let customerImageURL =
       currentCustomer?.customerDetails?.customerImageURL || "";
-
     if (req.file) {
-      if (customerImageURL !== "") {
-        await deleteFromFirebase(customerImageURL);
+      try {
+        if (customerImageURL) await deleteFromFirebase(customerImageURL);
+        customerImageURL = await uploadToFirebase(req.file, "CustomerImages");
+      } catch (err) {
+        return next(appError("Error uploading image", 500));
       }
-      customerImageURL = await uploadToFirebase(req.file, "CustomerImages");
     }
 
-    const updatedFields = {
-      fullName,
-      email,
-      customerDetails: {
-        customerImageURL,
-      },
-    };
-
-    const updatedCustomer = await Customer.findByIdAndUpdate(
-      req.userAuth,
-      { $set: updatedFields },
-      { new: true }
-    );
-
-    if (!updatedCustomer) {
-      return next(appError("Error in updating customer"));
+    // Update customer details
+    currentCustomer.fullName = fullName;
+    if (normalizedEmail) {
+      currentCustomer.email = normalizedEmail;
     }
+    currentCustomer.customerDetails.customerImageURL = customerImageURL;
+
+    await currentCustomer.save();
 
     res.status(200).json({ message: "Customer updated successfully" });
   } catch (err) {
@@ -269,22 +255,25 @@ const updateCustomerProfileController = async (req, res, next) => {
 
 // Update customer address details
 const updateCustomerAddressController = async (req, res, next) => {
-  const { addresses } = req.body;
-
   const errors = validationResult(req);
-
   if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    const formattedErrors = errors
+      .array()
+      .map((error) => ({ [error.path]: error.msg }));
+    return res.status(400).json({ errors: formattedErrors });
   }
+
+  const { addresses } = req.body;
 
   try {
     const currentCustomer = await Customer.findById(req.userAuth);
-
     if (!currentCustomer) {
       return next(appError("Customer not found", 404));
     }
 
-    let newOtherAddresses = [...currentCustomer.customerDetails.otherAddress];
+    // Initialize other addresses if not present
+    const updatedOtherAddresses =
+      currentCustomer.customerDetails.otherAddress || [];
 
     addresses.forEach((address) => {
       const {
@@ -297,7 +286,6 @@ const updateCustomerAddressController = async (req, res, next) => {
         landmark,
         coordinates,
       } = address;
-
       const updatedAddress = {
         fullName,
         phoneNumber,
@@ -316,18 +304,18 @@ const updateCustomerAddressController = async (req, res, next) => {
           break;
         case "other":
           if (id) {
-            // Update existing other address
-            const index = newOtherAddresses.findIndex(
+            // Update existing other address if ID matches
+            const index = updatedOtherAddresses.findIndex(
               (addr) => addr.id.toString() === id.toString()
             );
             if (index !== -1) {
-              newOtherAddresses[index] = { id, ...updatedAddress };
+              updatedOtherAddresses[index] = { id, ...updatedAddress };
             } else {
-              newOtherAddresses.push({ id, ...updatedAddress });
+              updatedOtherAddresses.push({ id, ...updatedAddress });
             }
           } else {
-            // Add new other address with a new id
-            newOtherAddresses.push({
+            // Add new address with generated ID
+            updatedOtherAddresses.push({
               id: new mongoose.Types.ObjectId(),
               ...updatedAddress,
             });
@@ -338,9 +326,8 @@ const updateCustomerAddressController = async (req, res, next) => {
       }
     });
 
-    // Replace otherAddress array with newOtherAddresses
-    currentCustomer.customerDetails.otherAddress = newOtherAddresses;
-
+    // Replace other addresses with updated array
+    currentCustomer.customerDetails.otherAddress = updatedOtherAddresses;
     await currentCustomer.save();
 
     res.status(200).json({
@@ -499,51 +486,38 @@ const getFavoriteMerchantsController = async (req, res, next) => {
   try {
     const currentCustomer = req.userAuth;
 
+    // Retrieving only necessary fields for customer and their favorite merchants
     const customer = await Customer.findById(currentCustomer)
-      .select("customerDetails.location customerDetails.favoriteMerchants")
-      .populate("customerDetails.favoriteMerchants");
+      .select("customerDetails.favoriteMerchants")
+      .populate({
+        path: "customerDetails.favoriteMerchants",
+        select:
+          "merchantDetail.merchantName merchantDetail.deliveryTime merchantDetail.description merchantDetail.averageRating status merchantDetail.merchantFoodType merchantDetail.merchantImageURL",
+      });
 
     if (!customer || !customer.customerDetails) {
       return next(appError("Customer details not found", 404));
     }
 
-    const favoriteMerchants = customer.customerDetails.favoriteMerchants;
-    const customerLocation = customer.customerDetails.location;
-
-    // Extract favorite merchant IDs for quick lookup
-    const favoriteMerchantIds = new Set(
-      favoriteMerchants.map((merchant) => merchant._id.toString())
-    );
-
-    const simplifiedMerchants = await Promise.all(
-      favoriteMerchants.map(async (merchant) => {
-        const merchantLocation = merchant.merchantDetail.location;
-        const distance = await getDistanceFromPickupToDelivery(
-          merchantLocation,
-          customerLocation
-        );
-
-        // Determine if the merchant is a favorite
-        const isFavorite = favoriteMerchantIds.has(merchant._id.toString());
-
-        return {
-          id: merchant._id,
-          merchantName: merchant.merchantDetail.merchantName,
-          deliveryTime: merchant.merchantDetail.deliveryTime,
-          description: merchant.merchantDetail.description,
-          averageRating: merchant.merchantDetail.averageRating,
-          status: merchant.status,
-          distanceInKM: parseFloat(distance),
-          restaurantType: merchant.merchantDetail.merchantFoodType || "-",
-          merchantImageURL: merchant.merchantDetail.merchantImageURL,
-          isFavorite,
-        };
+    // Map the favorite merchants into the desired format
+    const formattedMerchants = customer.customerDetails.favoriteMerchants.map(
+      (merchant) => ({
+        id: merchant._id,
+        merchantName: merchant?.merchantDetail?.merchantName || null,
+        description: merchant?.merchantDetail?.description || null,
+        averageRating: merchant?.merchantDetail?.averageRating,
+        status: merchant?.status,
+        restaurantType: merchant?.merchantDetail?.merchantFoodType || null,
+        merchantImageURL: merchant?.merchantDetail?.merchantImageURL || null,
+        displayAddress: merchant?.merchantDetail?.displayAddress || null,
+        preOrderStatus: merchant?.merchantDetail?.preOrderStatus,
+        isFavorite: true, // Since we're only fetching favorite merchants
       })
     );
 
     res.status(200).json({
       message: "Favourite merchants retrieved successfully",
-      data: simplifiedMerchants,
+      data: formattedMerchants,
     });
   } catch (err) {
     next(appError(err.message));
@@ -555,23 +529,23 @@ const getCustomerOrdersController = async (req, res, next) => {
   try {
     const currentCustomer = req.userAuth;
 
+    // Query with only necessary fields and populate merchant details selectively
     const ordersOfCustomer = await Order.find({ customerId: currentCustomer })
       .sort({ createdAt: -1 })
+      .select("merchantId status createdAt items billDetail orderDetail")
       .populate({
         path: "merchantId",
-        select: "merchantDetail",
-      })
-      .exec();
+        select: "merchantDetail.merchantName merchantDetail.displayAddress",
+      });
 
     const formattedResponse = ordersOfCustomer.map((order) => {
-      let orderStatus;
-      if (order.status === "Pending" || order.status === "Ongoing") {
-        orderStatus = "On-going";
-      } else if (order.status === "Cancelled") {
-        orderStatus = "Cancelled";
-      } else if (order.status === "Completed") {
-        orderStatus = "Completed";
-      }
+      // Map order status to human-readable format
+      const orderStatus =
+        order.status === "Pending" || order.status === "Ongoing"
+          ? "On-going"
+          : order.status === "Cancelled"
+          ? "Cancelled"
+          : "Completed";
 
       return {
         id: order._id,
@@ -659,42 +633,38 @@ const searchOrderController = async (req, res, next) => {
       return next(appError("Search query is required", 400));
     }
 
+    // Use MongoDB to filter based on the query (case-insensitive regex search)
     const ordersOfCustomer = await Order.find({
       customerId: currentCustomer,
+      $or: [
+        {
+          "merchantId.merchantDetail.merchantName": {
+            $regex: query,
+            $options: "i",
+          },
+        },
+        { "items.itemName": { $regex: query, $options: "i" } },
+        { "items.variantTypeName": { $regex: query, $options: "i" } },
+      ],
     })
       .sort({ createdAt: -1 })
+      .select("merchantId status createdAt items billDetail")
       .populate({
         path: "merchantId",
-        select: "merchantDetail",
-      })
-      .exec();
-
-    // Filter orders based on the search query
-    const filteredOrders = ordersOfCustomer.filter((order) => {
-      const merchantName =
-        order?.merchantId?.merchantDetail?.merchantName?.toLowerCase();
-      const regex = new RegExp(query, "i");
-
-      const items = order.items.some((item) => {
-        return regex.test(item.itemName) || regex.test(item.variantTypeName);
+        select: "merchantDetail.merchantName merchantDetail.displayAddress",
       });
-      return merchantName?.includes(query?.toLowerCase()) || items;
-    });
 
-    const formattedResponse = filteredOrders.map((order) => {
-      return {
-        id: order._id,
-        merchantName: order?.merchantId?.merchantDetail?.merchantName || null,
-        displayAddress:
-          order?.merchantId?.merchantDetail?.displayAddress || null,
-        orderStatus: order.status,
-        orderDate: `${formatDate(order.createdAt)} | ${formatTime(
-          order.createdAt
-        )}`,
-        items: order.items,
-        grandTotal: order.billDetail.grandTotal,
-      };
-    });
+    // Format orders for the response
+    const formattedResponse = ordersOfCustomer.map((order) => ({
+      id: order._id,
+      merchantName: order?.merchantId?.merchantDetail?.merchantName || null,
+      displayAddress: order?.merchantId?.merchantDetail?.displayAddress || null,
+      orderStatus: order?.status || null,
+      orderDate: formatDate(order?.createdAt) || null,
+      orderDate: formatTime(order?.createdAt) || null,
+      items: order?.items || [],
+      grandTotal: order?.billDetail?.grandTotal || null,
+    }));
 
     res.status(200).json({
       message: "Search results for orders",

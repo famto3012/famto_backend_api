@@ -512,7 +512,7 @@ const searchOrderByIdByAdminController = async (req, res, next) => {
       .limit(limit);
 
     // Count total documents
-    const totalDocuments = await Order.countDocuments({});
+    const totalDocuments = ordersFound?.length || 1;
 
     const formattedOrders = ordersFound?.map((order) => {
       return {
@@ -525,6 +525,7 @@ const searchOrderByIdByAdminController = async (req, res, next) => {
         deliveryMode: order.orderDetail.deliveryMode,
         orderDate: formatDate(order?.orderDetail?.deliveryTime),
         orderTime: formatTime(order.createdAt),
+        deliveryDate: formatDate(order?.orderDetail?.deliveryTime),
         deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
         paymentMethod:
           order.paymentMode === "Cash-on-delivery"
@@ -612,13 +613,13 @@ const searchScheduledOrderByIdByAdminController = async (req, res, next) => {
     ];
 
     // Count total documents in both collections
-    const totalDocumentsInScheduledOrder = await ScheduledOrder.countDocuments(
-      searchCriteria
-    );
+    const totalDocumentsInScheduledOrder = scheduledOrders?.length;
     const totalDocumentsInScheduledPickAndCustom =
-      await scheduledPickAndCustom.countDocuments(searchCriteria);
+      scheduledPickAndCustomOrders?.length;
+
     const totalDocuments =
-      totalDocumentsInScheduledOrder + totalDocumentsInScheduledPickAndCustom;
+      (totalDocumentsInScheduledOrder || 0) +
+        (totalDocumentsInScheduledPickAndCustom || 0) || 1;
 
     // Format the orders
     const formattedOrders = combinedOrders.map((order) => ({
@@ -630,6 +631,7 @@ const searchScheduledOrderByIdByAdminController = async (req, res, next) => {
       deliveryMode: order.orderDetail.deliveryMode,
       orderDate: formatDate(order?.orderDetail?.deliveryTime),
       orderTime: formatTime(order.createdAt),
+      deliveryDate: formatDate(order?.orderDetail?.deliveryTime),
       deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
       paymentMethod:
         order.paymentMode === "Cash-on-delivery"
@@ -662,29 +664,19 @@ const searchScheduledOrderByIdByAdminController = async (req, res, next) => {
 const filterOrdersByAdminController = async (req, res, next) => {
   try {
     let {
+      page = 1,
+      limit = 25,
       status,
       paymentMode,
       deliveryMode,
       merchantId,
-      date
+      startDate,
+      endDate,
     } = req.query;
 
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 15;  
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
     const skip = (page - 1) * limit;
-
-    // if (!status && !paymentMode && !deliveryMode && !merchantId && !date) {
-    //   return res.status(400).json({
-    //     message: "At least one filter is required",
-    //   });
-    // }
-
-    // Convert to integers
-    // page = parseInt(page, 10);
-    // limit = parseInt(limit, 10);
-
-    // // Calculate the number of documents to skip
-    // const skip = (page - 1) * limit;
 
     const filterCriteria = {};
 
@@ -711,13 +703,13 @@ const filterOrdersByAdminController = async (req, res, next) => {
     }
 
     if (date) {
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
+      startDate = new Date(startDate);
+      startDate.setHours(0, 0, 0, 0);
 
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
+      endDate = new Date(endDate);
+      endDate.setHours(23, 59, 59, 999);
 
-      filterCriteria.createdAt = { $gte: startOfDay, $lte: endOfDay };
+      filterCriteria.createdAt = { $gte: startDate, $lte: endDate };
     }
 
     const filteredOrderResults = await Order.find(filterCriteria)
@@ -734,7 +726,7 @@ const filterOrdersByAdminController = async (req, res, next) => {
       .limit(limit);
 
     // Count total documents
-    const totalDocuments = await Order.countDocuments({});
+    const totalDocuments = filteredOrderResults?.length || 1;
 
     const formattedOrders = filteredOrderResults.map((order) => {
       return {
@@ -783,13 +775,7 @@ const filterOrdersByAdminController = async (req, res, next) => {
 
 const filterScheduledOrdersByAdminController = async (req, res, next) => {
   try {
-    let { status, paymentMode, deliveryMode, page = 1, limit = 15 } = req.query;
-
-    if (!status && !paymentMode && !deliveryMode) {
-      return res.status(400).json({
-        message: "At least one filter is required",
-      });
-    }
+    let { status, paymentMode, deliveryMode, page = 1, limit = 25 } = req.query;
 
     // Convert to integers
     page = parseInt(page, 10);
@@ -871,12 +857,7 @@ const filterScheduledOrdersByAdminController = async (req, res, next) => {
       },
     ]);
 
-    // Count total documents matching the filters in both collections
-    const totalDocuments =
-      (await ScheduledOrder.countDocuments(filterCriteria)) +
-      (await mongoose
-        .model("scheduledPickAndCustom")
-        .countDocuments(filterCriteria));
+    const totalDocuments = results?.length || 1;
 
     // Formatting the results
     const formattedOrders = results.map((order) => {

@@ -185,14 +185,14 @@ const listRestaurantsController = async (req, res, next) => {
 
         return {
           id: merchant._id,
-          merchantName: merchant.merchantDetail.merchantName,
-          description: merchant.merchantDetail.description,
-          averageRating: merchant.merchantDetail.averageRating,
-          status: merchant.status,
-          restaurantType: merchant.merchantDetail.merchantFoodType || "-",
-          merchantImageURL: merchant.merchantDetail.merchantImageURL,
-          displayAddress: merchant.merchantDetail.displayAddress || "-",
-          preOrderStatus: merchant.merchantDetail.preOrderStatus,
+          merchantName: merchant?.merchantDetail?.merchantName || null,
+          description: merchant?.merchantDetail?.description || null,
+          averageRating: merchant?.merchantDetail?.averageRating,
+          status: merchant?.status,
+          restaurantType: merchant?.merchantDetail?.merchantFoodType || null,
+          merchantImageURL: merchant?.merchantDetail?.merchantImageURL || null,
+          displayAddress: merchant?.merchantDetail?.displayAddress || null,
+          preOrderStatus: merchant?.merchantDetail?.preOrderStatus,
           isFavorite,
         };
       })

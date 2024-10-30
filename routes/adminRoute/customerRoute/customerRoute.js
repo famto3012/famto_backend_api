@@ -17,6 +17,8 @@ const {
   searchCustomerByNameForMerchantController,
   downloadCustomerCSVController,
   filterCustomerByGeofenceForMerchantController,
+  searchCustomerByNameForOrderController,
+  searchCustomerByNameForMerchantToOrderController,
 } = require("../../../controllers/admin/customer/customerController");
 const isAdminOrMerchant = require("../../../middlewares/isAdminOrMerchant");
 const { upload } = require("../../../utils/imageOperation");
@@ -51,6 +53,13 @@ adminCustomerRoute.get(
 );
 
 adminCustomerRoute.get(
+  "/search-customer-of-merchant-for-order",
+  isAuthenticated,
+  isAdminOrMerchant,
+  searchCustomerByNameForMerchantToOrderController
+);
+
+adminCustomerRoute.get(
   "/get-all",
   isAuthenticated,
   isAdmin,
@@ -62,6 +71,13 @@ adminCustomerRoute.get(
   isAuthenticated,
   isAdmin,
   searchCustomerByNameController
+);
+
+adminCustomerRoute.get(
+  "/search-for-order",
+  isAuthenticated,
+  isAdmin,
+  searchCustomerByNameForOrderController
 );
 
 adminCustomerRoute.get(
