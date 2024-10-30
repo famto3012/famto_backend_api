@@ -281,7 +281,7 @@ async function fetchPerDayRevenue(date) {
       const revenueData = new HomeScreenRevenueData({
         sales,
         merchants: merchants.length,
-        order,
+        order: order.length,
         commission,
         subscription,
       });
@@ -397,7 +397,7 @@ async function fetchMerchantDailyRevenue(date) {
         const revenueData = new HomeScreenRevenueData({
           sales,
           commission,
-          order,
+          order: order.length,
           userId: merchant._id,
         });
         await revenueData.save();
