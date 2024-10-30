@@ -162,16 +162,16 @@ const HomeScreenRevenueData = require("../models/HomeScreenRevenueData");
 const Merchant = require("../models/Merchant");
 const Order = require("../models/Order");
 const SubscriptionLog = require("../models/SubscriptionLog");
-const moment = require('moment-timezone');
+const moment = require("moment-timezone");
 
 async function fetchPerDayRevenue(date) {
   try {
     // Start and end of the day
-    const previousDay = moment.tz(date, "Asia/Kolkata").subtract(1, 'day');
-    
+    const previousDay = moment.tz(date, "Asia/Kolkata").subtract(1, "day");
+
     // Start and end of the previous day in IST
-    const startOfDay = previousDay.startOf('day').toDate();
-    const endOfDay = previousDay.endOf('day').toDate();
+    const startOfDay = previousDay.startOf("day").toDate();
+    const endOfDay = previousDay.endOf("day").toDate();
     console.log("startOfDay", startOfDay);
     console.log("endOfDay", endOfDay);
 
@@ -205,6 +205,20 @@ async function fetchPerDayRevenue(date) {
     } catch (error) {
       console.error("Error fetching merchants:", error);
       throw error;
+    }
+
+    let order = [];
+    try {
+      order = await Order.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startOfDay, $lte: endOfDay },
+            status: { $ne: "Cancelled" }, // Exclude cancelled orders
+          },
+        },
+      ]);
+    } catch (err) {
+      console.error(`Error saving order data`, err);
     }
 
     // Reset openedToday for each merchant
@@ -267,6 +281,7 @@ async function fetchPerDayRevenue(date) {
       const revenueData = new HomeScreenRevenueData({
         sales,
         merchants: merchants.length,
+        order,
         commission,
         subscription,
       });
@@ -286,11 +301,11 @@ async function fetchPerDayRevenue(date) {
 async function fetchMerchantDailyRevenue(date) {
   try {
     // Start and end of the day
-    const previousDay = moment.tz(date, "Asia/Kolkata").subtract(1, 'day');
-    
+    const previousDay = moment.tz(date, "Asia/Kolkata").subtract(1, "day");
+
     // Start and end of the previous day in IST
-    const startOfDay = previousDay.startOf('day').toDate();
-    const endOfDay = previousDay.endOf('day').toDate();
+    const startOfDay = previousDay.startOf("day").toDate();
+    const endOfDay = previousDay.endOf("day").toDate();
     console.log("startOfDay", startOfDay);
     console.log("endOfDay", endOfDay);
 
@@ -358,11 +373,31 @@ async function fetchMerchantDailyRevenue(date) {
       }
       const commission = totalCommission[0]?.totalCommission || 0;
 
+      let order = [];
+      try {
+        order = await Order.aggregate([
+          {
+            $match: {
+              createdAt: { $gte: startOfDay, $lte: endOfDay },
+              merchantId: merchant._id,
+              status: { $ne: "Cancelled" }, // Exclude cancelled orders
+            },
+          },
+        ]);
+      } catch (error) {
+        console.error(
+          `Error fetching total orders for merchant ${merchant._id}:`,
+          error
+        );
+        continue; // Continue to next merchant if there's an error
+      }
+
       // Save revenue data for each merchant
       try {
         const revenueData = new HomeScreenRevenueData({
           sales,
           commission,
+          order,
           userId: merchant._id,
         });
         await revenueData.save();
