@@ -700,10 +700,7 @@ const fetchMerchantDetails = async (
   }
 
   // Validate delivery option
-  const validationError = validateDeliveryOption(merchantFound, deliveryOption);
-  if (validationError) {
-    return next(validationError);
-  }
+  validateDeliveryOption(merchantFound, deliveryOption);
 
   return merchantFound;
 };
@@ -733,13 +730,11 @@ const validateCustomerAddress = (
   }
 };
 
-const validateDeliveryOption = (merchant, deliveryOption, next) => {
+const validateDeliveryOption = (merchant, deliveryOption) => {
   const { deliveryOption: merchantOption } = merchant.merchantDetail;
 
   if (merchantOption !== "Both" && merchantOption !== deliveryOption) {
-    return next(
-      appError("Merchant does not support this delivery option", 400)
-    );
+    throw new Error("Merchant does not support this delivery option");
   }
 
   return null;

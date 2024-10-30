@@ -42,6 +42,7 @@ const {
   getAllAnnouncementsController,
   checkPaymentStatusOfOrder,
   getAppDrawerDetailsController,
+  getPocketBalanceForAgent,
 } = require("../../controllers/agent/agentController");
 const { upload } = require("../../utils/imageOperation");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
@@ -308,6 +309,12 @@ agentRoute.get(
   "/all-announcements",
   isAuthenticated,
   getAllAnnouncementsController
+);
+
+agentRoute.get(
+  "/get-pocket-balance",
+  isAuthenticated,
+  getPocketBalanceForAgent
 );
 
 module.exports = agentRoute;

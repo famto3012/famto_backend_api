@@ -681,7 +681,15 @@ const filterOrdersController = async (req, res, next) => {
   try {
     const currentMerchant = req.userAuth;
 
-    let { status, paymentMode, deliveryMode, page = 1, limit = 15 } = req.query;
+    let {
+      status,
+      paymentMode,
+      deliveryMode,
+      startDate,
+      endDate,
+      page = 1,
+      limit = 15,
+    } = req.query;
 
     // Convert to integers
     page = parseInt(page, 10);
@@ -708,6 +716,16 @@ const filterOrdersController = async (req, res, next) => {
         $regex: deliveryMode.trim(),
         $options: "i",
       };
+    }
+
+    if (startDate && endDate) {
+      startDate = new Date(startDate);
+      startDate.setHours(0, 0, 0, 0);
+
+      endDate = new Date(endDate);
+      endDate.setHours(23, 59, 59, 999);
+
+      filterCriteria.createdAt = { $gte: startDate, $lte: endDate };
     }
 
     const filteredOrderResults = await Order.find(filterCriteria)
@@ -771,7 +789,15 @@ const filterScheduledOrdersController = async (req, res, next) => {
   try {
     const currentMerchant = req.userAuth;
 
-    let { status, paymentMode, deliveryMode, page = 1, limit = 15 } = req.query;
+    let {
+      status,
+      paymentMode,
+      deliveryMode,
+      startDate,
+      endDate,
+      page = 1,
+      limit = 15,
+    } = req.query;
 
     // Convert to integers
     page = parseInt(page, 10);
@@ -798,6 +824,16 @@ const filterScheduledOrdersController = async (req, res, next) => {
         $regex: deliveryMode.trim(),
         $options: "i",
       };
+    }
+
+    if (startDate && endDate) {
+      startDate = new Date(startDate);
+      startDate.setHours(0, 0, 0, 0);
+
+      endDate = new Date(endDate);
+      endDate.setHours(23, 59, 59, 999);
+
+      filterCriteria.createdAt = { $gte: startDate, $lte: endDate };
     }
 
     const filteredOrderResults = await ScheduledOrder.find(filterCriteria)

@@ -33,10 +33,11 @@ const {
   getCustomOrderBannersController,
   getAvailableServiceController,
   generateReferralCode,
-  getCurrentOrderDetailcontroller,
+  getSelectedOngoingOrderDetailController,
   getAllNotificationsOfCustomerController,
   getAvailableGeofences,
   setSelectedGeofence,
+  getCurrentOngoingOrders,
 } = require("../../controllers/customer/customerController");
 const {
   getAllBusinessCategoryController,
@@ -437,10 +438,18 @@ customerRoute.post(
   cancelCustomBeforeOrderCreationController
 );
 
+// Current orders
+
 customerRoute.get(
-  "/get-current-order",
+  "/current-ongoing-orders",
   isAuthenticated,
-  getCurrentOrderDetailcontroller
+  getCurrentOngoingOrders
+);
+
+customerRoute.get(
+  "/get-current-order/:orderId",
+  isAuthenticated,
+  getSelectedOngoingOrderDetailController
 );
 
 // ============================================

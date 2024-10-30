@@ -1067,9 +1067,9 @@ const addOrUpdateCartItemController = async (req, res, next) => {
 
     if (cart.items.length === 0) {
       await CustomerCart.findByIdAndDelete(cart._id);
-      return res
-        .status(200)
-        .json({ message: "Cart is empty and has been deleted" });
+      return res.status(200).json({
+        success: false,
+      });
     }
 
     const updatedCart = await CustomerCart.findOne({ customerId })
@@ -1113,7 +1113,7 @@ const addOrUpdateCartItemController = async (req, res, next) => {
     );
 
     res.status(200).json({
-      success: "Cart updated successfully",
+      success: true,
       data: {
         cartId: updatedCartWithVariantNames._id,
         customerId: updatedCartWithVariantNames.customerId,

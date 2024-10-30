@@ -105,7 +105,7 @@ const assignAgentToTaskController = async (req, res, next) => {
             ...data,
             agentId,
             orderId: order._id,
-            orderType: order.orderDetail.deliveryOption,
+            orderType: order.orderDetail.deliveryMode,
             pickupDetail: order?.orderDetail?.pickupAddress,
             deliveryDetail: order.orderDetail.deliveryAddress,
           },
@@ -123,15 +123,15 @@ const assignAgentToTaskController = async (req, res, next) => {
     const socketData = {
       ...data,
       orderId: order._id,
-      merchantName: order.orderDetail.pickupAddress.fullName,
-      pickAddress: order.orderDetail.pickupAddress,
-      customerName: deliveryAddress.fullName,
+      merchantName: order?.orderDetail?.pickupAddress?.fullName || null,
+      pickAddress: order?.orderDetail?.pickupAddress || null,
+      customerName: deliveryAddress?.fullName || null,
       customerAddress: deliveryAddress,
       agentId,
-      orderType: order.orderDetail.deliveryOption,
-      taskDate: formatDate(new Date()),
-      taskTime: formatTime(new Date()),
-      timer: autoAllocation.expireTime,
+      orderType: order?.orderDetail?.deliveryMode || null,
+      taskDate: formatDate(order?.orderDetail?.deliveryTime),
+      taskTime: formatTime(order?.orderDetail?.deliveryTime),
+      timer: autoAllocation?.expireTime || null,
     };
 
     sendSocketData(agentId, eventName, socketData);
