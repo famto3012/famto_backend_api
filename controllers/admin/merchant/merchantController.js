@@ -32,7 +32,6 @@ const Product = require("../../../models/Product");
 const sharp = require("sharp");
 const ActivityLog = require("../../../models/ActivityLog");
 const ejs = require("ejs");
-const fs = require("fs");
 
 // Helper function to handle null or empty string values
 const convertNullValues = (obj) => {
@@ -657,7 +656,7 @@ const searchMerchantController = async (req, res, next) => {
       .limit(limit);
 
     // Count total documents
-    const totalDocuments = await Merchant.countDocuments({});
+    const totalDocuments = searchResults?.length || 1;
 
     const merchantsWithDetails = searchResults.map((merchant) => {
       return {
@@ -706,13 +705,6 @@ const filterMerchantsController = async (req, res, next) => {
       page = 1,
       limit = 20,
     } = req.query;
-
-    // Validate query parameters
-    if (!serviceable && !businessCategory && !geofence) {
-      return res.status(400).json({
-        message: "At least one filter is required",
-      });
-    }
 
     // Convert to integers
     page = parseInt(page, 10);
@@ -763,7 +755,7 @@ const filterMerchantsController = async (req, res, next) => {
       .limit(limit);
 
     // Count total documents
-    const totalDocuments = await Merchant.countDocuments({});
+    const totalDocuments = filteredMerchants?.length || 1;
 
     const merchantsWithDetails = filteredMerchants.map((merchant) => {
       return {
@@ -1218,8 +1210,6 @@ const changeMerchantStatusController = async (req, res, next) => {
 // Update Merchant Details by admin
 const updateMerchantDetailsController = async (req, res, next) => {
   const { fullName, email, phoneNumber, merchantDetail } = req.body;
-
-  console.log(req.body);
 
   const errors = validationResult(req);
   let formattedErrors = {};

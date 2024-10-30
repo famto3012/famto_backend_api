@@ -425,7 +425,7 @@ const addTipAndApplyPromocodeInPickAndDropController = async (
         customerId: cart.customerId,
         cartDetail: cart.cartDetail,
         items: cart.items,
-        billDetail: cart.billDetail,
+        billDetail: { ...cart.billDetail.toObject(), taxAmount: 0 },
       },
     });
   } catch (err) {

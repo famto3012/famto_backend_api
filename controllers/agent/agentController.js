@@ -1042,20 +1042,23 @@ const getPickUpDetailController = async (req, res, next) => {
     const { taskId } = req.params;
 
     const taskFound = await Task.findById(taskId).populate("orderId");
+    const merchantFound = await Task.findById(
+      taskFound?.orderId?.merchantId
+    ).select("merchantDetail.merchantId");
 
     const formattedResponse = {
       taskId: taskFound._id,
       orderId: taskFound.orderId._id,
-      messageReceiverId:
-        taskFound?.orderId?.merchantId ||
-        taskFound?.orderId?.customerId ||
-        null,
+      merchantId: merchantFound?._id || null,
+      merchantName: merchantFound?.merchantDetail?.merchantName || null,
+      customerId: taskFound?.orderId?.customerId || null,
+      customerName: taskFound?.orderId?.deliveryAddress.fullName || null,
       type: "Pickup",
-      date: formatDate(taskFound.orderId.createdAt),
-      time: formatTime(taskFound.orderId.createdAt),
-      taskStatus: taskFound.pickupDetail?.pickupStatus,
-      pickupName: taskFound?.pickupDetail?.pickupAddress?.fullName,
-      pickupAddress: taskFound?.pickupDetail?.pickupAddress?.area,
+      date: formatDate(taskFound?.orderId?.createdAt) || null,
+      time: formatTime(taskFound?.orderId?.createdAt) || null,
+      taskStatus: taskFound.pickupDetail?.pickupStatus || null,
+      pickupName: taskFound?.pickupDetail?.pickupAddress?.fullName || null,
+      pickupAddress: taskFound?.pickupDetail?.pickupAddress?.area || null,
       pickupPhoneNumber:
         taskFound?.pickupDetail?.pickupAddress?.phoneNumber || null,
       instructions:
@@ -1064,11 +1067,11 @@ const getPickUpDetailController = async (req, res, next) => {
         taskFound?.orderId?.orderDetail?.voiceInstructionToDeliveryAgent ||
         null,
       pickupLocation: taskFound?.pickupDetail?.pickupLocation,
-      deliveryMode: taskFound.orderId.orderDetail.deliveryMode,
-      orderItems: taskFound.orderId.items,
-      billDetail: taskFound.orderId.billDetail,
-      paymentMode: taskFound.orderId.paymentMode,
-      paymentStatus: taskFound.orderId.paymentStatus,
+      deliveryMode: taskFound?.orderId?.orderDetail?.deliveryMode || null,
+      orderItems: taskFound?.orderId?.items || [],
+      billDetail: taskFound?.orderId?.billDetail || {},
+      paymentMode: taskFound?.orderId?.paymentMode || null,
+      paymentStatus: taskFound?.orderId?.paymentStatus || null,
     };
 
     res.status(200).json({
