@@ -73,6 +73,7 @@ const getRevenueDataByDateRange = async (req, res, next) => {
           },
           sales: { $sum: "$sales" },
           merchants: { $sum: "$merchants" },
+          order: { $sum: "$order" },
           commission: { $sum: "$commission" },
           subscription: { $sum: "$subscription" },
         },
@@ -84,6 +85,7 @@ const getRevenueDataByDateRange = async (req, res, next) => {
           createdAt: "$_id", // Rename `_id` to `createdAt`
           sales: 1,
           merchants: 1,
+          order: 1,
           commission: 1,
           subscription: 1,
         },

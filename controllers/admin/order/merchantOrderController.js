@@ -284,10 +284,11 @@ const confirmOrderController = async (req, res, next) => {
 
         orderFound.commissionDetail = updatedCommission;
       }
+      if (orderFound?.orderDetail?.deliveryMode !== "Take Away") {
+        const task = await orderCreateTaskHelper(orderId);
 
-      const task = await orderCreateTaskHelper(orderId);
-
-      if (!task) return next(appError("Task not created"));
+        if (!task) return next(appError("Task not created"));
+      }
 
       await reduceProductAvailableQuantity(
         orderFound.purchasedItems,
@@ -1190,10 +1191,12 @@ const createOrderController = async (req, res, next) => {
 
         newOrder.commissionDetail = updatedCommission;
 
-        const task = await orderCreateTaskHelper(newOrder._id);
+        if (newOrder?.orderDetail?.deliveryMode !== "Take Away") {
+          const task = await orderCreateTaskHelper(newOrder._id);
 
-        if (!task) {
-          return next(appError("Task not created"));
+          if (!task) {
+            return next(appError("Task not created"));
+          }
         }
 
         await reduceProductAvailableQuantity(
@@ -1273,10 +1276,12 @@ const createOrderController = async (req, res, next) => {
 
         newOrder.commissionDetail = updatedCommission;
 
-        const task = await orderCreateTaskHelper(newOrder._id);
+        if (newOrder?.orderDetail?.deliveryMode !== "Take Away") {
+          const task = await orderCreateTaskHelper(newOrder._id);
 
-        if (!task) {
-          return next(appError("Task not created"));
+          if (!task) {
+            return next(appError("Task not created"));
+          }
         }
 
         await reduceProductAvailableQuantity(

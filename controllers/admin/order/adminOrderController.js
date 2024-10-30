@@ -244,10 +244,12 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
       orderFound.commissionDetail = updatedCommission;
     }
 
-    const task = await orderCreateTaskHelper(orderId);
-
-    if (!task) {
-      return next(appError("Task not created"));
+    if(orderFound?.orderDetail?.deliveryMode !== "Take Away"){
+      const task = await orderCreateTaskHelper(orderId);
+  
+      if (!task) {
+        return next(appError("Task not created"));
+      }
     }
 
     if (orderFound?.purchasedItems && orderFound.merchantId) {

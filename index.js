@@ -197,7 +197,6 @@ cron.schedule("* * * * *", async () => {
   // await createSettlement();
   deleteExpiredConversationsAndMessages();
   populateUserSocketMap();
-
   console.log("Running scheduled order job...");
   const now = new Date().toISOString();
   console.log(now);

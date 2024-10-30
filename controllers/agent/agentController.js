@@ -967,13 +967,28 @@ const getTaskPreviewController = async (req, res, next) => {
     let currentTasks = [];
     let nextTasks = [];
 
+    const groupedTasks = {};
+
     taskFound.forEach((task) => {
+      const orderId = task.orderId?._id;
+
+      // Initialize grouped task for the order if it doesn't exist
+      if (!groupedTasks[orderId]) {
+        groupedTasks[orderId] = {
+          orderId: orderId,
+          orderType: task?.orderId?.orderDetail?.deliveryMode || null,
+          tasks: {
+            pickup: null,
+            delivery: null,
+          },
+        };
+      }
+
+      // Construct pickup task
       const pickupTask = {
         type: "Pickup",
         taskId: task._id,
-        taskStatus: task.pickupDetail.pickupStatus, // === "Pending" ? "Accepted" : "Started",
-        orderId: task.orderId?._id,
-        orderType: task?.orderId?.orderDetail?.deliveryMode || null,
+        taskStatus: task.pickupDetail.pickupStatus,
         date: formatDate(task.createdAt),
         time: formatTime(task.createdAt),
         address: {
@@ -986,15 +1001,11 @@ const getTaskPreviewController = async (req, res, next) => {
         agentLocation: agentFound.location,
       };
 
+      // Construct delivery task
       const deliveryTask = {
         type: "Delivery",
         taskId: task._id,
         taskStatus: task.deliveryDetail.deliveryStatus,
-        // === "Pending"
-        // ? "Accepted"
-        // : "Started",
-        orderId: task.orderId?._id,
-        orderType: task?.orderId?.orderDetail?.deliveryMode || null,
         date: formatDate(task.createdAt),
         time: formatTime(task.orderId.orderDetail.deliveryTime),
         name: task.deliveryDetail.deliveryAddress.fullName,
@@ -1008,16 +1019,28 @@ const getTaskPreviewController = async (req, res, next) => {
         agentLocation: agentFound.location,
       };
 
-      if (task.pickupDetail.pickupStatus === "Started") {
-        currentTasks.push(pickupTask);
-      } else if (task.pickupDetail.pickupStatus !== "Completed") {
-        nextTasks.push(pickupTask);
-      }
+      // Add tasks to grouped object based on type
+      groupedTasks[orderId].tasks.pickup = pickupTask;
+      groupedTasks[orderId].tasks.delivery = deliveryTask;
+    });
 
-      if (task.deliveryDetail.deliveryStatus === "Started") {
-        currentTasks.push(deliveryTask);
-      } else if (task.deliveryDetail.deliveryStatus !== "Completed") {
-        nextTasks.push(deliveryTask);
+    // Separate tasks into currentTasks and nextTasks
+    Object.values(groupedTasks).forEach((order) => {
+      const { pickup, delivery } = order.tasks;
+
+      // Check if either task has "Started" status and add both to currentTasks
+      if (
+        pickup.taskStatus === "Started" ||
+        delivery.taskStatus === "Started"
+      ) {
+        currentTasks.push(order);
+      }
+      // Check if both tasks are "Accepted" status and add both to nextTasks
+      else if (
+        pickup.taskStatus === "Accepted" &&
+        delivery.taskStatus === "Accepted"
+      ) {
+        nextTasks.push(order);
       }
     });
 
