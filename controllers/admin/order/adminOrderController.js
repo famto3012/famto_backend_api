@@ -680,29 +680,29 @@ const filterOrdersByAdminController = async (req, res, next) => {
 
     const filterCriteria = {};
 
-    if (status && status.trim().toLowerCase() !== "all") {
+    if (status && status?.trim()?.toLowerCase() !== "all") {
       filterCriteria.status = { $regex: status.trim(), $options: "i" };
     }
 
-    if (paymentMode && paymentMode.trim().toLowerCase() !== "all") {
+    if (paymentMode && paymentMode?.trim()?.toLowerCase() !== "all") {
       filterCriteria.paymentMode = {
         $regex: paymentMode.trim(),
         $options: "i",
       };
     }
 
-    if (deliveryMode && deliveryMode.trim().toLowerCase() !== "all") {
+    if (deliveryMode && deliveryMode?.trim()?.toLowerCase() !== "all") {
       filterCriteria["orderDetail.deliveryMode"] = {
         $regex: deliveryMode.trim(),
         $options: "i",
       };
     }
 
-    if (merchantId && merchantId.trim().toLowerCase() !== "all") {
+    if (merchantId && merchantId?.trim()?.toLowerCase() !== "all") {
       filterCriteria.merchantId = merchantId;
     }
 
-    if (date) {
+    if (startDate && endDate) {
       startDate = new Date(startDate);
       startDate.setHours(0, 0, 0, 0);
 
@@ -731,14 +731,15 @@ const filterOrdersByAdminController = async (req, res, next) => {
     const formattedOrders = filteredOrderResults.map((order) => {
       return {
         _id: order._id,
-        orderStatus: order.status,
+        orderStatus: order?.status,
         merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
         customerName:
-          order.customerId.fullName ||
-          order.orderDetail.deliveryAddress.fullName,
-        deliveryMode: order.orderDetail.deliveryMode,
-        orderDate: formatDate(order.createdAt),
-        orderTime: formatTime(order.createdAt),
+          order?.customerId?.fullName ||
+          order?.orderDetail?.deliveryAddress?.fullName ||
+          null,
+        deliveryMode: order?.orderDetail?.deliveryMode || null,
+        orderDate: formatDate(order?.createdAt) || null,
+        orderTime: formatTime(order?.createdAt) || null,
         deliveryDate: order?.orderDetail?.deliveryTime
           ? formatDate(order.orderDetail.deliveryTime)
           : "-",
@@ -746,11 +747,11 @@ const filterOrdersByAdminController = async (req, res, next) => {
           ? formatTime(order.orderDetail.deliveryTime)
           : "-",
         paymentMethod:
-          order.paymentMode === "Cash-on-delivery"
+          order?.paymentMode === "Cash-on-delivery"
             ? "Pay-on-delivery"
-            : order.paymentMode,
-        deliveryOption: order.orderDetail.deliveryOption,
-        amount: order.billDetail.grandTotal,
+            : order?.paymentMode,
+        deliveryOption: order?.orderDetail?.deliveryOption || null,
+        amount: order?.billDetail?.grandTotal || null,
       };
     });
 
@@ -775,7 +776,16 @@ const filterOrdersByAdminController = async (req, res, next) => {
 
 const filterScheduledOrdersByAdminController = async (req, res, next) => {
   try {
-    let { status, paymentMode, deliveryMode, page = 1, limit = 25 } = req.query;
+    let {
+      page = 1,
+      limit = 25,
+      status,
+      paymentMode,
+      deliveryMode,
+      merchantId,
+      startDate,
+      endDate,
+    } = req.query;
 
     // Convert to integers
     page = parseInt(page, 10);
@@ -803,6 +813,20 @@ const filterScheduledOrdersByAdminController = async (req, res, next) => {
         $regex: deliveryMode.trim(),
         $options: "i",
       };
+    }
+
+    if (merchantId && merchantId.trim().toLowerCase() !== "all") {
+      filterCriteria.merchantId = merchantId;
+    }
+
+    if (startDate && endDate) {
+      startDate = new Date(startDate);
+      startDate.setHours(0, 0, 0, 0);
+
+      endDate = new Date(endDate);
+      endDate.setHours(23, 59, 59, 999);
+
+      filterCriteria.createdAt = { $gte: startDate, $lte: endDate };
     }
 
     // Aggregation pipeline to merge and filter both collections
@@ -1480,8 +1504,15 @@ const createOrderByAdminController = async (req, res, next) => {
 
 const downloadOrdersCSVByAdminController = async (req, res, next) => {
   try {
-    const { orderStatus, paymentMode, deliveryMode, merchantId, date, query } =
-      req.query;
+    const {
+      orderStatus,
+      paymentMode,
+      deliveryMode,
+      merchantId,
+      startDate,
+      endDate,
+      query,
+    } = req.query;
 
     // Build query object based on filters
     const filter = {};
@@ -1496,14 +1527,14 @@ const downloadOrdersCSVByAdminController = async (req, res, next) => {
       filter.merchantId = merchantId;
     }
 
-    if (date) {
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
+    if (startDate && endDate) {
+      const formattedStartDate = new Date(startDate);
+      formattedStartDate.setHours(0, 0, 0, 0);
 
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
+      const formattedEndDate = new Date(endDate);
+      formattedEndDate.setHours(23, 59, 59, 999);
 
-      filter.createdAt = { $gte: startOfDay, $lte: endOfDay };
+      filter.createdAt = { $gte: formattedStartDate, $lte: formattedEndDate };
     }
 
     // Fetch the data based on filter
@@ -2853,6 +2884,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
       addedTip = 0,
     } = req.body;
 
+    console.log("1");
     const merchantFound = await fetchMerchantDetails(
       merchantId,
       deliveryMode,
@@ -2860,6 +2892,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
       next
     );
 
+    console.log("2");
     validateCustomerAddress(
       newCustomer,
       deliveryMode,
@@ -2870,7 +2903,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
 
     const customerAddress =
       newCustomerAddress || newPickupAddress || newDeliveryAddress;
-
+    console.log("3");
     const customer = await findOrCreateCustomer({
       customerId,
       newCustomer,

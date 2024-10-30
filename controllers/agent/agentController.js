@@ -1974,6 +1974,35 @@ const getAllAnnouncementsController = async (req, res, next) => {
   }
 };
 
+//
+const getPocketBalanceForAgent = async (req, res, next) => {
+  try {
+    // Find the agent by ID
+    const agent = await Agent.findById(req.userAuth);
+
+    // Check if the agent exists
+    if (!agent) return next(appError("Agent not found", 404));
+
+    // Calculate total earnings where paymentSettled is false
+    let totalEarnings = 0;
+
+    const unsettledEarnings = agent.appDetailHistory.filter(
+      (detail) => detail.details.paymentSettled === false
+    );
+
+    unsettledEarnings.forEach((detail) => {
+      totalEarnings += detail.details.totalEarning || 0;
+    });
+
+    return res.status(200).json({
+      success: true,
+      totalEarnings,
+    });
+  } catch (error) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   updateLocationController,
   registerAgentController,
@@ -2017,4 +2046,5 @@ module.exports = {
   checkPaymentStatusOfOrder,
   getAllNotificationsController,
   getAllAnnouncementsController,
+  getPocketBalanceForAgent,
 };

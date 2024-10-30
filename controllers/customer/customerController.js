@@ -25,16 +25,12 @@ const {
   deleteFromFirebase,
   uploadToFirebase,
 } = require("../../utils/imageOperation");
-const {
-  getDistanceFromPickupToDelivery,
-  completeReferralDetail,
-} = require("../../utils/customerAppHelpers");
+const { completeReferralDetail } = require("../../utils/customerAppHelpers");
 const {
   createRazorpayOrderId,
   verifyPayment,
 } = require("../../utils/razorpayPayment");
 const { formatDate, formatTime } = require("../../utils/formatters");
-const { formatToHours } = require("../../utils/agentAppHelpers");
 
 const { sendNotification, sendSocketData } = require("../../socket/socket");
 const Geofence = require("../../models/Geofence");
@@ -721,67 +717,56 @@ const getCustomerSubscriptionDetailController = async (req, res, next) => {
   try {
     const currentCustomer = req.userAuth;
 
-    const allSubscriptionPlans = await CustomerSubscription.find({});
+    // Fetch both all subscription plans and the current customer subscription in one step
+    const [allSubscriptionPlans, customer] = await Promise.all([
+      CustomerSubscription.find().select(
+        "title name amount duration taxId renewalReminder noOfOrder description"
+      ),
+      Customer.findById(currentCustomer)
+        .select("customerDetails.pricing")
+        .populate({
+          path: "customerDetails.pricing",
+          model: "SubscriptionLog",
+          select: "planId endDate",
+          populate: {
+            path: "planId",
+            model: "CustomerSubscription",
+            select: "name duration amount description",
+          },
+        }),
+    ]);
 
-    const formattedAllSubscriptionPlans = allSubscriptionPlans.map((plan) => {
-      return {
-        id: plan._id,
-        title: plan.title,
-        name: plan.name,
-        amount: plan.amount,
-        duration: plan.duration,
-        taxId: plan.taxId,
-        renewalReminder: plan.renewalReminder,
-        noOfOrder: plan.noOfOrder,
-        description: plan.description,
-      };
-    });
+    // Format all available subscription plans
+    const formattedAllSubscriptionPlans = allSubscriptionPlans.map((plan) => ({
+      planId: plan._id,
+      planName: plan.name,
+      planAmount: plan.amount,
+      planDuration: plan.duration,
+      noOfOrder: plan.noOfOrder,
+      description: plan.description,
+    }));
 
-    const currentSubscriptionLog = await Customer.findById(currentCustomer)
-      .select("customerDetails")
-      .populate({
-        path: "customerDetails.pricing",
-        model: "SubscriptionLog",
-      })
-      .exec();
+    // Format the current subscription plan, if it exists
+    const currentSubscription = customer.customerDetails.pricing[0];
+    let formattedCurrentSubscriptionPlan = {};
 
-    let formattedCurrentSubscriptionPlan;
-
-    if (
-      currentSubscriptionLog &&
-      currentSubscriptionLog.customerDetails.pricing &&
-      currentSubscriptionLog.customerDetails.pricing.length
-    ) {
-      const currentSubscriptionPlanId =
-        currentSubscriptionLog.customerDetails.pricing[0].planId;
-
-      const currentSubscription = await CustomerSubscription.findById(
-        currentSubscriptionPlanId
+    if (currentSubscription) {
+      const { planId, endDate } = currentSubscription;
+      const daysLeft = Math.ceil(
+        (new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24)
       );
 
-      const endDate = currentSubscriptionLog.customerDetails.pricing[0].endDate;
-
-      const currentDate = new Date();
-      const endDateObject = new Date(endDate);
-
-      const timeDiff = endDateObject - currentDate;
-      const daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-
       formattedCurrentSubscriptionPlan = {
-        planName: currentSubscription.name,
-        duration: currentSubscription.duration,
-        amount: currentSubscription.amount,
-        description: currentSubscription.description,
+        planName: planId.name,
+        planDuration: planId.duration,
+        planAmount: planId.amount,
         daysLeft,
       };
     }
 
     res.status(200).json({
-      message: "Subscription plan details",
-      data: {
-        allSubscriptionPlans: formattedAllSubscriptionPlans,
-        currentSubscription: formattedCurrentSubscriptionPlan || {},
-      },
+      currentSubscription: formattedCurrentSubscriptionPlan,
+      allSubscriptionPlans: formattedAllSubscriptionPlans,
     });
   } catch (err) {
     next(appError(err.message));
@@ -1054,96 +1039,94 @@ const generateReferralCode = async (req, res, next) => {
   try {
     const customerId = req.userAuth;
 
-    const customerFound = await Customer.findById(customerId).select(
-      "fullName email "
-    );
+    // Find the customer and any existing referral code in one query
+    const customer = await Customer.findById(customerId)
+      .select("fullName email customerDetails.referralCode")
+      .populate("customerDetails.referralCode");
 
-    if (!customerFound) {
+    if (!customer) {
       return next(appError("Customer not found", 404));
     }
 
-    const referralFound = await ReferralCode.findOne({ customerId });
-
-    // App link
-    const appLink = process.env.PLAY_STORE_APP_LINK;
-
-    if (referralFound) {
+    // If a referral code already exists, return it
+    if (customer.customerDetails.referralCode) {
       return res.status(200).json({
         message: "Referral Code",
-        appLink,
-        referralCode: referralFound.referralCode,
-      });
-    } else {
-      // Extract digits from customerId
-      const digits = customerId.replace(/\D/g, "");
-
-      // Generate a secure random alphanumeric string of length 4
-      const randomPart = crypto.randomBytes(2).toString("hex").toUpperCase();
-
-      // Combine digits with the random part
-      const referralCode = `${digits}${randomPart}`;
-
-      const newReferral = await ReferralCode.create({
-        customerId,
-        name: customerFound?.fullName,
-        email: customerFound?.email,
-        referralCode,
-      });
-
-      if (!newReferral) {
-        return next(appError("Error in creating referral code"));
-      }
-
-      customerFound.customerDetails.referralCode = referralCode;
-
-      await customerFound.save();
-
-      // Respond with the generated referral code
-      return res.status(200).json({
-        message: "Referral Code",
-        appLink,
-        referralCode,
+        appLink: process.env.PLAY_STORE_APP_LINK,
+        referralCode: customer.customerDetails.referralCode,
       });
     }
+
+    // Generate a new referral code if one doesn't exist
+    const newReferralCode = `${customerId.slice(1)}${crypto
+      .randomBytes(2)
+      .toString("hex")
+      .toUpperCase()}`;
+
+    await ReferralCode.create({
+      customerId,
+      name: customer.fullName,
+      email: customer.email,
+      referralCode: newReferralCode,
+    });
+
+    // Attach the referral code to the customer and save
+    customer.customerDetails.referralCode = newReferralCode;
+    await customer.save();
+
+    res.status(200).json({
+      message: "Referral Code",
+      appLink: process.env.PLAY_STORE_APP_LINK,
+      referralCode: newReferralCode,
+    });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
-const getCurrentOrderDetailcontroller = async (req, res, next) => {
+const getSelectedOngoingOrderDetailController = async (req, res, next) => {
   try {
+    const { orderId } = req.params;
+
     const customerId = req.userAuth;
 
     const orderFound = await Order.findOne({
+      _id: orderId,
       customerId,
-      status: "On-going",
     })
       .populate("agentId")
-      .populate("merchantId");
-
-    const timeDiff =
-      new Date(orderFound.orderDetail.deliveryTime) -
-      new Date(orderFound.createdAt);
+      .populate("merchantId")
+      .select(
+        "agentId merchantId orderDetail.deliveryTime orderDetail.pickupLocation orderDetail.deliveryLocation billDetail orderDetailStepper detailAddedByAgent paymentStatus"
+      );
 
     const formattedResponse = {
-      orderId: orderFound._id,
-      agentId: orderFound.agentId._id,
-      agentName: orderFound.agentId.fullName,
-      agentLocation: orderFound.agentId.location,
-      agentImageURL: orderFound.agentId.agentImageURL,
-      agentPhone: orderFound.agentId.phoneNumber,
-      merchantLocation:
-        orderFound?.merchantId?.merchantDetail?.location || null,
+      orderId: orderFound?._id,
+      agentId: orderFound?.agentId?._id || null,
+      agentName: orderFound?.agentId?.fullName || null,
+      agentLocation: orderFound?.agentId?.location || null,
+      agentImageURL: orderFound?.agentId?.agentImageURL || null,
+      merchantName:
+        orderFound?.merchantId?.merchantDetail?.merchantName || null,
+      merchantPhone: orderFound?.merchantId?.phoneNumber || null,
+      agentPhone: orderFound?.agentId?.phoneNumber || null,
       deliveryTime: formatTime(orderFound.orderDetail.deliveryTime),
-      billDetail: orderFound.billDetail,
-      orderDetail: orderFound.orderDetail,
-      ETA: formatToHours(timeDiff),
+      paymentStatus: orderFound?.paymentStatus || null,
+      orderDetail: {
+        pickupLocation: orderFound?.orderDetail?.pickupLocation || null,
+        deliveryLocation: orderFound?.orderDetail?.deliveryLocation || null,
+      },
+      orderDetailStepper: orderFound?.orderDetailStepper || null,
+      detailAddedByAgent: {
+        notes: orderFound?.detailAddedByAgent.notes || null,
+        signatureImageURL:
+          orderFound?.detailAddedByAgent.signatureImageURL || null,
+        imageURL: orderFound?.detailAddedByAgent.imageURL || null,
+      },
+      billDetail: orderFound?.billDetail || null,
     };
 
-    res.status(200).json({
-      messsage: "Ongoing order",
-      data: formattedResponse,
-    });
+    res.status(200).json(formattedResponse);
   } catch (err) {
     next(appError(err.message));
   }
@@ -1187,6 +1170,28 @@ const getVisibilityOfReferal = async (req, res, next) => {
   }
 };
 
+const getCurrentOngoingOrders = async (req, res, next) => {
+  try {
+    const customerId = req.userAuth;
+
+    const ordersFound = await Order.find({
+      customerId,
+      $or: [{ status: "Pending" }, { status: "On-going" }],
+    })
+      .select("orderDetail.deliveryTime")
+      .sort({ createdAt: -1 });
+
+    const formattedResponse = ordersFound?.map((order) => ({
+      orderId: order._id,
+      deliveryTime: formatTime(order?.orderDetail?.deliveryTime) || null,
+    }));
+
+    res.status(200).json(formattedResponse);
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerAndLoginController,
   getAvailableGeofences,
@@ -1214,7 +1219,8 @@ module.exports = {
   getCustomOrderBannersController,
   getAvailableServiceController,
   generateReferralCode,
-  getCurrentOrderDetailcontroller,
+  getSelectedOngoingOrderDetailController,
   getAllNotificationsOfCustomerController,
   getVisibilityOfReferal,
+  getCurrentOngoingOrders,
 };

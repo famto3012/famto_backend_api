@@ -272,6 +272,8 @@ const addPickandDropItemsController = async (req, res, next) => {
     const { items, vehicleType, deliveryCharges } = req.body;
     const customerId = req.userAuth;
 
+    if (items.length === 0) return next(appError("Add atleast onr item", 400));
+
     // Find the cart for the customer
     const cart = await PickAndCustomCart.findOne({ customerId });
 
@@ -807,7 +809,7 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
         const newOrder = await Order.create({
           customerId: storedOrderData.customerId,
           items: storedOrderData.items,
-          orderDetail: storedOrderData.cartDetail,
+          orderDetail: storedOrderData.orderDetail,
           billDetail: storedOrderData.orderBill,
           totalAmount: storedOrderData.orderAmount,
           status: "Pending",
@@ -920,11 +922,14 @@ const cancelPickBeforeOrderCreationController = async (req, res, next) => {
 
     const orderFound = await TemperoryOrder.findOne({ orderId });
 
+    console.log(orderFound);
+
     const customerFound = await Customer.findById(orderFound.customerId);
 
+    console.log("customer and order found");
     let updatedTransactionDetail = {
       transactionType: "Refund",
-      madeon: new Date(),
+      madeOn: new Date(),
       type: "Credit",
     };
 
@@ -957,6 +962,7 @@ const cancelPickBeforeOrderCreationController = async (req, res, next) => {
 
         return;
       } else if (orderFound.paymentMode === "Online-payment") {
+        console.log("Inside online paymant");
         const paymentId = orderFound.paymentId;
 
         let refundAmount;
@@ -964,6 +970,8 @@ const cancelPickBeforeOrderCreationController = async (req, res, next) => {
         if (orderFound.orderDetail.deliveryOption === "On-demand") {
           refundAmount = orderFound.billDetail.grandTotal;
           updatedTransactionDetail.transactionAmount = refundAmount;
+
+          console.log("refundAmount", refundAmount);
         } else if (orderFound.orderDetail.deliveryOption === "Scheduled") {
           refundAmount =
             orderFound.billDetail.grandTotal / orderFound.orderDetail.numOfDays;
@@ -972,6 +980,7 @@ const cancelPickBeforeOrderCreationController = async (req, res, next) => {
 
         const refundResponse = await razorpayRefund(paymentId, refundAmount);
 
+        console.log("refund processed");
         if (!refundResponse.success) {
           return next(appError("Refund failed: " + refundResponse.error, 500));
         }
