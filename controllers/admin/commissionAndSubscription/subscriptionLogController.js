@@ -51,12 +51,8 @@ const createSubscriptionLog = async (req, res, next) => {
       let startDate;
 
       if (merchant?.merchantDetail?.pricing?.length === 0) {
-        console.log("No data");
         startDate = new Date();
-        console.log(startDate);
       } else {
-        console.log("data available");
-
         let sub;
         if (merchant.merchantDetail.pricing[0].modelType === "Commission") {
           merchant.merchantDetail.pricing = [];
@@ -69,7 +65,6 @@ const createSubscriptionLog = async (req, res, next) => {
         }
 
         startDate = sub?.endDate || new Date();
-        console.log(startDate);
       }
 
       const endDate = addDays(startDate, duration);
@@ -271,6 +266,7 @@ const createSubscriptionLogUser = async (req, res, next) => {
       razorpayOrderId = razorpayOrderResponse.orderId;
       paymentStatus = "Pending";
     } else {
+      console.log("Inside Cash");
       function addDays(date, days) {
         let result = new Date(date);
         result.setDate(result.getDate() + days);
@@ -288,7 +284,7 @@ const createSubscriptionLogUser = async (req, res, next) => {
           ].modelId
         );
 
-        startDate = sub.endDate;
+        sub?.endDate ? (startDate = sub.endDate) : (startDate = new Date());
       }
 
       const endDate = addDays(startDate, duration);
