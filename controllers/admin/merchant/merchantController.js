@@ -32,6 +32,7 @@ const Product = require("../../../models/Product");
 const sharp = require("sharp");
 const ActivityLog = require("../../../models/ActivityLog");
 const ejs = require("ejs");
+const MerchantSubscription = require("../../../models/MerchantSubscription");
 
 // Helper function to handle null or empty string values
 const convertNullValues = (obj) => {
@@ -152,30 +153,37 @@ const getMerchantProfileController = async (req, res, next) => {
       return next(appError("Merchant not found", 404));
     }
 
-    let merchantPricing;
-    if (merchantFound?.merchantDetail?.pricing[0]?.modelType === "Commission") {
-      const commission = await Commission.findById(
-        merchantFound?.merchantDetail?.pricing[0]?.modelId
-      );
+    let merchantPricing = {};
+    const pricing = merchantFound?.merchantDetail?.pricing?.[0];
+
+    if (pricing?.modelType === "Commission") {
+      const commission = await Commission.findById(pricing?.modelId);
       merchantPricing = {
         modelType: "Commission",
         detail: {
-          type: commission?.commissionType || "-",
-          value: commission?.commissionValue || "-",
+          type: commission?.commissionType?.toString() || "-",
+          value: commission?.commissionValue?.toString() || "-",
         },
       };
     } else if (
       merchantFound?.merchantDetail?.pricing[0]?.modelType === "Subscription"
     ) {
-      const subscription = await SubscriptionLog.findById(
+      const subscriptionLog = await SubscriptionLog.findById(
         merchantFound?.merchantDetail?.pricing[0]?.modelId
       );
+
+      const planFound = await MerchantSubscription.findById(
+        subscriptionLog.planId
+      )
+        .select("name")
+        .lean();
+
       merchantPricing = {
         modelType: "Subscription",
-        modelId: subscription?._id,
+        modelId: subscriptionLog?._id,
         detail: {
-          type: subscription?.type || "-",
-          value: subscription?.amount || "-",
+          type: planFound?.name || "-",
+          value: planFound?.name || "-",
         },
       };
     }
@@ -1003,30 +1011,37 @@ const getSingleMerchantController = async (req, res, next) => {
       return next(appError("Merchant not found", 404));
     }
 
-    let merchantPricing;
-    if (merchantFound?.merchantDetail?.pricing[0]?.modelType === "Commission") {
-      const commission = await Commission.findById(
-        merchantFound?.merchantDetail?.pricing[0]?.modelId
-      );
+    let merchantPricing = {};
+    const pricing = merchantFound?.merchantDetail?.pricing?.[0];
+
+    if (pricing?.modelType === "Commission") {
+      const commission = await Commission.findById(pricing?.modelId);
       merchantPricing = {
         modelType: "Commission",
         detail: {
-          type: commission?.commissionType || "-",
-          value: commission?.commissionValue || "-",
+          type: commission?.commissionType?.toString() || null,
+          value: commission?.commissionValue?.toString() || null,
         },
       };
     } else if (
       merchantFound?.merchantDetail?.pricing[0]?.modelType === "Subscription"
     ) {
-      const subscription = await SubscriptionLog.findById(
+      const subscriptionLog = await SubscriptionLog.findById(
         merchantFound?.merchantDetail?.pricing[0]?.modelId
       );
+
+      const planFound = await MerchantSubscription.findById(
+        subscriptionLog.planId
+      )
+        .select("name")
+        .lean();
+
       merchantPricing = {
         modelType: "Subscription",
-        modelId: subscription?._id,
+        modelId: subscriptionLog?._id,
         detail: {
-          type: subscription?.type || "-",
-          value: subscription?.amount || "-",
+          type: planFound?.name || null,
+          value: planFound?.name || null,
         },
       };
     }
