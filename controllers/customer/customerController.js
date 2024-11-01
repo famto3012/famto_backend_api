@@ -554,17 +554,25 @@ const getCustomerOrdersController = async (req, res, next) => {
         orderStatus,
         orderDate: formatDate(order.createdAt),
         orderTime: formatTime(order.createdAt),
-        items: order.items,
-        grandTotal: order.billDetail.grandTotal,
+        items: order?.items || [],
+        grandTotal: order?.billDetail?.grandTotal || null,
       };
     });
 
+    // Split orders into "On-going" and "Other" arrays
+    const onGoingOrders = formattedResponse.filter(
+      (order) => order.orderStatus === "On-going"
+    );
+    const pastOrders = formattedResponse.filter(
+      (order) => order.orderStatus !== "On-going"
+    );
+
     res.status(200).json({
-      message: "Orders of customer",
-      data: formattedResponse,
+      onGoingOrders,
+      pastOrders,
     });
   } catch (err) {
-    next(appError(err.message));
+    next(appError(err.message || "Server Error"));
   }
 };
 
@@ -932,6 +940,8 @@ const getCustomerCartController = async (req, res, next) => {
         customerId: populatedCartWithVariantNames.customerId,
         merchantId: populatedCartWithVariantNames?.merchantId || null,
         items: populatedCartWithVariantNames?.items || [],
+        deliveryOption:
+          populatedCartWithVariantNames?.cartDetail?.deliveryOption || null,
       },
     });
   } catch (err) {

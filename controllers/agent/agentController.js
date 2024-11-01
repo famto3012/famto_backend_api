@@ -47,6 +47,7 @@ const {
   findRolesToNotify,
 } = require("../../socket/socket");
 const FcmToken = require("../../models/fcmToken");
+const Merchant = require("../../models/Merchant");
 
 // Update location on entering APP
 const updateLocationController = async (req, res, next) => {
@@ -1032,10 +1033,22 @@ const getPickUpDetailController = async (req, res, next) => {
   try {
     const { taskId } = req.params;
 
+    console.log("Task ID:", taskId);
+
     const taskFound = await Task.findById(taskId).populate("orderId");
-    const merchantFound = await Task.findById(
-      taskFound?.orderId?.merchantId
-    ).select("merchantDetail.merchantId");
+    if (!taskFound) {
+      return next(appError("Task not found", 404));
+    }
+
+    console.log("Task Found:", taskFound);
+    console.log("Order ID in Task:", taskFound?.orderId?._id);
+
+    let merchantFound;
+    if (taskFound?.orderId?.merchantId) {
+      merchantFound = await Merchant.findById(taskFound.orderId.merchantId); // Update here if needed
+    }
+
+    console.log("Merchant Found:", merchantFound);
 
     const formattedResponse = {
       taskId: taskFound._id,
@@ -1043,7 +1056,9 @@ const getPickUpDetailController = async (req, res, next) => {
       merchantId: merchantFound?._id || null,
       merchantName: merchantFound?.merchantDetail?.merchantName || null,
       customerId: taskFound?.orderId?.customerId || null,
-      customerName: taskFound?.orderId?.deliveryAddress.fullName || null,
+      customerName: taskFound?.orderId?.deliveryAddress?.fullName || null,
+      customerPhoneNumber:
+        taskFound?.orderId?.deliveryAddress?.phoneNumber || null,
       type: "Pickup",
       date: formatDate(taskFound?.orderId?.createdAt) || null,
       time: formatTime(taskFound?.orderId?.createdAt) || null,
@@ -1070,7 +1085,7 @@ const getPickUpDetailController = async (req, res, next) => {
       data: formattedResponse,
     });
   } catch (err) {
-    next(appError);
+    next(appError(err.message));
   }
 };
 
