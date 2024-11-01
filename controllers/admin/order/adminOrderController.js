@@ -244,9 +244,9 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
       orderFound.commissionDetail = updatedCommission;
     }
 
-    if(orderFound?.orderDetail?.deliveryMode !== "Take Away"){
+    if (orderFound?.orderDetail?.deliveryMode !== "Take Away") {
       const task = await orderCreateTaskHelper(orderId);
-  
+
       if (!task) {
         return next(appError("Task not created"));
       }
@@ -383,7 +383,7 @@ const rejectOrderByAdminController = async (req, res, next) => {
 
       await orderFound.save();
     } else if (orderFound.paymentMode === "Online-payment") {
-      const paymentId = orderFound.paymentId;
+      const paymentId = orderFound?.paymentId;
 
       let refundResponse;
 
@@ -405,14 +405,13 @@ const rejectOrderByAdminController = async (req, res, next) => {
         updatedTransactionDetail.transactionAmount = refundAmount;
         customerFound.transactionDetail.push(updatedTransactionDetail);
         orderFound.refundId = refundResponse?.refundId;
+
+        await customerFound.save();
       }
 
-      console.log("Order status Before : ", orderFound.status);
       updateOrderStatus(orderFound);
 
       await orderFound.save();
-      await customerFound.save();
-      console.log("Order status After : ", orderFound.status);
     }
 
     await ActivityLog.create({
