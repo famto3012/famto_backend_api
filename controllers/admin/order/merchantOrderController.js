@@ -32,6 +32,7 @@ const {
   findRolesToNotify,
   sendSocketData,
 } = require("../../../socket/socket");
+const ActivityLog = require("../../../models/ActivityLog");
 
 const csvWriter = require("csv-writer").createObjectCsvWriter;
 
@@ -183,8 +184,6 @@ const getAllScheduledOrdersOfMerchantController = async (req, res, next) => {
           select: "fullName",
         })
         .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
         .lean();
     }
 
