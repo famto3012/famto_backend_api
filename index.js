@@ -193,24 +193,24 @@ cron.schedule("30 18 * * *", async () => {
 });
 
 cron.schedule("* * * * *", async () => {
-  await generateMapplsAuthToken();
+  // await generateMapplsAuthToken();
   // await createSettlement();
   deleteExpiredConversationsAndMessages();
   populateUserSocketMap();
   console.log("Running scheduled order job...");
-  const now = new Date().toISOString();
+  const now = new Date();
   console.log(now);
 
   // Calculate 2 minutes earlier and 2 minutes later
-  const twoMinutesEarlier = new Date(now.getTime() - 2 * 60 * 1000); // Subtract 2 minutes
-  const twoMinutesLater = new Date(now.getTime() + 2 * 60 * 1000); // Add 2 minutes
+  const fiveMinutesBefore = new Date(now.getTime() - 5 * 60 * 1000);
+  const fiveMinutesAfter = new Date(now.getTime() + 5 * 60 * 1000);
 
   // Query to find scheduled orders within the 2-minute time window
   const universalScheduledOrders = await ScheduledOrder.find({
     status: "Pending",
     startDate: { $lte: now }, // Start date must be on or before now
     endDate: { $gte: now }, // End date must be on or after now
-    time: { $gte: twoMinutesEarlier, $lte: twoMinutesLater }, // Time between 2 minutes earlier and later
+    time: { $gte: fiveMinutesBefore, $lte: fiveMinutesAfter }, // Time between 2 minutes earlier and later
   });
 
   if (universalScheduledOrders.length) {
@@ -223,13 +223,9 @@ cron.schedule("* * * * *", async () => {
   // Pick and Drop order
   const pickAndDropScheduledOrders = await scheduledPickAndCustom.find({
     status: "Pending",
-    $and: [
-      { startDate: { $lte: date } },
-      {
-        $or: [{ endDate: { $lte: date } }, { endDate: { $gte: date } }],
-      },
-      { time: { $lte: date } },
-    ],
+    startDate: { $lte: now }, // Start date must be on or before now
+    endDate: { $gte: now }, // End date must be on or after now
+    time: { $gte: fiveMinutesBefore, $lte: fiveMinutesAfter }, // Time between 2 minutes earlier and later
   });
 
   if (pickAndDropScheduledOrders.length) {
