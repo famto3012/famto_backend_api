@@ -890,7 +890,6 @@ const filterScheduledOrdersByAdminController = async (req, res, next) => {
     ]);
 
     const totalDocuments = results?.length || 1;
-
     // Formatting the results
     const formattedOrders = results.map((order) => {
       return {
@@ -903,11 +902,11 @@ const filterScheduledOrdersByAdminController = async (req, res, next) => {
         deliveryMode: order.orderDetail.deliveryMode,
         orderDate: formatDate(order.createdAt),
         orderTime: formatTime(order.createdAt),
-        deliveryDate: order?.orderDetail?.deliveryTime
-          ? formatDate(order.orderDetail.deliveryTime)
+        deliveryDate: order?.time
+          ? formatDate(order?.time)
           : "-",
-        deliveryTime: order?.orderDetail?.deliveryTime
-          ? formatTime(order.orderDetail.deliveryTime)
+        deliveryTime: order?.time
+          ? formatTime(order?.time)
           : "-",
         paymentMethod:
           order.paymentMode === "Cash-on-delivery"
