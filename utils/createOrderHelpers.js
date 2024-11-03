@@ -17,6 +17,7 @@ const {
   calculateDeliveryCharges,
   getTaxAmount,
   getDistanceFromPickupToDelivery,
+  filterProductIdAndQuantity,
 } = require("./customerAppHelpers");
 
 // Create or return the existing customer
@@ -260,6 +261,8 @@ const updateCustomerAddress = async (
   const location = [newAddress.latitude, newAddress.longitude];
   newAddress.coordinates = location;
 
+  console.log("addressType: ", addressType);
+
   switch (addressType) {
     case "home":
       customer.customerDetails.homeAddress = newAddress;
@@ -267,7 +270,7 @@ const updateCustomerAddress = async (
     case "work":
       customer.customerDetails.workAddress = newAddress;
       break;
-    case "other":
+    case "others":
       const otherIndex = customer.customerDetails.otherAddress.findIndex(
         (addr) => addr.id.toString() === customerAddressOtherAddressId
       );
@@ -415,6 +418,8 @@ const handleAddressDetails = async (
     }
 
     if (newDeliveryAddress) {
+      console.log("newDeliveryAddress: ", newDeliveryAddress);
+
       deliveryLocation = [
         newDeliveryAddress.latitude,
         newDeliveryAddress.longitude,
@@ -423,7 +428,7 @@ const handleAddressDetails = async (
 
       if (newDeliveryAddress.saveAddress) {
         await updateCustomerAddress(
-          deliveryAddressType,
+          deliveryAddressType || newDeliveryAddress.type,
           newDeliveryAddress,
           customer,
           deliveryAddressOtherAddressId
@@ -1085,6 +1090,89 @@ const saveCustomerCart = async (
 };
 
 // ==============================
+// =========Create Order=========
+// ==============================
+
+const getCartByDeliveryMode = async (cartId, deliveryMode) => {
+  if (["Pick and Drop", "Custom Order"].includes(deliveryMode))
+    return await PickAndCustomCart.findById(cartId);
+  if (["Take Away", "Home Delivery"].includes(deliveryMode))
+    return await CustomerCart.findById(cartId);
+  return null;
+};
+
+const calculateDeliveryTime = (merchant, cartDeliveryMode) => {
+  const deliveryTime = new Date();
+  const extraMinutes =
+    cartDeliveryMode === "Take Away" || cartDeliveryMode === "Home Delivery"
+      ? parseInt(merchant?.merchantDetail.deliveryTime || 60, 10)
+      : 60;
+  deliveryTime.setMinutes(deliveryTime.getMinutes() + extraMinutes);
+  return deliveryTime;
+};
+
+const prepareOrderDetails = async (cart, paymentMode) => {
+  const isScheduled = cart.cartDetail.deliveryOption === "Scheduled";
+  if (paymentMode === "Cash-on-delivery" && isScheduled)
+    throw new Error("Pay on delivery is not supported for scheduled order");
+
+  let formattedItems, purchasedItems;
+
+  if (["Take Away", "Home Delivery"].includes(cart.cartDetail.deliveryMode)) {
+    const populatedCartWithVariantNames = await formattedCartItems(cart);
+
+    formattedItems = populatedCartWithVariantNames.items.map((item) => {
+      return {
+        itemName: item.productId.productName,
+        itemImageURL: item.productId.productImageURL,
+        quantity: item.quantity,
+        price: item.price,
+        variantTypeName: item?.variantTypeId?.variantTypeName,
+      };
+    });
+
+    purchasedItems = filterProductIdAndQuantity(
+      populatedCartWithVariantNames.items
+    );
+  }
+
+  const billDetail = {
+    ...cart.billDetail,
+    deliveryCharge:
+      cart.billDetail.discountedDeliveryCharge ||
+      cart.billDetail.originalDeliveryCharge,
+    grandTotal:
+      cart.billDetail.discountedGrandTotal ||
+      cart.billDetail.originalGrandTotal,
+  };
+
+  return {
+    formattedItems,
+    purchasedItems,
+    billDetail,
+  };
+};
+
+const updateCustomerTransaction = async (customer, billDetail) => {
+  const transaction = {
+    madeOn: new Date(),
+    transactionType: "Bill",
+    transactionAmount: billDetail.grandTotal,
+    type: "Debit",
+  };
+  customer.transactionDetail.push(transaction);
+  await customer.save();
+};
+
+const clearCart = async (customerId, deliveryMode) => {
+  const cartModel =
+    deliveryMode === "Pick and Drop" || deliveryMode === "Custom Order"
+      ? PickAndCustomCart
+      : CustomerCart;
+  await cartModel.deleteOne({ customerId });
+};
+
+// ==============================
 // =========Customer APP=========
 // ==============================
 const processDeliverydetailInApp = async (
@@ -1221,6 +1309,7 @@ const processHomeDeliveryDetailInApp = async (
 };
 
 module.exports = {
+  // Invoice
   findOrCreateCustomer,
   processSchedule,
   calculateItemTotal,
@@ -1232,7 +1321,6 @@ module.exports = {
   formattedCartItems,
   handleAddressDetails,
   validateDeliveryOption,
-  // Changes
   processScheduledDelivery,
   handleDeliveryMode,
   applyDiscounts,
@@ -1243,7 +1331,13 @@ module.exports = {
   handleDeliveryModeForAdmin,
   calculateDeliveryChargeHelperForAdmin,
   saveCustomerCart,
-  //
+  // Order
+  getCartByDeliveryMode,
+  calculateDeliveryTime,
+  prepareOrderDetails,
+  updateCustomerTransaction,
+  clearCart,
+  // App
   processDeliverydetailInApp,
   processHomeDeliveryDetailInApp,
 };
