@@ -28,6 +28,12 @@ const {
   applyDiscounts,
   calculateBill,
   saveCustomerCart,
+  getCartByDeliveryMode,
+  calculateDeliveryTime,
+  prepareOrderDetails,
+  createNewOrder,
+  clearCart,
+  updateCustomerTransaction,
 } = require("../../../utils/createOrderHelpers");
 const PickAndCustomCart = require("../../../models/PickAndCustomCart");
 const scheduledPickAndCustom = require("../../../models/ScheduledPickAndCustom");
@@ -231,7 +237,8 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
     orderFound.status = "On-going";
     orderFound.orderDetailStepper.accepted = stepperData;
 
-    const modelType = orderFound?.merchantId?.merchantDetail?.pricing[0]?.modelType;
+    const modelType =
+      orderFound?.merchantId?.merchantDetail?.pricing[0]?.modelType;
 
     if (orderFound?.merchantId && modelType === "Commission") {
       const { payableAmountToFamto, payableAmountToMerchant } =
@@ -1033,471 +1040,6 @@ const getOrderDetailByAdminController = async (req, res, next) => {
       message: "Single order detail",
       data: formattedResponse,
     });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
-const createOrderByAdminController = async (req, res, next) => {
-  const errors = validationResult(req);
-
-  let formattedErrors = {};
-  if (!errors.isEmpty()) {
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
-    return res.status(400).json({ errors: formattedErrors });
-  }
-
-  try {
-    const { paymentMode, deliveryMode, cartId } = req.body;
-
-    let cartFound;
-
-    if (deliveryMode === "Pick and Drop" || deliveryMode === "Custom Order") {
-      cartFound = await PickAndCustomCart.findById(cartId);
-    } else if (
-      deliveryMode === "Take Away" ||
-      deliveryMode === "Home Delivery"
-    ) {
-      cartFound = await CustomerCart.findById(cartId);
-    }
-
-    if (!cartFound) {
-      return next(appError("Cart not found", 404));
-    }
-
-    const customer = await Customer.findById(cartFound.customerId);
-
-    if (!customer) {
-      return next(appError("Customer not found", 404));
-    }
-
-    const cartDeliveryMode = cartFound.cartDetail.deliveryMode;
-    const cartDeliveryOption = cartFound.cartDetail.deliveryOption;
-
-    let deliveryTime;
-    if (
-      cartDeliveryMode === "Take Away" ||
-      cartDeliveryMode === "Home Delivery"
-    ) {
-      const merchant = await Merchant.findById(cartFound.merchantId);
-
-      if (!merchant) {
-        return next(appError("Merchant not found", 404));
-      }
-
-      const deliveryTimeMinutes = parseInt(
-        merchant.merchantDetail.deliveryTime,
-        10
-      );
-
-      deliveryTime = new Date();
-      deliveryTime.setMinutes(deliveryTime.getMinutes() + deliveryTimeMinutes);
-    } else {
-      deliveryTime = new Date();
-      deliveryTime.setMinutes(deliveryTime.getMinutes() + 60);
-    }
-
-    const orderAmount =
-      cartFound.billDetail.discountedGrandTotal ||
-      cartFound.billDetail.originalGrandTotal;
-
-    let orderBill = {
-      deliveryChargePerDay: cartFound.billDetail.deliveryChargePerDay,
-      deliveryCharge:
-        cartFound.billDetail.discountedDeliveryCharge ||
-        cartFound.billDetail.originalDeliveryCharge,
-      taxAmount: cartFound.billDetail.taxAmount,
-      discountedAmount: cartFound.billDetail.discountedAmount,
-      grandTotal:
-        cartFound.billDetail.discountedGrandTotal ||
-        cartFound.billDetail.originalGrandTotal,
-      itemTotal: cartFound.billDetail.itemTotal,
-      addedTip: cartFound.billDetail.addedTip,
-      subTotal: cartFound.billDetail.subTotal,
-    };
-
-    let customerTransation = {
-      madeOn: new Date(),
-      transactionType: "Bill",
-      transactionAmount: orderAmount,
-      type: "Debit",
-    };
-
-    const eventName = "newOrderCreated";
-
-    const { rolesToNotify, data } = await findRolesToNotify(eventName);
-
-    let formattedItems;
-    let purchasedItems;
-    if (
-      cartDeliveryMode === "Take Away" ||
-      cartDeliveryMode === "Home Delivery"
-    ) {
-      let populatedCartWithVariantNames = await formattedCartItems(cartFound);
-
-      formattedItems = populatedCartWithVariantNames.items.map((item) => {
-        return {
-          itemName: item.productId.productName,
-          itemImageURL: item.productId.productImageURL,
-          quantity: item.quantity,
-          price: item.price,
-          variantTypeName: item?.variantTypeId?.variantTypeName,
-        };
-      });
-
-      purchasedItems = filterProductIdAndQuantity(
-        populatedCartWithVariantNames.items
-      );
-    }
-
-    const stepperDetail = {
-      by: "Admin",
-      date: new Date(),
-    };
-
-    let newOrderCreated;
-
-    if (
-      paymentMode === "Cash-on-delivery" &&
-      cartDeliveryOption === "Scheduled"
-    ) {
-      formattedErrors.paymentMode =
-        "Scheduled orders can only be paid in online payment";
-      return res.status(409).json({ errors: formattedErrors });
-    }
-
-    if (
-      paymentMode === "Cash-on-delivery" &&
-      cartDeliveryOption === "On-demand" &&
-      (cartDeliveryMode === "Take Away" ||
-        cartDeliveryMode === "Home Delivery" ||
-        cartDeliveryMode === "Pick and Drop" ||
-        cartDeliveryMode === "Custom Order")
-    ) {
-      newOrderCreated = await Order.create({
-        customerId: cartFound.customerId,
-        merchantId: cartFound?.merchantId && cartFound.merchantId,
-        items:
-          cartDeliveryMode === "Take Away" ||
-          cartDeliveryMode === "Home Delivery"
-            ? formattedItems
-            : cartFound.items,
-        orderDetail: {
-          ...cartFound.cartDetail,
-          deliveryTime,
-        },
-        billDetail: orderBill,
-        totalAmount: orderAmount,
-        status: "Pending",
-        paymentMode: "Cash-on-delivery",
-        paymentStatus: "Pending",
-        purchasedItems,
-        "orderDetailStepper.created": stepperDetail,
-      });
-
-      await ActivityLog.create({
-        userId: req.userAuth,
-        userType: req.userRole,
-        description: `New order (#${newOrderCreated._id}) is created by Admin (${req.userAuth})`,
-      });
-
-      const newOrder = await Order.findById(newOrderCreated._id).populate(
-        "merchantId"
-      );
-
-      // Clear the cart
-      if (
-        cartDeliveryMode === "Take Away" ||
-        cartDeliveryMode === "Home Delivery"
-      ) {
-        await CustomerCart.deleteOne({ customerId: customer._id });
-      } else if (
-        cartDeliveryMode === "Pick and Drop" ||
-        cartDeliveryMode === "Custom Order"
-      ) {
-        await PickAndCustomCart.deleteOne({ customerId: customer._id });
-      }
-
-      customer.transactionDetail.push(customerTransation);
-      await customer.save();
-
-      // Send notifications to each role dynamically
-      for (const role of rolesToNotify) {
-        let roleId;
-
-        if (role === "admin") {
-          roleId = process.env.ADMIN_ID;
-        } else if (role === "merchant") {
-          roleId = newOrder?.merchantId?._id;
-        } else if (role === "driver") {
-          roleId = newOrder?.agentId;
-        } else if (role === "customer") {
-          roleId = newOrder?.customerId;
-        }
-
-        if (roleId) {
-          const notificationData = {
-            fcm: {
-              orderId: newOrder._id,
-              customerId: newOrder.customerId,
-            },
-          };
-
-          await sendNotification(
-            roleId,
-            eventName,
-            notificationData,
-            role.charAt(0).toUpperCase() + role.slice(1)
-          );
-        }
-      }
-
-      const socketData = {
-        ...data,
-        orderId: newOrder._id,
-        orderDetail: newOrder.orderDetail,
-        billDetail: newOrder.billDetail,
-        orderDetailStepper: newOrder.orderDetailStepper.created,
-
-        //? Data for displayinf detail in all orders table
-        _id: newOrder._id,
-        orderStatus: newOrder.status,
-        merchantName: newOrder?.merchantId?.merchantDetail?.merchantName || "-",
-        customerName:
-          newOrder?.orderDetail?.deliveryAddress?.fullName ||
-          newOrder?.customerId?.fullName ||
-          "-",
-        deliveryMode: newOrder?.orderDetail?.deliveryMode,
-        orderDate: formatDate(newOrder.createdAt),
-        orderTime: formatTime(newOrder.createdAt),
-        deliveryDate: newOrder?.orderDetail?.deliveryTime
-          ? formatDate(newOrder.orderDetail.deliveryTime)
-          : "-",
-        deliveryTime: newOrder?.orderDetail?.deliveryTime
-          ? formatTime(newOrder.orderDetail.deliveryTime)
-          : "-",
-        paymentMethod: newOrder.paymentMode,
-        deliveryOption: newOrder.orderDetail.deliveryOption,
-        amount: newOrder.billDetail.grandTotal,
-      };
-
-      sendSocketData(newOrder.customerId, eventName, socketData);
-      sendSocketData(process.env.ADMIN_ID, eventName, socketData);
-
-      if (newOrder?.merchantId?._id) {
-        sendSocketData(newOrder?.merchantId?._id, eventName, socketData);
-      }
-
-      res.status(201).json({
-        message: "Order created successfully",
-        data: newOrder,
-      });
-      return;
-    }
-
-    if (
-      paymentMode === "Online-payment" &&
-      cartDeliveryOption === "On-demand" &&
-      (cartDeliveryMode === "Take Away" ||
-        cartDeliveryMode === "Home Delivery" ||
-        cartDeliveryMode === "Pick and Drop" ||
-        cartDeliveryMode === "Custom Order")
-    ) {
-      newOrderCreated = await Order.create({
-        customerId: cartFound.customerId,
-        merchantId: cartFound?.merchantId && cartFound.merchantId,
-        items:
-          cartDeliveryMode === "Take Away" ||
-          cartDeliveryMode === "Home Delivery"
-            ? formattedItems
-            : cartFound.items,
-        orderDetail: {
-          ...cartFound.cartDetail,
-          deliveryTime,
-        },
-        billDetail: orderBill,
-        totalAmount: orderAmount,
-        status: "Pending",
-        paymentMode: "Online-payment",
-        paymentStatus: "Completed",
-        purchasedItems,
-        "orderDetailStepper.created": stepperDetail,
-      });
-
-      await ActivityLog.create({
-        userId: req.userAuth,
-        userType: req.userRole,
-        description: `New order (#${newOrderCreated._id}) is created by Admin (${req.userAuth})`,
-      });
-
-      const newOrder = await Order.findById(newOrderCreated._id).populate(
-        "merchantId"
-      );
-
-      // Clear the cart
-      if (
-        cartDeliveryMode === "Take Away" ||
-        cartDeliveryMode === "Home Delivery"
-      ) {
-        await PickAndCustomCart.deleteOne({ customerId: customer._id });
-      } else {
-        await CustomerCart.deleteOne({ customerId: customer._id });
-      }
-      customer.transactionDetail.push(customerTransation);
-      await customer.save();
-
-      // Send notifications to each role dynamically
-      for (const role of rolesToNotify) {
-        let roleId;
-
-        if (role === "admin") {
-          roleId = process.env.ADMIN_ID;
-        } else if (role === "merchant") {
-          roleId = newOrder?.merchantId?._id;
-        } else if (role === "driver") {
-          roleId = newOrder?.agentId;
-        } else if (role === "customer") {
-          roleId = newOrder?.customerId;
-        }
-
-        if (roleId) {
-          const notificationData = {
-            fcm: {
-              orderId: newOrder._id,
-              customerId: newOrder.customerId,
-            },
-          };
-
-          await sendNotification(
-            roleId,
-            eventName,
-            notificationData,
-            role.charAt(0).toUpperCase() + role.slice(1)
-          );
-        }
-      }
-
-      const socketData = {
-        ...data,
-        orderId: newOrder._id,
-        orderDetail: newOrder.orderDetail,
-        billDetail: newOrder.billDetail,
-        orderDetailStepper: newOrder.orderDetailStepper.created,
-
-        //? Data for displayinf detail in all orders table
-        _id: newOrder._id,
-        orderStatus: newOrder.status,
-        merchantName: newOrder?.merchantId?.merchantDetail?.merchantName || "-",
-        customerName:
-          newOrder?.orderDetail?.deliveryAddress?.fullName ||
-          newOrder?.customerId?.fullName ||
-          "-",
-        deliveryMode: newOrder?.orderDetail?.deliveryMode,
-        orderDate: formatDate(newOrder.createdAt),
-        orderTime: formatTime(newOrder.createdAt),
-        deliveryDate: newOrder?.orderDetail?.deliveryTime
-          ? formatDate(newOrder.orderDetail.deliveryTime)
-          : "-",
-        deliveryTime: newOrder?.orderDetail?.deliveryTime
-          ? formatTime(newOrder.orderDetail.deliveryTime)
-          : "-",
-        paymentMethod: newOrder.paymentMode,
-        deliveryOption: newOrder.orderDetail.deliveryOption,
-        amount: newOrder.billDetail.grandTotal,
-      };
-
-      sendSocketData(newOrder.customerId, eventName, socketData);
-      sendSocketData(process.env.ADMIN_ID, eventName, socketData);
-
-      if (newOrder?.merchantId?._id) {
-        sendSocketData(newOrder.merchantId?._id, eventName, socketData);
-      }
-
-      return res.status(201).json({
-        message: "Order created successfully",
-        data: newOrder,
-      });
-    }
-
-    if (
-      paymentMode === "Online-payment" &&
-      cartDeliveryOption === "Scheduled" &&
-      (cartDeliveryMode === "Take Away" || cartDeliveryMode === "Home Delivery")
-    ) {
-      newOrderCreated = await ScheduledOrder.create({
-        customerId: cartFound.customerId,
-        merchantId: cartFound.merchantId,
-        items: formattedItems,
-        orderDetail: cartFound.cartDetail,
-        billDetail: orderBill,
-        totalAmount: orderAmount,
-        status: "Pending",
-        paymentMode: "Online-payment",
-        paymentStatus: "Completed",
-        startDate: cartFound.cartDetail.startDate,
-        endDate: cartFound.cartDetail.endDate,
-        time: cartFound.cartDetail.time,
-        purchasedItems,
-      });
-
-      await ActivityLog.create({
-        userId: req.userAuth,
-        userType: req.userRole,
-        description: `New scheduled order (#${newOrderCreated._id}) is created by Admin (${req.userAuth})`,
-      });
-
-      // Clear the cart
-      await CustomerCart.deleteOne({ customerId: customer._id });
-      customer.transactionDetail.push(customerTransation);
-      await customer.save();
-
-      return res.status(201).json({
-        message: "Scheduled order created successfully",
-        data: newOrderCreated,
-      });
-    }
-
-    if (
-      paymentMode === "Online-payment" &&
-      cartDeliveryOption === "Scheduled" &&
-      (cartDeliveryMode === "Pick and Drop" ||
-        cartDeliveryMode === "Custom Order")
-    ) {
-      newOrderCreated = await scheduledPickAndCustom.create({
-        customerId: cartFound.customerId,
-        items: cartFound.items,
-        orderDetail: cartFound.cartDetail,
-        billDetail: orderBill,
-        totalAmount: orderAmount,
-        status: "Pending",
-        paymentMode: "Online-payment",
-        paymentStatus: "Completed",
-        startDate: cartFound.cartDetail.startDate,
-        endDate: cartFound.cartDetail.endDate,
-        time: cartFound.cartDetail.time,
-      });
-
-      await ActivityLog.create({
-        userId: req.userAuth,
-        userType: req.userRole,
-        description: `New scheduled order (#${newOrderCreated._id}) is created by Admin (${req.userAuth})`,
-      });
-
-      // Clear the cart
-      await PickAndCustomCart.deleteOne({ customerId: customer._id });
-      customer.transactionDetail.push(customerTransation);
-      await customer.save();
-
-      res.status(201).json({
-        message: "Order created successfully",
-        data: newOrderCreated,
-      });
-      return;
-    }
-
-    res.status(200).json({ cartFound });
   } catch (err) {
     next(appError(err.message));
   }
@@ -2885,7 +2427,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
       addedTip = 0,
     } = req.body;
 
-    console.log("1");
     const merchantFound = await fetchMerchantDetails(
       merchantId,
       deliveryMode,
@@ -2893,7 +2434,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
       next
     );
 
-    console.log("2");
     validateCustomerAddress(
       newCustomer,
       deliveryMode,
@@ -2904,7 +2444,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
 
     const customerAddress =
       newCustomerAddress || newPickupAddress || newDeliveryAddress;
-    console.log("3");
+
     const customer = await findOrCreateCustomer({
       customerId,
       newCustomer,
@@ -3026,7 +2566,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
 const getScheduledOrderDetailByAdminController = async (req, res, next) => {
   try {
     const { id } = req.params;
-    console.log(req.params);
 
     const orderFound = await ScheduledOrder.findOne({
       _id: id,
@@ -3111,6 +2650,175 @@ const getScheduledOrderDetailByAdminController = async (req, res, next) => {
       message: "Single order detail",
       data: formattedResponse,
     });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const createOrderByAdminController = async (req, res, next) => {
+  const errors = validationResult(req);
+
+  let formattedErrors = {};
+  if (!errors.isEmpty()) {
+    errors.array().forEach((error) => {
+      formattedErrors[error.path] = error.msg;
+    });
+    return res.status(400).json({ errors: formattedErrors });
+  }
+
+  try {
+    const { paymentMode, deliveryMode, cartId } = req.body;
+
+    const cartFound = await getCartByDeliveryMode(cartId, deliveryMode);
+    if (!cartFound) return next(appError("Cart not found", 404));
+
+    const customer = await Customer.findById(cartFound.customerId);
+    if (!customer) return next(appError("Customer not found", 404));
+
+    const merchant =
+      cartFound.merchantId && (await Merchant.findById(cartFound.merchantId));
+
+    const deliveryTime = calculateDeliveryTime(merchant, deliveryMode);
+
+    const orderDetails = await prepareOrderDetails(
+      cartFound,
+      customer,
+      deliveryTime,
+      paymentMode
+    );
+
+    const orderOptions = {
+      customerId: cartFound.customerId,
+      merchantId: cartFound?.merchantId && cartFound.merchantId,
+      items: ["Take Away", "Home Delivery"].includes(deliveryMode)
+        ? orderDetails.formattedItems
+        : cartFound.items,
+      orderDetail: {
+        ...cartFound.cartDetail,
+        deliveryTime,
+      },
+      billDetail: orderDetails.billDetail,
+      totalAmount: orderDetails.billDetail.grandTotal,
+      status: "Pending",
+      paymentMode,
+      paymentStatus:
+        paymentMode === "Cash-on-delivery" ? "Pending" : "Completed",
+      purchasedItems: orderDetails.purchasedItems,
+      "orderDetailStepper.created": {
+        by: "Admin",
+        date: new Date(),
+      },
+    };
+
+    const isScheduledOrder =
+      cartFound.cartDetail.deliveryOption === "Scheduled";
+    const isPickOrCustomOrder = ["Pick and Drop", "Custom Order"].includes(
+      deliveryMode
+    );
+
+    let newOrderCreated;
+
+    if (isScheduledOrder && !isPickOrCustomOrder) {
+      newOrderCreated = await ScheduledOrder.create({
+        ...orderOptions,
+        startDate: cartFound.cartDetail.startDate,
+        endDate: cartFound.cartDetail.endDate,
+        time: cartFound.cartDetail.time,
+      });
+    } else if (isScheduledOrder && isPickOrCustomOrder) {
+      newOrderCreated = await scheduledPickAndCustom.create({
+        ...orderOptions,
+        startDate: cartFound.cartDetail.startDate,
+        endDate: cartFound.cartDetail.endDate,
+        time: cartFound.cartDetail.time,
+      });
+    } else {
+      newOrderCreated = await Order.create(orderOptions);
+    }
+
+    const [, , , newOrder] = await Promise.all([
+      ActivityLog.create({
+        userId: req.userAuth,
+        userType: req.userRole,
+        description: `New ${isScheduledOrder ? `scheduled order` : `order`} (#${
+          newOrderCreated._id
+        }) is created by Admin (${req.userAuth})`,
+      }),
+      clearCart(customer._id, deliveryMode),
+      updateCustomerTransaction(customer, orderDetails.billDetail),
+      Order.findById(newOrderCreated._id).populate("merchantId"),
+    ]);
+
+    const eventName = "newOrderCreated";
+
+    const { rolesToNotify, data } = await findRolesToNotify(eventName);
+
+    const socketData = {
+      orderId: newOrder._id,
+      orderDetail: newOrder.orderDetail,
+      billDetail: newOrder.billDetail,
+      orderDetailStepper: newOrder.orderDetailStepper.created,
+      _id: newOrder._id,
+      orderStatus: newOrder.status,
+      merchantName: newOrder?.merchantId?.merchantDetail?.merchantName || "-",
+      customerName:
+        newOrder?.orderDetail?.deliveryAddress?.fullName ||
+        newOrder?.customerId?.fullName ||
+        "-",
+      deliveryMode: newOrder?.orderDetail?.deliveryMode,
+      orderDate: formatDate(newOrder.createdAt),
+      orderTime: formatTime(newOrder.createdAt),
+      deliveryDate: newOrder?.orderDetail?.deliveryTime
+        ? formatDate(newOrder.orderDetail.deliveryTime)
+        : "-",
+      deliveryTime: newOrder?.orderDetail?.deliveryTime
+        ? formatTime(newOrder.orderDetail.deliveryTime)
+        : "-",
+      paymentMethod: newOrder.paymentMode,
+      deliveryOption: newOrder.orderDetail.deliveryOption,
+      amount: newOrder.billDetail.grandTotal,
+    };
+
+    sendSocketData(newOrder.customerId, eventName, socketData);
+    sendSocketData(process.env.ADMIN_ID, eventName, socketData);
+
+    if (newOrder?.merchantId?._id) {
+      sendSocketData(newOrder.merchantId._id, eventName, socketData);
+    }
+
+    // Send notifications to each role dynamically
+    for (const role of rolesToNotify) {
+      let roleId;
+
+      if (role === "admin") {
+        roleId = process.env.ADMIN_ID;
+      } else if (role === "merchant") {
+        roleId = newOrder?.merchantId?._id;
+      } else if (role === "driver") {
+        roleId = newOrder?.agentId;
+      } else if (role === "customer") {
+        roleId = newOrder?.customerId;
+      }
+
+      if (roleId) {
+        const notificationData = {
+          fcm: {
+            ...data,
+            orderId: newOrder._id,
+            customerId: newOrder.customerId,
+          },
+        };
+
+        await sendNotification(
+          roleId,
+          eventName,
+          notificationData,
+          role.charAt(0).toUpperCase() + role.slice(1)
+        );
+      }
+    }
+
+    res.status(201).json({ cartFound });
   } catch (err) {
     next(appError(err.message));
   }
