@@ -26,7 +26,7 @@ loyaltyPointRoute.post(
       .trim()
       .notEmpty()
       .withMessage("Minimum order amount for earning is required"),
-    body("maxEarningPoint")
+    body("maxEarningPointPerOrder")
       .trim()
       .notEmpty()
       .withMessage("Max earning point is required"),
