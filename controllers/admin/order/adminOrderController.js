@@ -902,12 +902,8 @@ const filterScheduledOrdersByAdminController = async (req, res, next) => {
         deliveryMode: order.orderDetail.deliveryMode,
         orderDate: formatDate(order.createdAt),
         orderTime: formatTime(order.createdAt),
-        deliveryDate: order?.time
-          ? formatDate(order?.time)
-          : "-",
-        deliveryTime: order?.time
-          ? formatTime(order?.time)
-          : "-",
+        deliveryDate: order?.time ? formatDate(order?.time) : "-",
+        deliveryTime: order?.time ? formatTime(order?.time) : "-",
         paymentMethod:
           order.paymentMode === "Cash-on-delivery"
             ? "Pay-on-delivery"
@@ -2747,42 +2743,41 @@ const createOrderByAdminController = async (req, res, next) => {
       updateCustomerTransaction(customer, orderDetails.billDetail),
       Order.findById(newOrderCreated._id).populate("merchantId"),
     ]);
-
     const eventName = "newOrderCreated";
 
     const { rolesToNotify, data } = await findRolesToNotify(eventName);
 
     const socketData = {
-      orderId: newOrder._id,
-      orderDetail: newOrder.orderDetail,
-      billDetail: newOrder.billDetail,
-      orderDetailStepper: newOrder.orderDetailStepper.created,
-      _id: newOrder._id,
-      orderStatus: newOrder.status,
-      merchantName: newOrder?.merchantId?.merchantDetail?.merchantName || "-",
+      orderId: newOrderCreated._id,
+      orderDetail: newOrderCreated.orderDetail,
+      billDetail: newOrderCreated.billDetail,
+      orderDetailStepper: newOrderCreated?.orderDetailStepper?.created,
+      _id: newOrderCreated._id,
+      orderStatus: newOrderCreated.status,
+      merchantName:
+        newOrderCreated?.merchantId?.merchantDetail?.merchantName || "-",
       customerName:
-        newOrder?.orderDetail?.deliveryAddress?.fullName ||
-        newOrder?.customerId?.fullName ||
+        newOrderCreated?.orderDetail?.deliveryAddress?.fullName ||
+        newOrderCreated?.customerId?.fullName ||
         "-",
-      deliveryMode: newOrder?.orderDetail?.deliveryMode,
-      orderDate: formatDate(newOrder.createdAt),
-      orderTime: formatTime(newOrder.createdAt),
-      deliveryDate: newOrder?.orderDetail?.deliveryTime
-        ? formatDate(newOrder.orderDetail.deliveryTime)
+      deliveryMode: newOrderCreated?.orderDetail?.deliveryMode,
+      orderDate: formatDate(newOrderCreated.createdAt),
+      orderTime: formatTime(newOrderCreated.createdAt),
+      deliveryDate: newOrderCreated?.orderDetail?.deliveryTime
+        ? formatDate(newOrderCreated.orderDetail.deliveryTime)
         : "-",
-      deliveryTime: newOrder?.orderDetail?.deliveryTime
-        ? formatTime(newOrder.orderDetail.deliveryTime)
+      deliveryTime: newOrderCreated?.orderDetail?.deliveryTime
+        ? formatTime(newOrderCreated.orderDetail.deliveryTime)
         : "-",
-      paymentMethod: newOrder.paymentMode,
-      deliveryOption: newOrder.orderDetail.deliveryOption,
-      amount: newOrder.billDetail.grandTotal,
+      paymentMethod: newOrderCreated.paymentMode,
+      deliveryOption: newOrderCreated.orderDetail.deliveryOption,
+      amount: newOrderCreated.billDetail.grandTotal,
     };
 
-    sendSocketData(newOrder.customerId, eventName, socketData);
+    sendSocketData(newOrderCreated.customerId, eventName, socketData);
     sendSocketData(process.env.ADMIN_ID, eventName, socketData);
-
-    if (newOrder?.merchantId?._id) {
-      sendSocketData(newOrder.merchantId._id, eventName, socketData);
+    if (newOrderCreated?.merchantId?._id) {
+      sendSocketData(newOrderCreated?.merchantId?._id, eventName, socketData);
     }
 
     // Send notifications to each role dynamically
@@ -2792,19 +2787,19 @@ const createOrderByAdminController = async (req, res, next) => {
       if (role === "admin") {
         roleId = process.env.ADMIN_ID;
       } else if (role === "merchant") {
-        roleId = newOrder?.merchantId?._id;
+        roleId = newOrderCreated?.merchantId?._id;
       } else if (role === "driver") {
-        roleId = newOrder?.agentId;
+        roleId = newOrderCreated?.agentId;
       } else if (role === "customer") {
-        roleId = newOrder?.customerId;
+        roleId = newOrderCreated?.customerId;
       }
 
       if (roleId) {
         const notificationData = {
           fcm: {
             ...data,
-            orderId: newOrder._id,
-            customerId: newOrder.customerId,
+            orderId: newOrderCreated._id,
+            customerId: newOrderCreated.customerId,
           },
         };
 
