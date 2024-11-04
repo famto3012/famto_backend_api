@@ -81,6 +81,7 @@ const {
   fetchMerchantDailyRevenue,
 } = require("./utils/createPerDayRevenueHelper.js");
 const activityLogRoute = require("./routes/adminRoute/activityLogRoute/activityLogRoute.js");
+const { preparePayoutForMerchant } = require("./utils/merchantHelpers.js");
 // const { createSettlement } = require("./utils/razorpayPayment.js");
 
 //middlewares
@@ -184,6 +185,7 @@ cron.schedule("30 18 * * *", async () => {
   console.log("Running cron job for revenue generation in mid night");
   const now = new Date(); // Subtract 1 day to get the previous day
   await moveAppDetailToHistoryAndResetForAllAgents();
+  await preparePayoutForMerchant();
   await updateOneDayLoyaltyPointEarning();
   await fetchPerDayRevenue(now);
   await fetchMerchantDailyRevenue(now);

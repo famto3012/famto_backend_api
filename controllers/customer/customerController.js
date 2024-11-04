@@ -872,9 +872,9 @@ const getWalletAndLoyaltyController = async (req, res, next) => {
     );
 
     const customerData = {
-      walletBalance: customerFound.customerDetails?.walletBalance || 0,
+      walletBalance: customerFound?.customerDetails?.walletBalance || 0,
       loyaltyPoints:
-        customerFound.customerDetails?.totalLoyaltyPointEarned || 0,
+        customerFound?.customerDetails?.loyaltyPointLeftForRedemption || 0,
     };
 
     res.status(200).json({

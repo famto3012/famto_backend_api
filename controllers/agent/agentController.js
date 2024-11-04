@@ -1376,7 +1376,7 @@ const completeOrderController = async (req, res, next) => {
     if (orderFound.status === "Completed")
       return next(appError("Order already completed", 400));
 
-    const orderAmount = orderFound.billDetail.grandTotal;
+    const cartTotal = orderFound.billDetail.itemTotal;
 
     // Calculate loyalty points for customer
     const loyaltyPointCriteria = await LoyaltyPoint.findOne({ status: true });
@@ -1384,7 +1384,7 @@ const completeOrderController = async (req, res, next) => {
       loyaltyPointCriteria &&
       orderAmount >= loyaltyPointCriteria.minOrderAmountForEarning
     ) {
-      updateLoyaltyPoints(customerFound, loyaltyPointCriteria, orderAmount);
+      updateLoyaltyPoints(customerFound, loyaltyPointCriteria, cartTotal);
     }
 
     // Calculate referral rewards for customer

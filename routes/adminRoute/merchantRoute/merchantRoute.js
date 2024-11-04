@@ -24,6 +24,7 @@ const {
   deleteMerchantProfileByAdminController,
   getAllMerchantsForDropDownController,
   changeMerchantStatusByMerchantControllerForToggle,
+  getMerchantPayoutController,
 } = require("../../../controllers/admin/merchant/merchantController");
 const { upload } = require("../../../utils/imageOperation");
 const isAdmin = require("../../../middlewares/isAdmin");
@@ -152,6 +153,14 @@ merchantRoute.get(
   isAuthenticated,
   isAdmin,
   getAllMerchantsController
+);
+
+// Get all merchants payout
+merchantRoute.get(
+  "/admin/payout",
+  isAuthenticated,
+  isAdmin,
+  getMerchantPayoutController
 );
 
 // Get single merchant

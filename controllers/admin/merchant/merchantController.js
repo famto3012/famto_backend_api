@@ -1885,6 +1885,85 @@ const deleteMerchantProfileByAdminController = async (req, res, next) => {
   }
 };
 
+// Get merchant payout
+const getMerchantPayoutController = async (req, res, next) => {
+  try {
+    let {
+      page = 1,
+      limit = 50,
+      paymentStatus,
+      merchantId,
+      geofenceId,
+      startDate,
+      endDate,
+      isPaginated = "true",
+    } = req.query;
+
+    isPaginated = isPaginated === "true";
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
+    const filterCriteria = {};
+
+    // Set filter criteria based on query parameters
+    if (paymentStatus) {
+      filterCriteria["payoutDetail.isSettled"] =
+        paymentStatus.toLowerCase() === "true";
+    }
+
+    if (merchantId) filterCriteria["_id"] = merchantId;
+    if (geofenceId)
+      filterCriteria["merchantDetail.geofenceId"] =
+        new mongoose.Types.ObjectId.createFromHexString(geofenceId);
+
+    if (startDate || endDate) {
+      filterCriteria["payoutDetail.date"] = {};
+      if (startDate) {
+        startDate = new Date(startDate);
+        startDate.setHours(18, 30, 0, 0);
+        filterCriteria["payoutDetail.date"].$gte = startDate;
+      }
+      if (endDate) {
+        endDate = new Date(endDate);
+        endDate.setHours(18, 29, 59, 999);
+        filterCriteria["payoutDetail.date"].$lte = endDate;
+      }
+    }
+
+    // Query the Merchant model with filter criteria
+    const merchantPayoutQuery = Merchant.find(filterCriteria, {
+      payoutDetail: 1, // Select only payoutDetail field
+    });
+
+    // Apply pagination if required
+    if (isPaginated) {
+      merchantPayoutQuery.skip(skip).limit(limit);
+    }
+
+    const merchants = await merchantPayoutQuery;
+
+    // Flatten the response to get only payout details
+    const allPayouts = merchants.flatMap((merchant) => merchant.payoutDetail);
+
+    res.status(200).json({
+      success: true,
+      data: allPayouts,
+      pagination: isPaginated
+        ? {
+            page,
+            limit,
+            total: allPayouts.length,
+          }
+        : null,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerMerchantController,
   getMerchantProfileController,
@@ -1913,4 +1992,5 @@ module.exports = {
   deleteMerchantProfileByAdminController,
   getAllMerchantsForDropDownController,
   changeMerchantStatusByMerchantControllerForToggle,
+  getMerchantPayoutController,
 };

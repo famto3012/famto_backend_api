@@ -501,12 +501,14 @@ const searchOrderByIdByAdminController = async (req, res, next) => {
     // Calculate the number of documents to skip
     const skip = (page - 1) * limit;
 
-    const ordersFound = await Order.find({
+    const searchCriteria = {
       $or: [
         { _id: { $regex: query, $options: "i" } },
         { scheduledOrderId: { $regex: query, $options: "i" } },
       ],
-    })
+    };
+
+    const ordersFound = await Order.find(searchCriteria)
       .populate({
         path: "merchantId",
         select: "merchantDetail.merchantName merchantDetail.deliveryTime",
@@ -520,7 +522,7 @@ const searchOrderByIdByAdminController = async (req, res, next) => {
       .limit(limit);
 
     // Count total documents
-    const totalDocuments = ordersFound?.length || 1;
+    const totalDocuments = (await Order.countDocuments(searchCriteria)) || 1;
 
     const formattedOrders = ordersFound?.map((order) => {
       return {
@@ -621,13 +623,13 @@ const searchScheduledOrderByIdByAdminController = async (req, res, next) => {
     ];
 
     // Count total documents in both collections
-    const totalDocumentsInScheduledOrder = scheduledOrders?.length;
-    const totalDocumentsInScheduledPickAndCustom =
-      scheduledPickAndCustomOrders?.length;
 
-    const totalDocuments =
-      (totalDocumentsInScheduledOrder || 0) +
-        (totalDocumentsInScheduledPickAndCustom || 0) || 1;
+    const [totalUniversal, totalPickAndDrop] = await Promise.all([
+      ScheduledOrder.countDocuments(searchCriteria),
+      scheduledPickAndCustom.countDocuments(searchCriteria),
+    ]);
+
+    const totalDocuments = (totalUniversal || 0) + (totalPickAndDrop || 0) || 1;
 
     // Format the orders
     const formattedOrders = combinedOrders.map((order) => ({
@@ -734,7 +736,7 @@ const filterOrdersByAdminController = async (req, res, next) => {
       .limit(limit);
 
     // Count total documents
-    const totalDocuments = filteredOrderResults?.length || 1;
+    const totalDocuments = (await Order.countDocuments(filterCriteria)) || 1;
 
     const formattedOrders = filteredOrderResults.map((order) => {
       return {
@@ -889,7 +891,8 @@ const filterScheduledOrdersByAdminController = async (req, res, next) => {
       },
     ]);
 
-    const totalDocuments = results?.length || 1;
+    const totalDocuments =
+      (await ScheduledOrder.countDocuments(filterCriteria)) || 1;
     // Formatting the results
     const formattedOrders = results.map((order) => {
       return {
@@ -1772,151 +1775,6 @@ const downloadOrderBillController = async (req, res, next) => {
         appError("One or more bill details contain invalid numbers.")
       );
     }
-
-    // // HTML Template for the invoice
-    // const htmlContent = `
-    //   <!DOCTYPE html>
-    //   <html lang="en">
-
-    //     <head>
-    //       <meta charset="UTF-8">
-    //       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    //       <style>
-    //           body {
-    //               font-family: Arial, sans-serif;
-    //               margin: 20px;
-    //           }
-
-    //           h1,
-    //           h2 {
-    //               text-align: center;
-    //           }
-
-    //           table {
-    //               width: 100%;
-    //               border-collapse: collapse;
-    //               margin-top: 20px;
-    //           }
-
-    //           table,
-    //           th,
-    //           td {
-    //               padding: 10px;
-    //           }
-
-    //           th {
-    //               background-color: #f2f2f2;
-    //           }
-
-    //           .total {
-    //               text-align: right;
-    //               padding-top: 10px;
-    //           }
-    //       </style>
-    //     </head>
-
-    //     <body>
-    //       <h3 style="text-align: center;">${
-    //         orderFound.merchantId.merchantDetail.merchantName || " "
-    //       }</h3>
-    //       <h3 style="text-align: center;">${
-    //         orderFound.merchantId.phoneNumber || " "
-    //       }</h3>
-    //       <h3 style="text-align: center;">${
-    //         orderFound.orderDetail.deliveryOption || " "
-    //       } (${orderFound.orderDetail.deliveryMode})</h3>
-    //       <h2>Order ID: # ${orderFound._id}</h2>
-    //       <p>${
-    //         orderFound.orderDetail.deliveryAddress.fullName ||
-    //         orderFound.customerId.fullName ||
-    //         ""
-    //       }</p>
-    //       <p>${orderFound.customerId.phoneNumber}</p>
-    //       <p>${orderFound.orderDetail.deliveryAddress.flat || ""}, ${
-    //   orderFound.orderDetail.deliveryAddress.area || ""
-    // }, ${orderFound.orderDetail.deliveryAddress.landmark || ""}</p>
-    //       <p>Payment mode: ${orderFound.paymentMode}</p>
-    //       <p>Order time: ${formatDate(orderFound.createdAt)} | ${formatTime(
-    //   orderFound.createdAt
-    // )}</p>
-    //       <h3>Items:</h3>
-    //       <table style="border: 1px solid black;">
-    //         <thead>
-    //             <tr style="border: 1px solid black;">
-    //                 <th>Item Name</th>
-    //                 <th>Quantity</th>
-    //                 <th>Price</th>
-    //                 <th>Subtotal</th>
-    //             </tr>
-    //         </thead>
-    //           <tbody>
-    //               ${formattedItems
-    //                 .map((item) => {
-    //                   let subtotal = item.quantity * item.price;
-    //                   return `
-    //               <tr style="border: 1px solid black;">
-    //                   <td style="border: 1px solid black;">${item.itemName} ${
-    //                     item.variantTypeName ? `(${item.variantTypeName})` : ""
-    //                   }</td>
-    //                   <td style="border: 1px solid black; text-align: center;">${
-    //                     item.quantity
-    //                   }</td>
-    //                   <td style="border: 1px solid black; text-align: center;">${item.price.toFixed(
-    //                     2
-    //                   )}</td>
-    //                   <td style="text-align: right;">${subtotal.toFixed(2)}</td>
-    //               </tr>
-    //               `;
-    //                 })
-    //                 .join("")}
-    //               <tr style="border: 1px solid black;">
-    //                   <td colspan="3">Sub total</td>
-    //                   <td style="text-align: right; border: 1px solid black;">${itemTotal.toFixed(
-    //                     2
-    //                   )}</td>
-    //               </tr>
-    //               <tr style="border: 1px solid black;">
-    //                   <td colspan="3">Delivery charge</td>
-    //                   <td style="text-align: right; border: 1px solid black;">${deliveryCharge.toFixed(
-    //                     2
-    //                   )}</td>
-    //               </tr>
-    //               <tr style="border: 1px solid black;">
-    //                   <td colspan="3">Tax</td>
-    //                   <td style="text-align: right; border: 1px solid black;">${taxAmount.toFixed(
-    //                     2
-    //                   )}</td>
-    //               </tr>
-    //               <tr style="border: 1px solid black;">
-    //                   <td colspan="3">Surge charge</td>
-    //                   <td style="text-align: right; border: 1px solid black;">${surgePrice.toFixed(
-    //                     2
-    //                   )}</td>
-    //               </tr>
-    //               <tr style="border: 1px solid black;">
-    //                   <td colspan="3">Discount</td>
-    //                   <td style="text-align: right; border: 1px solid black;">${discountedAmount.toFixed(
-    //                     2
-    //                   )}</td>
-    //               </tr>
-    //               <tr style="border: 1px solid black;">
-    //                   <td colspan="3">Added Tip</td>
-    //                   <td style="text-align: right; border: 1px solid black;">${addedTip.toFixed(
-    //                     2
-    //                   )}</td>
-    //               </tr>
-    //               <tr style="border: 1px solid black;">
-    //                   <td colspan="3">Grand total</td>
-    //                   <td style="text-align: right; border: 1px solid black;">${grandTotal.toFixed(
-    //                     2
-    //                   )}</td>
-    //               </tr>
-    //           </tbody>
-    //       </table>
-    //     </body>
-
-    //   </html>
-    // `;
 
     const htmlContent = `<!DOCTYPE html>
 <html lang="en">

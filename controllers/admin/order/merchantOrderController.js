@@ -89,7 +89,8 @@ const getAllOrdersOfMerchantController = async (req, res, next) => {
     }
 
     // Count total documents for the authenticated merchant
-    const totalDocuments = allOrders?.length || 1;
+    const totalDocuments =
+      (await Order.countDocuments({ merchantId: currentMerchant })) || 1;
 
     // Format the orders for the response
     const formattedOrders = allOrders.map((order) => {
@@ -211,12 +212,13 @@ const getAllScheduledOrdersOfMerchantController = async (req, res, next) => {
     }));
 
     // Count total documents for the authenticated merchant
-    const totalDocuments = scheduledOrders?.length || 1;
-
-    const totalUnSeenDocuments = await ScheduledOrder.countDocuments({
-      merchantId,
-      isViewed: false,
-    });
+    const [totalDocuments, totalUnSeenDocuments] = await Promise.all([
+      ScheduledOrder.countDocuments({ merchantId }) || 1,
+      ScheduledOrder.countDocuments({
+        merchantId,
+        isViewed: false,
+      }),
+    ]);
 
     // Calculate total pages
     const totalPages = Math.ceil(totalDocuments / limit);
@@ -517,17 +519,9 @@ const rejectOrderController = async (req, res, next) => {
 
 const searchOrderByIdController = async (req, res, next) => {
   try {
-    const currentMerchant = req.userAuth;
-
-    if (!currentMerchant) {
-      return next(appError("Merchant is not authenticated", 401));
-    }
-
     let { query, page = 1, limit = 15 } = req.query;
 
-    if (!query) {
-      return next(appError("Order ID is required", 400));
-    }
+    if (!query) return next(appError("Order ID is required", 400));
 
     // Convert to integers
     page = parseInt(page, 10);
@@ -536,10 +530,12 @@ const searchOrderByIdController = async (req, res, next) => {
     // Calculate the number of documents to skip
     const skip = (page - 1) * limit;
 
-    const ordersFound = await Order.find({
+    const searchCriteria = {
       _id: { $regex: query, $options: "i" },
-      merchantId: currentMerchant,
-    })
+      merchantId: req.userAuth,
+    };
+
+    const ordersFound = await Order.find(searchCriteria)
       .populate({
         path: "merchantId",
         select: "merchantDetail.merchantName merchantDetail.deliveryTime",
@@ -550,10 +546,11 @@ const searchOrderByIdController = async (req, res, next) => {
       })
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     // Count total documents
-    const totalDocuments = ordersFound.length || 0;
+    const totalDocuments = (await Order.countDocuments(searchCriteria)) || 1;
 
     const formattedOrders = ordersFound.map((order) => {
       return {
@@ -598,12 +595,6 @@ const searchOrderByIdController = async (req, res, next) => {
 
 const searchScheduledOrderByIdController = async (req, res, next) => {
   try {
-    const currentMerchant = req.userAuth;
-
-    if (!currentMerchant) {
-      return next(appError("Merchant is not authenticated", 401));
-    }
-
     let { query, page = 1, limit = 15 } = req.query;
 
     if (!query) {
@@ -617,10 +608,12 @@ const searchScheduledOrderByIdController = async (req, res, next) => {
     // Calculate the number of documents to skip
     const skip = (page - 1) * limit;
 
-    const ordersFound = await ScheduledOrder.find({
+    const searchCriteria = {
       _id: { $regex: query, $options: "i" },
-      merchantId: currentMerchant,
-    })
+      merchantId: rea.userAuth,
+    };
+
+    const ordersFound = await ScheduledOrder.find(searchCriteria)
       .populate({
         path: "merchantId",
         select: "merchantDetail.merchantName merchantDetail.deliveryTime",
@@ -631,10 +624,12 @@ const searchScheduledOrderByIdController = async (req, res, next) => {
       })
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     // Count total documents
-    const totalDocuments = ordersFound?.length || 0;
+    const totalDocuments =
+      (await ScheduledOrder.countDocuments(searchCriteria)) || 1;
 
     const formattedOrders = ordersFound.map((order) => {
       return {
@@ -679,8 +674,6 @@ const searchScheduledOrderByIdController = async (req, res, next) => {
 
 const filterOrdersController = async (req, res, next) => {
   try {
-    const currentMerchant = req.userAuth;
-
     let {
       status,
       paymentMode,
@@ -698,7 +691,7 @@ const filterOrdersController = async (req, res, next) => {
     // Calculate the number of documents to skip
     const skip = (page - 1) * limit;
 
-    const filterCriteria = { merchantId: currentMerchant };
+    const filterCriteria = { merchantId: req.userAuth };
 
     if (status && status.trim().toLowerCase() !== "all") {
       filterCriteria.status = { $regex: status.trim(), $options: "i" };
@@ -739,10 +732,11 @@ const filterOrdersController = async (req, res, next) => {
       })
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     // Count total documents
-    const totalDocuments = filteredOrderResults?.length || 1;
+    const totalDocuments = (await Order.countDocuments(filterCriteria)) || 1;
 
     const formattedOrders = filteredOrderResults.map((order) => {
       return {
@@ -787,8 +781,6 @@ const filterOrdersController = async (req, res, next) => {
 
 const filterScheduledOrdersController = async (req, res, next) => {
   try {
-    const currentMerchant = req.userAuth;
-
     let {
       status,
       paymentMode,
@@ -806,7 +798,7 @@ const filterScheduledOrdersController = async (req, res, next) => {
     // Calculate the number of documents to skip
     const skip = (page - 1) * limit;
 
-    const filterCriteria = { merchantId: currentMerchant };
+    const filterCriteria = { merchantId: rea.userAuth };
 
     if (status && status.trim().toLowerCase() !== "all") {
       filterCriteria.status = { $regex: status.trim(), $options: "i" };
@@ -847,10 +839,12 @@ const filterScheduledOrdersController = async (req, res, next) => {
       })
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     // Count total documents
-    const totalDocuments = filteredOrderResults?.length || 1;
+    const totalDocuments =
+      (await ScheduledOrder.countDocuments(filterCriteria)) || 1;
 
     const formattedOrders = filteredOrderResults.map((order) => {
       return {

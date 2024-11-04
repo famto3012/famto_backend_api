@@ -229,6 +229,34 @@ const merchantDetailSchema = new mongoose.Schema(
   }
 );
 
+const payoutSchema = new mongoose.Schema(
+  {
+    payoutId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+    },
+    date: {
+      type: Date,
+      required: true,
+    },
+    totalCostPrice: {
+      type: Number,
+      required: true,
+    },
+    completedOrders: {
+      type: Number,
+      required: true,
+    },
+    isSettled: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
 const merchantSchema = new mongoose.Schema(
   {
     _id: {
@@ -290,6 +318,7 @@ const merchantSchema = new mongoose.Schema(
     resetPasswordExpiry: {
       type: Date,
     },
+    payoutDetail: [payoutSchema],
   },
   {
     timestamps: true,

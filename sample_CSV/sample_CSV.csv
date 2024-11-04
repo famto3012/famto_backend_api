@@ -1,48 +1,88 @@
-Order ID,Status,Merchant ID,Merchant Name,Customer Name,Customer Phone Number,Customer Email,Delivery Mode,Order Time,Delivery Time,Payment Mode,Delivery Option,Total Amount,Delivery Address,Distance (KM),Cancellation Reason,Cancellation Description,Merchant Earnings,Famto Earnings,Delivery Charge,Tax Amount,Discounted Amount,Item Total,Added Tip,Sub Total,Surge Price,Transaction ID,Item name,Quantity,Length,Width,height
-O241110,On-going,M24091,Demo famto,Demo,1234567890,-,Take Away,01 Nov 2024 | 12:23 PM,01 Nov 2024 | 12:53 PM,Cash-on-delivery,On-demand,250,"Demo famto, undefined, Kesavadasapuram, undefined",-,-,-,-,-,-,-,-,250,-,250,-,-,Chicken Biriyani,1,-,-,-
-O24119,Pending,M24091,Demo famto,Sarath RS,1234567890,-,Take Away,01 Nov 2024 | 12:12 PM,01 Nov 2024 | 12:42 PM,Online-payment,On-demand,180,"Demo famto, undefined, Kesavadasapuram, undefined",-,-,-,-,-,-,-,-,180,-,180,-,-,Chicken Drumstick,1,-,-,-
-O24118,On-going,M24091,Demo famto,Sarath RS,1234567890,-,Take Away,01 Nov 2024 | 12:06 PM,01 Nov 2024 | 12:36 PM,Online-payment,On-demand,177,"Demo famto, undefined, Kesavadasapuram, undefined",-,-,-,-,-,-,-,-,177,-,177,-,-,SCHEZWAN FRIED RICE (CHICKEN),1,-,-,-
-O24117,On-going,M24091,Demo famto,Akhil ,9633290041,-,Home Delivery,01 Nov 2024 | 11:55 AM,01 Nov 2024 | 12:25 PM,Cash-on-delivery,On-demand,225,"Akhil Babu S, Famto private limited, Revathi A 18, Lekshmi Nagar, Kesavadhasapuram, Near MG college ",0.69,-,-,-,-,20,35.2,-,160,10,190,-,-,Chicken Biriyani,1,-,-,-
-O24116,Pending,M24091,Demo famto,Akhil ,9633290041,-,Home Delivery,01 Nov 2024 | 11:54 AM,01 Nov 2024 | 12:24 PM,Cash-on-delivery,On-demand,225,"Akhil Babu S, Famto private limited, Revathi A 18, Lekshmi Nagar, Kesavadhasapuram, Near MG college ",0.69,-,-,-,-,20,35.2,-,160,10,190,-,-,Chicken Biriyani,1,-,-,-
-O24115,Pending,M241035,Marketing Merchant,Akhil ,9633290041,-,Home Delivery,01 Nov 2024 | 11:50 AM,01 Nov 2024 | 12:50 PM,Online-payment,On-demand,312,"Akhil Babu S, Famto private limited, Revathi A 18, Lekshmi Nagar, Kesavadhasapuram, Near MG college ",11.66,-,-,-,-,106.94,35.2,-,160,10,276.94,-,-,Chicken Biriyani,1,-,-,-
-O24114,Pending,-,-,Akhil ,12345,-,Custom Order,01 Nov 2024 | 11:46 AM,01 Nov 2024 | 12:46 PM,Online-payment,On-demand,164,"test, rew, wrw, ",11.84,-,-,-,-,163.92,-,-,-,-,163.92,-,-,adfsdfdf,1,-,-,-
-O24113,Pending,-,-,Akhil ,12345,-,Pick and Drop,01 Nov 2024 | 11:45 AM,01 Nov 2024 | 12:45 PM,Online-payment,On-demand,141,"test, rew, wrw, ",7.14,-,-,-,-,141.4,-,-,-,-,141.4,-,-,Documents & Parcels,-,345,234,2
-O24112,Cancelled,M24091,Demo famto,Akhil ,9633290041,-,Home Delivery,01 Nov 2024 | 11:44 AM,01 Nov 2024 | 12:14 PM,Online-payment,On-demand,142,"Akhil Babu S, Famto private limited, Revathi A 18, Lekshmi Nagar, Kesavadhasapuram, Near MG college ",0.69,-,-,-,-,20,22,-,100,-,120,-,-,Chicken Drumstick,1,-,-,-
-O24111,On-going,M24091,Demo famto,Akhil ,1234567890,-,Take Away,01 Nov 2024 | 11:44 AM,01 Nov 2024 | 12:14 PM,Online-payment,On-demand,180,"Demo famto, undefined, Kesavadasapuram, undefined",-,-,-,-,-,-,-,-,180,-,180,-,-,Chicken Drumstick,1,-,-,-
-O241056,Pending,M24091,Demo famto,Sarath RS,1234567890,-,Take Away,31 Oct 2024 | 08:42 PM,31 Oct 2024 | 09:12 PM,Online-payment,On-demand,177,"Demo famto, undefined, Kesavadasapuram, undefined",-,-,-,-,-,-,-,-,177,-,177,-,-,CHICKEN DUM BIRIYANI,1,-,-,-
-O241055,On-going,M24091,Demo famto,Sarath RS,1234567890,-,Take Away,31 Oct 2024 | 01:08 PM,31 Oct 2024 | 01:38 PM,Online-payment,On-demand,24,"Demo famto, undefined, Kesavadasapuram, undefined",-,-,-,-,-,-,-,-,24,-,24,-,-,product,2,-,-,-
-O241054,On-going,M24091,Demo famto,Akhil Raj,7356276663,-,Home Delivery,30 Oct 2024 | 04:41 PM,30 Oct 2024 | 05:11 PM,Online-payment,On-demand,286,"Akhil Raj, Famto private limited, Lekshmi nagar, kesavadasapuram, Near MG college ",0.68,-,-,-,-,20,38.94,-,177,50,247,-,-,SCHEZWAN FRIED RICE (CHICKEN),1,-,-,-
-O241053,On-going,M24091,Demo famto,Akhil ,9633290041,-,Home Delivery,30 Oct 2024 | 04:38 PM,30 Oct 2024 | 05:08 PM,Online-payment,On-demand,142,"Akhil Babu S, Famto private limited, Revathi A 18, Lekshmi Nagar, Kesavadhasapuram, Near MG college ",0.69,-,-,-,-,20,22,-,100,-,120,-,-,Chicken Drumstick,1,-,-,-
-O241052,On-going,M24091,Demo famto,Akhil ,9633290041,-,Home Delivery,30 Oct 2024 | 01:31 PM,30 Oct 2024 | 02:01 PM,Online-payment,On-demand,142,"Akhil Babu S, Famto private limited, Revathi A 18, Lekshmi Nagar, Kesavadhasapuram, Near MG college ",0.69,-,-,-,-,20,22,-,100,-,120,-,-,Chicken Drumstick,1,-,-,-
-O241051,On-going,M24091,Demo famto,Sarath RS,1234567890,-,Take Away,28 Oct 2024 | 03:34 PM,28 Oct 2024 | 04:04 PM,Online-payment,On-demand,354,"Demo Famto merchant, undefined, Kesavadasapuram, undefined",-,-,-,-,-,-,-,-,354,-,354,-,-,CHICKEN 65 BIRIYANI,2,-,-,-
-O241050,Completed,M24091,Demo famto,Sarath RS,1234567890,-,Take Away,28 Oct 2024 | 03:28 PM,28 Oct 2024 | 03:58 PM,Online-payment,On-demand,180,"Demo Famto merchant, undefined, Kesavadasapuram, undefined",-,-,-,-,-,-,-,-,180,-,180,-,-,Chicken Drumstick,1,-,-,-
-O241049,On-going,M24091,Demo famto,Sarath RS,1234567890,-,Take Away,28 Oct 2024 | 03:27 PM,28 Oct 2024 | 03:57 PM,Online-payment,On-demand,177,"Demo Famto merchant, undefined, Kesavadasapuram, undefined",-,-,-,-,-,-,-,-,177,-,177,-,-,FRIED RICE (CHICKEN),1,-,-,-
-O241048,On-going,M24091,Demo famto,Sarath RS,1234567890,-,Take Away,28 Oct 2024 | 03:24 PM,28 Oct 2024 | 03:54 PM,Online-payment,On-demand,250,"Demo Famto merchant, undefined, Kesavadasapuram, undefined",-,-,-,-,-,-,-,-,250,-,250,-,-,Chicken Biriyani,1,-,-,-
-O241047,On-going,M24091,Demo famto,Akhil ,9778633293,-,Home Delivery,27 Oct 2024 | 01:30 AM,27 Oct 2024 | 07:30 AM,Online-payment,Scheduled,1586,"Akhil Babu, Shivanantha vilasom, paracode, Mukkilkada, powdikonam p.o, Neart paracode CSI church",8.33,-,-,-,-,307.88,287.73,10,1000,-,1297.88,-,-,Chicken Biriyani,1,-,-,-
-O241046,On-going,M24091,Demo famto,Merchant,7788990000,-,Home Delivery,26 Oct 2024 | 12:14 PM,26 Oct 2024 | 12:44 PM,Cash-on-delivery,On-demand,365,"Merchant, Famto private limited, Kesavadhasapuram, Near MG college ",12.99,-,-,-,-,118.91,65.76,-,180,-,298.91,-,-,Chicken Drumstick,1,-,-,-
-O241045,On-going,M24091,Demo famto,Akhil ,9778633293,-,Home Delivery,26 Oct 2024 | 01:30 AM,26 Oct 2024 | 07:30 AM,Online-payment,Scheduled,1586,"Akhil Babu, Shivanantha vilasom, paracode, Mukkilkada, powdikonam p.o, Neart paracode CSI church",8.33,-,-,-,-,307.88,287.73,10,1000,-,1297.88,-,-,Chicken Biriyani,1,-,-,-
-O241044,On-going,M24091,Demo famto,Akhil ,9778633293,-,Home Delivery,25 Oct 2024 | 01:30 AM,25 Oct 2024 | 07:30 AM,Online-payment,Scheduled,1586,"Akhil Babu, Shivanantha vilasom, paracode, Mukkilkada, powdikonam p.o, Neart paracode CSI church",8.33,-,-,-,-,307.88,287.73,10,1000,-,1297.88,-,-,Chicken Biriyani,1,-,-,-
-O241043,On-going,M24091,Demo famto,Akhil ,9778633293,-,Home Delivery,24 Oct 2024 | 07:15 PM,25 Oct 2024 | 01:15 AM,Online-payment,Scheduled,1106,"Akhil Babu, Shivanantha vilasom, paracode, Mukkilkada, powdikonam p.o, Neart paracode CSI church",8.33,-,-,-,-,307.88,208.53,50,640,-,897.88,-,-,Chicken Biriyani,1,-,-,-
-O241042,Cancelled,M24091,Demo famto,Akhil Raj,1234567890,-,Take Away,24 Oct 2024 | 12:49 PM,24 Oct 2024 | 06:00 PM,Online-payment,Scheduled,354,"Demo Famto merchant, undefined, Kesavadasapuram, undefined",-,-,-,-,-,-,-,-,354,-,354,-,-,SCHEZWAN FRIED RICE (CHICKEN),2,-,-,-
-O241041,Pending,M24091,Demo famto,Sarath RS,1234567890,-,Take Away,24 Oct 2024 | 12:39 PM,24 Oct 2024 | 06:00 PM,Online-payment,Scheduled,320,"Demo Famto merchant, undefined, Kesavadasapuram, undefined",-,-,-,-,-,-,-,-,320,-,320,-,-,Chicken Biriyani,2,-,-,-
-O241040,On-going,M24091,Demo famto,Sarath RS,1234567890,-,Take Away,24 Oct 2024 | 12:38 PM,24 Oct 2024 | 06:00 PM,Online-payment,Scheduled,160,"Demo Famto merchant, undefined, Kesavadasapuram, undefined",-,-,-,-,-,-,-,-,160,-,160,-,-,Chicken Biriyani,1,-,-,-
-O241039,On-going,M24091,Demo famto,Akhil ,9778633293,-,Home Delivery,24 Oct 2024 | 01:30 AM,24 Oct 2024 | 07:30 AM,Online-payment,Scheduled,1586,"Akhil Babu, Shivanantha vilasom, paracode, Mukkilkada, powdikonam p.o, Neart paracode CSI church",8.33,-,-,-,-,307.88,287.73,10,1000,-,1297.88,-,-,Chicken Biriyani,1,-,-,-
-O241038,Cancelled,M24091,Demo famto,Akhil ,9778633293,-,Home Delivery,23 Oct 2024 | 07:15 PM,24 Oct 2024 | 01:15 AM,Online-payment,Scheduled,1106,"Akhil Babu, Shivanantha vilasom, paracode, Mukkilkada, powdikonam p.o, Neart paracode CSI church",8.33,-,-,-,-,307.88,208.53,50,640,-,897.88,-,-,Chicken Biriyani,1,-,-,-
-O241037,Cancelled,M24091,Demo famto,Akhil ,9778633293,-,Home Delivery,22 Oct 2024 | 07:15 PM,23 Oct 2024 | 01:15 AM,Online-payment,Scheduled,1106,"Akhil Babu, Shivanantha vilasom, paracode, Mukkilkada, powdikonam p.o, Neart paracode CSI church",8.33,-,-,-,-,307.88,208.53,50,640,-,897.88,-,-,Chicken Biriyani,1,-,-,-
-O241036,On-going,M24091,Demo famto,Akhil ,9778633293,-,Home Delivery,22 Oct 2024 | 05:09 PM,22 Oct 2024 | 01:15 AM,Online-payment,Scheduled,1106,"Akhil Babu, Shivanantha vilasom, paracode, Mukkilkada, powdikonam p.o, Neart paracode CSI church",8.33,-,-,-,-,307.88,208.53,50,640,-,897.88,-,-,Chicken Biriyani,1,-,-,-
-O241035,On-going,M24091,Demo famto,Akhil ,9778633293,-,Home Delivery,22 Oct 2024 | 12:38 AM,22 Oct 2024 | 01:08 AM,Online-payment,On-demand,289,"Akhil Babu, Shivanantha vilasom, paracode, Mukkilkada, powdikonam p.o, Neart paracode CSI church",8.33,-,-,-,-,76.97,52.13,-,160,-,236.97,-,-,Chicken Biriyani,1,-,-,-
-O241013,Completed,M24091,Demo famto,Akhil ,1234567890,-,Take Away,17 Oct 2024 | 12:08 PM,17 Oct 2024 | 12:38 PM,Online-payment,On-demand,250,"Demo Famto merchant, undefined, Kesavadasapuram, undefined",-,-,-,-,-,-,-,-,250,-,250,-,-,Chicken Biriyani,1,-,-,-
-O241012,Cancelled,M24091,Demo famto,Akhil ,9778633293,-,Home Delivery,17 Oct 2024 | 11:45 AM,17 Oct 2024 | 12:15 PM,Online-payment,On-demand,290,"Akhil Babu, Shivanantha vilasom, paracode, Mukkilkada, powdikonam p.o, Neart paracode CSI church",8.43,-,-,-,-,77.87,52.33,-,160,-,237.87,-,-,Chicken Biriyani,1,-,-,-
-O241011,On-going,M24091,Demo famto,Akhil ,9778633293,-,Home Delivery,17 Oct 2024 | 11:44 AM,17 Oct 2024 | 12:14 PM,Online-payment,On-demand,400,"Akhil Babu, Shivanantha vilasom, paracode, Mukkilkada, powdikonam p.o, Neart paracode CSI church",8.43,-,-,-,-,77.87,72.13,-,250,-,327.87,-,-,Chicken Biriyani,1,-,-,-
-O24109,Cancelled,M241035,Marketing Merchant,Akhil ,9778633293,-,Home Delivery,16 Oct 2024 | 06:05 PM,16 Oct 2024 | 07:05 PM,Online-payment,On-demand,289,"Akhil Babu, Shivanantha vilasom, paracode, Mukkilkada, powdikonam p.o, Neart paracode CSI church",8.33,-,-,-,-,76.97,52.13,-,160,-,236.97,-,-,Chicken Biriyani,1,-,-,-
-O24108,Completed,M24091,Demo famto,Akhil Raj,790735861,-,Take Away,16 Oct 2024 | 03:05 PM,16 Oct 2024 | 03:35 PM,Online-payment,On-demand,320,"Famto merchant, undefined, Kesavadasapuram, undefined",-,-,-,-,-,-,-,-,320,-,320,-,-,Chicken Biriyani,2,-,-,-
-O24106,Completed,M240910,Garam Masala,Akhil Raj,7356276663,-,Home Delivery,15 Oct 2024 | 01:30 PM,15 Oct 2024 | 01:58 PM,Online-payment,On-demand,510,"Akhil Raj, Famto private limited, Lekshmi nagar, kesavadasapuram, Near MG college ",1.35,-,-,-,-,20,91.96,-,398,-,418,-,-,Egg Fried Rice + 4 pcs Chilli Chicken,2,-,-,-
-O24105,On-going,M240910,Garam Masala,Akhil ,9633290041,-,Home Delivery,15 Oct 2024 | 12:21 PM,15 Oct 2024 | 01:21 PM,Online-payment,On-demand,496,"Akhil Babu S, Famto private limited, Kesavadhasapuram, Near MG college ",1.34,-,-,-,-,20,87.56,-,378,10,408,-,-,Egg Noodles + 4 pcs Chilli Chicken,2,-,-,-
-O240912,Cancelled,M24091,Demo famto,Akhil Raj,-,-,Take Away,30 Sep 2024 | 04:10 PM,30 Sep 2024 | 04:40 PM,Online-payment,On-demand,100,"undefined, undefined, undefined, undefined",-,-,-,-,-,-,-,-,100,-,100,-,-,Mango Juice,2,-,-,-
-O240911,On-going,M24091,Demo famto,Akhil ,9778633293,-,Home Delivery,29 Sep 2024 | 09:47 PM,29 Sep 2024 | 10:17 PM,Cash-on-delivery,On-demand,254,"Akhil Babu, Shivanantha vilasom, paracode, Mukkilkada, powdikonam p.o, Neart paracode CSI church",5.11,-,-,-,-,47.99,45.76,-,160,-,207.99,-,-,Chicken Biriyani,1,-,-,-
-O240910,On-going,M24091,Demo famto,Sarath RS,9778633293,-,Home Delivery,25 Sep 2024 | 01:46 PM,25 Sep 2024 | 02:16 PM,Online-payment,On-demand,306,"Sarath, Nill, Chanthavila, Near Homeo",4.54,-,-,-,-,42.86,53.43,-,200,10,252.86,-,-,Mango Juice,2,-,-,-
-O24099,On-going,-,-,Sarath RS,9778633293,-,Pick and Drop,25 Sep 2024 | 01:44 PM,25 Sep 2024 | 02:44 PM,Online-payment,On-demand,130,"Sarath, Nill, Kesavadasapuram, Near MG College",12.49,-,-,-,-,129.9,-,-,-,-,130,-,-,Food & Groceries,-,2,2,2
-O24094,On-going,M24091,Demo famto,Akhil ,9778633293,-,Home Delivery,20 Sep 2024 | 11:26 AM,20 Sep 2024 | 11:56 AM,Online-payment,On-demand,216,"Akhil Babu, Shivanantha vilasom, paracode, Mukkilkada, powdikonam p.o, Neart paracode CSI church",8.33,-,-,-,-,76.97,38.93,-,100,-,176.97,-,-,Mango Juice,1,-,-,-
-O24093,On-going,-,-,Sarath RS,9778633293,-,Custom Order,12 Sep 2024 | 11:43 AM,12 Sep 2024 | 12:43 PM,Online-payment,On-demand,70,"Sarath, Nill, Chanthavila, Near Homeo",4.25,-,-,-,-,70,-,-,-,-,70,-,-,Medical Items,-,-,-,-
-O24092,Completed,M24091,Demo famto,Akhil ,9633290041,-,Home Delivery,12 Sep 2024 | 11:09 AM,22 Oct 2024 | 03:32 PM,Cash-on-delivery,On-demand,189,"Akhil Babu S, Famto private limited, Kesavadhasapuram, Near MG college ",0.69,-,-,-,-,20,9,-,160,-,180,-,-,Biriyani,1,-,-,-
-O24091,Completed,M24091,Demo famto,Akhil Raj,-,-,Take Away,12 Sep 2024 | 10:48 AM,12 Sep 2024 | 11:18 AM,Online-payment,On-demand,50,"undefined, undefined, undefined, undefined",-,-,-,-,-,-,-,-,50,-,50,-,-,Grape juice,1,-,-,-
+﻿Business Category Name*,Category Name*,Category Type*,Category Status*,Product Name*,Product Price*,Cost Price*,Product Type*,Min Quantity To Order,Max quantity Per Order,SKU,Preperation Time,Description,Long Description,Product Image,Inventory,Available quantity,Alert,Variant Name,Variant Type Name,Variant Type Price,Variant Type Cost Price
+Food,Beef mandhi,Non-veg,-,Biriyani,200,180,Non-veg,10,20,123,12,describe ,long description ,https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/ProductImages%2Ff0970e2d-0bbc-4089-9b66-75a481222212-1000107661.jpg?alt=media&token=df99dd7b-5a6c-4ef0-9511-45c5a477ed7c,-,-,-,Portion,Half,200,180
+Food,Beef mandhi,Non-veg,-,Biriyani,200,200,Non-veg,10,20,123,12,describe ,long description ,https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/ProductImages%2Ff0970e2d-0bbc-4089-9b66-75a481222212-1000107661.jpg?alt=media&token=df99dd7b-5a6c-4ef0-9511-45c5a477ed7c,-,-,-,Portion,Full,260,200
+Food,Beef mandhi,Non-veg,-,Thanthoori chicken,150,-,Veg,12,32,110,10,describe ,described ,https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/ProductImages%2F251a46b7-8528-4678-bea3-55472e3c7471-1000108500.jpg?alt=media&token=1228b694-bb11-4004-8df4-40a794468778,-,-,-,-,-,-,-
+Food,Beef mandhi,Non-veg,-,Garlic Chicken,150,-,Veg,1,5,321,12,describe ,described ,-,-,-,-,-,-,-,-
+Food,Beef mandhi,Non-veg,-,Chicken curry,180,-,Non-veg,1,10,123,123,description ,long description ,https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/ProductImages%2F2d38f34c-5d5b-4e29-a326-2cf295651ebf-1000109018.jpg?alt=media&token=bea4d20c-018a-43f6-933d-83ed26ccbbdf,-,-,-,-,-,-,-
+Food,Beef mandhi,Non-veg,-,chappathy,10,-,Veg,1,6,-,-,-,-,https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/ProductImages%2F0bf0b30e-7232-4f02-8a0c-2de2504c8674-1000111301.jpg?alt=media&token=2c9d6933-6621-4a3e-a051-686711b26380,-,-,-,-,-,-,-
+Food,Beef mandhi,Non-veg,-,porotta,10,-,Veg,1,10,1,-,-,-,-,-,-,-,-,-,-,-
+Food,Beef mandhi,Non-veg,-,idli,10,-,Veg,12,12,-,-,-,-,-,-,-,-,-,-,-,-
+Food,Beef mandhi,Non-veg,-,kubboos,10,-,Veg,1,9,-,12,describe,describedd,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Mathi,-,-,Non-veg,-,-,-,-,-,Fresh sardine,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Ayala,-,-,Non-veg,-,-,-,-,-,Indian mackerel,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Choora,-,-,Non-veg,-,-,-,-,-,Tuna,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,K. Kozhiyala,-,-,Non-veg,-,-,-,-,-,Small mackerel,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Navara,-,-,Non-veg,-,-,-,-,-,Navara fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Kozhiyala small,-,-,Non-veg,-,-,-,-,-,Small mackerel,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,NM Choora,-,-,Non-veg,-,-,-,-,-,Large tuna,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Vankada,-,-,Non-veg,-,-,-,-,-,Vankada fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Karimeen,-,-,Non-veg,-,-,-,-,-,Pearl spot,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Crab (njandu),-,-,Non-veg,-,-,-,-,-,Crab,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,NM small,-,-,Non-veg,-,-,-,-,-,Small tuna,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Vela para,-,-,Non-veg,-,-,-,-,-,Vela para fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Vatta para,-,-,Non-veg,-,-,-,-,-,Vatta para fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Kozhuvapara,-,-,Non-veg,-,-,-,-,-,Kozhuvapara fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Vilameen,-,-,Non-veg,-,-,-,-,-,Vilameen fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Chembali,-,-,Non-veg,-,-,-,-,-,Chembali fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Eata(therd),-,-,Non-veg,-,-,-,-,-,Eata fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Kalava,-,-,Non-veg,-,-,-,-,-,Kalava fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Vaala,-,-,Non-veg,-,-,-,-,-,Vaala fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Ponnarameen,-,-,Non-veg,-,-,-,-,-,Ponnarameen fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Avoli black,-,-,Non-veg,-,-,-,-,-,Black Avoli fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Avoli wite,-,-,Non-veg,-,-,-,-,-,White Avoli fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Kannadi para,-,-,Non-veg,-,-,-,-,-,Kannadi para fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Cheelavu small,-,-,Non-veg,-,-,-,-,-,Small Cheelavu fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Lobstor,-,-,Non-veg,-,-,-,-,-,Lobster,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Kanava big,-,-,Non-veg,-,-,-,-,-,Big squid,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Kanava small,-,-,Non-veg,-,-,-,-,-,Small squid,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Shark small,-,-,Non-veg,-,-,-,-,-,Small shark,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Netholi,-,-,Non-veg,-,-,-,-,-,Anchovy,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Co netholi,-,-,Non-veg,-,-,-,-,-,Big anchovy,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Thirandi,-,-,Non-veg,-,-,-,-,-,Thirandi fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Kuyil,-,-,Non-veg,-,-,-,-,-,Kuyil fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Cheemeen,-,-,Non-veg,-,-,-,-,-,Prawn,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Neduva,-,-,Non-veg,-,-,-,-,-,Neduva fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Parava,-,-,Non-veg,-,-,-,-,-,Parava fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Ayalapara,-,-,Non-veg,-,-,-,-,-,Ayalapara fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Kera full,-,-,Non-veg,-,-,-,-,-,Full sardine,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Kera pic,-,-,Non-veg,-,-,-,-,-,Sliced sardine,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Thala pic,-,-,Non-veg,-,-,-,-,-,Thala fish slices,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Neymeen pic,-,-,Non-veg,-,-,-,-,-,Neymeen fish slices,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Vanami (prown),-,-,Non-veg,-,-,-,-,-,Vanami prawn,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Tiger (prown),-,-,Non-veg,-,-,-,-,-,Tiger prawn,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Mahi Mahi (paalameen),-,-,Non-veg,-,-,-,-,-,Mahi Mahi,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Modha full,-,-,Non-veg,-,-,-,-,-,Full Modha fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Modha pic,-,-,Non-veg,-,-,-,-,-,Sliced Modha fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Naaran (prown),-,-,Non-veg,-,-,-,-,-,Naaran prawn,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Kakka,-,-,Non-veg,-,-,-,-,-,Kakka fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Kallumakaya,-,-,Non-veg,-,-,-,-,-,Kallumakaya fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Vatta pic,-,-,Non-veg,-,-,-,-,-,Sliced Vatta fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Vela para pic,-,-,Non-veg,-,-,-,-,-,Sliced Vela para fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Thirandi pic,-,-,Non-veg,-,-,-,-,-,Sliced Thirandi fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Kera head,-,-,Non-veg,-,-,-,-,-,Sardine head,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,NM HEAD,-,-,Non-veg,-,-,-,-,-,Tuna head,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Vatta head,-,-,Non-veg,-,-,-,-,-,Vatta head,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Kalava head,-,-,Non-veg,-,-,-,-,-,Kalava head,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Velapara head,-,-,Non-veg,-,-,-,-,-,Velapara head,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Modha head,-,-,Non-veg,-,-,-,-,-,Modha head,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Velapara small,-,-,Non-veg,-,-,-,-,-,Small Velapara fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,CD karal,-,-,Non-veg,-,-,-,-,-,CD karal fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Fish egg,-,-,Non-veg,-,-,-,-,-,Fish egg,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Cheelavu big pic,-,-,Non-veg,-,-,-,-,-,Big sliced Cheelavu fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Cheelavu full,-,-,Non-veg,-,-,-,-,-,Full Cheelavu fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Chembali pic,-,-,Non-veg,-,-,-,-,-,Sliced Chembali fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Poomeen full,-,-,Non-veg,-,-,-,-,-,Full Poomeen fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Poomeen pic,-,-,Non-veg,-,-,-,-,-,Sliced Poomeen fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Udupoori,-,-,Non-veg,-,-,-,-,-,Udupoori fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Kanambu,-,-,Non-veg,-,-,-,-,-,Kanambu fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Shark pic,-,-,Non-veg,-,-,-,-,-,Sliced shark,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Kalanchi full,-,-,Non-veg,-,-,-,-,-,Full Kalanchi fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Kalanchi pic,-,-,Non-veg,-,-,-,-,-,Sliced Kalanchi fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Kalachi head,-,-,Non-veg,-,-,-,-,-,Kalachi fish head,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Manthal,-,-,Non-veg,-,-,-,-,-,Manthal fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Vilameen pic,-,-,Non-veg,-,-,-,-,-,Sliced Vilameen fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Vanami big,-,-,Non-veg,-,-,-,-,-,Big Vanami prawn,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Vattakanni,-,-,Non-veg,-,-,-,-,-,Vattakanni fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Cheelave head,-,-,Non-veg,-,-,-,-,-,Cheelave fish head,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Kattala,-,-,Non-veg,-,-,-,-,-,Kattala fish,-,-,-,-,-,-,-,-
+Beverages,Fresh Fish,Non-veg,-,Thiloppi,-,-,Non-veg,-,-,-,-,-,Thiloppi fish,-,-,-,-,-,-,-,-

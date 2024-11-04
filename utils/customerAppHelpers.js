@@ -606,6 +606,8 @@ const filterProductIdAndQuantity = (items) => {
     for (const item of items) {
       const data = {
         productId: item.productId,
+        variantId: item.variantTypeId,
+        price: item.price,
         quantity: item.quantity,
       };
 
@@ -777,26 +779,28 @@ const calculateEligibleDates = (
   return eligibleDates;
 };
 
-// TODO: Re discuss the discount for loyaltypoint
-const getDiscountAmountFromLoyalty = async (customer, orderAmount) => {
+const getDiscountAmountFromLoyalty = async (customer, cartTotal) => {
   try {
     const loyaltyPoint = await LoyaltyPoint.findOne();
 
-    const discountAmount = 0;
+    let discountAmount = 0;
 
     const pointsLeftForRedemption =
       customer.customerDetails.loyaltyPointLeftForRedemption;
 
     if (
       loyaltyPoint.status &&
-      orderAmount >= loyaltyPoint.maxEarningPointPerOrder &&
+      cartTotal >= loyaltyPoint.minOrderAmountForRedemption &&
       pointsLeftForRedemption >= loyaltyPoint.redemptionCriteriaPoint
     ) {
-      const calculatedDiscount = Math.floor(
-        orderAmount / loyaltyPoint.redemptionCriteriaPoint
-      );
+      const maxRedemptionAmount =
+        (maxRedemptionAmountPercentage / 100) * cartTotal;
 
-      discountAmount = Math.min(calculatedDiscount);
+      const calculatedDiscount =
+        Math.floor(cartTotal / loyaltyPoint.redemptionCriteriaPoint) *
+        redemptionCriteriaRupee;
+
+      discountAmount = Math.min(calculatedDiscount, maxRedemptionAmount);
     }
 
     return discountAmount;
@@ -915,6 +919,7 @@ module.exports = {
   updateOneDayLoyaltyPointEarning,
   getDeliveryAndSurgeCharge,
   calculateDiscountedPrice,
+  getDiscountAmountFromLoyalty,
   completeReferralDetail,
   filterProductIdAndQuantity,
   reduceProductAvailableQuantity,

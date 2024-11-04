@@ -380,9 +380,9 @@ const updateProductOrderController = async (req, res, next) => {
   }
 };
 
-// -------------------------------------------------------
-// ------------------------Variants-----------------------
-// -------------------------------------------------------
+// -----------------------------------------
+// -----------------Variants----------------
+// -----------------------------------------
 
 const addVariantToProductController = async (req, res, next) => {
   try {
@@ -541,6 +541,7 @@ const downloadProductSampleCSVController = async (req, res, next) => {
       { id: "variantName", title: "Variant Name" },
       { id: "typeName", title: "Variant Type Name" },
       { id: "variantTypePrice", title: "Variant Type Price" },
+      { id: "variantTypeCostPrice", title: "Variant Type Cost Price" },
     ];
 
     const csvData = [
@@ -564,6 +565,7 @@ const downloadProductSampleCSVController = async (req, res, next) => {
         variantName: "Size",
         typeName: "Medium",
         variantTypePrice: "150",
+        variantTypeCostPrice: "100",
       },
       {
         businessCategoryName: "Business category",
@@ -585,6 +587,7 @@ const downloadProductSampleCSVController = async (req, res, next) => {
         variantName: "Size",
         typeName: "Medium",
         variantTypePrice: "150",
+        variantTypeCostPrice: "100",
       },
     ];
 
@@ -662,6 +665,7 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
               variantName: variant.variantName || "-",
               typeName: type.typeName || "-",
               price: type.price || "-",
+              costPrice: type.costPrice || "-",
             });
           });
         });
@@ -695,6 +699,7 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
       { id: "variantName", title: "Variant Name" },
       { id: "typeName", title: "Variant Type Name" },
       { id: "price", title: "Variant Type Price" },
+      { id: "costPrice", title: "Variant Type Cost Price" },
     ];
 
     const writer = csvWriter({
@@ -812,6 +817,9 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
           const variantTypePrice = parseFloat(
             row["Variant Type Price"]?.trim()
           );
+          const variantTypeCostPrice = parseFloat(
+            row["Variant Type Cost Price"]?.trim()
+          );
 
           if (
             variantName &&
@@ -840,6 +848,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
             existingVariant.variantTypes.push({
               typeName: variantTypeName,
               price: variantTypePrice,
+              costPrice: variantTypeCostPrice,
             });
 
             // console.log("Updated Variant:", existingVariant);

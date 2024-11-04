@@ -342,6 +342,14 @@ const purchasedItemsSchema = mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       required: true,
     },
+    variantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+    },
+    price: {
+      type: Number,
+      default: null,
+    },
     quantity: {
       type: Number,
       required: true,
