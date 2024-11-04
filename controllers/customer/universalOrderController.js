@@ -24,6 +24,7 @@ const {
 
   fetchcustomerAndMerchantAndCart,
   processVoiceInstructions,
+  getDiscountAmountFromLoyalty,
 } = require("../../utils/customerAppHelpers");
 const {
   createRazorpayOrderId,
@@ -1217,6 +1218,13 @@ const confirmOrderDetailController = async (req, res, next) => {
       merchant,
     });
 
+    const loyaltyDiscount = await getDiscountAmountFromLoyalty(
+      customer,
+      itemTotal
+    );
+
+    const discountTotal = merchantDiscountAmount + loyaltyDiscount;
+
     let actualDeliveryCharge = 0;
 
     const subscriptionOfCustomer = customer.customerDetails.pricing;
@@ -1245,12 +1253,10 @@ const confirmOrderDetailController = async (req, res, next) => {
       itemTotal,
       deliveryChargeForScheduledOrder || actualDeliveryCharge || 0,
       surgeCharges || 0,
-      0, //
-      merchantDiscountAmount,
+      0, // Place holder for flat discount (don't change)
+      discountTotal,
       taxAmount || 0
     );
-
-    // 67163c1850479b471c1fc410
 
     const customerCart = await CustomerCart.findOneAndUpdate(
       { customerId: customer._id },

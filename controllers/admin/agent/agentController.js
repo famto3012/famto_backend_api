@@ -892,9 +892,9 @@ const filterAgentPayoutController = async (req, res, next) => {
     const dateFilter = {};
     if (date) {
       const startDate = new Date(date);
-      startDate.setHours(0, 0, 0, 0);
+      startDate.setHours(18, 30, 0, 0);
       const endDate = new Date(date);
-      endDate.setHours(23, 59, 59, 999);
+      endDate.setHours(18, 29, 59, 999);
       dateFilter.date = { $gte: startDate, $lte: endDate };
     }
 

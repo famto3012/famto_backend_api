@@ -15,6 +15,10 @@ const variantTypeSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
+    costPrice: {
+      type: Number,
+      required: true,
+    },
   },
   {
     _id: false,

@@ -501,12 +501,14 @@ const searchOrderByIdByAdminController = async (req, res, next) => {
     // Calculate the number of documents to skip
     const skip = (page - 1) * limit;
 
-    const ordersFound = await Order.find({
+    const searchCriteria = {
       $or: [
         { _id: { $regex: query, $options: "i" } },
         { scheduledOrderId: { $regex: query, $options: "i" } },
       ],
-    })
+    };
+
+    const ordersFound = await Order.find(searchCriteria)
       .populate({
         path: "merchantId",
         select: "merchantDetail.merchantName merchantDetail.deliveryTime",
@@ -520,7 +522,7 @@ const searchOrderByIdByAdminController = async (req, res, next) => {
       .limit(limit);
 
     // Count total documents
-    const totalDocuments = ordersFound?.length || 1;
+    const totalDocuments = (await Order.countDocuments(searchCriteria)) || 1;
 
     const formattedOrders = ordersFound?.map((order) => {
       return {
@@ -621,13 +623,13 @@ const searchScheduledOrderByIdByAdminController = async (req, res, next) => {
     ];
 
     // Count total documents in both collections
-    const totalDocumentsInScheduledOrder = scheduledOrders?.length;
-    const totalDocumentsInScheduledPickAndCustom =
-      scheduledPickAndCustomOrders?.length;
 
-    const totalDocuments =
-      (totalDocumentsInScheduledOrder || 0) +
-        (totalDocumentsInScheduledPickAndCustom || 0) || 1;
+    const [totalUniversal, totalPickAndDrop] = await Promise.all([
+      ScheduledOrder.countDocuments(searchCriteria),
+      scheduledPickAndCustom.countDocuments(searchCriteria),
+    ]);
+
+    const totalDocuments = (totalUniversal || 0) + (totalPickAndDrop || 0) || 1;
 
     // Format the orders
     const formattedOrders = combinedOrders.map((order) => ({
@@ -734,7 +736,7 @@ const filterOrdersByAdminController = async (req, res, next) => {
       .limit(limit);
 
     // Count total documents
-    const totalDocuments = filteredOrderResults?.length || 1;
+    const totalDocuments = (await Order.countDocuments(filterCriteria)) || 1;
 
     const formattedOrders = filteredOrderResults.map((order) => {
       return {
@@ -889,7 +891,8 @@ const filterScheduledOrdersByAdminController = async (req, res, next) => {
       },
     ]);
 
-    const totalDocuments = results?.length || 1;
+    const totalDocuments =
+      (await ScheduledOrder.countDocuments(filterCriteria)) || 1;
     // Formatting the results
     const formattedOrders = results.map((order) => {
       return {
