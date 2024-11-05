@@ -176,43 +176,46 @@ app.use("/api/v1/token", tokenRoute);
 
 // Schedule the task to run four times daily for deleting expired plans of Merchants and customer
 cron.schedule("0 6,12,18,0 * * *", async () => {
-  await deleteExpiredSponsorshipPlans();
-  await deleteExpiredSubscriptionPlans();
+  await Promise.all([
+    deleteExpiredSponsorshipPlans(),
+    deleteExpiredSubscriptionPlans(),
+  ]);
 });
 
-//
+// Mid night cron jobs
 cron.schedule("30 18 * * *", async () => {
-  console.log("Running cron job for revenue generation in mid night");
-  const now = new Date(); // Subtract 1 day to get the previous day
-  await moveAppDetailToHistoryAndResetForAllAgents();
-  await preparePayoutForMerchant();
-  await updateOneDayLoyaltyPointEarning();
-  await fetchPerDayRevenue(now);
-  await fetchMerchantDailyRevenue(now);
-  await generateMapplsAuthToken();
-  await resetAllAgentTaskHelper();
-  await deleteOldLoyaltyPoints();
+  console.log("Running Mid night cron jobs");
+  const now = new Date();
+
+  await Promise.all([
+    moveAppDetailToHistoryAndResetForAllAgents(),
+    preparePayoutForMerchant(),
+    updateOneDayLoyaltyPointEarning(),
+    fetchPerDayRevenue(now),
+    fetchMerchantDailyRevenue(now),
+    generateMapplsAuthToken(),
+    resetAllAgentTaskHelper(),
+    deleteOldLoyaltyPoints(),
+  ]);
 });
 
+// Cron jobs for every minutes
 cron.schedule("* * * * *", async () => {
-  // await generateMapplsAuthToken();
-  // await createSettlement();
   deleteExpiredConversationsAndMessages();
   populateUserSocketMap();
+
   console.log("Running scheduled order job...");
   const now = new Date();
-  console.log(now);
 
-  // Calculate 2 minutes earlier and 2 minutes later
   const fiveMinutesBefore = new Date(now.getTime() - 5 * 60 * 1000);
   const fiveMinutesAfter = new Date(now.getTime() + 5 * 60 * 1000);
 
-  // Query to find scheduled orders within the 2-minute time window
+  // Universal Order
   const universalScheduledOrders = await ScheduledOrder.find({
     status: "Pending",
-    startDate: { $lte: now }, // Start date must be on or before now
-    endDate: { $gte: now }, // End date must be on or after now
-    time: { $gte: fiveMinutesBefore, $lte: fiveMinutesAfter }, // Time between 2 minutes earlier and later
+    startDate: { $lte: now },
+    endDate: { $gte: now },
+    time: { $gte: fiveMinutesBefore, $lte: fiveMinutesAfter },
   });
 
   if (universalScheduledOrders.length) {
@@ -225,9 +228,9 @@ cron.schedule("* * * * *", async () => {
   // Pick and Drop order
   const pickAndDropScheduledOrders = await scheduledPickAndCustom.find({
     status: "Pending",
-    startDate: { $lte: now }, // Start date must be on or before now
-    endDate: { $gte: now }, // End date must be on or after now
-    time: { $gte: fiveMinutesBefore, $lte: fiveMinutesAfter }, // Time between 2 minutes earlier and later
+    startDate: { $lte: now },
+    endDate: { $gte: now },
+    time: { $gte: fiveMinutesBefore, $lte: fiveMinutesAfter },
   });
 
   if (pickAndDropScheduledOrders.length) {
@@ -245,10 +248,10 @@ cron.schedule("0 0 */10 * *", async () => {
   await deleteOldActivityLogs();
 });
 
-//global errors
+// Global errors
 app.use(globalErrorHandler);
 
-//404 Error
+// 404 Error
 app.use("*", (req, res) => {
   res.status(404).json({
     message: `${req.originalUrl} - Path not found`,

@@ -63,6 +63,7 @@ const {
   clearCartController,
   applyTipController,
   confirmOrderDetailController,
+  getCartBillController,
 } = require("../../controllers/customer/universalOrderController");
 const {
   addPickUpAddressController,
@@ -336,6 +337,8 @@ customerRoute.get(
 );
 
 customerRoute.get("/get-cart", isAuthenticated, getCustomerCartController);
+
+customerRoute.get("/get-cart-bill", isAuthenticated, getCartBillController);
 
 // -------------------------------------
 // PICK AND DROP
