@@ -1170,7 +1170,7 @@ const createOrderController = async (req, res, next) => {
       };
     });
 
-    const purchasedItems = filterProductIdAndQuantity(
+    const purchasedItems = await filterProductIdAndQuantity(
       populatedCartWithVariantNames.items
     );
 

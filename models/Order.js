@@ -350,6 +350,10 @@ const purchasedItemsSchema = mongoose.Schema(
       type: Number,
       default: null,
     },
+    costPrice: {
+      type: Number,
+      default: null,
+    },
     quantity: {
       type: Number,
       required: true,

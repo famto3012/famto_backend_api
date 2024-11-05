@@ -526,50 +526,36 @@ const getCustomerOrdersController = async (req, res, next) => {
     const currentCustomer = req.userAuth;
 
     // Query with only necessary fields and populate merchant details selectively
-    const ordersOfCustomer = await Order.find({ customerId: currentCustomer })
+    const ordersOfCustomer = await Order.find({
+      customerId: currentCustomer,
+      status: { $in: ["Completed", "Cancelled"] },
+    })
       .sort({ createdAt: -1 })
-      .select("merchantId status createdAt items billDetail orderDetail")
+      .select("merchantId status createdAt billDetail orderDetail")
       .populate({
         path: "merchantId",
         select: "merchantDetail.merchantName merchantDetail.displayAddress",
-      });
+      })
+      .lean();
 
     const formattedResponse = ordersOfCustomer.map((order) => {
-      // Map order status to human-readable format
-      const orderStatus =
-        order.status === "Pending" || order.status === "Ongoing"
-          ? "On-going"
-          : order.status === "Cancelled"
-          ? "Cancelled"
-          : "Completed";
-
       return {
-        id: order._id,
+        orderId: order._id,
         merchantName: order?.merchantId?.merchantDetail?.merchantName || null,
         displayAddress:
           order?.merchantId?.merchantDetail?.displayAddress ||
           order?.orderDetail?.pickupAddress?.area ||
           null,
         deliveryMode: order?.orderDetail?.deliveryMode || null,
-        orderStatus,
+        orderStatus: order.status,
         orderDate: formatDate(order.createdAt),
         orderTime: formatTime(order.createdAt),
-        items: order?.items || [],
         grandTotal: order?.billDetail?.grandTotal || null,
       };
     });
 
-    // Split orders into "On-going" and "Other" arrays
-    const onGoingOrders = formattedResponse.filter(
-      (order) => order.orderStatus === "On-going"
-    );
-    const pastOrders = formattedResponse.filter(
-      (order) => order.orderStatus !== "On-going"
-    );
-
     res.status(200).json({
-      onGoingOrders,
-      pastOrders,
+      data: formattedResponse,
     });
   } catch (err) {
     next(appError(err.message || "Server Error"));

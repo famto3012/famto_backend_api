@@ -645,6 +645,8 @@ const calculateBill = (
   taxAmount,
   addedTip = 0
 ) => {
+  console.log("surgeCharges", surgeCharges);
+
   // Calculate total discount amount once
   const totalDiscountAmount =
     parseFloat(flatDiscount || 0) + parseFloat(merchantDiscountAmount || 0);
@@ -660,6 +662,7 @@ const calculateBill = (
 
   const grandTotal = calculateGrandTotal({
     itemTotal,
+    surgeCharges,
     deliveryCharge: deliveryCharges,
     addedTip,
     taxAmount,
@@ -1131,7 +1134,7 @@ const prepareOrderDetails = async (cart, paymentMode) => {
       };
     });
 
-    purchasedItems = filterProductIdAndQuantity(
+    purchasedItems = await filterProductIdAndQuantity(
       populatedCartWithVariantNames.items
     );
   }
