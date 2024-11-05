@@ -11,9 +11,11 @@ const preparePayoutForMerchant = async () => {
     let startTime = new Date();
     startTime.setDate(startTime.getDate() - 1);
     startTime.setHours(18, 30, 0, 0);
+    // startTime.setHours(0, 0, 0, 0);
 
     let endTime = new Date();
     endTime.setHours(18, 29, 59, 999);
+    // endTime.setHours(23, 59, 59, 999);
 
     for (const merchant of allMerchants) {
       const allOrders = await Order.find({

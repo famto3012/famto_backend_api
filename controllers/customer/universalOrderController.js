@@ -1140,8 +1140,14 @@ const getdeliveryOptionOfMerchantController = async (req, res, next) => {
 
     if (!merchantFound) return next(appError("Merchant not found", 404));
 
+    const isScheduled = ["Scheduled", "Both"].includes(
+      merchantFound.merchantDetail.deliveryOption
+    )
+      ? true
+      : false;
+
     res.status(200).json({
-      data: merchantFound.merchantDetail.deliveryOption || null,
+      data: isScheduled,
     });
   } catch (err) {
     next(appError(err.message));
@@ -1654,7 +1660,7 @@ const orderPaymentController = async (req, res, next) => {
         };
       });
 
-    const purchasedItems = filterProductIdAndQuantity(
+    const purchasedItems = await filterProductIdAndQuantity(
       populatedCartWithVariantNames.items
     );
 
@@ -2160,7 +2166,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
         };
       });
 
-    const purchasedItems = filterProductIdAndQuantity(
+    const purchasedItems = await filterProductIdAndQuantity(
       populatedCartWithVariantNames.items
     );
 

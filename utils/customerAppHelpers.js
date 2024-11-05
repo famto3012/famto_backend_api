@@ -599,24 +599,48 @@ const completeReferralDetail = async (newCustomer, code) => {
   }
 };
 
-const filterProductIdAndQuantity = (items) => {
+const filterProductIdAndQuantity = async (items) => {
   try {
-    const filteredArray = [];
+    const filteredArray = await Promise.all(
+      items.map(async (item) => {
+        if (!item.productId) return null;
 
-    for (const item of items) {
-      const data = {
-        productId: item.productId,
-        variantId: item.variantTypeId,
-        price: item.price,
-        quantity: item.quantity,
-      };
+        const product = await Product.findById(item.productId).lean();
+        if (!product) return null;
 
-      filteredArray.push(data);
-    }
+        let price, costPrice;
 
-    return filteredArray;
+        if (item.variantTypeId) {
+          const variantType = product.variants
+            .flatMap((variant) => variant.variantTypes)
+            .find((vType) => vType._id.toString() === item.variantTypeId);
+
+          if (variantType) {
+            price = variantType?.price || 0;
+            costPrice = variantType?.costPrice || 0;
+          } else {
+            price = product?.price || 0;
+            costPrice = product?.costPrice || 0;
+          }
+        } else {
+          price = product?.price || 0;
+          costPrice = product?.costPrice || 0;
+        }
+
+        return {
+          productId: item.productId,
+          variantId: item.variantTypeId || null,
+          price,
+          costPrice,
+          quantity: item.quantity,
+        };
+      })
+    );
+
+    // Filter out any null values from items that were skipped
+    return filteredArray.filter((item) => item !== null);
   } catch (err) {
-    throw new Error(err.message);
+    throw new Error(`Error filtering items: ${err.message}`);
   }
 };
 
@@ -789,7 +813,7 @@ const getDiscountAmountFromLoyalty = async (customer, cartTotal) => {
       customer.customerDetails.loyaltyPointLeftForRedemption;
 
     if (
-      loyaltyPoint.status &&
+      loyaltyPoint?.status &&
       cartTotal >= loyaltyPoint.minOrderAmountForRedemption &&
       pointsLeftForRedemption >= loyaltyPoint.redemptionCriteriaPoint
     ) {

@@ -33,6 +33,7 @@ const sharp = require("sharp");
 const ActivityLog = require("../../../models/ActivityLog");
 const ejs = require("ejs");
 const MerchantSubscription = require("../../../models/MerchantSubscription");
+const Order = require("../../../models/Order");
 
 // Helper function to handle null or empty string values
 const convertNullValues = (obj) => {
@@ -1895,6 +1896,7 @@ const getMerchantPayoutController = async (req, res, next) => {
       merchantId,
       geofenceId,
       startDate,
+      query,
       endDate,
       isPaginated = "true",
     } = req.query;
@@ -1910,6 +1912,12 @@ const getMerchantPayoutController = async (req, res, next) => {
       "payoutDetail.0": { $exists: true }, // Only merchants with at least one payoutDetail
     };
 
+    if (query && query !== "")
+      filterCriteria["merchantDetail.merchantName"] = {
+        $regex: query,
+        $options: "i",
+      };
+
     // Set filter criteria based on query parameters
     if (paymentStatus && paymentStatus !== "all") {
       filterCriteria["payoutDetail.isSettled"] =
@@ -1919,9 +1927,8 @@ const getMerchantPayoutController = async (req, res, next) => {
     if (merchantId && merchantId !== "all") filterCriteria["_id"] = merchantId;
 
     if (geofenceId && geofenceId !== "all")
-      filterCriteria["merchantDetail.geofenceId"] = new mongoose.Types.ObjectId(
-        geofenceId
-      );
+      filterCriteria["merchantDetail.geofenceId"] =
+        mongoose.Types.ObjectId.createFromHexString(geofenceId);
 
     if (startDate || endDate) {
       filterCriteria["payoutDetail.date"] = {};
@@ -1980,6 +1987,106 @@ const getMerchantPayoutController = async (req, res, next) => {
   }
 };
 
+const getMerchantPayoutDetail = async (req, res, next) => {
+  try {
+    const { date, merchantId } = req.query;
+
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Find all completed orders for the specified merchant on the given day
+    const allOrders = await Order.find({
+      merchantId,
+      status: "Completed",
+      createdAt: { $gte: startOfDay, $lte: endOfDay },
+    })
+      .select("purchasedItems")
+      .lean();
+
+    // Initialize an array to store the processed data
+    const processedItems = [];
+
+    // Iterate through each order's purchased items
+    for (const order of allOrders) {
+      for (const item of order.purchasedItems) {
+        const product = await Product.findById(item.productId)
+          .select("productName costPrice price variants")
+          .lean();
+        if (!product) continue;
+
+        const productName = product.productName;
+
+        // Initialize variables for price and costPrice based on whether a variant exists
+        let price = item.price || product.price;
+        let costPrice = item.costPrice || product.costPrice;
+        let variantName = null;
+
+        if (item.variantId) {
+          // Find the matching variant type
+          const variant = product.variants
+            .flatMap((v) => v.variantTypes)
+            .find(
+              (vType) => vType._id.toString() === item.variantId.toString()
+            );
+          if (variant) {
+            variantName = variant.typeName;
+            price = variant.price;
+            costPrice = variant.costPrice;
+          }
+        }
+
+        // Calculate total cost for the item
+        const totalCost = item.quantity * costPrice;
+
+        // Push the formatted item data to the processedItems array
+        processedItems.push({
+          productName,
+          variantName,
+          costPrice,
+          price,
+          quantity: item.quantity,
+          totalCost,
+        });
+      }
+    }
+
+    res.status(200).json({
+      data: processedItems,
+    });
+  } catch (err) {
+    next(new Error(`Error retrieving merchant payout details: ${err.message}`));
+  }
+};
+
+const comfirmMerchantPayout = async (req, res, next) => {
+  try {
+    const { payoutId, merchantId } = req.params;
+
+    const merchantFound = await Merchant.findById(merchantId)
+      .select("payoutDetail")
+      .lean();
+
+    if (!merchantFound) return next(appError("Merchant not found", 404));
+
+    const paymentDetailFound = merchantFound.payoutDetail.filter(
+      (merchantPayout) => merchantPayout.payoutId.toString() === payoutId
+    );
+
+    if (!paymentDetailFound)
+      return next(appError("Payment detail not found", 404));
+
+    paymentDetailFound.isSettled = true;
+
+    await merchantFound.save();
+
+    res.status(200).json({ message: "Payment settled successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerMerchantController,
   getMerchantProfileController,
@@ -2009,4 +2116,6 @@ module.exports = {
   getAllMerchantsForDropDownController,
   changeMerchantStatusByMerchantControllerForToggle,
   getMerchantPayoutController,
+  getMerchantPayoutDetail,
+  comfirmMerchantPayout,
 };

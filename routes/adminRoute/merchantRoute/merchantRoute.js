@@ -25,6 +25,8 @@ const {
   getAllMerchantsForDropDownController,
   changeMerchantStatusByMerchantControllerForToggle,
   getMerchantPayoutController,
+  getMerchantPayoutDetail,
+  comfirmMerchantPayout,
 } = require("../../../controllers/admin/merchant/merchantController");
 const { upload } = require("../../../utils/imageOperation");
 const isAdmin = require("../../../middlewares/isAdmin");
@@ -163,6 +165,14 @@ merchantRoute.get(
   getMerchantPayoutController
 );
 
+// Get merchants payout detail
+merchantRoute.get(
+  "/admin/payout-detail",
+  isAuthenticated,
+  isAdmin,
+  getMerchantPayoutDetail
+);
+
 // Get single merchant
 merchantRoute.get(
   "/admin/:merchantId",
@@ -192,7 +202,17 @@ merchantRoute.put(
 // Change merchant status
 merchantRoute.patch(
   "/admin/change-status/:merchantId",
+  isAuthenticated,
+  isAdmin,
   changeMerchantStatusController
+);
+
+// Update merchant payout status
+merchantRoute.patch(
+  "/admin/payout/:merchantId/:payoutId",
+  isAuthenticated,
+  isAdmin,
+  comfirmMerchantPayout
 );
 
 //Update Merchant details
