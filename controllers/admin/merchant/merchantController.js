@@ -1906,18 +1906,22 @@ const getMerchantPayoutController = async (req, res, next) => {
     // Calculate the number of documents to skip
     const skip = (page - 1) * limit;
 
-    const filterCriteria = {};
+    const filterCriteria = {
+      "payoutDetail.0": { $exists: true }, // Only merchants with at least one payoutDetail
+    };
 
     // Set filter criteria based on query parameters
-    if (paymentStatus) {
+    if (paymentStatus && paymentStatus !== "all") {
       filterCriteria["payoutDetail.isSettled"] =
         paymentStatus.toLowerCase() === "true";
     }
 
-    if (merchantId) filterCriteria["_id"] = merchantId;
-    if (geofenceId)
-      filterCriteria["merchantDetail.geofenceId"] =
-        new mongoose.Types.ObjectId.createFromHexString(geofenceId);
+    if (merchantId && merchantId !== "all") filterCriteria["_id"] = merchantId;
+
+    if (geofenceId && geofenceId !== "all")
+      filterCriteria["merchantDetail.geofenceId"] = new mongoose.Types.ObjectId(
+        geofenceId
+      );
 
     if (startDate || endDate) {
       filterCriteria["payoutDetail.date"] = {};
@@ -1935,7 +1939,9 @@ const getMerchantPayoutController = async (req, res, next) => {
 
     // Query the Merchant model with filter criteria
     const merchantPayoutQuery = Merchant.find(filterCriteria, {
-      payoutDetail: 1, // Select only payoutDetail field
+      payoutDetail: 1,
+      phoneNumber: 1,
+      "merchantDetail.merchantName": 1,
     });
 
     // Apply pagination if required
@@ -1946,16 +1952,26 @@ const getMerchantPayoutController = async (req, res, next) => {
     const merchants = await merchantPayoutQuery;
 
     // Flatten the response to get only payout details
-    const allPayouts = merchants.flatMap((merchant) => merchant.payoutDetail);
+    const data = merchants.flatMap((merchant) => {
+      return merchant.payoutDetail.map((payout) => ({
+        merchantId: merchant._id,
+        merchantName: merchant.merchantDetail.merchantName,
+        phoneNumber: merchant.phoneNumber,
+        date: formatDate(payout.date),
+        totalCostPrice: payout.totalCostPrice,
+        completedOrders: payout.completedOrders,
+        isSettled: payout.isSettled,
+        payoutId: payout.payoutId,
+      }));
+    });
 
     res.status(200).json({
-      success: true,
-      data: allPayouts,
+      data,
       pagination: isPaginated
         ? {
             page,
             limit,
-            total: allPayouts.length,
+            total: data.length,
           }
         : null,
     });

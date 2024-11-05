@@ -1289,7 +1289,22 @@ const confirmOrderDetailController = async (req, res, next) => {
       { new: true, upsert: true }
     );
 
-    res.status(200).json(customerCart.billDetail);
+    res.status(200).json({ cartId: customerCart._id });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get cart bill
+const getCartBillController = async (req, res, next) => {
+  try {
+    const { cartId } = req.query;
+
+    const cartFound = await CustomerCart.findById(cartId)
+      .select("billDetail")
+      .lean();
+
+    res.status(200).json({ billDetail: cartFound.billDetail });
   } catch (err) {
     next(appError(err.message));
   }
@@ -2531,4 +2546,5 @@ module.exports = {
   applyTipController,
   //
   confirmOrderDetailController,
+  getCartBillController,
 };
