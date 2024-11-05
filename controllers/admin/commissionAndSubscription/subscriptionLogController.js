@@ -205,11 +205,12 @@ const verifyRazorpayPayment = async (req, res, next) => {
     };
 
     if (typeOfUser === "Merchant") {
+      const merchantFound = await Merchant.findById(userId);
+      
       if (merchantFound.merchantDetail.pricing[0].modelType === "Commission") {
         merchantFound.merchantDetail.pricing = [];
       }
 
-      const merchantFound = await Merchant.findById(userId);
       merchantFound.merchantDetail.pricing.push({
         modelType: "Subscription",
         modelId: subscriptionLog._id,
