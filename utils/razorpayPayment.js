@@ -8,8 +8,9 @@ const razorpay = new Razorpay({
 
 const createRazorpayOrderId = async (amount) => {
   try {
+    console.log("Amount", amount * 100)
     const options = {
-      amount: amount * 100,
+      amount: amount * 100 ,
       currency: "INR",
       receipt: crypto.randomBytes(10).toString("hex"),
     };

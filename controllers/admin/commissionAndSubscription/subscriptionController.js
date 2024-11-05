@@ -31,7 +31,7 @@ const addMerchantSubscriptionPlanController = async (req, res, next) => {
 
     const subscriptionPlan = new MerchantSubscription({
       name,
-      amount: totalAmount,
+      amount: Math.round(totalAmount),
       duration,
       taxId: taxId || null,
       renewalReminder,
@@ -92,9 +92,20 @@ const editMerchantSubscriptionPlanController = async (req, res, next) => {
       return res.status(404).json({ message: "Subscription plan not found" });
     }
 
+    let totalAmount = amount;
+    if (taxId?.toString() !== subscriptionPlan?.taxId.toString()) {
+      const oldTax = await Tax.findById(subscriptionPlan?.taxId);
+      const baseAmount = amount / (1 + oldTax.tax / 100);
+      const tax = await Tax.findById(taxId);
+      const taxAmount = baseAmount * (tax.tax / 100);
+      totalAmount = parseFloat(baseAmount) + taxAmount;
+    }
+
     subscriptionPlan.name = name !== undefined ? name : subscriptionPlan.name;
     subscriptionPlan.amount =
-      amount !== undefined ? amount : subscriptionPlan.amount;
+      Math.round(totalAmount) !== undefined
+        ? Math.round(totalAmount)
+        : subscriptionPlan.amount;
     subscriptionPlan.duration =
       duration !== undefined ? duration : subscriptionPlan.duration;
     subscriptionPlan.taxId =
@@ -198,7 +209,7 @@ const addCustomerSubscriptionPlanController = async (req, res, next) => {
 
     const subscriptionPlan = new CustomerSubscription({
       name,
-      amount: totalAmount,
+      amount: Math.Round(totalAmount),
       duration,
       taxId: taxId || null,
       renewalReminder,
@@ -269,19 +280,31 @@ const editCustomerSubscriptionPlanController = async (req, res, next) => {
     }
 
     let totalAmount = amount;
-    if (taxId && !subscriptionPlan.taxId && taxId !== subscriptionPlan.taxId) {
-      const taxFound = await Tax.findById(taxId);
 
-      const taxAmount = amount * (taxFound.tax / 100);
-
+    if (!subscriptionPlan.taxId && taxId) {
+      // Scenario 1: Tax not set initially, add tax now
+      const tax = await Tax.findById(taxId);
+      const taxAmount = amount * (tax.tax / 100);
       totalAmount = parseFloat(amount) + taxAmount;
+    } else if (subscriptionPlan.taxId && taxId && taxId.toString() !== subscriptionPlan.taxId.toString()) {
+      // Scenario 2: Existing tax is being changed to a new tax
+      const oldTax = await Tax.findById(subscriptionPlan.taxId);
+      const baseAmount = amount / (1 + oldTax.tax / 100);
+      const newTax = await Tax.findById(taxId);
+      const taxAmount = baseAmount * (newTax.tax / 100);
+      totalAmount = parseFloat(baseAmount) + taxAmount;
+    } else if (subscriptionPlan.taxId && !taxId) {
+      // Scenario 3: Existing tax is being removed
+      const oldTax = await Tax.findById(subscriptionPlan.taxId);
+      const baseAmount = amount / (1 + oldTax.tax / 100);
+      totalAmount = parseFloat(baseAmount); // No new tax is applied, use base amount only
     }
 
     let updatedSubPlan = await CustomerSubscription.findByIdAndUpdate(
       id,
       {
         name,
-        amount: totalAmount,
+        amount: Math.round(totalAmount),
         duration,
         taxId: taxId || null,
         renewalReminder,
@@ -307,6 +330,7 @@ const editCustomerSubscriptionPlanController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
+
 
 const getSingleCustomerSubscriptionPlanController = async (req, res, next) => {
   try {
