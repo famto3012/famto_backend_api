@@ -80,11 +80,17 @@ const convertToUTC = (time12hr, startDate) => {
 
 const convertISTToUTC = (startDate, time12hr) => {
   // Parse the given date (e.g., '2024-10-20') and time (e.g., '01:00 AM') into a moment object in IST
-  let istDateTime = moment(`${startDate} ${time12hr}`, "YYYY-MM-DD hh:mm A");
-
+  const istDateTime = moment.tz(
+    `${startDate} ${time12hr}`,
+    "YYYY-MM-DD hh:mm A",
+    "Asia/Kolkata"
+  );
+  // Convert to UTC
+  const utcDateTime = istDateTime.utc();
+  console.log("istDateTime", istDateTime);
   // Convert IST to UTC
-  let utcDateTime = istDateTime.utcOffset("+05:30").utc(); // Adjust for IST (UTC +5:30) and convert to UTC
-
+  // let utcDateTime = istDateTime.utcOffset("+05:30").utc(); // Adjust for IST (UTC +5:30) and convert to UTC
+  console.log("utcDateTime", utcDateTime);
   // Return the UTC date and time in ISO format
   return new Date(utcDateTime);
 };

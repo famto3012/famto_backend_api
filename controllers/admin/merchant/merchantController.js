@@ -2055,31 +2055,28 @@ const getMerchantPayoutDetail = async (req, res, next) => {
       .select("purchasedItems")
       .lean();
 
-    // Initialize an array to store the processed data
-    const processedItems = [];
+    const productIds = [
+      ...new Set(allOrders.flatMap(order => order.purchasedItems.map(item => item.productId))),
+    ];
+    
+    const products = await Product.find({ _id: { $in: productIds } })
+      .select("productName costPrice price variants")
+      .lean();
 
-    // Iterate through each order's purchased items
-    for (const order of allOrders) {
-      for (const item of order.purchasedItems) {
-        const product = await Product.findById(item.productId)
-          .select("productName costPrice price variants")
-          .lean();
-        if (!product) continue;
+    const productMap = Object.fromEntries(products.map(product => [product._id.toString(), product]));
 
-        const productName = product.productName;
+    const processedItems = allOrders.flatMap(order =>
+      order.purchasedItems.map(item => {
+        const product = productMap[item.productId.toString()];
+        if (!product) return null;
 
-        // Initialize variables for price and costPrice based on whether a variant exists
-        let price = item.price || product.price;
-        let costPrice = item.costPrice || product.costPrice;
+        let { price, costPrice } = product;
         let variantName = null;
 
         if (item.variantId) {
-          // Find the matching variant type
           const variant = product.variants
-            .flatMap((v) => v.variantTypes)
-            .find(
-              (vType) => vType._id.toString() === item.variantId.toString()
-            );
+            .flatMap(v => v.variantTypes)
+            .find(vType => vType._id.toString() === item.variantId.toString());
           if (variant) {
             variantName = variant.typeName;
             price = variant.price;
@@ -2087,24 +2084,18 @@ const getMerchantPayoutDetail = async (req, res, next) => {
           }
         }
 
-        // Calculate total cost for the item
-        const totalCost = item.quantity * costPrice;
-
-        // Push the formatted item data to the processedItems array
-        processedItems.push({
-          productName,
+        return {
+          productName: product.productName,
           variantName,
           costPrice,
           price,
           quantity: item.quantity,
-          totalCost,
-        });
-      }
-    }
+          totalCost: item.quantity * (costPrice || item.costPrice || 0),
+        };
+      }).filter(Boolean) // Remove any null items
+    );
 
-    res.status(200).json({
-      data: processedItems,
-    });
+    res.status(200).json({ data: processedItems });
   } catch (err) {
     next(appError(err.message));
   }
