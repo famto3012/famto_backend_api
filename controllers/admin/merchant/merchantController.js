@@ -2064,13 +2064,13 @@ const comfirmMerchantPayout = async (req, res, next) => {
   try {
     const { payoutId, merchantId } = req.params;
 
-    const merchantFound = await Merchant.findById(merchantId)
-      .select("payoutDetail")
-      .lean();
+    const merchantFound = await Merchant.findById(merchantId).select(
+      "payoutDetail"
+    );
 
     if (!merchantFound) return next(appError("Merchant not found", 404));
 
-    const paymentDetailFound = merchantFound.payoutDetail.filter(
+    const paymentDetailFound = merchantFound.payoutDetail.find(
       (merchantPayout) => merchantPayout.payoutId.toString() === payoutId
     );
 
