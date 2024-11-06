@@ -826,46 +826,53 @@ const getHistoryOfAppDetailsController = async (req, res, next) => {
       .lean({ virtuals: true })
       .exec();
 
-    if (!agentFound) {
-      return next(appError("Agent not found", 404));
-    }
+    if (!agentFound) return next(appError("Agent not found", 404));
 
-    agentFound.appDetailHistory.push({
-      date: new Date(),
-      details: {
-        ...agentFound.appDetail,
-        orderDetail: agentFound.appDetail.orderDetail,
-      },
-    });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayExists = agentFound.appDetailHistory.some(
+      (entry) => new Date(entry.date).toDateString() === today.toDateString()
+    );
+
+    if (!todayExists) {
+      agentFound.appDetailHistory.push({
+        date: today,
+        details: {
+          ...agentFound.appDetail,
+          orderDetail: agentFound.appDetail.orderDetail,
+        },
+      });
+    }
 
     // Sort the appDetailHistory by date in descending order (latest date first)
     const sortedAppDetailHistory = agentFound?.appDetailHistory?.sort(
       (a, b) => new Date(b.date) - new Date(a.date)
     );
 
-    const formattedResponse = sortedAppDetailHistory?.map((history) => {
-      return {
-        date: formatDate(history?.date) || formatDate(new Date()),
-        details: {
-          totalEarnings: history?.details?.totalEarning?.toFixed(2) || "0.00",
-          orders: history?.details?.orders || 0,
-          cancelledOrders: history?.details?.cancelledOrders || 0,
-          totalDistance:
-            `${history?.details?.totalDistance?.toFixed(2)} km` || "0.00 km",
-          loginHours:
-            formatToHours(history?.details?.loginDuration) || "0:00 hr",
-          orderDetail:
-            history?.details?.orderDetail?.map((order) => ({
-              orderId: order.orderId,
-              deliveryMode: order.deliveryMode,
-              customerName: order.customerName,
-              grandTotal: order.grandTotal,
-              date: formatDate(order.completedOn),
-              time: formatTime(order.completedOn),
-            })) || [],
-        },
-      };
-    });
+    const formattedResponse = sortedAppDetailHistory.map((history) => ({
+      date: formatDate(history.date),
+      details: {
+        totalEarnings: (history.details.totalEarning || 0).toFixed(2),
+        orders: history.details.orders || 0,
+        cancelledOrders: history.details.cancelledOrders || 0,
+        totalDistance: `${(history.details.totalDistance || 0).toFixed(2)} km`,
+        loginHours: formatToHours(history.details.loginDuration) || "0:00 hr",
+        orderDetail:
+          history.details.orderDetail.map((order) => ({
+            orderId: order.orderId,
+            deliveryMode: order.deliveryMode,
+            customerName: order.customerName,
+            grandTotal: order.grandTotal,
+            date: formatDate(order.completedOn),
+            time: formatTime(order.completedOn),
+          })) || [],
+      },
+    }));
+
+    console.log("response");
+    console.log(formattedResponse[0]);
+    console.log(formattedResponse[1]);
 
     res.status(200).json({
       message: "App Detail history",

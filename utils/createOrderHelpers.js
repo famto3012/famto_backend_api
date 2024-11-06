@@ -94,9 +94,10 @@ const findOrCreateCustomer = async ({
 // Get the scheduled details
 const processSchedule = (ifScheduled) => {
   const { startDate, endDate } = ifScheduled;
-  const time = ifScheduled.time
-    ? convertISTToUTC(startDate, ifScheduled.time)
-    : null;
+  // const time = ifScheduled.time
+  //   ? convertISTToUTC(startDate, ifScheduled.time)
+  //   : null;
+  const time = ifScheduled.time ? ifScheduled.time : null;
 
   if (!startDate || !endDate || !time) {
     return { startDate: null, endDate: null, time: null, numOfDays: null };

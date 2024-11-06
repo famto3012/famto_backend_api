@@ -1,3 +1,4 @@
+const { default: mongoose } = require("mongoose");
 const AgentNotificationLogs = require("../models/AgentNotificationLog");
 const AgentPricing = require("../models/AgentPricing");
 const Customer = require("../models/Customer");
@@ -46,12 +47,14 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
       // Update the agent's login duration
       agent.appDetail.loginDuration += loginDuration;
 
-      const today = new Date();
+      const lastDay = new Date();
+      lastDay.setDate(lastDay.getDate() - 1);
 
       // Move current appDetail to appDetailHistory
       agent.appDetailHistory.push({
-        date: today,
+        date: lastDay,
         details: { ...agent?.appDetail },
+        detailId: new mongoose.Types.ObjectId(),
       });
 
       // Reset appDetail

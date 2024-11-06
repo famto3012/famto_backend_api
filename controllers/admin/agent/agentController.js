@@ -763,7 +763,7 @@ const getDeliveryAgentPayoutController = async (req, res, next) => {
             totalEarnings: totalEarning,
             calculatedPayment,
             paymentSettled: latestHistory.details.paymentSettled,
-            detailId: latestHistory._id,
+            detailId: latestHistory.detailId,
           };
         })
     );
@@ -856,7 +856,7 @@ const searchAgentInPayoutController = async (req, res, next) => {
           totalEarnings: totalEarning,
           calculatedPayment,
           paymentSettled: latestHistory.details?.paymentSettled,
-          detailId: latestHistory._id,
+          detailId: latestHistory.detailId,
         };
       })
     );
@@ -987,14 +987,15 @@ const filterAgentPayoutController = async (req, res, next) => {
           orders: "$appDetailHistory.details.orders",
           cancelledOrders: "$appDetailHistory.details.cancelledOrders",
           totalDistance: "$appDetailHistory.details.totalDistance",
-          loginHours: {
-            $divide: ["$appDetailHistory.details.loginDuration", 3600000],
-          },
+          // loginHours: {
+          //   $divide: ["$appDetailHistory.details.loginDuration", 3600000],
+          // },
+          loginHours: "$appDetailHistory.details.loginDuration",
           cashInHand: "$workStructure.cashInHand",
           totalEarnings: "$appDetailHistory.details.totalEarning",
           calculatedPayment: 1,
           paymentSettled: "$appDetailHistory.details.paymentSettled",
-          detailId: "$appDetailHistory._id",
+          detailId: "$appDetailHistory.detailId",
           geofence: "$geofenceId",
         },
       },
@@ -1012,11 +1013,14 @@ const filterAgentPayoutController = async (req, res, next) => {
       totalDocuments / parseInt(req.query.limit || 50)
     );
 
-    const formattedResponse = agents.map(({ _id, workedDate, ...rest }) => ({
-      agentId: _id,
-      workedDate: workedDate ? formatDate(workedDate) : "-",
-      ...rest,
-    }));
+    const formattedResponse = agents.map(
+      ({ _id, workedDate, loginHours, ...rest }) => ({
+        agentId: _id,
+        workedDate: workedDate ? formatDate(workedDate) : "-",
+        loginHours: formatToHours(loginHours),
+        ...rest,
+      })
+    );
 
     res.status(200).json({
       message: "Filtered agent payout details",
@@ -1045,7 +1049,6 @@ const approvePaymentController = async (req, res, next) => {
       {
         "appDetailHistory.$": 1,
         "workStructure.cashInHand": 1,
-        "appDetail.totalEarning": 1,
         agentTransaction: 1,
       }
     ).lean();
@@ -1053,32 +1056,65 @@ const approvePaymentController = async (req, res, next) => {
     if (!agent) return next(appError("Agent not found", 404));
 
     const detail = agent.appDetailHistory[0];
-    if (detail.details.paymentSettled) {
+    if (detail.details.paymentSettled)
       return next(appError("Payment already settled", 400));
-    }
+
+    // Get the totalEarning from the specific detail in appDetailHistory
+    const detailTotalEarning = detail.details.totalEarning;
 
     // Prepare updates for payment settlement and cashInHand adjustment if needed
     const updates = {
       "appDetailHistory.$.details.paymentSettled": true,
     };
 
+    const transactionUpdates = [];
+
+    // Calculate the maximum possible debit amount from cashInHand and totalEarning
     if (agent.workStructure.cashInHand > 0) {
-      updates["appDetail.totalEarning"] =
-        agent.appDetail.totalEarning - agent.workStructure.cashInHand;
-      updates.$push = {
-        agentTransaction: {
+      const debitAmount = Math.min(
+        agent.workStructure.cashInHand,
+        detailTotalEarning
+      );
+      const calculatedBalance = agent.workStructure.cashInHand - debitAmount;
+
+      console.log("cash in hand: ", agent.workStructure.cashInHand);
+      console.log("calculatedBalance: ", calculatedBalance);
+      console.log("detailTotalEarning: ", detailTotalEarning);
+      console.log("debitAmount: ", debitAmount);
+
+      updates["workStructure.cashInHand"] = calculatedBalance;
+
+      transactionUpdates.push(
+        {
           type: "Debit",
+          title: "Cash in hand deducted",
           madeOn: new Date(),
-          amount: agent.workStructure.cashInHand,
+          amount: debitAmount,
         },
-      };
-      updates["workStructure.cashInHand"] = 0;
+        {
+          type: "Credit",
+          title: "Salary credited",
+          madeOn: new Date(),
+          amount: detailTotalEarning,
+        }
+      );
+    } else {
+      // Only add a Credit transaction
+      transactionUpdates.push({
+        type: "Credit",
+        title: "Salary credited",
+        madeOn: new Date(),
+        amount: detailTotalEarning,
+      });
     }
 
     // Apply updates in a single atomic operation
     const updatedAgent = await Agent.updateOne(
       { _id: agentId, "appDetailHistory._id": detailId },
-      { $set: updates }
+      {
+        $set: updates,
+        $push: { agentTransaction: { $each: transactionUpdates } },
+      }
     );
 
     if (updatedAgent.nModified === 0)
