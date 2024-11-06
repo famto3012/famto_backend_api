@@ -1261,7 +1261,8 @@ const confirmOrderDetailController = async (req, res, next) => {
       surgeCharges || 0,
       0, // Place holder for flat discount (don't change)
       discountTotal,
-      taxAmount || 0
+      taxAmount || 0,
+      cart?.billDetail?.addedTip || 0
     );
 
     const customerCart = await CustomerCart.findOneAndUpdate(
@@ -1306,9 +1307,10 @@ const getCartBillController = async (req, res, next) => {
   try {
     const { cartId } = req.query;
 
-    const cartFound = await CustomerCart.findById(cartId)
-      .select("billDetail")
-      .lean();
+    const cartFound = await CustomerCart.findById(cartId).select("billDetail");
+    // .lean();
+
+    console.log(cartFound.billDetail);
 
     res.status(200).json({ billDetail: cartFound.billDetail });
   } catch (err) {
@@ -1320,21 +1322,25 @@ const getCartBillController = async (req, res, next) => {
 const applyTipController = async (req, res, next) => {
   try {
     const { tip = 0 } = req.body;
-
     const customerId = req.userAuth;
 
     const cartFound = await CustomerCart.findOne({ customerId });
-
     if (!cartFound) return next(appError("Cart not found", 404));
 
     const { billDetail: cartBill } = cartFound;
+    if (!cartBill) return next(appError("Billing details not found", 404));
 
-    cartBill.addedTip = parseFloat(tip);
-    cartBill.subTotal = cartBill.subTotal + parseFloat(tip);
-    cartBill.discountedGrandTotal =
-      cartBill.discountedGrandTotal + parseFloat(tip);
-    cartBill.originalGrandTotal = cartBill.originalGrandTotal + parseFloat(tip);
+    const oldTip = cartBill.addedTip || 0;
 
+    const newTip = parseFloat(tip) || 0;
+    cartBill.addedTip = newTip;
+
+    // Recalculate totals with the new tip adjustment
+    cartBill.subTotal += newTip - oldTip;
+    cartBill.discountedGrandTotal += newTip - oldTip;
+    cartBill.originalGrandTotal += newTip - oldTip;
+
+    // Save the changes to the cart
     await cartFound.save();
 
     res.status(200).json(cartFound.billDetail);

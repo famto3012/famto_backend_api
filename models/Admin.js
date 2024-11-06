@@ -37,6 +37,10 @@ const adminSchema = new mongoose.Schema(
     resetPasswordExpiry: {
       type: Date,
     },
+    refreshToken: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,

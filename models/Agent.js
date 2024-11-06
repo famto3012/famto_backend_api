@@ -2,22 +2,26 @@ const mongoose = require("mongoose");
 const { formatToHours } = require("../utils/agentAppHelpers");
 const DatabaseCounter = require("./DatabaseCounter");
 
-const ratingsByCustomerSchema = mongoose.Schema({
-  customerId: {
-    type: String,
-    ref: "Customer",
-    required: true,
+const ratingsByCustomerSchema = mongoose.Schema(
+  {
+    customerId: {
+      type: String,
+      ref: "Customer",
+      required: true,
+    },
+    review: {
+      type: String,
+      required: true,
+    },
+    rating: {
+      type: Number,
+      required: true,
+    },
   },
-  review: {
-    type: String,
-    required: true,
-  },
-  rating: {
-    type: Number,
-    required: true,
-  },
-});
-
+  {
+    _id: false,
+  }
+);
 
 const vehicleSchema = mongoose.Schema(
   {
@@ -168,6 +172,10 @@ const agentTransactionSchema = mongoose.Schema({
     enum: ["Credit", "Debit"],
     required: true,
   },
+  title: {
+    type: String,
+    required: true,
+  },
   amount: {
     type: Number,
     required: true,
@@ -253,6 +261,12 @@ const agentSchema = mongoose.Schema(
     appDetail: agentAppDetailSchema,
     appDetailHistory: [
       {
+        _id: false,
+        detailId: {
+          type: mongoose.Schema.Types.ObjectId,
+          default: () => new mongoose.Types.ObjectId(),
+          required: true,
+        },
         date: {
           type: Date,
           required: true,

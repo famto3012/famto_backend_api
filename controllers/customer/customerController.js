@@ -569,7 +569,7 @@ const getsingleOrderDetailController = async (req, res, next) => {
 
     const { orderId } = req.params;
 
-    const singleOrderDetail = await Order.findOne({
+    const orderFound = await Order.findOne({
       _id: orderId,
       customerId: currentCustomer,
     })
@@ -580,28 +580,19 @@ const getsingleOrderDetailController = async (req, res, next) => {
 
       .exec();
 
-    if (!singleOrderDetail) {
-      return next(appError("Order not found", 404));
-    }
+    if (!orderFound) return next(appError("Order not found", 404));
 
     const formattedResponse = {
-      id: singleOrderDetail?._id,
-      merchantName:
-        singleOrderDetail?.merchantId?.merchantDetail?.merchantName || null,
-      displayAddress:
-        singleOrderDetail?.merchantId?.merchantDetail?.displayAddress || null,
-      deliveryTime:
-        singleOrderDetail?.merchantId?.merchantDetail?.deliveryTime || null,
-      distance: singleOrderDetail?.orderDetail?.distance || null,
-      items: singleOrderDetail?.items || null,
-      billDetail: singleOrderDetail?.billDetail || null,
-      deliveryAddress: singleOrderDetail?.orderDetail?.deliveryAddress || null,
-      orderDate: `${formatDate(singleOrderDetail?.createdAt)}` || null,
-      orderTime: `${formatTime(singleOrderDetail?.createdAt)}` || null,
-      paymentMode: singleOrderDetail?.paymentMode || null,
-      // merchantPhone: singleOrderDetail?.merchantId?.phoneNumber || null,
-      // fssaiNumber:
-      //   singleOrderDetail?.merchantId?.merchantDetail?.FSSAINumber || null,
+      orderId: orderFound?._id,
+      pickUpAddress: orderFound?.orderDetail?.pickupAddress || null,
+      deliveryAddress: orderFound?.orderDetail?.deliveryAddress || null,
+      items: orderFound?.items || null,
+      billDetail: orderFound?.billDetail || null,
+      orderDate: formatDate(orderFound?.createdAt),
+      orderTime: formatTime(orderFound?.createdAt),
+      paymentMode: orderFound?.paymentMode || null,
+      deliveryMode: orderFound?.orderDetail?.deliveryMode || null,
+      vehicleType: orderFound?.billDetail?.vehicleType || null,
     };
 
     res.status(200).json({
