@@ -1896,71 +1896,110 @@ const getMerchantPayoutController = async (req, res, next) => {
       merchantId,
       geofenceId,
       startDate,
-      query,
       endDate,
+      query,
       isPaginated = "true",
+      timezoneOffset = 0,
     } = req.query;
 
+    // Parse and normalize pagination inputs
     isPaginated = isPaginated === "true";
     page = parseInt(page, 10);
     limit = parseInt(limit, 10);
-
-    // Calculate the number of documents to skip
     const skip = (page - 1) * limit;
 
-    const filterCriteria = {
-      "payoutDetail.0": { $exists: true }, // Only merchants with at least one payoutDetail
-    };
+    // Initial filter criteria setup
+    const filterCriteria = { "payoutDetail.0": { $exists: true } };
 
-    if (query && query !== "")
+    // Apply search by merchant name if query is provided
+    if (query && query !== "") {
       filterCriteria["merchantDetail.merchantName"] = {
         $regex: query,
         $options: "i",
       };
-
-    // Set filter criteria based on query parameters
-    if (paymentStatus && paymentStatus !== "all") {
-      filterCriteria["payoutDetail.isSettled"] =
-        paymentStatus.toLowerCase() === "true";
     }
 
+    // Filter by merchantId if specified
     if (merchantId && merchantId !== "all") filterCriteria["_id"] = merchantId;
 
-    if (geofenceId && geofenceId !== "all")
+    // Filter by geofenceId if specified
+    if (geofenceId && geofenceId !== "all") {
       filterCriteria["merchantDetail.geofenceId"] =
         mongoose.Types.ObjectId.createFromHexString(geofenceId);
-
-    if (startDate || endDate) {
-      filterCriteria["payoutDetail.date"] = {};
-      if (startDate) {
-        startDate = new Date(startDate);
-        startDate.setHours(18, 30, 0, 0);
-        filterCriteria["payoutDetail.date"].$gte = startDate;
-      }
-      if (endDate) {
-        endDate = new Date(endDate);
-        endDate.setHours(18, 29, 59, 999);
-        filterCriteria["payoutDetail.date"].$lte = endDate;
-      }
     }
 
-    // Query the Merchant model with filter criteria
-    const merchantPayoutQuery = Merchant.find(filterCriteria, {
-      payoutDetail: 1,
-      phoneNumber: 1,
-      "merchantDetail.merchantName": 1,
-    });
-
-    // Apply pagination if required
-    if (isPaginated) {
-      merchantPayoutQuery.skip(skip).limit(limit);
+    // Set start and end date boundaries, adjusting for timezone offset
+    const dateFilter = {};
+    if (startDate) {
+      startDate = new Date(startDate);
+      startDate.setHours(0, 0, 0, 0);
+      startDate.setMinutes(startDate.getMinutes() - timezoneOffset); // Apply timezone offset
+      dateFilter.$gte = startDate;
+    }
+    if (endDate) {
+      endDate = new Date(endDate);
+      endDate.setHours(23, 59, 59, 999);
+      endDate.setMinutes(endDate.getMinutes() - timezoneOffset); // Apply timezone offset
+      dateFilter.$lte = endDate;
     }
 
-    const merchants = await merchantPayoutQuery;
+    // Aggregation query with filters applied to payoutDetail
+    const merchantPayoutQuery = Merchant.aggregate([
+      { $match: filterCriteria },
+      {
+        $addFields: {
+          payoutDetail: {
+            $filter: {
+              input: "$payoutDetail",
+              as: "payout",
+              cond: {
+                $and: [
+                  // Payment status filter
+                  ...(paymentStatus && paymentStatus !== "all"
+                    ? [
+                        {
+                          $eq: [
+                            "$$payout.isSettled",
+                            paymentStatus.toLowerCase() === "true",
+                          ],
+                        },
+                      ]
+                    : []),
+                  // Date range filter
+                  ...(startDate || endDate
+                    ? [
+                        {
+                          $and: [
+                            ...(startDate
+                              ? [{ $gte: ["$$payout.date", startDate] }]
+                              : []),
+                            ...(endDate
+                              ? [{ $lte: ["$$payout.date", endDate] }]
+                              : []),
+                          ],
+                        },
+                      ]
+                    : []),
+                ],
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          payoutDetail: 1,
+          phoneNumber: 1,
+          "merchantDetail.merchantName": 1,
+        },
+      },
+      ...(isPaginated ? [{ $skip: skip }, { $limit: limit }] : []),
+    ]);
 
-    // Flatten the response to get only payout details
-    const data = merchants.flatMap((merchant) => {
-      return merchant.payoutDetail.map((payout) => ({
+    // Execute the query and transform data as required
+    const merchants = await merchantPayoutQuery.exec();
+    const data = merchants.flatMap((merchant) =>
+      merchant.payoutDetail.map((payout) => ({
         merchantId: merchant._id,
         merchantName: merchant.merchantDetail.merchantName,
         phoneNumber: merchant.phoneNumber,
@@ -1969,9 +2008,10 @@ const getMerchantPayoutController = async (req, res, next) => {
         completedOrders: payout.completedOrders,
         isSettled: payout.isSettled,
         payoutId: payout.payoutId,
-      }));
-    });
+      }))
+    );
 
+    // Respond with the data and pagination info if paginated
     res.status(200).json({
       data,
       pagination: isPaginated
@@ -1987,94 +2027,26 @@ const getMerchantPayoutController = async (req, res, next) => {
   }
 };
 
-// const getMerchantPayoutDetail = async (req, res, next) => {
-//   try {
-//     const { date, merchantId } = req.query;
-
-//     const startOfDay = new Date(date);
-//     startOfDay.setHours(0, 0, 0, 0);
-//     const endOfDay = new Date(date);
-//     endOfDay.setHours(23, 59, 59, 999);
-
-//     // Find all completed orders for the specified merchant on the given day
-//     const allOrders = await Order.find({
-//       merchantId,
-//       status: "Completed",
-//       createdAt: { $gte: startOfDay, $lte: endOfDay },
-//     })
-//       .select("purchasedItems")
-//       .lean();
-
-//     // Initialize an array to store the processed data
-//     const processedItems = [];
-
-//     // Iterate through each order's purchased items
-//     for (const order of allOrders) {
-//       for (const item of order.purchasedItems) {
-//         const product = await Product.findById(item.productId)
-//           .select("productName costPrice price variants")
-//           .lean();
-//         if (!product) continue;
-
-//         const productName = product.productName;
-
-//         // Initialize variables for price and costPrice based on whether a variant exists
-//         let price = item.price || product.price;
-//         let costPrice = item.costPrice || product.costPrice;
-//         let variantName = null;
-
-//         if (item.variantId) {
-//           // Find the matching variant type
-//           const variant = product.variants
-//             .flatMap((v) => v.variantTypes)
-//             .find(
-//               (vType) => vType._id.toString() === item.variantId.toString()
-//             );
-//           if (variant) {
-//             variantName = variant.typeName;
-//             price = variant.price;
-//             costPrice = variant.costPrice;
-//           }
-//         }
-
-//         // Calculate total cost for the item
-//         const totalCost = item.quantity * costPrice;
-
-//         // Push the formatted item data to the processedItems array
-//         processedItems.push({
-//           productName,
-//           variantName,
-//           costPrice,
-//           price,
-//           quantity: item.quantity,
-//           totalCost,
-//         });
-//       }
-//     }
-
-//     res.status(200).json({
-//       data: processedItems,
-//     });
-//   } catch (err) {
-//     next(new Error(`Error retrieving merchant payout details: ${err.message}`));
-//   }
-// };
-
-const moment = require('moment-timezone');
-
-const convertISTToUTC = (dateInIST) => {
-  // Parse the date in ISO format (YYYY-MM-DD) and set timezone to IST
-  return moment.tz(dateInIST, "YYYY-MM-DD", "Asia/Kolkata").utc().toDate();
-};
-
+// Get single merchant payout detail
 const getMerchantPayoutDetail = async (req, res, next) => {
   try {
-    const { date, merchantId } = req.query;
+    const { date, merchantId, timezoneOffset = 0 } = req.query;
 
-    // Convert date in IST to UTC start and end of day
-    const startOfDay = convertISTToUTC(date);
-    const endOfDay = moment(convertISTToUTC(date)).endOf('day').toDate();
+    // Parse the input date string as a local date
+    const localDate = new Date(date);
 
+    // Set hours to start and end of the day in local time
+    const startOfDay = new Date(localDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(localDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Adjust by timezoneOffset to get correct UTC times
+    startOfDay.setMinutes(startOfDay.getMinutes() - timezoneOffset);
+    endOfDay.setMinutes(endOfDay.getMinutes() - timezoneOffset);
+
+    // Find all completed orders for the specified merchant on the given day
     const allOrders = await Order.find({
       merchantId,
       status: "Completed",
@@ -2125,11 +2097,11 @@ const getMerchantPayoutDetail = async (req, res, next) => {
 
     res.status(200).json({ data: processedItems });
   } catch (err) {
-    next(new Error(`Error retrieving merchant payout details: ${err.message}`));
+    next(appError(err.message));
   }
 };
 
-
+// Confirm merchant payment
 const comfirmMerchantPayout = async (req, res, next) => {
   try {
     const { payoutId, merchantId } = req.params;
@@ -2152,6 +2124,14 @@ const comfirmMerchantPayout = async (req, res, next) => {
     await merchantFound.save();
 
     res.status(200).json({ message: "Payment settled successfully" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Download payout csv
+const downloadPayoutCSVController = async (req, res, next) => {
+  try {
   } catch (err) {
     next(appError(err.message));
   }

@@ -82,6 +82,9 @@ const {
 } = require("./utils/createPerDayRevenueHelper.js");
 const activityLogRoute = require("./routes/adminRoute/activityLogRoute/activityLogRoute.js");
 const { preparePayoutForMerchant } = require("./utils/merchantHelpers.js");
+const {
+  deleteOldActivityLogs,
+} = require("./controllers/admin/activityLogs/activityLogController.js");
 // const { createSettlement } = require("./utils/razorpayPayment.js");
 
 //middlewares
@@ -196,12 +199,12 @@ cron.schedule("30 18 * * *", async () => {
     generateMapplsAuthToken(),
     resetAllAgentTaskHelper(),
     deleteOldLoyaltyPoints(),
+    deleteOldActivityLogs(),
   ]);
 });
 
 // Cron jobs for every minutes
 cron.schedule("* * * * *", async () => {
-  // await preparePayoutForMerchant();
   deleteExpiredConversationsAndMessages();
   populateUserSocketMap();
 
@@ -243,10 +246,6 @@ cron.schedule("* * * * *", async () => {
       await createOrdersFromScheduledPickAndDrop(scheduledOrder);
     }
   }
-});
-
-cron.schedule("0 0 */10 * *", async () => {
-  await deleteOldActivityLogs();
 });
 
 // Global errors
