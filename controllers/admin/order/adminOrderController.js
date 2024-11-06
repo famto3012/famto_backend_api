@@ -2202,7 +2202,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
       pickupLocation,
       selectedBusinessCategory
     );
-
+    console.log("1")
     let merchantDiscountAmount;
     if (merchantFound) {
       merchantDiscountAmount = await applyDiscounts({

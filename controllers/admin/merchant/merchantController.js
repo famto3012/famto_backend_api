@@ -1987,16 +1987,94 @@ const getMerchantPayoutController = async (req, res, next) => {
   }
 };
 
+// const getMerchantPayoutDetail = async (req, res, next) => {
+//   try {
+//     const { date, merchantId } = req.query;
+
+//     const startOfDay = new Date(date);
+//     startOfDay.setHours(0, 0, 0, 0);
+//     const endOfDay = new Date(date);
+//     endOfDay.setHours(23, 59, 59, 999);
+
+//     // Find all completed orders for the specified merchant on the given day
+//     const allOrders = await Order.find({
+//       merchantId,
+//       status: "Completed",
+//       createdAt: { $gte: startOfDay, $lte: endOfDay },
+//     })
+//       .select("purchasedItems")
+//       .lean();
+
+//     // Initialize an array to store the processed data
+//     const processedItems = [];
+
+//     // Iterate through each order's purchased items
+//     for (const order of allOrders) {
+//       for (const item of order.purchasedItems) {
+//         const product = await Product.findById(item.productId)
+//           .select("productName costPrice price variants")
+//           .lean();
+//         if (!product) continue;
+
+//         const productName = product.productName;
+
+//         // Initialize variables for price and costPrice based on whether a variant exists
+//         let price = item.price || product.price;
+//         let costPrice = item.costPrice || product.costPrice;
+//         let variantName = null;
+
+//         if (item.variantId) {
+//           // Find the matching variant type
+//           const variant = product.variants
+//             .flatMap((v) => v.variantTypes)
+//             .find(
+//               (vType) => vType._id.toString() === item.variantId.toString()
+//             );
+//           if (variant) {
+//             variantName = variant.typeName;
+//             price = variant.price;
+//             costPrice = variant.costPrice;
+//           }
+//         }
+
+//         // Calculate total cost for the item
+//         const totalCost = item.quantity * costPrice;
+
+//         // Push the formatted item data to the processedItems array
+//         processedItems.push({
+//           productName,
+//           variantName,
+//           costPrice,
+//           price,
+//           quantity: item.quantity,
+//           totalCost,
+//         });
+//       }
+//     }
+
+//     res.status(200).json({
+//       data: processedItems,
+//     });
+//   } catch (err) {
+//     next(new Error(`Error retrieving merchant payout details: ${err.message}`));
+//   }
+// };
+
+const moment = require('moment-timezone');
+
+const convertISTToUTC = (dateInIST) => {
+  // Parse the date in ISO format (YYYY-MM-DD) and set timezone to IST
+  return moment.tz(dateInIST, "YYYY-MM-DD", "Asia/Kolkata").utc().toDate();
+};
+
 const getMerchantPayoutDetail = async (req, res, next) => {
   try {
     const { date, merchantId } = req.query;
 
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    // Convert date in IST to UTC start and end of day
+    const startOfDay = convertISTToUTC(date);
+    const endOfDay = moment(convertISTToUTC(date)).endOf('day').toDate();
 
-    // Find all completed orders for the specified merchant on the given day
     const allOrders = await Order.find({
       merchantId,
       status: "Completed",
@@ -2005,31 +2083,28 @@ const getMerchantPayoutDetail = async (req, res, next) => {
       .select("purchasedItems")
       .lean();
 
-    // Initialize an array to store the processed data
-    const processedItems = [];
+    const productIds = [
+      ...new Set(allOrders.flatMap(order => order.purchasedItems.map(item => item.productId))),
+    ];
+    
+    const products = await Product.find({ _id: { $in: productIds } })
+      .select("productName costPrice price variants")
+      .lean();
 
-    // Iterate through each order's purchased items
-    for (const order of allOrders) {
-      for (const item of order.purchasedItems) {
-        const product = await Product.findById(item.productId)
-          .select("productName costPrice price variants")
-          .lean();
-        if (!product) continue;
+    const productMap = Object.fromEntries(products.map(product => [product._id.toString(), product]));
 
-        const productName = product.productName;
+    const processedItems = allOrders.flatMap(order =>
+      order.purchasedItems.map(item => {
+        const product = productMap[item.productId.toString()];
+        if (!product) return null;
 
-        // Initialize variables for price and costPrice based on whether a variant exists
-        let price = item.price || product.price;
-        let costPrice = item.costPrice || product.costPrice;
+        let { price, costPrice } = product;
         let variantName = null;
 
         if (item.variantId) {
-          // Find the matching variant type
           const variant = product.variants
-            .flatMap((v) => v.variantTypes)
-            .find(
-              (vType) => vType._id.toString() === item.variantId.toString()
-            );
+            .flatMap(v => v.variantTypes)
+            .find(vType => vType._id.toString() === item.variantId.toString());
           if (variant) {
             variantName = variant.typeName;
             price = variant.price;
@@ -2037,28 +2112,23 @@ const getMerchantPayoutDetail = async (req, res, next) => {
           }
         }
 
-        // Calculate total cost for the item
-        const totalCost = item.quantity * costPrice;
-
-        // Push the formatted item data to the processedItems array
-        processedItems.push({
-          productName,
+        return {
+          productName: product.productName,
           variantName,
           costPrice,
           price,
           quantity: item.quantity,
-          totalCost,
-        });
-      }
-    }
+          totalCost: item.quantity * (costPrice || item.costPrice || 0),
+        };
+      }).filter(Boolean) // Remove any null items
+    );
 
-    res.status(200).json({
-      data: processedItems,
-    });
+    res.status(200).json({ data: processedItems });
   } catch (err) {
     next(new Error(`Error retrieving merchant payout details: ${err.message}`));
   }
 };
+
 
 const comfirmMerchantPayout = async (req, res, next) => {
   try {
