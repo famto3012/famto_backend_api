@@ -610,7 +610,7 @@ const searchScheduledOrderByIdController = async (req, res, next) => {
 
     const searchCriteria = {
       _id: { $regex: query, $options: "i" },
-      merchantId: rea.userAuth,
+      merchantId: req.userAuth,
     };
 
     const ordersFound = await ScheduledOrder.find(searchCriteria)
@@ -631,6 +631,10 @@ const searchScheduledOrderByIdController = async (req, res, next) => {
     const totalDocuments =
       (await ScheduledOrder.countDocuments(searchCriteria)) || 1;
 
+    const unSeenOrdersCount = ordersFound.filter(
+      (order) => !order.isViewed
+    ).length;
+
     const formattedOrders = ordersFound.map((order) => {
       return {
         _id: order._id,
@@ -650,6 +654,7 @@ const searchScheduledOrderByIdController = async (req, res, next) => {
             : order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
         amount: order.billDetail.grandTotal,
+        isViewed: order?.isViewed || false,
       };
     });
 
@@ -666,6 +671,7 @@ const searchScheduledOrderByIdController = async (req, res, next) => {
       message: "Search result of order",
       data: formattedOrders || [],
       pagination,
+      unSeenOrdersCount,
     });
   } catch (err) {
     next(appError(err.message));
@@ -798,7 +804,7 @@ const filterScheduledOrdersController = async (req, res, next) => {
     // Calculate the number of documents to skip
     const skip = (page - 1) * limit;
 
-    const filterCriteria = { merchantId: rea.userAuth };
+    const filterCriteria = { merchantId: req.userAuth };
 
     if (status && status.trim().toLowerCase() !== "all") {
       filterCriteria.status = { $regex: status.trim(), $options: "i" };
@@ -846,6 +852,10 @@ const filterScheduledOrdersController = async (req, res, next) => {
     const totalDocuments =
       (await ScheduledOrder.countDocuments(filterCriteria)) || 1;
 
+    const unSeenOrdersCount = filteredOrderResults.filter(
+      (order) => !order.isViewed
+    ).length;
+
     const formattedOrders = filteredOrderResults.map((order) => {
       return {
         _id: order._id,
@@ -865,6 +875,7 @@ const filterScheduledOrdersController = async (req, res, next) => {
             : order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
         amount: order.billDetail.grandTotal,
+        isViewed: order?.isViewed || false,
       };
     });
 
@@ -881,6 +892,7 @@ const filterScheduledOrdersController = async (req, res, next) => {
       message: "Filtered orders",
       data: formattedOrders,
       pagination,
+      unSeenOrdersCount,
     });
   } catch (err) {
     next(appError(err.message));
@@ -1118,12 +1130,12 @@ const createOrderController = async (req, res, next) => {
 
     if (!cartFound) return next(appError("Cart not found", 404));
 
-    const customerFound = await Customer.findById(cartFound.customerId);
+    const [customerFound, merchant] = await Promise.all([
+      Customer.findById(cartFound.customerId),
+      Merchant.findById(cartFound.merchantId),
+    ]);
 
     if (!customerFound) return next(appError("Customer not found", 404));
-
-    const merchant = await Merchant.findById(cartFound.merchantId);
-
     if (!merchant) return next(appError("Merchant not found", 404));
 
     const deliveryTimeMinutes = parseInt(
@@ -1210,15 +1222,19 @@ const createOrderController = async (req, res, next) => {
           description: `New order (#${newOrder._id}) is created by Merchant (${req.userAuth})`,
         });
 
-        const { payableAmountToFamto, payableAmountToMerchant } =
-          await orderCommissionLogHelper(newOrder._id);
+        const modelType = merchant.merchantDetail.pricing[0].modelType;
 
-        let updatedCommission = {
-          merchantEarnings: payableAmountToMerchant,
-          famtoEarnings: payableAmountToFamto,
-        };
+        if (modelType === "Commission") {
+          const { payableAmountToFamto, payableAmountToMerchant } =
+            await orderCommissionLogHelper(newOrder._id);
 
-        newOrder.commissionDetail = updatedCommission;
+          let updatedCommission = {
+            merchantEarnings: payableAmountToMerchant,
+            famtoEarnings: payableAmountToFamto,
+          };
+
+          newOrder.commissionDetail = updatedCommission;
+        }
 
         if (newOrder?.orderDetail?.deliveryMode !== "Take Away") {
           const task = await orderCreateTaskHelper(newOrder._id);
@@ -1295,15 +1311,19 @@ const createOrderController = async (req, res, next) => {
           purchasedItems,
         });
 
-        const { payableAmountToFamto, payableAmountToMerchant } =
-          await orderCommissionLogHelper(newOrder._id);
+        const modelType = merchant.merchantDetail.pricing[0].modelType;
 
-        let updatedCommission = {
-          merchantEarnings: payableAmountToMerchant,
-          famtoEarnings: payableAmountToFamto,
-        };
+        if (modelType === "Commission") {
+          const { payableAmountToFamto, payableAmountToMerchant } =
+            await orderCommissionLogHelper(newOrder._id);
 
-        newOrder.commissionDetail = updatedCommission;
+          let updatedCommission = {
+            merchantEarnings: payableAmountToMerchant,
+            famtoEarnings: payableAmountToFamto,
+          };
+
+          newOrder.commissionDetail = updatedCommission;
+        }
 
         if (newOrder?.orderDetail?.deliveryMode !== "Take Away") {
           const task = await orderCreateTaskHelper(newOrder._id);
@@ -1321,6 +1341,77 @@ const createOrderController = async (req, res, next) => {
         newOrder.status = "On-going";
 
         await newOrder.save();
+
+        newOrder = await Order.findById(newOrder._id).populate("merchantId");
+
+        const eventName = "newOrderCreated";
+
+        const { rolesToNotify, data } = await findRolesToNotify(eventName);
+
+        const socketData = {
+          orderId: newOrder._id,
+          orderDetail: newOrder.orderDetail,
+          billDetail: newOrder.billDetail,
+          orderDetailStepper: newOrder?.orderDetailStepper?.created,
+          _id: newOrder._id,
+          orderStatus: newOrder.status,
+          merchantName:
+            newOrder?.merchantId?.merchantDetail?.merchantName || "-",
+          customerName:
+            newOrder?.orderDetail?.deliveryAddress?.fullName ||
+            newOrder?.customerId?.fullName ||
+            "-",
+          deliveryMode: newOrder?.orderDetail?.deliveryMode,
+          orderDate: formatDate(newOrder.createdAt),
+          orderTime: formatTime(newOrder.createdAt),
+          deliveryDate: newOrder?.orderDetail?.deliveryTime
+            ? formatDate(newOrder.orderDetail.deliveryTime)
+            : "-",
+          deliveryTime: newOrder?.orderDetail?.deliveryTime
+            ? formatTime(newOrder.orderDetail.deliveryTime)
+            : "-",
+          paymentMethod: newOrder.paymentMode,
+          deliveryOption: newOrder.orderDetail.deliveryOption,
+          amount: newOrder.billDetail.grandTotal,
+        };
+
+        sendSocketData(newOrder.customerId, eventName, socketData);
+        sendSocketData(process.env.ADMIN_ID, eventName, socketData);
+        if (newOrder?.merchantId?._id) {
+          sendSocketData(newOrder?.merchantId?._id, eventName, socketData);
+        }
+
+        // Send notifications to each role dynamically
+        for (const role of rolesToNotify) {
+          let roleId;
+
+          if (role === "admin") {
+            roleId = process.env.ADMIN_ID;
+          } else if (role === "merchant") {
+            roleId = newOrder?.merchantId?._id;
+          } else if (role === "driver") {
+            roleId = newOrder?.agentId;
+          } else if (role === "customer") {
+            roleId = newOrder?.customerId;
+          }
+
+          if (roleId) {
+            const notificationData = {
+              fcm: {
+                ...data,
+                orderId: newOrder._id,
+                customerId: newOrder.customerId,
+              },
+            };
+
+            await sendNotification(
+              roleId,
+              eventName,
+              notificationData,
+              role.charAt(0).toUpperCase() + role.slice(1)
+            );
+          }
+        }
 
         // Clear the cart
         await CustomerCart.deleteOne({ customerId: customerFound._id });
@@ -1539,6 +1630,7 @@ const createInvoiceController = async (req, res, next) => {
       customerAddress,
       formattedErrors,
       res,
+      deliveryMode,
     });
     if (!customer) return res.status(409).json({ errors: formattedErrors });
 

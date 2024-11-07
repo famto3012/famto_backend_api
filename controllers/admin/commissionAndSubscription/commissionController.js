@@ -237,8 +237,8 @@ const getCommissionDetailOfMerchant = async (req, res, next) => {
     res.status(200).json({
       message: "Commission of merchant",
       data: {
-        commissionType: commissionFound.commissionType || null,
-        commissionValue: commissionFound.commissionValue || null,
+        commissionType: commissionFound?.commissionType || null,
+        commissionValue: commissionFound?.commissionValue || null,
       },
     });
   } catch (err) {

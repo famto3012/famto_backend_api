@@ -972,6 +972,7 @@ const getTotalRatingOfMerchantController = async (req, res, next) => {
 const addOrUpdateCartItemController = async (req, res, next) => {
   try {
     const { productId, quantity, variantTypeId } = req.body;
+    console.log(req.body);
     const customerId = req.userAuth;
 
     if (!customerId) {
@@ -1038,6 +1039,7 @@ const addOrUpdateCartItemController = async (req, res, next) => {
     );
 
     if (existingItemIndex >= 0) {
+      console.log("Item exists");
       cart.items[existingItemIndex].quantity = quantity;
       cart.items[existingItemIndex].price = finalPrice;
       cart.items[existingItemIndex].totalPrice = quantity * finalPrice;
@@ -1046,6 +1048,7 @@ const addOrUpdateCartItemController = async (req, res, next) => {
         cart.items.splice(existingItemIndex, 1);
       }
     } else {
+      console.log("No item exists");
       if (quantity > 0) {
         const newItem = {
           productId,
@@ -2163,7 +2166,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
         return {
           ...item,
           productId: {
-            id: product._id,
+            _id: product._id,
             productName: product.productName,
             description: product.description,
             productImageURL: product.productImageURL,
@@ -2178,12 +2181,12 @@ const verifyOnlinePaymentController = async (req, res, next) => {
 
     let formattedItems = populatedCartWithVariantNames.items.map((items) => {
       return {
-        itemName: items.productId.productName,
-        description: items.productId.description,
-        itemImageURL: items.productId.productImageURL,
-        quantity: items.quantity,
-        price: items.price,
-        variantTypeName: items.variantTypeId.variantTypeName,
+        itemName: items?.productId?.productName,
+        description: items?.productId?.description,
+        itemImageURL: items?.productId?.productImageURL,
+        quantity: items?.quantity,
+        price: items?.price,
+        variantTypeName: items?.variantTypeId?.variantTypeName,
       };
     });
 
@@ -2194,16 +2197,10 @@ const verifyOnlinePaymentController = async (req, res, next) => {
     let startDate, endDate;
     if (cart.cartDetail.deliveryOption === "Scheduled") {
       startDate = new Date(cart.cartDetail.startDate);
-      startDate.setHours(0);
-      startDate.setMinutes(0);
-      startDate.setSeconds(0);
-      startDate.setMilliseconds(0);
+      startDate.setHours(18, 30, 0, 0);
 
       endDate = new Date(cart.cartDetail.startDate);
-      endDate.setHours(23);
-      endDate.setMinutes(59);
-      endDate.setSeconds(59);
-      endDate.setMilliseconds(999);
+      endDate.setHours(18, 29, 59, 999);
     }
 
     let orderBill = {
@@ -2323,7 +2320,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
             paymentStatus: storedOrderData.paymentStatus,
             purchasedItems: storedOrderData.purchasedItems,
             "orderDetailStepper.created": {
-              by: storedOrder.orderDetail.deliveryAddress.fullName,
+              by: storedOrderData.orderDetail.deliveryAddress.fullName,
               userId: storedOrderData.customerId,
               date: new Date(),
             },

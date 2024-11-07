@@ -35,6 +35,8 @@ const { formatDate, formatTime } = require("../../utils/formatters");
 const { sendNotification, sendSocketData } = require("../../socket/socket");
 const Geofence = require("../../models/Geofence");
 const Referral = require("../../models/Referral");
+const ScheduledOrder = require("../../models/ScheduledOrder");
+const scheduledPickAndCustom = require("../../models/ScheduledPickAndCustom");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -562,6 +564,24 @@ const getCustomerOrdersController = async (req, res, next) => {
   }
 };
 
+// Get all scheduled orders of customer
+const getAllScheduledOrdersOfCustomer = async (req, res, next) => {
+  try {
+    const customerId = req.userAuth;
+
+    const [universalOrders, pickandCustomOrders] = await Promise.all([
+      ScheduledOrder.find({ customerId }),
+      scheduledPickAndCustom.find({ customerId }),
+    ]);
+
+    const allOrders = [...universalOrders, ...pickandCustomOrders];
+
+    res.status(200).json({ data: allOrders });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 // Get single order detail
 const getsingleOrderDetailController = async (req, res, next) => {
   try {
@@ -587,7 +607,18 @@ const getsingleOrderDetailController = async (req, res, next) => {
       pickUpAddress: orderFound?.orderDetail?.pickupAddress || null,
       deliveryAddress: orderFound?.orderDetail?.deliveryAddress || null,
       items: orderFound?.items || null,
-      billDetail: orderFound?.billDetail || null,
+      billDetail: {
+        deliveryCharge: orderFound?.billDetail?.deliveryCharge || null,
+        taxAmount: orderFound?.billDetail?.taxAmount || null,
+        discountedAmount: orderFound?.billDetail?.discountedAmount || null,
+        grandTotal: orderFound?.billDetail?.grandTotal || null,
+        itemTotal: orderFound?.billDetail?.itemTotal || null,
+        addedTip: orderFound?.billDetail?.addedTip || null,
+        subTotal: orderFound?.billDetail?.subTotal || null,
+        surgePrice: orderFound?.billDetail?.surgePrice || null,
+        waitingCharge: orderFound?.billDetail?.waitingCharge || null,
+        vehicleType: orderFound?.billDetail?.vehicleType || null,
+      },
       orderDate: formatDate(orderFound?.createdAt),
       orderTime: formatTime(orderFound?.createdAt),
       paymentMode: orderFound?.paymentMode || null,
@@ -926,6 +957,7 @@ const getCustomerCartController = async (req, res, next) => {
   }
 };
 
+//
 const getSpalshScreenImageController = async (req, res, next) => {
   try {
     const spalshScreenImage = await CustomerAppCustomization.findOne({}).select(
@@ -941,6 +973,7 @@ const getSpalshScreenImageController = async (req, res, next) => {
   }
 };
 
+//
 const getCustomerAppBannerController = async (req, res, next) => {
   try {
     const allBanners = await AppBanner.find({ status: true }).select(
@@ -960,6 +993,7 @@ const getCustomerAppBannerController = async (req, res, next) => {
   }
 };
 
+//
 const getPickAndDropBannersController = async (req, res, next) => {
   try {
     const allBanners = await PickAndDropBanner.find({ status: true }).select(
@@ -980,6 +1014,7 @@ const getPickAndDropBannersController = async (req, res, next) => {
   }
 };
 
+//
 const getCustomOrderBannersController = async (req, res, next) => {
   try {
     const allBanners = await CustomOrderBanner.find({ status: true }).select(
@@ -1000,6 +1035,7 @@ const getCustomOrderBannersController = async (req, res, next) => {
   }
 };
 
+//
 const getAvailableServiceController = async (req, res, next) => {
   try {
     const availableServices = await ServiceCategory.find({})
@@ -1022,6 +1058,7 @@ const getAvailableServiceController = async (req, res, next) => {
   }
 };
 
+//
 const generateReferralCode = async (req, res, next) => {
   try {
     const customerId = req.userAuth;
@@ -1071,6 +1108,7 @@ const generateReferralCode = async (req, res, next) => {
   }
 };
 
+//
 const getSelectedOngoingOrderDetailController = async (req, res, next) => {
   try {
     const { orderId } = req.params;
@@ -1119,6 +1157,7 @@ const getSelectedOngoingOrderDetailController = async (req, res, next) => {
   }
 };
 
+//
 const getAllNotificationsOfCustomerController = async (req, res, next) => {
   try {
     const customerId = req.userAuth;
@@ -1145,6 +1184,7 @@ const getAllNotificationsOfCustomerController = async (req, res, next) => {
   }
 };
 
+//
 const getVisibilityOfReferal = async (req, res, next) => {
   try {
     const referalFound = await Referral.find({ status: true });
@@ -1157,6 +1197,7 @@ const getVisibilityOfReferal = async (req, res, next) => {
   }
 };
 
+//
 const getCurrentOngoingOrders = async (req, res, next) => {
   try {
     const customerId = req.userAuth;
