@@ -605,7 +605,11 @@ const filterProductIdAndQuantity = async (items) => {
       items.map(async (item) => {
         if (!item.productId) return null;
 
-        const product = await Product.findById(item.productId).lean();
+        console.log("Item Id: ", item.productId);
+
+        // const productId = item?.productId ||
+
+        const product = await Product.findById(item?.productId).lean();
         if (!product) return null;
 
         let price, costPrice;
@@ -628,11 +632,11 @@ const filterProductIdAndQuantity = async (items) => {
         }
 
         return {
-          productId: item.productId,
-          variantId: item.variantTypeId || null,
+          productId: item?.productId,
+          variantId: item?.variantTypeId || null,
           price,
           costPrice,
-          quantity: item.quantity,
+          quantity: item?.quantity,
         };
       })
     );

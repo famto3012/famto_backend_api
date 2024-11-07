@@ -496,7 +496,7 @@ const getRealTimeDataCount = async () => {
       },
     };
 
-    console.log("Emitting real-time data:", realTimeData);
+    // console.log("Emitting real-time data:", realTimeData);
     io.emit("realTimeDataCount", realTimeData);
   } catch (err) {
     console.error("Error updating real-time data:", err);

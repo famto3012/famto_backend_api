@@ -27,12 +27,19 @@ const findOrCreateCustomer = async ({
   customerAddress,
   deliveryMode,
 }) => {
+  console.log("customerId", customerId);
+  console.log("newCustomer", newCustomer);
+  console.log("customerAddress", customerAddress);
+  console.log("deliveryMode", deliveryMode);
+
+  console.log("1.1");
   if (customerId) {
     const customer = await Customer.findById(customerId);
     if (!customer) throw new Error("Customer not found");
     return customer;
   }
 
+  console.log("1.2");
   const existingCustomer = await Customer.findOne({
     $or: [
       { phoneNumber: newCustomer.phoneNumber },
@@ -40,10 +47,19 @@ const findOrCreateCustomer = async ({
     ],
   });
 
-  if (existingCustomer) {
-    return existingCustomer;
+  console.log("1.3");
+  if (existingCustomer) return existingCustomer;
+
+  console.log("1.4");
+  if (newCustomer && deliveryMode === "Take Away") {
+    return await Customer.create({
+      fullName: newCustomer.fullName,
+      email: newCustomer.email,
+      phoneNumber: newCustomer.phoneNumber,
+    });
   }
 
+  console.log("1.5");
   if (customerAddress) {
     const location = [customerAddress.latitude, customerAddress.longitude];
     const updatedAddress = {
@@ -81,23 +97,14 @@ const findOrCreateCustomer = async ({
 
     return await Customer.create(updatedNewCustomer);
   }
-
-  if (newCustomer && deliveryMode === "Take Away") {
-    return await Customer.create({
-      fullName: newCustomer.fullName,
-      email: newCustomer.email,
-      phoneNumber: newCustomer.phoneNumber,
-    });
-  }
 };
 
 // Get the scheduled details
 const processSchedule = (ifScheduled) => {
   const { startDate, endDate } = ifScheduled;
-  // const time = ifScheduled.time
-  //   ? convertISTToUTC(startDate, ifScheduled.time)
-  //   : null;
-  const time = ifScheduled.time ? ifScheduled.time : null;
+  const time = ifScheduled.time
+    ? convertISTToUTC(startDate, ifScheduled.time)
+    : null;
 
   if (!startDate || !endDate || !time) {
     return { startDate: null, endDate: null, time: null, numOfDays: null };

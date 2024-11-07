@@ -30,9 +30,10 @@ const addAlertNotificationController = async (req, res, next) => {
     const { title, description, userType, id } = req.body;
 
     let imageUrl = "";
-    if (req.file) {
+    if (req.file)
       imageUrl = await uploadToFirebase(req.file, "alertNotificationImage");
-    }
+
+    const formattedId = id.toUpperCase();
 
     // Determine which ID field to set based on the boolean flags
     let alertNotificationData = {
@@ -42,11 +43,11 @@ const addAlertNotificationController = async (req, res, next) => {
     };
 
     if (userType === "merchant") {
-      alertNotificationData.merchantId = id;
+      alertNotificationData.merchantId = formattedId;
       alertNotificationData.merchant = true;
 
       const merchant = await MerchantNotificationLogs.create({
-        merchantId: id,
+        merchantId: formattedId,
         title,
         description,
         imageUrl,
@@ -66,19 +67,18 @@ const addAlertNotificationController = async (req, res, next) => {
         },
       };
 
-      sendNotification(id, "alertNotification", data);
+      sendNotification(formattedId, "alertNotification", data);
       const event = "alertNotification";
-      sendSocketData(id, event, data.socket);
+      sendSocketData(formattedId, event, data.socket);
       sendSocketData(process.env.ADMIN_ID, event, data.socket);
     } else if (userType === "agent") {
-      alertNotificationData.agentId = id;
+      alertNotificationData.agentId = formattedId;
       alertNotificationData.agent = true;
       const agent = await AgentAnnouncementLogs.create({
-        agentId: id,
+        agentId: formattedId,
         title,
         description,
         imageUrl,
-       
       });
       const data = {
         socket: {
@@ -93,15 +93,15 @@ const addAlertNotificationController = async (req, res, next) => {
           image: imageUrl,
         },
       };
-      sendNotification(id, "alertNotification", data);
+      sendNotification(formattedId, "alertNotification", data);
       const event = "alertNotification";
-      sendSocketData(id, event, data.socket);
+      sendSocketData(formattedId, event, data.socket);
       sendSocketData(process.env.ADMIN_ID, event, data.socket);
     } else if (userType === "customer") {
-      alertNotificationData.customerId = id;
+      alertNotificationData.customerId = formattedId;
       alertNotificationData.customer = true;
-     const customer = await CustomerNotificationLogs.create({
-        customerId: id,
+      const customer = await CustomerNotificationLogs.create({
+        customerId: formattedId,
         title,
         description,
         imageUrl,
@@ -119,9 +119,9 @@ const addAlertNotificationController = async (req, res, next) => {
           image: imageUrl,
         },
       };
-      sendNotification(id, "alertNotification", data);
+      sendNotification(formattedId, "alertNotification", data);
       const event = "alertNotification";
-      sendSocketData(id, event, data.socket);
+      sendSocketData(formattedId, event, data.socket);
       sendSocketData(process.env.ADMIN_ID, event, data.socket);
     } else {
       return next(
