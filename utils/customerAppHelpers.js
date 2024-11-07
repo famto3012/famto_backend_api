@@ -289,7 +289,7 @@ const createOrdersFromScheduledPickAndDrop = async (scheduledOrder) => {
 
     const stepperData = {
       by: "Admin",
-      date: convertToIST(new Date()),
+      date: new Date(),
     };
 
     const newOrder = await Order.create({
@@ -310,12 +310,10 @@ const createOrdersFromScheduledPickAndDrop = async (scheduledOrder) => {
       "orderDetailStepper.created": stepperData,
     });
 
-    if (
-      convertToIST(new Date()) < convertToIST(new Date(scheduledOrder.endDate))
-    ) {
-      const nextTime = convertToIST(new Date());
-      nextTime.setDate(nextTime.getDate() + 1);
+    const nextTime = new Date(scheduledOrder.time);
+    nextTime.setDate(nextTime.getDate() + 1);
 
+    if (nextTime < new Date(scheduledOrder.endDate)) {
       await ScheduledPickAndCustom.findByIdAndUpdate(scheduledOrder._id, {
         time: nextTime,
       });
