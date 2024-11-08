@@ -1036,22 +1036,15 @@ const getPickUpDetailController = async (req, res, next) => {
   try {
     const { taskId } = req.params;
 
-    console.log("Task ID:", taskId);
-
     const taskFound = await Task.findById(taskId).populate("orderId");
     if (!taskFound) {
       return next(appError("Task not found", 404));
     }
 
-    console.log("Task Found:", taskFound);
-    console.log("Order ID in Task:", taskFound?.orderId?._id);
-
     let merchantFound;
     if (taskFound?.orderId?.merchantId) {
       merchantFound = await Merchant.findById(taskFound.orderId.merchantId); // Update here if needed
     }
-
-    console.log("Merchant Found:", merchantFound);
 
     const formattedResponse = {
       taskId: taskFound._id,
@@ -1059,9 +1052,10 @@ const getPickUpDetailController = async (req, res, next) => {
       merchantId: merchantFound?._id || null,
       merchantName: merchantFound?.merchantDetail?.merchantName || null,
       customerId: taskFound?.orderId?.customerId || null,
-      customerName: taskFound?.orderId?.deliveryAddress?.fullName || null,
+      customerName:
+        taskFound?.orderId?.orderDetail?.deliveryAddress?.fullName || null,
       customerPhoneNumber:
-        taskFound?.orderId?.deliveryAddress?.phoneNumber || null,
+        taskFound?.orderId?.orderDetail?.deliveryAddress?.phoneNumber || null,
       type: "Pickup",
       date: formatDate(taskFound?.orderId?.createdAt) || null,
       time: formatTime(taskFound?.orderId?.createdAt) || null,
@@ -1122,6 +1116,13 @@ const getDeliveryDetailController = async (req, res, next) => {
       billDetail: taskFound.orderId.billDetail,
       paymentMode: taskFound.orderId.paymentMode,
       paymentStatus: taskFound.orderId.paymentStatus,
+      isnoteAdded: taskFound.orderId.detailAddedByAgent.notes ? true : false,
+      isSignatureAdded: taskFound.orderId.detailAddedByAgent.signatureImageURL
+        ? true
+        : false,
+      isImageAdded: taskFound.orderId.detailAddedByAgent.imageURL
+        ? true
+        : false,
     };
 
     res.status(200).json({
@@ -1367,32 +1368,35 @@ const completeOrderController = async (req, res, next) => {
     const { orderId } = req.body;
     const agentId = req.userAuth;
 
-    const [agentFound, orderFound, customerFound] = await Promise.all([
+    const [agentFound, orderFound] = await Promise.all([
       Agent.findById(agentId),
       Order.findById(orderId),
-      Customer.findById(orderFound.customerId),
     ]);
 
     if (!agentFound) return next(appError("Agent not found", 404));
     if (!orderFound) return next(appError("Order not found", 404));
-    if (!customerFound) return next(appError("Customer not found", 404));
+
     if (orderFound.status === "Completed")
       return next(appError("Order already completed", 400));
 
-    const cartTotal = orderFound.billDetail.itemTotal;
+    const customerFound = await Customer.findById(orderFound.customerId);
+
+    if (!customerFound) return next(appError("Customer not found", 404));
+
+    const { itemTotal } = orderFound.billDetail;
 
     // Calculate loyalty points for customer
     const loyaltyPointCriteria = await LoyaltyPoint.findOne({ status: true });
     if (
       loyaltyPointCriteria &&
-      orderAmount >= loyaltyPointCriteria.minOrderAmountForEarning
+      itemTotal >= loyaltyPointCriteria.minOrderAmountForEarning
     ) {
       updateLoyaltyPoints(customerFound, loyaltyPointCriteria, cartTotal);
     }
 
     // Calculate referral rewards for customer
     if (!customerFound?.referralDetail?.processed) {
-      await processReferralRewards(customerFound, orderAmount);
+      await processReferralRewards(customerFound, itemTotal);
     }
 
     // Calculate earnings for agent
@@ -1404,31 +1408,30 @@ const completeOrderController = async (req, res, next) => {
     // Update order details
     updateOrderDetails(orderFound, calculatedSalary);
 
-    await updateCustomerSubscriptionCount(customerFound._id);
-
-    await updateNotificationStatus(orderId);
-
-    // Update agent details
-    await updateAgentDetails(agentFound, orderFound, calculatedSalary, true);
+    await Promise.all([
+      updateCustomerSubscriptionCount(customerFound._id),
+      updateNotificationStatus(orderId),
+      updateAgentDetails(agentFound, orderFound, calculatedSalary, true),
+    ]);
 
     const stepperDetail = {
       by: agentFound.fullName,
       date: new Date(),
     };
 
-    orderFound.orderStepperDetil.completed = stepperDetail;
-
-    const agent = await Agent.findByIdAndUpdate(agentId, {
-      $inc: { taskCompleted: 1 },
-      "appDetail.orders": { $inc: 1 },
-    });
+    console.log("8");
+    orderFound.orderDetailStepper.completed = stepperDetail;
 
     await Promise.all([
       orderFound.save(),
       customerFound.save(),
       agentFound.save(),
+      Agent.findByIdAndUpdate(agentId, {
+        $inc: { taskCompleted: 1, "appDetail.orders": 1 },
+      }),
     ]);
 
+    console.log("9");
     const eventName = "orderCompleted";
 
     const { rolesToNotify, data } = await findRolesToNotify(eventName);
@@ -1494,15 +1497,11 @@ const addRatingsToCustomer = async (req, res, next) => {
 
     const orderFound = await Order.findById(orderId);
 
-    if (!orderFound) {
-      return next(appError("Order not found", 404));
-    }
+    if (!orderFound) return next(appError("Order not found", 404));
 
     const customerFound = await Customer.findById(orderFound.customerId);
 
-    if (!customerFound) {
-      return next(appError("Customer not found", 404));
-    }
+    if (!customerFound) return next(appError("Customer not found", 404));
 
     let updatedOrderRating = {
       review,
@@ -1524,8 +1523,7 @@ const addRatingsToCustomer = async (req, res, next) => {
 
     customerFound.customerDetails.ratingsByAgents.push(ratingsByAgent);
 
-    await orderFound.save();
-    await customerFound.save();
+    await Promise.all([orderFound.save(), customerFound.save()]);
 
     res.status(200).json({ message: "Customer rated successfully" });
   } catch (err) {

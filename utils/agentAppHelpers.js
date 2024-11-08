@@ -202,10 +202,14 @@ const processReferralRewards = async (customer, orderAmount) => {
 };
 
 const calculateAgentEarnings = async (agent, order) => {
-  const agentPricing = await AgentPricing.findOne({
-    status: true,
-    geofenceId: agent.geofenceId,
-  });
+  // const agentPricing = await AgentPricing.findOne({
+  //   status: true,
+  //   geofenceId: agent.geofenceId,
+  // });
+
+  const agentPricing = await AgentPricing.findById(
+    agent?.workStructure?.salaryStructureId
+  );
 
   if (!agentPricing) throw new Error("Agent pricing not found");
 
@@ -294,9 +298,7 @@ const updateNotificationStatus = async (orderId) => {
       status: "Accepted",
     });
 
-    if (!notificationFound) {
-      throw new Error("Notification not found");
-    }
+    if (!notificationFound) throw new Error("Notification not found");
 
     notificationFound.status = "Completed";
 

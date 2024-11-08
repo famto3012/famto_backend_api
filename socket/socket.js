@@ -174,6 +174,15 @@ const createNotificationLog = async (notificationSettings, message) => {
 
     if (notificationSettings?.driver) {
       try {
+        const notificationFound = await AgentNotificationLogs.findOne({
+          agentId: message.agentId,
+          orderId: message.orderId,
+        });
+
+        if (notificationFound) {
+          await AgentNotificationLogs.findByIdAndDelete(notificationFound._id);
+        }
+
         await AgentNotificationLogs.create({
           ...logData,
           agentId: message.agentId,
