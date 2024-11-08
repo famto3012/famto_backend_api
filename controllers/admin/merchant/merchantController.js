@@ -76,7 +76,7 @@ const transformAvailabilityValues = (availability) => {
 // -------For Merchant--------
 //-----------------------------
 
-//Register
+// Register
 const registerMerchantController = async (req, res, next) => {
   const errors = validationResult(req);
 
@@ -154,40 +154,62 @@ const getMerchantProfileController = async (req, res, next) => {
       return next(appError("Merchant not found", 404));
     }
 
-    let merchantPricing = {};
     const pricing = merchantFound?.merchantDetail?.pricing?.[0];
+    let merchantPricing = {};
 
-    if (pricing?.modelType === "Commission") {
-      const commission = await Commission.findById(pricing?.modelId);
-      merchantPricing = {
-        modelType: "Commission",
-        detail: {
-          type: commission?.commissionType?.toString() || "-",
-          value: commission?.commissionValue?.toString() || "-",
-        },
-      };
-    } else if (
-      merchantFound?.merchantDetail?.pricing[0]?.modelType === "Subscription"
-    ) {
-      const subscriptionLog = await SubscriptionLog.findById(
-        merchantFound?.merchantDetail?.pricing[0]?.modelId
-      );
-
-      const planFound = await MerchantSubscription.findById(
-        subscriptionLog.planId
-      )
-        .select("name")
-        .lean();
-
-      merchantPricing = {
-        modelType: "Subscription",
-        modelId: subscriptionLog?._id,
-        detail: {
-          type: planFound?.name || "-",
-          value: planFound?.name || "-",
-        },
-      };
+    if (pricing) {
+      if (pricing.modelType === "Commission") {
+        const commission = await Commission.findById(
+          pricing.modelId,
+          "commissionType commissionValue"
+        ).lean();
+        merchantPricing = {
+          modelType: "Commission",
+          detail: {
+            type: commission?.commissionType || "-",
+            value: commission?.commissionValue || "-",
+          },
+        };
+      } else if (pricing.modelType === "Subscription") {
+        const subscriptionLog = await SubscriptionLog.findById(
+          pricing.modelId,
+          "planId"
+        ).lean();
+        if (subscriptionLog?.planId) {
+          const planFound = await MerchantSubscription.findById(
+            subscriptionLog.planId,
+            "name"
+          ).lean();
+          merchantPricing = {
+            modelType: "Subscription",
+            modelId: subscriptionLog._id,
+            detail: {
+              type: planFound?.name || "-",
+              value: planFound?.name || "-",
+            },
+          };
+        }
+      }
     }
+
+    const merchantDetail = {
+      ...merchantFound.merchantDetail,
+      merchantImage: merchantFound.merchantDetail.merchantImageURL,
+      pancardImage: merchantFound.merchantDetail.pancardImageURL,
+      gstinImage: merchantFound.merchantDetail.GSTINImageURL,
+      faasiImage: merchantFound.merchantDetail.FSSAIImageURL,
+      aadharImage: merchantFound.merchantDetail.aadharImageURL,
+      pricing: merchantPricing,
+      geofenceId: merchantFound.merchantDetail.geofenceId?._id || "",
+      businessCategoryId: merchantFound.merchantDetail.businessCategoryId || [],
+    };
+
+    // Clean up redundant *ImageURL fields
+    delete merchantDetail.merchantImageURL;
+    delete merchantDetail.pancardImageURL;
+    delete merchantDetail.GSTINImageURL;
+    delete merchantDetail.FSSAIImageURL;
+    delete merchantDetail.aadharImageURL;
 
     const formattedResponse = {
       _id: merchantFound._id,
@@ -197,15 +219,8 @@ const getMerchantProfileController = async (req, res, next) => {
       isApproved: merchantFound.isApproved,
       status: merchantFound.status,
       isBlocked: merchantFound.isBlocked,
-      merchantDetail:
-        {
-          ...merchantFound?.merchantDetail,
-          pricing: merchantPricing ? merchantPricing : null,
-          geofenceId: merchantFound?.merchantDetail?.geofenceId?._id || "",
-          businessCategoryId:
-            merchantFound?.merchantDetail?.businessCategoryId || [],
-        } || {},
-      sponsorshipDetail: merchantFound?.sponsorshipDetail[0] || {},
+      merchantDetail,
+      sponsorshipDetail: merchantFound.sponsorshipDetail?.[0] || {},
     };
 
     res.status(200).json({
@@ -217,7 +232,7 @@ const getMerchantProfileController = async (req, res, next) => {
   }
 };
 
-//Change status by merchant
+// Change status by merchant
 const changeMerchantStatusByMerchantController = async (req, res, next) => {
   try {
     const merchantFound = await Merchant.findById(req.userAuth);
@@ -287,6 +302,7 @@ const changeMerchantStatusByMerchantController = async (req, res, next) => {
   }
 };
 
+// Change merchant status
 const changeMerchantStatusByMerchantControllerForToggle = async (
   req,
   res,
@@ -316,6 +332,7 @@ const changeMerchantStatusByMerchantControllerForToggle = async (
   }
 };
 
+// Edit merchant profile
 const editMerchantProfileController = async (req, res, next) => {
   const { fullName, email, phoneNumber, password } = req.body;
 
@@ -376,7 +393,7 @@ const editMerchantProfileController = async (req, res, next) => {
   }
 };
 
-//Update Merchant Details by merchant
+// Update Merchant Details by merchant
 const updateMerchantDetailsByMerchantController = async (req, res, next) => {
   const { fullName, email, phoneNumber, merchantDetail } = req.body;
 
@@ -535,7 +552,7 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
   }
 };
 
-//Initiate Merchant sponsorship payment by merchant
+// Initiate Merchant sponsorship payment by merchant
 const sponsorshipPaymentByMerchantController = async (req, res, next) => {
   const { sponsorshipStatus, currentPlan } = req.body;
 
@@ -571,7 +588,7 @@ const sponsorshipPaymentByMerchantController = async (req, res, next) => {
   }
 };
 
-//Verify Merchant sponsorship payment by merchant
+// Verify Merchant sponsorship payment by merchant
 const verifyPaymentByMerchantController = async (req, res, next) => {
   const merchantId = req.userAuth;
   const paymentDetails = req.body;
@@ -1047,6 +1064,25 @@ const getSingleMerchantController = async (req, res, next) => {
       };
     }
 
+    const merchantDetail = {
+      ...merchantFound.merchantDetail,
+      merchantImage: merchantFound.merchantDetail.merchantImageURL,
+      pancardImage: merchantFound.merchantDetail.pancardImageURL,
+      gstinImage: merchantFound.merchantDetail.GSTINImageURL,
+      faasiImage: merchantFound.merchantDetail.FSSAIImageURL,
+      aadharImage: merchantFound.merchantDetail.aadharImageURL,
+      pricing: merchantPricing,
+      geofenceId: merchantFound.merchantDetail.geofenceId?._id || "",
+      businessCategoryId: merchantFound.merchantDetail.businessCategoryId || [],
+    };
+
+    // Clean up redundant *ImageURL fields
+    delete merchantDetail.merchantImageURL;
+    delete merchantDetail.pancardImageURL;
+    delete merchantDetail.GSTINImageURL;
+    delete merchantDetail.FSSAIImageURL;
+    delete merchantDetail.aadharImageURL;
+
     const formattedResponse = {
       _id: merchantFound._id,
       fullName: merchantFound.fullName,
@@ -1055,14 +1091,7 @@ const getSingleMerchantController = async (req, res, next) => {
       isApproved: merchantFound.isApproved,
       status: merchantFound.status,
       isBlocked: merchantFound.isBlocked,
-      merchantDetail:
-        {
-          ...merchantFound?.merchantDetail,
-          pricing: merchantPricing ? merchantPricing : null,
-          geofenceId: merchantFound?.merchantDetail?.geofenceId?._id || "",
-          businessCategoryId:
-            merchantFound?.merchantDetail?.businessCategoryId || [],
-        } || {},
+      merchantDetail,
       sponsorshipDetail: merchantFound?.sponsorshipDetail[0] || {},
     };
 
@@ -1238,6 +1267,8 @@ const updateMerchantDetailsController = async (req, res, next) => {
 
   try {
     const { merchantId } = req.params;
+
+    console.log(merchantDetail);
 
     const merchantFound = await Merchant.findById(merchantId);
     if (!merchantFound) {
@@ -2056,43 +2087,54 @@ const getMerchantPayoutDetail = async (req, res, next) => {
       .lean();
 
     const productIds = [
-      ...new Set(allOrders.flatMap(order => order.purchasedItems.map(item => item.productId))),
+      ...new Set(
+        allOrders.flatMap((order) =>
+          order.purchasedItems.map((item) => item.productId)
+        )
+      ),
     ];
-    
+
     const products = await Product.find({ _id: { $in: productIds } })
       .select("productName costPrice price variants")
       .lean();
 
-    const productMap = Object.fromEntries(products.map(product => [product._id.toString(), product]));
+    const productMap = Object.fromEntries(
+      products.map((product) => [product._id.toString(), product])
+    );
 
-    const processedItems = allOrders.flatMap(order =>
-      order.purchasedItems.map(item => {
-        const product = productMap[item.productId.toString()];
-        if (!product) return null;
+    const processedItems = allOrders.flatMap(
+      (order) =>
+        order.purchasedItems
+          .map((item) => {
+            const product = productMap[item.productId.toString()];
+            if (!product) return null;
 
-        let { price, costPrice } = product;
-        let variantName = null;
+            let { price, costPrice } = product;
+            let variantName = null;
 
-        if (item.variantId) {
-          const variant = product.variants
-            .flatMap(v => v.variantTypes)
-            .find(vType => vType._id.toString() === item.variantId.toString());
-          if (variant) {
-            variantName = variant.typeName;
-            price = variant.price;
-            costPrice = variant.costPrice;
-          }
-        }
+            if (item.variantId) {
+              const variant = product.variants
+                .flatMap((v) => v.variantTypes)
+                .find(
+                  (vType) => vType._id.toString() === item.variantId.toString()
+                );
+              if (variant) {
+                variantName = variant.typeName;
+                price = variant.price;
+                costPrice = variant.costPrice;
+              }
+            }
 
-        return {
-          productName: product.productName,
-          variantName,
-          costPrice,
-          price,
-          quantity: item.quantity,
-          totalCost: item.quantity * (costPrice || item.costPrice || 0),
-        };
-      }).filter(Boolean) // Remove any null items
+            return {
+              productName: product.productName,
+              variantName,
+              costPrice,
+              price,
+              quantity: item.quantity,
+              totalCost: item.quantity * (costPrice || item.costPrice || 0),
+            };
+          })
+          .filter(Boolean) // Remove any null items
     );
 
     res.status(200).json({ data: processedItems });

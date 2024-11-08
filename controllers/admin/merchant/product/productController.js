@@ -139,9 +139,7 @@ const getProductController = async (req, res, next) => {
 
     const productFound = await Product.findById(productId);
 
-    if (!productFound) {
-      return next(appError("Product not found", 404));
-    }
+    if (!productFound) return next(appError("Product not found", 404));
 
     res.status(200).json({ message: "Product data", data: productFound });
   } catch (err) {

@@ -888,22 +888,18 @@ const getRatingsOfAgentController = async (req, res, next) => {
   try {
     const agentId = req.userAuth;
 
-    const agentFound = await Agent.findById(agentId).populate({
-      path: "ratingsByCustomers",
-      populate: {
-        path: "customerId",
-        model: "Customer",
-        select: "fullName _id", // Selecting the fields of fullName and _id from Agent
-      },
-    });
+    const agentFound = await Agent.findById(agentId)
+      .populate({
+        path: "ratingsByCustomers.customerId",
+        select: "fullName _id",
+      })
+      .select("ratingsByCustomers averageRating");
 
-    if (!agentFound) {
-      return next(appError("Agent not found", 404));
-    }
+    if (!agentFound) return next(appError("Agent not found", 404));
 
-    const ratingsOfAgent = agentFound?.ratingsByCustomers.reverse();
+    const ratingsOfAgent = agentFound.ratingsByCustomers.reverse();
 
-    const formattedRatingAndReviews = ratingsOfAgent?.map((rating) => ({
+    const formattedRatingAndReviews = ratingsOfAgent.map((rating) => ({
       review: rating.review,
       rating: rating.rating,
       customerId: {
@@ -914,7 +910,7 @@ const getRatingsOfAgentController = async (req, res, next) => {
 
     res.status(200).json({
       message: "Ratings of agent",
-      averageRating: agentFound?.averageRating || 0,
+      averageRating: agentFound.averageRating.toFixed(1) || "0.0",
       data: formattedRatingAndReviews,
     });
   } catch (err) {
