@@ -34,7 +34,7 @@ const addProductController = async (req, res, next) => {
   const {
     categoryId,
     productName,
-    price,
+    price: initialPrice,
     minQuantityToOrder,
     maxQuantityPerOrder,
     costPrice,
@@ -60,11 +60,15 @@ const addProductController = async (req, res, next) => {
 
     // Find the highest order number
     const lastCategory = await Product.findOne().sort({ order: -1 });
-
     const newOrder = lastCategory ? lastCategory.order + 1 : 1;
 
-    let productImageURL = "";
+    // Determine the price based on user role
+    let price = initialPrice;
+    if (req.userRole === "Merchant") {
+      price = costPrice * 1.05; // Set price to 5% above costPrice
+    }
 
+    let productImageURL = "";
     if (req.file) {
       productImageURL = await uploadToFirebase(req.file, "ProductImages");
     }
@@ -153,7 +157,7 @@ const editProductController = async (req, res, next) => {
   const {
     productName,
     productStatus,
-    price,
+    price: initialPrice,
     minQuantityToOrder,
     maxQuantityPerOrder,
     costPrice,
@@ -177,12 +181,11 @@ const editProductController = async (req, res, next) => {
     errors.array().forEach((error) => {
       formattedErrors[error.path] = error.msg;
     });
-    return res.status(500).json({ errors: formattedErrors });
+    return res.status(400).json({ errors: formattedErrors });
   }
 
   try {
     const { productId } = req.params;
-
     const productToUpdate = await Product.findById(productId);
 
     if (!productToUpdate) {
@@ -190,13 +193,17 @@ const editProductController = async (req, res, next) => {
     }
 
     let productImageURL = productToUpdate?.productImageURL;
-
     if (req.file) {
       if (productImageURL) {
         await deleteFromFirebase(productImageURL);
       }
-
       productImageURL = await uploadToFirebase(req.file, "ProductImages");
+    }
+
+    // Determine the price based on user role
+    let price = initialPrice;
+    if (req.userRole === "Merchant" && costPrice) {
+      price = costPrice * 1.05; // Set price to 5% above costPrice
     }
 
     const product = await Product.findByIdAndUpdate(
@@ -235,7 +242,7 @@ const editProductController = async (req, res, next) => {
       data: product,
     });
   } catch (err) {
-    next(appError(err.message));
+    next(appError(err.message, 500));
   }
 };
 
@@ -389,6 +396,8 @@ const addVariantToProductController = async (req, res, next) => {
     const { productId } = req.params;
     const { variantName, variantTypes } = req.body;
 
+    console.log("Body", req.body);
+
     // Validate input
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -405,10 +414,24 @@ const addVariantToProductController = async (req, res, next) => {
       return next(appError("Product not found", 404));
     }
 
+    // Adjust prices for variant types if user role is merchant
+    const updatedVariantTypes = variantTypes.map((variant) => {
+      let price = variant.price;
+
+      if (req.userRole === "Merchant" && variant.costPrice) {
+        price = variant.costPrice * 1.05; // Set price to 5% above costPrice
+      }
+
+      return {
+        ...variant,
+        price,
+      };
+    });
+
     // Create new variant object
     const newVariant = {
       variantName,
-      variantTypes,
+      variantTypes: updatedVariantTypes,
     };
 
     // Add the new variant to the product's variants array
@@ -447,23 +470,46 @@ const editVariantController = async (req, res, next) => {
       return next(appError("Variant not found", 404));
     }
 
+    // Update variant name
     variant.variantName = variantName;
-    variant.variantTypes = variantTypes;
 
+    // Check if user is a merchant and modify variantTypes price accordingly
+    if (req.userRole === "Merchant") {
+      variant.variantTypes = variantTypes.map((variant) => {
+        let price = variant.price;
+
+        if (req.userRole === "Merchant" && variant.costPrice) {
+          price = variant.costPrice * 1.05; // Set price to 5% above costPrice
+        }
+
+        return {
+          ...variant,
+          price,
+        };
+      });
+    } else {
+      variant.variantTypes = variantTypes;
+    }
+
+    // Save the updated product
     await product.save();
 
+    // Log the activity
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Variants of product (${product.productName}) are edited by ${req.userRole} (${req.userAuth})`,
+      description: `Variants of product (${product.productName}) were edited by ${req.userRole} (${req.userAuth})`,
     });
 
     res.status(200).json({
       message: "Variant updated successfully",
-      data: product,
+      data: {
+        productId: product._id,
+        variant: variant,
+      },
     });
   } catch (err) {
-    next(appError(err.message));
+    next(appError("Failed to edit variant", 500));
   }
 };
 
@@ -527,7 +573,6 @@ const downloadProductSampleCSVController = async (req, res, next) => {
       { id: "categoryName", title: "Category Name*" },
       { id: "categoryType", title: "Category Type*" },
       { id: "productName", title: "Product Name*" },
-      { id: "price", title: "Product Price*" },
       { id: "costPrice", title: "Cost Price*" },
       { id: "productType", title: "Product Type*" },
       { id: "minQuantityToOrder", title: "Min Quantity To Order" },
@@ -540,9 +585,13 @@ const downloadProductSampleCSVController = async (req, res, next) => {
       { id: "alert", title: "Alert" },
       { id: "variantName", title: "Variant Name" },
       { id: "typeName", title: "Variant Type Name" },
-      { id: "variantTypePrice", title: "Variant Type Price" },
       { id: "variantTypeCostPrice", title: "Variant Type Cost Price" },
     ];
+
+    if (req.userRole === "Admin") {
+      csvHeaders.splice(4, 0, { id: "price", title: "Product Price*" }); // Insert at position 4
+      csvHeaders.push({ id: "variantTypePrice", title: "Variant Type Price" });
+    }
 
     const csvData = [
       {
@@ -683,7 +732,6 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
       { id: "categoryType", title: "Category Type*" },
       { id: "categoryStatus", title: "Category Status*" },
       { id: "productName", title: "Product Name*" },
-      { id: "productPrice", title: "Product Price*" },
       { id: "costPrice", title: "Cost Price*" },
       { id: "type", title: "Product Type*" },
       { id: "minQuantityToOrder", title: "Min Quantity To Order" },
@@ -698,9 +746,13 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
       { id: "alert", title: "Alert" },
       { id: "variantName", title: "Variant Name" },
       { id: "typeName", title: "Variant Type Name" },
-      { id: "price", title: "Variant Type Price" },
       { id: "costPrice", title: "Variant Type Cost Price" },
     ];
+
+    if (req.userRole === "Admin") {
+      csvHeaders.splice(4, 0, { id: "productPrice", title: "Product Price*" }); // Insert at position 4
+      csvHeaders.push({ id: "price", title: "Variant Type Price" });
+    }
 
     const writer = csvWriter({
       path: filePath,
@@ -788,7 +840,10 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
             // Create a new product if it doesn't exist
             existingProduct = {
               productName,
-              price: parseFloat(row["Product Price*"]?.trim()),
+              price:
+                req.userRole === "Merchant"
+                  ? parseFloat(row["Cost Price*"]?.trim()) * 1.05 // 5% above cost price
+                  : parseFloat(row["Product Price*"]?.trim()),
               minQuantityToOrder:
                 parseInt(row["Min Quantity To Order"]?.trim()) || 0,
               maxQuantityPerOrder:
@@ -814,12 +869,13 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
           // Now handle the variant part
           const variantName = row["Variant Name"]?.trim();
           const variantTypeName = row["Variant Type Name"]?.trim();
-          const variantTypePrice = parseFloat(
-            row["Variant Type Price"]?.trim()
-          );
           const variantTypeCostPrice = parseFloat(
             row["Variant Type Cost Price"]?.trim()
           );
+          const variantTypePrice =
+            req.userRole === "Merchant"
+              ? variantTypeCostPrice * 1.05 // 5% above variant cost price
+              : parseFloat(row["Variant Type Price"]?.trim());
 
           if (
             variantName &&

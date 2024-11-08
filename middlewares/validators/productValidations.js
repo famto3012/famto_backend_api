@@ -3,12 +3,7 @@ const { body, check } = require("express-validator");
 const addProductValidations = [
   body("categoryId").trim().notEmpty().withMessage("Category Id is required"),
   body("productName").trim().notEmpty().withMessage("Product name is required"),
-  body("price")
-    .trim()
-    .notEmpty()
-    .withMessage("Price is required")
-    .isNumeric()
-    .withMessage("Price must be a number"),
+  body("price").optional().trim(),
   // body("minQuantityToOrder")
   //   .trim()
   //   .notEmpty()
@@ -89,12 +84,7 @@ const addProductValidations = [
 const editProductValidations = [
   body("categoryId").trim().notEmpty().withMessage("Category Id is required"),
   body("productName").trim().notEmpty().withMessage("Product name is required"),
-  body("price")
-    .trim()
-    .notEmpty()
-    .withMessage("Price is required")
-    .isNumeric()
-    .withMessage("Price must be a number"),
+  body("price").optional().trim(),
   // body("minQuantityToOrder")
   //   .trim()
   //   .notEmpty()
@@ -180,9 +170,7 @@ const productVariantValidations = [
   body("variantTypes.*.typeName")
     .notEmpty()
     .withMessage("Variant type name is required"),
-  body("variantTypes.*.price")
-    .isNumeric()
-    .withMessage("Variant type price must be a number"),
+  body("variantTypes.*.price").optional(),
 ];
 
 module.exports = {
