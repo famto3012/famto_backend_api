@@ -11,7 +11,7 @@ const ratingsByCustomerSchema = mongoose.Schema(
     },
     review: {
       type: String,
-      required: true,
+      default: null,
     },
     rating: {
       type: Number,
@@ -312,15 +312,15 @@ agentSchema.pre("save", async function (next) {
 
 // Virtual field for calculating the average rating
 agentSchema.virtual("averageRating").get(function () {
-  if (!this.ratingsByAgents || this.ratingsByCustomers.length === 0) {
+  if (!this.ratingsByCustomers || this.ratingsByCustomers.length === 0) {
     return 0;
   }
 
-  const total = this.ratingsByCustomers?.reduce(
+  const total = this.ratingsByCustomers.reduce(
     (acc, rating) => acc + rating.rating,
     0
   );
-  return total / this.ratingsByCustomers?.length;
+  return total / this.ratingsByCustomers.length;
 });
 
 agentSchema.virtual("loggedInHours").get(function () {
