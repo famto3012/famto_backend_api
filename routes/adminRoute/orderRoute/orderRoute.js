@@ -82,7 +82,7 @@ orderRoute.get(
 orderRoute.get(
   "/download-csv",
   isAuthenticated,
-  isAdmin,
+  isAdminOrMerchant,
   downloadOrdersCSVByMerchantController
 );
 

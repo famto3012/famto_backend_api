@@ -27,7 +27,6 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
     const agents = await Agent.find({ isApproved: "Approved" });
 
     for (const agent of agents) {
-      // Initialize appDetail if it's undefined
       if (!agent.appDetail) {
         agent.appDetail = {
           totalEarning: 0,
@@ -42,7 +41,7 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
       // Calculate the login duration
       const currentTime = new Date();
       const loginDuration =
-        currentTime - new Date(agent?.loginStartTime || currentTime); // in milliseconds
+        currentTime - new Date(agent?.loginStartTime || currentTime);
 
       // Update the agent's login duration
       agent.appDetail.loginDuration += loginDuration;
@@ -67,10 +66,8 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
         loginDuration: 0,
       };
 
-      if (agent.status !== "Inactive") {
-        // Update loginStartTime to the current time
-        agent.loginStartTime = currentTime;
-      }
+      // Update loginStartTime to the current time
+      if (agent.status !== "Inactive") agent.loginStartTime = currentTime;
 
       await agent.save();
     }
@@ -202,11 +199,6 @@ const processReferralRewards = async (customer, orderAmount) => {
 };
 
 const calculateAgentEarnings = async (agent, order) => {
-  // const agentPricing = await AgentPricing.findOne({
-  //   status: true,
-  //   geofenceId: agent.geofenceId,
-  // });
-
   const agentPricing = await AgentPricing.findById(
     agent?.workStructure?.salaryStructureId
   );

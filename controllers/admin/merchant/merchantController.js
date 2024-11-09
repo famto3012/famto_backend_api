@@ -667,10 +667,12 @@ const searchMerchantController = async (req, res, next) => {
 
     const searchTerm = query.toLowerCase();
 
-    // Perform search with geofenceId populated
-    const searchResults = await Merchant.find({
+    const searchCriteria = {
       "merchantDetail.merchantName": { $regex: searchTerm, $options: "i" },
-    })
+    };
+
+    // Perform search with geofenceId populated
+    const searchResults = await Merchant.find(searchCriteria)
       .select("fullName phoneNumber isApproved status merchantDetail")
       .populate("merchantDetail.geofenceId", "name")
       .populate("merchantDetail.businessCategoryId", "title")
@@ -682,7 +684,7 @@ const searchMerchantController = async (req, res, next) => {
       .limit(limit);
 
     // Count total documents
-    const totalDocuments = searchResults?.length || 1;
+    const totalDocuments = await Merchant.countDocuments(searchCriteria);
 
     const merchantsWithDetails = searchResults.map((merchant) => {
       return {
@@ -781,7 +783,7 @@ const filterMerchantsController = async (req, res, next) => {
       .limit(limit);
 
     // Count total documents
-    const totalDocuments = filteredMerchants?.length || 1;
+    const totalDocuments = await Merchant.countDocuments(filterCriteria);
 
     const merchantsWithDetails = filteredMerchants.map((merchant) => {
       return {
@@ -829,7 +831,7 @@ const getRatingsAndReviewsByCustomerController = async (req, res, next) => {
       populate: {
         path: "customerId",
         model: "Customer",
-        select: "fullName _id", // Selecting the fields of fullName and _id from Customer
+        select: "fullName _id",
       },
     });
 
