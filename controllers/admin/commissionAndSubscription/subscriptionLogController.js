@@ -1,4 +1,5 @@
 const ActivityLog = require("../../../models/ActivityLog");
+const Commission = require("../../../models/Commission");
 const Customer = require("../../../models/Customer");
 const CustomerSubscription = require("../../../models/CustomerSubscription");
 const Merchant = require("../../../models/Merchant");
@@ -55,6 +56,11 @@ const createSubscriptionLog = async (req, res, next) => {
       } else {
         let sub;
         if (merchant.merchantDetail.pricing[0].modelType === "Commission") {
+          await Commission.findOneAndDelete({
+            _id: merchant.merchantDetail.pricing[0].modelId,
+            merchantId: merchant._id,
+          });
+
           merchant.merchantDetail.pricing = [];
         } else {
           sub = await SubscriptionLog.findById(
@@ -206,8 +212,13 @@ const verifyRazorpayPayment = async (req, res, next) => {
 
     if (typeOfUser === "Merchant") {
       const merchantFound = await Merchant.findById(userId);
-      
+
       if (merchantFound.merchantDetail.pricing[0].modelType === "Commission") {
+        await Commission.findOneAndDelete({
+          _id: merchantFound.merchantDetail.pricing[0].modelId,
+          merchantId: merchantFound._id,
+        });
+
         merchantFound.merchantDetail.pricing = [];
       }
 

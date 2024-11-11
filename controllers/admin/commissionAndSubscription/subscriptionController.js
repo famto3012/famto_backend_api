@@ -286,7 +286,11 @@ const editCustomerSubscriptionPlanController = async (req, res, next) => {
       const tax = await Tax.findById(taxId);
       const taxAmount = amount * (tax.tax / 100);
       totalAmount = parseFloat(amount) + taxAmount;
-    } else if (subscriptionPlan.taxId && taxId && taxId.toString() !== subscriptionPlan.taxId.toString()) {
+    } else if (
+      subscriptionPlan.taxId &&
+      taxId &&
+      taxId.toString() !== subscriptionPlan.taxId.toString()
+    ) {
       // Scenario 2: Existing tax is being changed to a new tax
       const oldTax = await Tax.findById(subscriptionPlan.taxId);
       const baseAmount = amount / (1 + oldTax.tax / 100);
@@ -330,7 +334,6 @@ const editCustomerSubscriptionPlanController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
-
 
 const getSingleCustomerSubscriptionPlanController = async (req, res, next) => {
   try {

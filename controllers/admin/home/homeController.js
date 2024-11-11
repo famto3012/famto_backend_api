@@ -50,8 +50,8 @@ const getRevenueDataByDateRange = async (req, res, next) => {
     // Convert to ISO strings for querying
     const start = new Date(startDate);
     const end = new Date(endDate);
-    console.log("start date", start)
-    console.log("end date", end)
+    console.log("start date", start);
+    console.log("end date", end);
     // Fetch data between the startDate and endDate
     const revenueData = await HomeScreenRevenueData.aggregate([
       {
@@ -95,7 +95,7 @@ const getRevenueDataByDateRange = async (req, res, next) => {
         $sort: { createdAt: 1 },
       },
     ]);
-    console.log("revenue data", revenueData);
+    // console.log("revenue data", revenueData);
 
     // Send the response
     res.status(200).json(revenueData);

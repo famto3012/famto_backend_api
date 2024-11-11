@@ -1627,16 +1627,10 @@ const orderPaymentController = async (req, res, next) => {
     let startDate, endDate;
     if (cart.cartDetail.deliveryOption === "Scheduled") {
       startDate = new Date(cart.cartDetail.startDate);
-      startDate.setHours(0);
-      startDate.setMinutes(0);
-      startDate.setSeconds(0);
-      startDate.setMilliseconds(0);
+      startDate.setHours(18, 30, 0, 0);
 
       endDate = new Date(cart.cartDetail.startDate);
-      endDate.setHours(23);
-      endDate.setMinutes(59);
-      endDate.setSeconds(59);
-      endDate.setMilliseconds(999);
+      endDate.setHours(18, 29, 59, 999);
     }
 
     const populatedCartWithVariantNames = cart.toObject();
@@ -1727,11 +1721,6 @@ const orderPaymentController = async (req, res, next) => {
         customer.customerDetails.walletBalance.toFixed(2)
       );
 
-      // walletTransaction.orderId = newOrder._id; //TODO: Update orderId in wallet transaction
-      customer.walletTransactionDetail.push(walletTransaction);
-      customer.transactionDetail.push(customerTransation);
-      await customer.save();
-
       if (cart.cartDetail.deliveryOption === "Scheduled") {
         // Create a scheduled order
 
@@ -1745,14 +1734,20 @@ const orderPaymentController = async (req, res, next) => {
           status: "Pending",
           paymentMode: "Famto-cash",
           paymentStatus: "Completed",
-          startDate, //: cart.cartDetail.startDate,
-          endDate, //: cart.cartDetail.endDate,
+          startDate,
+          endDate,
           time: cart.cartDetail.time,
           purchasedItems,
         });
 
-        // Clear the cart
-        await CustomerCart.deleteOne({ customerId });
+        walletTransaction.orderId = newOrder._id;
+        customer.walletTransactionDetail.push(walletTransaction);
+        customer.transactionDetail.push(customerTransation);
+
+        await Promise.all([
+          customer.save(),
+          CustomerCart.deleteOne({ customerId }),
+        ]);
 
         res.status(200).json({
           message: "Scheduled order created successfully",
@@ -1833,8 +1828,14 @@ const orderPaymentController = async (req, res, next) => {
               );
             }
 
-            // Remove the temporary order data from the database
-            await TemperoryOrder.deleteOne({ orderId });
+            walletTransaction.orderId = newOrder._id;
+            customer.walletTransactionDetail.push(walletTransaction);
+            customer.transactionDetail.push(customerTransation);
+
+            await Promise.all([
+              customer.save(),
+              TemperoryOrder.deleteOne({ orderId }),
+            ]);
 
             const eventName = "newOrderCreated";
 

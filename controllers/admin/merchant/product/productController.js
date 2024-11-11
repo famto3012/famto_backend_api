@@ -63,15 +63,12 @@ const addProductController = async (req, res, next) => {
     const newOrder = lastCategory ? lastCategory.order + 1 : 1;
 
     // Determine the price based on user role
-    let price = initialPrice;
-    if (req.userRole === "Merchant") {
-      price = costPrice * 1.05; // Set price to 5% above costPrice
-    }
+    let price = Math.round(initialPrice);
+    if (req.userRole === "Merchant") price = Math.round(costPrice * 1.05);
 
     let productImageURL = "";
-    if (req.file) {
+    if (req.file)
       productImageURL = await uploadToFirebase(req.file, "ProductImages");
-    }
 
     const newProduct = await Product.create({
       categoryId,
@@ -94,9 +91,8 @@ const addProductController = async (req, res, next) => {
       order: newOrder,
     });
 
-    if (!newProduct) {
+    if (!newProduct)
       return next(appError("Error in creating new Product", 500));
-    }
 
     await ActivityLog.create({
       userId: req.userAuth,
@@ -124,7 +120,6 @@ const getAllProductsByMerchant = async (req, res) => {
     const products = await Product.find({
       categoryId: { $in: categoryIds },
     })
-
       .select("productName")
       .sort({ order: 1 });
 
@@ -199,10 +194,9 @@ const editProductController = async (req, res, next) => {
     }
 
     // Determine the price based on user role
-    let price = initialPrice;
-    if (req.userRole === "Merchant" && costPrice) {
-      price = costPrice * 1.05; // Set price to 5% above costPrice
-    }
+    let price = Math.round(initialPrice);
+    if (req.userRole === "Merchant" && costPrice)
+      price = Math.round(costPrice * 1.05);
 
     const product = await Product.findByIdAndUpdate(
       productId,
@@ -394,8 +388,6 @@ const addVariantToProductController = async (req, res, next) => {
     const { productId } = req.params;
     const { variantName, variantTypes } = req.body;
 
-    console.log("Body", req.body);
-
     // Validate input
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -414,11 +406,10 @@ const addVariantToProductController = async (req, res, next) => {
 
     // Adjust prices for variant types if user role is merchant
     const updatedVariantTypes = variantTypes.map((variant) => {
-      let price = variant.price;
+      let price = Math.round(variant.price);
 
-      if (req.userRole === "Merchant" && variant.costPrice) {
-        price = variant.costPrice * 1.05; // Set price to 5% above costPrice
-      }
+      if (req.userRole === "Merchant" && variant.costPrice)
+        price = Math.round(variant.costPrice * 1.05);
 
       return {
         ...variant,
@@ -459,14 +450,10 @@ const editVariantController = async (req, res, next) => {
     const { variantName, variantTypes } = req.body;
 
     const product = await Product.findById(productId);
-    if (!product) {
-      return next(appError("Product not found", 404));
-    }
+    if (!product) return next(appError("Product not found", 404));
 
     const variant = product.variants.id(variantId);
-    if (!variant) {
-      return next(appError("Variant not found", 404));
-    }
+    if (!variant) return next(appError("Variant not found", 404));
 
     // Update variant name
     variant.variantName = variantName;
@@ -474,11 +461,10 @@ const editVariantController = async (req, res, next) => {
     // Check if user is a merchant and modify variantTypes price accordingly
     if (req.userRole === "Merchant") {
       variant.variantTypes = variantTypes.map((variant) => {
-        let price = variant.price;
+        let price = Math.round(variant.price);
 
-        if (req.userRole === "Merchant" && variant.costPrice) {
-          price = variant.costPrice * 1.05; // Set price to 5% above costPrice
-        }
+        if (req.userRole === "Merchant" && variant.costPrice)
+          price = Math.round(variant.costPrice * 1.05);
 
         return {
           ...variant,
@@ -840,8 +826,8 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
               productName,
               price:
                 req.userRole === "Merchant"
-                  ? parseFloat(row["Cost Price*"]?.trim()) * 1.05 // 5% above cost price
-                  : parseFloat(row["Product Price*"]?.trim()),
+                  ? Math.round(parseFloat(row["Cost Price*"]?.trim()) * 1.05)
+                  : Math.round(parseFloat(row["Product Price*"]?.trim())),
               minQuantityToOrder:
                 parseInt(row["Min Quantity To Order"]?.trim()) || 0,
               maxQuantityPerOrder:
@@ -872,8 +858,8 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
           );
           const variantTypePrice =
             req.userRole === "Merchant"
-              ? variantTypeCostPrice * 1.05 // 5% above variant cost price
-              : parseFloat(row["Variant Type Price"]?.trim());
+              ? Math.round(variantTypeCostPrice * 1.05)
+              : Math.round(parseFloat(row["Variant Type Price"]?.trim()));
 
           if (
             variantName &&

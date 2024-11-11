@@ -34,7 +34,9 @@ const getAllCustomersController = async (req, res, next) => {
       .limit(limit);
 
     // Count total documents
-    const totalDocuments = await Customer.countDocuments({});
+    const totalDocuments = await Customer.countDocuments({
+      "customerDetails.isBlocked": false,
+    });
 
     // Format customers data
     const formattedCustomers = allCustomers?.map((customer) => {
@@ -83,9 +85,11 @@ const searchCustomerByNameController = async (req, res, next) => {
     // Calculate the number of documents to skip
     const skip = (page - 1) * limit;
 
-    const searchResults = await Customer.find({
+    const searchCriteria = {
       fullName: { $regex: query.trim(), $options: "i" },
-    })
+    };
+
+    const searchResults = await Customer.find(searchCriteria)
       .select(
         "fullName email phoneNumber lastPlatformUsed createdAt customerDetails"
       )
@@ -94,7 +98,7 @@ const searchCustomerByNameController = async (req, res, next) => {
       .lean({ virtuals: true });
 
     // Count total documents
-    const totalDocuments = searchResults?.length || 1;
+    const totalDocuments = (await Customer.countDocuments(searchCriteria)) || 1;
 
     // Calculate averageRating and format registrationDate for each customer
     const formattedCustomers = searchResults.map((customer) => {
@@ -202,7 +206,9 @@ const filterCustomerByGeofenceController = async (req, res, next) => {
 
     // If filter is not "all", filter by geofenceId
     if (filter && filter.trim().toLowerCase() !== "all") {
-      const geofenceObjectId = new mongoose.Types.ObjectId(filter.trim());
+      const geofenceObjectId = mongoose.Types.ObjectId.createFromHexString(
+        filter.trim()
+      );
       query = { "customerDetails.geofenceId": geofenceObjectId };
     }
 
@@ -216,7 +222,7 @@ const filterCustomerByGeofenceController = async (req, res, next) => {
       .lean({ virtuals: true });
 
     // Count total documents based on the query
-    const totalDocuments = filteredResults?.length || 1;
+    const totalDocuments = (await Customer.countDocuments(query)) || 1;
 
     // Format the customers
     const formattedCustomers = filteredResults.map((customer) => {
@@ -353,13 +359,10 @@ const blockCustomerController = async (req, res, next) => {
   try {
     const customerFound = await Customer.findById(req.params.customerId);
 
-    if (!customerFound) {
-      return next(appError("Customer not found", 404));
-    }
+    if (!customerFound) return next(appError("Customer not found", 404));
 
-    if (customerFound.isBlocked) {
+    if (customerFound.isBlocked)
       return next(appError("Customer is already blocked", 400));
-    }
 
     customerFound.isBlocked = true;
     customerFound.reasonForBlockingOrDeleting = reason;
@@ -447,15 +450,15 @@ const getAllRatingsAndReviewsByAgentController = async (req, res, next) => {
 
     // Step 4: Map ratings to extract review, rating, and agent information (with safety checks)
     const ratings = ratingsOfCustomer
-      .map((rating) => {
+      ?.map((rating) => {
         if (rating.agentId) {
           // Check if agentId exists
           return {
-            review: rating.review,
-            rating: rating.rating,
+            review: rating.review || null,
+            rating: rating.rating || null,
             agentId: {
-              id: rating.agentId._id,
-              fullName: rating.agentId.fullName,
+              id: rating.agentId._id || null,
+              fullName: rating.agentId.fullName || null,
             },
           };
         }
@@ -478,15 +481,11 @@ const addMoneyToWalletController = async (req, res, next) => {
     const { amount } = req.body;
     const { customerId } = req.params;
 
-    if (isNaN(amount)) {
-      return next(appError("Invalid amount provided", 400));
-    }
+    if (isNaN(amount)) return next(appError("Invalid amount provided", 400));
 
     const customerFound = await Customer.findById(customerId);
 
-    if (!customerFound) {
-      return next(appError("Customer not found", 404));
-    }
+    if (!customerFound) return next(appError("Customer not found", 404));
 
     // Ensure walletBalance is a number
     const currentBalance =
@@ -542,9 +541,7 @@ const deductMoneyFromWalletCOntroller = async (req, res, next) => {
 
     const customerFound = await Customer.findById(customerId);
 
-    if (!customerFound) {
-      return next(appError("Customer not found", 404));
-    }
+    if (!customerFound) return next(appError("Customer not found", 404));
 
     let walletTransaction = {
       closingBalance: customerFound?.customerDetails?.walletBalance || 0,
@@ -616,9 +613,9 @@ const addCustomerFromCSVController = async (req, res, next) => {
 
         if (!isRowEmpty) {
           const customer = {
-            fullName: row["Full name"]?.trim(),
+            fullName: row["Full Name"]?.trim(),
             email: row.Email?.toLowerCase().trim(),
-            phoneNumber: row["Phone number"]?.trim(),
+            phoneNumber: row["Phone Number"]?.trim(),
           };
 
           // Validate required fields
@@ -698,12 +695,12 @@ const downloadCustomerSampleCSVController = async (req, res, next) => {
       {
         fullName: "John Doe",
         email: "john.doe@example.com",
-        phoneNumber: "123-456-7890",
+        phoneNumber: "1234567890",
       },
       {
         fullName: "Jane Smith",
         email: "jane.smith@example.com",
-        phoneNumber: "098-765-4321",
+        phoneNumber: "9876543210",
       },
     ];
 
@@ -730,41 +727,55 @@ const downloadCustomerSampleCSVController = async (req, res, next) => {
 const downloadCustomerCSVController = async (req, res, next) => {
   try {
     const { geofenceId } = req.query;
+    const role = req.userRole;
+    const userAuth = req.userAuth;
+    let filter = {};
 
-    // Build query object based on filters
-    const filter = {};
-    if (geofenceId && geofenceId !== "All")
-      filter["customerDetails.geofenceId"] = geofenceId;
+    if (role === "Merchant") {
+      const customerIds = await Order.aggregate([
+        { $match: { merchantId: userAuth } },
+        { $group: { _id: "$customerId" } },
+      ]);
 
-    // Fetch the data based on filter
-    let allCustomers = await Customer.find(filter)
+      const uniqueCustomerIds = customerIds.map((id) => id._id);
+
+      filter = {
+        _id: { $in: uniqueCustomerIds },
+        ...(geofenceId &&
+          geofenceId !== "All" && {
+            "customerDetails.geofenceId":
+              mongoose.Types.ObjectId.createFromHexString(geofenceId),
+          }),
+      };
+    } else if (geofenceId && geofenceId !== "All") {
+      filter["customerDetails.geofenceId"] =
+        mongoose.Types.ObjectId.createFromHexString(geofenceId);
+    }
+
+    const allCustomers = await Customer.find(filter)
       .populate("customerDetails.geofenceId", "name")
       .sort({ createdAt: -1 })
-      .exec();
+      .lean();
 
-    let formattedResponse = [];
-
-    allCustomers?.forEach((customer) => {
-      formattedResponse.push({
-        customerId: customer?._id || "-",
-        customerName: customer?.fullName || "-",
-        customerEmail: customer?.email || "-",
-        customerPhoneNumber: customer?.phoneNumber || "-",
-        lastPlatformUsed: customer?.lastPlatformUsed || "-",
-        geofence: customer?.customerDetails?.geofenceId?.name || "-",
-        referralCode: customer?.customerDetails?.referralCode || "-",
-        homeAddress: customer?.customerDetails?.homeAddress
-          ? `${customer?.customerDetails?.homeAddress?.fullName}, ${customer?.customerDetails?.homeAddress?.flat}, ${customer?.customerDetails?.homeAddress?.area}, ${customer?.customerDetails?.homeAddress?.landmark}`
-          : "-",
-        workAddress: customer?.customerDetails?.workAddress
-          ? `${customer?.customerDetails?.workAddress?.fullName}, ${customer?.customerDetails?.workAddress?.flat}, ${customer?.customerDetails?.workAddress?.area}, ${customer?.customerDetails?.workAddress?.landmark}`
-          : "-",
-        loyaltyPointEarnedToday:
-          customer?.customerDetails?.loyaltyPointEarnedToday || "-",
-        totalLoyaltyPointEarned:
-          customer?.customerDetails?.totalLoyaltyPointEarned || "-",
-      });
-    });
+    const formattedResponse = allCustomers.map((customer) => ({
+      customerId: customer._id || "-",
+      customerName: customer.fullName || "-",
+      customerEmail: customer.email || "-",
+      customerPhoneNumber: customer.phoneNumber || "-",
+      lastPlatformUsed: customer.lastPlatformUsed || "-",
+      geofence: customer?.customerDetails?.geofenceId?.name || "-",
+      referralCode: customer?.customerDetails?.referralCode || "-",
+      homeAddress: customer.customerDetails?.homeAddress
+        ? `${customer.customerDetails.homeAddress.fullName}, ${customer.customerDetails.homeAddress.flat}, ${customer.customerDetails.homeAddress.area}, ${customer.customerDetails.homeAddress.landmark}`
+        : "-",
+      workAddress: customer.customerDetails?.workAddress
+        ? `${customer.customerDetails.workAddress.fullName}, ${customer.customerDetails.workAddress.flat}, ${customer.customerDetails.workAddress.area}, ${customer.customerDetails.workAddress.landmark}`
+        : "-",
+      loyaltyPointEarnedToday:
+        customer.customerDetails?.loyaltyPointEarnedToday || "-",
+      totalLoyaltyPointEarned:
+        customer.customerDetails?.totalLoyaltyPointEarned || "-",
+    }));
 
     const filePath = path.join(__dirname, "../../../sample_CSV/sample_CSV.csv");
 
@@ -805,7 +816,13 @@ const downloadCustomerCSVController = async (req, res, next) => {
 
 const getCustomersOfMerchant = async (req, res, next) => {
   try {
+    let { page = 1, limit = 25 } = req.query;
     const merchantId = req.userAuth;
+
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    const skip = (page - 1) * limit;
 
     // Fetch all orders of the merchant
     const ordersOfMerchant = await Order.find({ merchantId }).select(
@@ -820,9 +837,17 @@ const getCustomersOfMerchant = async (req, res, next) => {
     // Fetch customer names for the unique customer IDs
     const customers = await Customer.find({
       _id: { $in: uniqueCustomerIds },
-    }).select(
-      "fullName phoneNumber email lastPlatformUsed createdAt averageRating"
-    );
+    })
+      .select(
+        "fullName phoneNumber email lastPlatformUsed createdAt averageRating"
+      )
+      .skip(skip)
+      .limit(limit);
+
+    // Count total documents
+    const totalDocuments = await Customer.countDocuments({
+      _id: { $in: uniqueCustomerIds },
+    });
 
     const formattedResponse = customers?.map((customer) => {
       return {
@@ -836,9 +861,16 @@ const getCustomersOfMerchant = async (req, res, next) => {
       };
     });
 
+    const totalPages = Math.ceil(totalDocuments / limit);
+
     res.status(200).json({
       message: "Customers of merchant",
       data: formattedResponse,
+      totalDocuments,
+      totalPages,
+      currentPage: page,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
     });
   } catch (err) {
     next(appError(err.message));
