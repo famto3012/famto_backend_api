@@ -1116,11 +1116,12 @@ const getDeliveryDetailController = async (req, res, next) => {
       billDetail: taskFound.orderId.billDetail,
       paymentMode: taskFound.orderId.paymentMode,
       paymentStatus: taskFound.orderId.paymentStatus,
-      isnoteAdded: taskFound.orderId.detailAddedByAgent.notes ? true : false,
-      isSignatureAdded: taskFound.orderId.detailAddedByAgent.signatureImageURL
+      isnoteAdded: taskFound?.orderId?.detailAddedByAgent?.notes ? true : false,
+      isSignatureAdded: taskFound?.orderId?.detailAddedByAgent
+        ?.signatureImageURL
         ? true
         : false,
-      isImageAdded: taskFound.orderId.detailAddedByAgent.imageURL
+      isImageAdded: taskFound?.orderId?.detailAddedByAgent?.imageURL
         ? true
         : false,
     };
@@ -1616,12 +1617,11 @@ const getAgentTransactionsController = async (req, res, next) => {
     const formattedTransactions = agentFound.agentTransaction
       .sort((a, b) => new Date(b.madeOn) - new Date(a.madeOn))
       .map((transaction) => ({
-        imageURL: agentFound.agentImageURL,
-        fullName: agentFound.fullName,
         date: formatDate(transaction.madeOn),
         time: formatTime(transaction.madeOn),
-        amount: transaction.amount,
-        type: transaction.type,
+        amount: transaction?.amount || null,
+        type: transaction?.type || null,
+        title: transaction?.title || null,
       }));
 
     res.status(200).json({

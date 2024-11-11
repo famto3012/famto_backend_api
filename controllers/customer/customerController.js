@@ -207,9 +207,7 @@ const updateCustomerProfileController = async (req, res, next) => {
   try {
     const currentCustomer = await Customer.findById(req.userAuth);
 
-    if (!currentCustomer) {
-      return next(appError("Customer not found", 404));
-    }
+    if (!currentCustomer) return next(appError("Customer not found", 404));
 
     // Check if the new email is already in use by another user, only if email is provided
     if (normalizedEmail && normalizedEmail !== currentCustomer.email) {
@@ -238,10 +236,8 @@ const updateCustomerProfileController = async (req, res, next) => {
 
     // Update customer details
     currentCustomer.fullName = fullName;
-    if (normalizedEmail) {
-      currentCustomer.email = normalizedEmail;
-    }
     currentCustomer.customerDetails.customerImageURL = customerImageURL;
+    if (normalizedEmail) currentCustomer.email = normalizedEmail;
 
     await currentCustomer.save();
 
@@ -577,7 +573,9 @@ const getAllScheduledOrdersOfCustomer = async (req, res, next) => {
       scheduledPickAndCustom.find({ customerId }),
     ]);
 
-    const allOrders = [...universalOrders, ...pickandCustomOrders];
+    const allOrders = [...universalOrders, ...pickandCustomOrders].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
 
     const formattedResponse = allOrders?.map((order) => ({
       orderId: order._id,
@@ -645,6 +643,58 @@ const getsingleOrderDetailController = async (req, res, next) => {
       message: "Single order detail",
       data: formattedResponse,
     });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get scheduled order detail
+const getScheduledOrderDetailController = async (req, res, next) => {
+  try {
+    const { orderId, deliveryMode } = req.query;
+
+    let orderFound;
+
+    if (["Take Away", "Home Delivery"].includes(deliveryMode)) {
+      orderFound = await ScheduledOrder.findById(orderId);
+    } else if (["Pick and Drop", "Custom Order"].includes(deliveryMode)) {
+      orderFound = await scheduledPickAndCustom.findById(orderId);
+    }
+
+    if (!orderFound) return next(appError("Order not found", 404));
+
+    console.log("Start: ", orderFound?.startDate);
+    console.log("End: ", orderFound?.endDate);
+
+    const formattedResponse = {
+      orderId: orderFound._id,
+      pickUpAddress: orderFound?.orderDetail?.pickupAddress || null,
+      deliveryAddress: orderFound?.orderDetail?.deliveryAddress || null,
+      items: orderFound?.items || null,
+      billDetail: {
+        deliveryCharge: orderFound?.billDetail?.deliveryCharge || null,
+        taxAmount: orderFound?.billDetail?.taxAmount || null,
+        discountedAmount: orderFound?.billDetail?.discountedAmount || null,
+        grandTotal: orderFound?.billDetail?.grandTotal || null,
+        itemTotal: orderFound?.billDetail?.itemTotal || null,
+        addedTip: orderFound?.billDetail?.addedTip || null,
+        subTotal: orderFound?.billDetail?.subTotal || null,
+        surgePrice: orderFound?.billDetail?.surgePrice || null,
+        waitingCharge: orderFound?.billDetail?.waitingCharge || null,
+        vehicleType: orderFound?.billDetail?.vehicleType || null,
+      },
+      orderDate: formatDate(orderFound?.createdAt),
+      orderTime: formatTime(orderFound?.createdAt),
+      paymentMode: orderFound?.paymentMode || null,
+      deliveryMode: orderFound?.orderDetail?.deliveryMode || null,
+      vehicleType: orderFound?.billDetail?.vehicleType || null,
+      startDate: formatDate(orderFound?.startDate),
+      endDate: formatDate(orderFound?.endDate),
+      time: formatTime(orderFound.time) || null,
+      numberOfDays: orderFound?.orderDetail?.numOfDays || null,
+    };
+
+    res.status(200).json(formattedResponse);
   } catch (err) {
     next(appError(err.message));
   }
@@ -1269,4 +1319,5 @@ module.exports = {
   getVisibilityOfReferal,
   getCurrentOngoingOrders,
   getAllScheduledOrdersOfCustomer,
+  getScheduledOrderDetailController,
 };

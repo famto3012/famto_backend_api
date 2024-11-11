@@ -987,9 +987,6 @@ const filterAgentPayoutController = async (req, res, next) => {
           orders: "$appDetailHistory.details.orders",
           cancelledOrders: "$appDetailHistory.details.cancelledOrders",
           totalDistance: "$appDetailHistory.details.totalDistance",
-          // loginHours: {
-          //   $divide: ["$appDetailHistory.details.loginDuration", 3600000],
-          // },
           loginHours: "$appDetailHistory.details.loginDuration",
           cashInHand: "$workStructure.cashInHand",
           totalEarnings: "$appDetailHistory.details.totalEarning",

@@ -1629,8 +1629,9 @@ const orderPaymentController = async (req, res, next) => {
       startDate = new Date(cart.cartDetail.startDate);
       startDate.setHours(18, 30, 0, 0);
 
-      endDate = new Date(cart.cartDetail.startDate);
+      endDate = new Date(cart.cartDetail.endDate);
       endDate.setHours(18, 29, 59, 999);
+      s;
     }
 
     const populatedCartWithVariantNames = cart.toObject();

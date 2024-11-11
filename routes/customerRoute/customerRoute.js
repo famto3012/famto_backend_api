@@ -39,6 +39,7 @@ const {
   setSelectedGeofence,
   getCurrentOngoingOrders,
   getAllScheduledOrdersOfCustomer,
+  getScheduledOrderDetailController,
 } = require("../../controllers/customer/customerController");
 const {
   getAllBusinessCategoryController,
@@ -107,7 +108,7 @@ customerRoute.get("/profile", isAuthenticated, getCustomerProfileController);
 // Edit customer profile route
 customerRoute.put(
   "/edit-profile",
-  upload.single("customerImage"),
+  upload.single("imageURL"),
   isAuthenticated,
   updateCustomerProfileController
 );
@@ -308,6 +309,12 @@ customerRoute.get(
   "/orders/:orderId",
   isAuthenticated,
   getsingleOrderDetailController
+);
+
+customerRoute.get(
+  "/scheduled-orders-detail",
+  isAuthenticated,
+  getScheduledOrderDetailController
 );
 
 customerRoute.get("/search-orders", isAuthenticated, searchOrderController);
