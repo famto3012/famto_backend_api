@@ -17,6 +17,10 @@ const NotificationSetting = require("../../models/NotificationSetting");
 const CustomerNotificationLogs = require("../../models/CustomerNotificationLog");
 const AppBanner = require("../../models/AppBanner");
 const CustomerCart = require("../../models/CustomerCart");
+const Geofence = require("../../models/Geofence");
+const Referral = require("../../models/Referral");
+const ScheduledOrder = require("../../models/ScheduledOrder");
+const scheduledPickAndCustom = require("../../models/ScheduledPickAndCustom");
 
 const appError = require("../../utils/appError");
 const generateToken = require("../../utils/generateToken");
@@ -33,10 +37,6 @@ const {
 const { formatDate, formatTime } = require("../../utils/formatters");
 
 const { sendNotification, sendSocketData } = require("../../socket/socket");
-const Geofence = require("../../models/Geofence");
-const Referral = require("../../models/Referral");
-const ScheduledOrder = require("../../models/ScheduledOrder");
-const scheduledPickAndCustom = require("../../models/ScheduledPickAndCustom");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -570,13 +570,28 @@ const getAllScheduledOrdersOfCustomer = async (req, res, next) => {
     const customerId = req.userAuth;
 
     const [universalOrders, pickandCustomOrders] = await Promise.all([
-      ScheduledOrder.find({ customerId }),
+      ScheduledOrder.find({ customerId }).populate(
+        "merchantId",
+        "merchantDetail.merchantName merchantDetail.displayAddress"
+      ),
       scheduledPickAndCustom.find({ customerId }),
     ]);
 
     const allOrders = [...universalOrders, ...pickandCustomOrders];
 
-    res.status(200).json({ data: allOrders });
+    const formattedResponse = allOrders?.map((order) => ({
+      orderId: order._id,
+      merchantName: order?.merchantId?.merchantDetail?.merchantName || null,
+      displayAddress: order?.merchantId?.merchantDetail?.displayAddress || null,
+      deliveryMode: order.orderDetail.deliveryMode || null,
+      startDate: formatDate(order?.orderDetail?.startDate),
+      endDate: formatDate(order?.orderDetail?.endDate),
+      time: formatTime(order.time) || null,
+      numberOfDays: order?.orderDetail?.numOfDays || null,
+      grandTotal: order.billDetail.grandTotal || null,
+    }));
+
+    res.status(200).json({ data: formattedResponse });
   } catch (err) {
     next(appError(err.message));
   }
@@ -1253,4 +1268,5 @@ module.exports = {
   getAllNotificationsOfCustomerController,
   getVisibilityOfReferal,
   getCurrentOngoingOrders,
+  getAllScheduledOrdersOfCustomer,
 };

@@ -38,6 +38,7 @@ const {
   getAvailableGeofences,
   setSelectedGeofence,
   getCurrentOngoingOrders,
+  getAllScheduledOrdersOfCustomer,
 } = require("../../controllers/customer/customerController");
 const {
   getAllBusinessCategoryController,
@@ -84,7 +85,6 @@ const {
   confirmCustomOrderController,
   cancelCustomBeforeOrderCreationController,
 } = require("../../controllers/customer/customOrderController");
-// const addCartDetailsControllers = require("../../addDetailController");
 
 const customerRoute = express.Router();
 
@@ -297,6 +297,12 @@ customerRoute.get(
 );
 
 customerRoute.get("/orders", isAuthenticated, getCustomerOrdersController);
+
+customerRoute.get(
+  "/scheduled-orders",
+  isAuthenticated,
+  getAllScheduledOrdersOfCustomer
+);
 
 customerRoute.get(
   "/orders/:orderId",
