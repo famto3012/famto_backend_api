@@ -51,6 +51,7 @@ const autoAllocationRoute = require("./routes/adminRoute/deliveryManagementRoute
 require("dotenv").config();
 require("./config/dbConnect");
 require("./DBSeeder/adminSeeder");
+// require("./test.js");
 
 const {
   createOrdersFromScheduled,
@@ -205,6 +206,7 @@ cron.schedule("30 18 * * *", async () => {
 
 // Cron jobs for every minutes
 cron.schedule("* * * * *", async () => {
+  // await moveAppDetailToHistoryAndResetForAllAgents();
   deleteExpiredConversationsAndMessages();
   populateUserSocketMap();
 

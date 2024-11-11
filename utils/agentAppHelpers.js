@@ -24,40 +24,27 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
     console.log("Started moving App details to history for all agents");
 
     const Agent = require("../models/Agent");
-    const agents = await Agent.find({ isApproved: "Approved" });
+    const AgentPricing = require("../models/AgentPricing");
+
+    const agents = await Agent.find({ isApproved: "Approved" })
+      .lean()
+      .select([
+        "_id",
+        "appDetail",
+        "loginStartTime",
+        "workStructure.salaryStructureId",
+        "status",
+      ]);
+
+    const currentTime = new Date();
+    const lastDay = new Date();
+    lastDay.setDate(lastDay.getDate() - 1);
+
+    const bulkOperations = [];
 
     for (const agent of agents) {
-      if (!agent.appDetail) {
-        agent.appDetail = {
-          totalEarning: 0,
-          orders: 0,
-          pendingOrder: 0,
-          totalDistance: 0,
-          cancelledOrders: 0,
-          loginDuration: 0,
-        };
-      }
-
-      // Calculate the login duration
-      const currentTime = new Date();
-      const loginDuration =
-        currentTime - new Date(agent?.loginStartTime || currentTime);
-
-      // Update the agent's login duration
-      agent.appDetail.loginDuration += loginDuration;
-
-      const lastDay = new Date();
-      lastDay.setDate(lastDay.getDate() - 1);
-
-      // Move current appDetail to appDetailHistory
-      agent.appDetailHistory.push({
-        date: lastDay,
-        details: { ...agent?.appDetail },
-        detailId: new mongoose.Types.ObjectId(),
-      });
-
-      // Reset appDetail
-      agent.appDetail = {
+      // Initialize appDetail if not present
+      const appDetail = agent.appDetail || {
         totalEarning: 0,
         orders: 0,
         pendingOrder: 0,
@@ -66,10 +53,88 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
         loginDuration: 0,
       };
 
-      // Update loginStartTime to the current time
-      if (agent.status !== "Inactive") agent.loginStartTime = currentTime;
+      // Calculate login duration
+      const loginDuration =
+        currentTime - new Date(agent?.loginStartTime || currentTime);
+      appDetail.loginDuration += loginDuration;
 
-      await agent.save();
+      // Fetch agent pricing only once per agent
+      const agentPricing = await AgentPricing.findById(
+        agent.workStructure.salaryStructureId
+      ).lean();
+
+      if (agentPricing) {
+        const minLoginMillis = agentPricing.minLoginHours * 60 * 60 * 1000;
+
+        if (
+          appDetail.loginDuration >= minLoginMillis &&
+          appDetail.orders >= agentPricing.minOrderNumber &&
+          appDetail.totalEarning < agentPricing.baseFare
+        ) {
+          appDetail.totalEarning = agentPricing.baseFare;
+        }
+
+        if (
+          appDetail.loginDuration >= minLoginMillis &&
+          appDetail.orders >= agentPricing.minOrderNumber &&
+          appDetail.orders > agentPricing.minOrderNumber
+        ) {
+          // Calculate extra order earnings
+          const earningForExtraOrders =
+            (appDetail.orders - agentPricing.minOrderNumber) *
+            agentPricing.fareAfterMinOrderNumber;
+          appDetail.totalEarning += earningForExtraOrders;
+        }
+
+        // Calculate extra login hours earnings
+        const extraMillis = appDetail.loginDuration - minLoginMillis;
+
+        if (
+          appDetail.loginDuration >= minLoginMillis &&
+          appDetail.orders >= agentPricing.minOrderNumber &&
+          extraMillis > 0
+        ) {
+          const extraHours = Math.floor(extraMillis / (60 * 60 * 1000)); // Convert to hours
+          if (extraHours >= 1) {
+            const earningForExtraHours =
+              extraHours * agentPricing.fareAfterMinLoginHours;
+            appDetail.totalEarning += earningForExtraHours;
+          }
+        }
+      }
+
+      // Prepare the history and reset update
+      const update = {
+        $push: {
+          appDetailHistory: {
+            date: lastDay,
+            details: { ...appDetail },
+            detailId: new mongoose.Types.ObjectId(),
+          },
+        },
+        $set: {
+          "appDetail.totalEarning": 0,
+          "appDetail.orders": 0,
+          "appDetail.pendingOrder": 0,
+          "appDetail.totalDistance": 0,
+          "appDetail.cancelledOrders": 0,
+          "appDetail.loginDuration": 0,
+          loginStartTime:
+            agent.status !== "Inactive" ? currentTime : agent.loginStartTime,
+        },
+      };
+
+      bulkOperations.push({
+        updateOne: {
+          filter: { _id: agent._id },
+          update,
+        },
+      });
+    }
+
+    // Perform bulk write operation
+    if (bulkOperations.length > 0) {
+      await Agent.bulkWrite(bulkOperations);
     }
 
     console.log("Finished moving App details to history for all agents");
