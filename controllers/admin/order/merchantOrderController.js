@@ -867,8 +867,8 @@ const filterScheduledOrdersController = async (req, res, next) => {
         deliveryMode: order.orderDetail.deliveryMode,
         orderDate: formatDate(order.createdAt),
         orderTime: formatTime(order.createdAt),
-        deliveryDate: "-",
-        deliveryTime: "-",
+        deliveryDate: order?.time ? formatDate(order?.time) : "-",
+        deliveryTime: order?.time ? formatTime(order?.time) : "-",
         paymentMethod:
           order.paymentMode === "Cash-on-delivery"
             ? "Pay-on-delivery"
