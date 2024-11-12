@@ -390,7 +390,7 @@ const getAllMerchantSubscriptionLogController = async (req, res, next) => {
     // Step 1: Fetch all subscription logs for Merchants
     const subscriptionLogs = await SubscriptionLog.find({
       typeOfUser: "Merchant",
-    });
+    }).sort({ createdAt: -1 });
 
     // Step 2: Extract unique userIds and planIds from the subscription logs
     const userIds = [...new Set(subscriptionLogs.map((log) => log.userId))];
@@ -436,7 +436,7 @@ const getAllCustomerSubscriptionLogController = async (req, res, next) => {
     // Step 1: Fetch all subscription logs for Customers
     const subscriptionLogs = await SubscriptionLog.find({
       typeOfUser: "Customer",
-    });
+    }).sort({ createdAt: -1 });;
 
     // Step 2: Extract unique userIds and planIds from the subscription logs
     const userIds = [...new Set(subscriptionLogs.map((log) => log.userId))];
@@ -483,7 +483,7 @@ const getByMerchantIdSubscriptionLogController = async (req, res, next) => {
 
     const subscriptionLogs = await SubscriptionLog.find({
       userId: merchantId,
-    });
+    }).sort({ createdAt: -1 });
 
     const planIds = [...new Set(subscriptionLogs.map((log) => log.planId))];
 
@@ -528,7 +528,7 @@ const getMerchantSubscriptionLogsByName = async (req, res, next) => {
     // Find merchants whose names start with the given letter, case-insensitive
     const merchants = await Merchant.find({
       "merchantDetail.merchantName": new RegExp(`^${name}`, "i"),
-    }).populate("merchantDetail.pricing");
+    }).populate("merchantDetail.pricing").sort({ createdAt: -1 });
 
     if (merchants.length === 0) {
       return res.status(200).json({ message: "No merchants found", data: [] });
@@ -586,7 +586,7 @@ const getMerchantSubscriptionLogsByStartDate = async (req, res, next) => {
         },
         typeOfUser: "Merchant",
         userId: merchantId,
-      });
+      }).sort({ createdAt: -1 });
     } else {
       subscriptionLogs = await SubscriptionLog.find({
         startDate: {
@@ -594,7 +594,7 @@ const getMerchantSubscriptionLogsByStartDate = async (req, res, next) => {
           $lte: endOfDay,
         },
         typeOfUser: "Merchant",
-      });
+      }).sort({ createdAt: -1 });
     }
 
     if (subscriptionLogs.length === 0) {
@@ -637,7 +637,7 @@ const getCustomerSubscriptionLogsByName = async (req, res, next) => {
     // Find customers whose names start with the given name, case-insensitive
     const customers = await Customer.find({
       fullName: new RegExp(`^${name}`, "i"),
-    }).populate("customerDetails.pricing");
+    }).populate("customerDetails.pricing").sort({ createdAt: -1 });
 
     if (customers.length === 0) {
       return res.status(200).json({ message: "No customers found", data: [] });
@@ -704,7 +704,7 @@ const getCustomerSubscriptionLogsByStartDate = async (req, res, next) => {
         $lte: endOfDay,
       },
       typeOfUser: "Customer",
-    });
+    }).sort({ createdAt: -1 });
 
     if (subscriptionLogs.length === 0) {
       return res.status(200).json({
