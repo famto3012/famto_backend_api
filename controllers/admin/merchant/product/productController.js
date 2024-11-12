@@ -557,7 +557,7 @@ const downloadProductSampleCSVController = async (req, res, next) => {
       { id: "categoryName", title: "Category Name*" },
       { id: "categoryType", title: "Category Type*" },
       { id: "productName", title: "Product Name*" },
-      { id: "costPrice", title: "Cost Price*" },
+      { id: "productCostPrice", title: "Product Cost Price*" },
       { id: "productType", title: "Product Type*" },
       { id: "minQuantityToOrder", title: "Min Quantity To Order" },
       { id: "maxQuantityPerOrder", title: "Max Quantity Per Order" },
@@ -573,7 +573,7 @@ const downloadProductSampleCSVController = async (req, res, next) => {
     ];
 
     if (req.userRole === "Admin") {
-      csvHeaders.splice(4, 0, { id: "price", title: "Product Price*" }); // Insert at position 4
+      csvHeaders.splice(4, 0, { id: "productPrice", title: "Product Price*" }); // Insert at position 4
       csvHeaders.push({ id: "variantTypePrice", title: "Variant Type Price" });
     }
 
@@ -584,8 +584,8 @@ const downloadProductSampleCSVController = async (req, res, next) => {
         categoryType: "Veg / Non-veg / Both",
         status: "TRUE / FALSE",
         productName: "Product 1",
-        price: "100",
-        costPrice: "100",
+        productPrice: "100",
+        productCostPrice: "100",
         productType: "Veg / Non-veg / Other",
         minQuantityToOrder: "1",
         maxQuantityPerOrder: "20",
@@ -606,8 +606,8 @@ const downloadProductSampleCSVController = async (req, res, next) => {
         categoryType: "Veg / Non-veg / Both",
         status: "TRUE / FALSE",
         productName: "Product 2",
-        price: "200",
-        costPrice: "200",
+        productPrice: "200",
+        productCostPrice: "200",
         productType: "Veg / Non-veg / Other",
         minQuantityToOrder: "1",
         maxQuantityPerOrder: "20",
@@ -659,6 +659,7 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
       const products = await Product.find({ categoryId: category._id }).lean();
 
       products.forEach((product) => {
+        console.log("Products", product);
         const variants =
           product.variants.length > 0
             ? product.variants
@@ -676,6 +677,7 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
               : [{ typeName: "-", price: "-" }];
 
           variantTypes.forEach((type) => {
+            console.log("product.costPrice", product.costPrice);
             formattedResponse.push({
               businessCategory: category.businessCategoryId?.title || "-",
               categoryName: category.categoryName || "-",
@@ -685,7 +687,7 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
               productPrice: product.price || "-",
               minQuantityToOrder: product.minQuantityToOrder || "-",
               maxQuantityPerOrder: product.maxQuantityPerOrder || "-",
-              costPrice: product.costPrice || "-",
+              productCostPrice: product.costPrice || "-",
               sku: product.sku || "-",
               preparationTime: product.preparationTime || "-",
               description: product.description || "-",
@@ -697,8 +699,8 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
               alert: product.alert || "-",
               variantName: variant.variantName || "-",
               typeName: type.typeName || "-",
-              price: type.price || "-",
-              costPrice: type.costPrice || "-",
+              variantTypePrice: type.price || "-",
+              variantTypeCostPrice: type.costPrice || "-",
             });
           });
         });
@@ -716,7 +718,7 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
       { id: "categoryType", title: "Category Type*" },
       { id: "categoryStatus", title: "Category Status*" },
       { id: "productName", title: "Product Name*" },
-      { id: "costPrice", title: "Cost Price*" },
+      { id: "productCostPrice", title: "Product Cost Price*" },
       { id: "type", title: "Product Type*" },
       { id: "minQuantityToOrder", title: "Min Quantity To Order" },
       { id: "maxQuantityPerOrder", title: "Max quantity Per Order" },
@@ -730,12 +732,12 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
       { id: "alert", title: "Alert" },
       { id: "variantName", title: "Variant Name" },
       { id: "typeName", title: "Variant Type Name" },
-      { id: "costPrice", title: "Variant Type Cost Price" },
+      { id: "variantTypeCostPrice", title: "Variant Type Cost Price" },
     ];
 
     if (req.userRole === "Admin") {
       csvHeaders.splice(4, 0, { id: "productPrice", title: "Product Price*" }); // Insert at position 4
-      csvHeaders.push({ id: "price", title: "Variant Type Price" });
+      csvHeaders.push({ id: "variantTypePrice", title: "Variant Type Price" });
     }
 
     const writer = csvWriter({
@@ -744,6 +746,8 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
     });
 
     await writer.writeRecords(formattedResponse);
+
+    // console.log("formattedResponse", formattedResponse);
 
     // Add UTF-8 BOM to the CSV file
     const bom = "\uFEFF"; // BOM character
@@ -824,15 +828,18 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
             // Create a new product if it doesn't exist
             existingProduct = {
               productName,
-              price:
+              price: Math.round(
                 req.userRole === "Merchant"
-                  ? Math.round(parseFloat(row["Cost Price*"]?.trim()) * 1.05)
-                  : Math.round(parseFloat(row["Product Price*"]?.trim())),
+                  ? parseFloat(row["Product Cost Price*"]?.trim()) * 1.05
+                  : row["Product Price*"]?.trim()
+                  ? parseFloat(row["Product Price*"]?.trim())
+                  : parseFloat(row["Product Cost Price*"]?.trim()) * 1.05
+              ),
               minQuantityToOrder:
                 parseInt(row["Min Quantity To Order"]?.trim()) || 0,
               maxQuantityPerOrder:
                 parseInt(row["Max Quantity Per Order"]?.trim()) || 0,
-              costPrice: parseFloat(row["Cost Price*"]?.trim()),
+              costPrice: parseFloat(row["Product Cost Price*"]?.trim()),
               sku: row["SKU"]?.trim() || "",
               preparationTime: row["Preparation Time"]?.trim() || "",
               description: row["Description"]?.trim() || "",
@@ -856,10 +863,13 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
           const variantTypeCostPrice = parseFloat(
             row["Variant Type Cost Price"]?.trim()
           );
-          const variantTypePrice =
+          const variantTypePrice = Math.round(
             req.userRole === "Merchant"
-              ? Math.round(variantTypeCostPrice * 1.05)
-              : Math.round(parseFloat(row["Variant Type Price"]?.trim()));
+              ? variantTypeCostPrice * 1.05
+              : row["Variant Type Price"]?.trim()
+              ? parseFloat(row["Variant Type Price"]?.trim())
+              : variantTypeCostPrice * 1.05
+          );
 
           if (
             variantName &&
@@ -956,6 +966,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
 
             // Now, process products for the category
             const productPromises = products.map(async (productData) => {
+              console.log("productData", productData)
               productData.categoryId = newCategory._id;
               // console.log("Product Data to Save/Update:", productData);
 
@@ -985,6 +996,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
             });
 
             await Promise.all(productPromises);
+            console.log("productPromises", productPromises)
           }
 
           // Fetch all categories after adding, ordered by the 'order' field in ascending order
@@ -997,6 +1009,8 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
             userType: req.userRole,
             description: `Uploaded Product CSV by ${req.userRole} (${req.userAuth})`,
           });
+
+          console.log("allCategories", allCategories)
 
           res.status(200).json({
             message: "Categories and products added successfully.",
