@@ -1,4 +1,4 @@
-const { default: mongoose } = require("mongoose");
+const mongooses = require("mongoose");
 const AgentNotificationLogs = require("../models/AgentNotificationLog");
 const AgentPricing = require("../models/AgentPricing");
 const Customer = require("../models/Customer");
@@ -26,7 +26,7 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
     const Agent = require("../models/Agent");
     const AgentPricing = require("../models/AgentPricing");
 
-    const agents = await Agent.find({ isApproved: "Approved" })
+    const agents = await Agent.find({ _id: "A240848", isApproved: "Approved" })
       .lean()
       .select([
         "_id",
@@ -69,20 +69,13 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
         if (
           appDetail.loginDuration >= minLoginMillis &&
           appDetail.orders >= agentPricing.minOrderNumber &&
-          appDetail.totalEarning < agentPricing.baseFare
-        ) {
-          appDetail.totalEarning = agentPricing.baseFare;
-        }
-
-        if (
-          appDetail.loginDuration >= minLoginMillis &&
-          appDetail.orders >= agentPricing.minOrderNumber &&
           appDetail.orders > agentPricing.minOrderNumber
         ) {
           // Calculate extra order earnings
           const earningForExtraOrders =
             (appDetail.orders - agentPricing.minOrderNumber) *
             agentPricing.fareAfterMinOrderNumber;
+
           appDetail.totalEarning += earningForExtraOrders;
         }
 
@@ -94,12 +87,21 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
           appDetail.orders >= agentPricing.minOrderNumber &&
           extraMillis > 0
         ) {
-          const extraHours = Math.floor(extraMillis / (60 * 60 * 1000)); // Convert to hours
+          const extraHours = Math.floor(extraMillis / (60 * 60 * 1000));
           if (extraHours >= 1) {
             const earningForExtraHours =
               extraHours * agentPricing.fareAfterMinLoginHours;
+
             appDetail.totalEarning += earningForExtraHours;
           }
+        }
+
+        if (
+          appDetail.loginDuration >= minLoginMillis &&
+          appDetail.orders >= agentPricing.minOrderNumber &&
+          appDetail.totalEarning < agentPricing.baseFare
+        ) {
+          appDetail.totalEarning = agentPricing.baseFare;
         }
       }
 
