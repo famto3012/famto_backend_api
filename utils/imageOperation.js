@@ -9,6 +9,7 @@ const multer = require("multer");
 const { v4: uuidv4 } = require("uuid");
 
 const firebaseApp = require("../config/firebase");
+const sharp = require("sharp");
 
 const storage = getStorage(firebaseApp);
 
@@ -42,7 +43,12 @@ const uploadToFirebase = async (file, folderName) => {
     storage,
     `${folderName}/${uniqueName}-${file.originalname || file.name}`
   );
-  await uploadBytes(storageRef, file.buffer);
+  const compressedImageBuffer = await sharp(file.buffer)
+    .resize({ width: 800 })
+    .jpeg({ quality: 80 })
+    .toBuffer();
+
+  await uploadBytes(storageRef, compressedImageBuffer);
   const downloadURL = await getDownloadURL(storageRef);
 
   return downloadURL;
@@ -50,7 +56,15 @@ const uploadToFirebase = async (file, folderName) => {
 
 const deleteFromFirebase = async (fileUrl) => {
   const storageRef = ref(storage, fileUrl);
-  await deleteObject(storageRef);
+  try {
+    await deleteObject(storageRef);
+  } catch (error) {
+    if (error.code === "storage/object-not-found") {
+      console.log("File not found in Firebase, no action needed.");
+      return;
+    }
+    throw error;
+  }
 };
 
 module.exports = { upload, uploadToFirebase, deleteFromFirebase };
