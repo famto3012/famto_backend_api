@@ -360,13 +360,20 @@ const handleAddressDetails = async (
       ];
       deliveryAddress = newCustomerAddress;
     } else if (newCustomerAddress) {
-      deliveryLocation = await updateCustomerAddress(
-        newCustomerAddress.type,
-        newCustomerAddress,
-        customer,
-        customerAddressOtherAddressId
-      );
+      deliveryLocation = [
+        newCustomerAddress.latitude,
+        newCustomerAddress.longitude,
+      ];
       deliveryAddress = newCustomerAddress;
+
+      if (newCustomerAddress.saveAddress) {
+        await updateCustomerAddress(
+          newCustomerAddress.type,
+          newCustomerAddress,
+          customer,
+          customerAddressOtherAddressId
+        );
+      }
     } else if (customerAddressType) {
       const address = getAddressDetails(
         customer,
@@ -384,6 +391,14 @@ const handleAddressDetails = async (
     if (newPickupAddress) {
       pickupLocation = [newPickupAddress.latitude, newPickupAddress.longitude];
       pickupAddress = newPickupAddress;
+      if (newDeliveryAddress.saveAddress) {
+        await updateCustomerAddress(
+          newPickupAddress.type,
+          newPickupAddress,
+          customer,
+          deliveryAddressOtherAddressId
+        );
+      }
     }
 
     if (pickUpAddressType) {
@@ -404,6 +419,14 @@ const handleAddressDetails = async (
         newDeliveryAddress.longitude,
       ];
       deliveryAddress = newDeliveryAddress;
+      if (newDeliveryAddress.saveAddress) {
+        await updateCustomerAddress(
+          newDeliveryAddress.type,
+          newDeliveryAddress,
+          customer,
+          customerAddressOtherAddressId
+        );
+      }
     }
 
     if (deliveryAddressType) {
@@ -426,8 +449,6 @@ const handleAddressDetails = async (
     }
 
     if (newDeliveryAddress) {
-      console.log("newDeliveryAddress: ", newDeliveryAddress);
-
       deliveryLocation = [
         newDeliveryAddress.latitude,
         newDeliveryAddress.longitude,

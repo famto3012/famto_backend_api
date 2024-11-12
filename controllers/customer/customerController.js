@@ -486,7 +486,7 @@ const getFavoriteMerchantsController = async (req, res, next) => {
       .populate({
         path: "customerDetails.favoriteMerchants",
         select:
-          "merchantDetail.merchantName merchantDetail.deliveryTime merchantDetail.description merchantDetail.averageRating status merchantDetail.merchantFoodType merchantDetail.merchantImageURL",
+          "merchantDetail.merchantName merchantDetail.deliveryTime merchantDetail.description merchantDetail.averageRating status merchantDetail.merchantFoodType merchantDetail.merchantImageURL merchantDetail.preOrderStatus",
       });
 
     if (!customer || !customer.customerDetails) {
@@ -505,7 +505,7 @@ const getFavoriteMerchantsController = async (req, res, next) => {
         merchantImageURL: merchant?.merchantDetail?.merchantImageURL || null,
         displayAddress: merchant?.merchantDetail?.displayAddress || null,
         preOrderStatus: merchant?.merchantDetail?.preOrderStatus,
-        isFavorite: true, // Since we're only fetching favorite merchants
+        isFavorite: true,
       })
     );
 
@@ -582,8 +582,8 @@ const getAllScheduledOrdersOfCustomer = async (req, res, next) => {
       merchantName: order?.merchantId?.merchantDetail?.merchantName || null,
       displayAddress: order?.merchantId?.merchantDetail?.displayAddress || null,
       deliveryMode: order.orderDetail.deliveryMode || null,
-      startDate: formatDate(order?.orderDetail?.startDate),
-      endDate: formatDate(order?.orderDetail?.endDate),
+      startDate: formatDate(order?.startDate),
+      endDate: formatDate(order?.endDate),
       time: formatTime(order.time) || null,
       numberOfDays: order?.orderDetail?.numOfDays || null,
       grandTotal: order.billDetail.grandTotal || null,
