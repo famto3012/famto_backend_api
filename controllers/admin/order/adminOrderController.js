@@ -2198,7 +2198,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
       pickupLocation,
       selectedBusinessCategory
     );
-    console.log("1");
+
     let merchantDiscountAmount;
     if (merchantFound) {
       merchantDiscountAmount = await applyDiscounts({
@@ -2207,6 +2207,8 @@ const createInvoiceByAdminController = async (req, res, next) => {
         merchantId,
       });
     }
+
+    console.log("merchantDiscountAmount", merchantDiscountAmount);
 
     const billDetail = calculateBill(
       itemTotal || 0,

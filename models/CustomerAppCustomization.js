@@ -38,6 +38,26 @@ const customerAppCustomizationSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    customOrderTiming: {
+      startTime: {
+        type: Date,
+        required: true,
+      },
+      endTime: {
+        type: Date,
+        required: true,
+      },
+    },
+    pickAndDropTiming: {
+      startTime: {
+        type: Date,
+        required: true,
+      },
+      endTime: {
+        type: Date,
+        required: true,
+      },
+    },
   },
   {
     timestamps: true,
