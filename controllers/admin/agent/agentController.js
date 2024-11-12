@@ -14,7 +14,6 @@ const Agent = require("../../../models/Agent");
 const AccountLogs = require("../../../models/AccountLogs");
 const { formatDate } = require("../../../utils/formatters");
 const { formatToHours } = require("../../../utils/agentAppHelpers");
-const AgentPricing = require("../../../models/AgentPricing");
 const ejs = require("ejs");
 
 const addAgentByAdminController = async (req, res, next) => {
@@ -693,26 +692,10 @@ const getDeliveryAgentPayoutController = async (req, res, next) => {
 
     // Retrieve approved agents with required fields
     const agents = await Agent.find({ isApproved: "Approved" })
-      .select(
-        "fullName phoneNumber appDetailHistory workStructure.cashInHand workStructure.salaryStructureId"
-      )
+      .select("fullName phoneNumber appDetailHistory workStructure.cashInHand")
       .skip(skip)
       .limit(limit)
       .lean(); // Retrieve plain JS objects
-
-    // Fetch all unique AgentPricing IDs
-    const pricingIds = [
-      ...new Set(agents.map((agent) => agent.workStructure.salaryStructureId)),
-    ];
-    const pricingData = await AgentPricing.find({ _id: { $in: pricingIds } })
-      .select("minLoginHours minOrderNumber baseFare")
-      .lean();
-
-    // Map pricing data for quick lookup
-    const pricingMap = pricingData.reduce((acc, pricing) => {
-      acc[pricing._id] = pricing;
-      return acc;
-    }, {});
 
     // Format the response data
     const formattedResponse = await Promise.all(
@@ -722,29 +705,10 @@ const getDeliveryAgentPayoutController = async (req, res, next) => {
           const { cashInHand } = agent.workStructure;
           const latestHistory = agent.appDetailHistory.at(-1);
 
-          // Retrieve corresponding pricing details
-          const agentPricing =
-            pricingMap[agent.workStructure.salaryStructureId];
-          if (!agentPricing)
-            return next(appError("Pricing data not found", 400));
+          const { totalEarning, loginDuration } = latestHistory.details;
 
-          // Calculate login hours in ms
-          const requiredLoginHours =
-            agentPricing.minLoginHours * 60 * 60 * 1000;
-          const { orders, totalEarning, loginDuration } = latestHistory.details;
-
-          // Determine payment amount
-          let calculatedPayment = Math.max(
-            0,
-            agentPricing.baseFare - totalEarning
-          );
-          if (
-            orders < agentPricing.minOrderNumber ||
-            loginDuration < requiredLoginHours
-          ) {
-            calculatedPayment = 0; // Do not pay if criteria are not met
-          }
-          calculatedPayment -= cashInHand;
+          // Calculate earnings after cash in hand is deducted
+          const calculatedEarnings = Math.max(totalEarning - cashInHand, 0);
 
           return {
             agentId: agent._id,
@@ -753,7 +717,7 @@ const getDeliveryAgentPayoutController = async (req, res, next) => {
             workedDate: latestHistory.date
               ? formatDate(latestHistory.date)
               : "-",
-            orders: orders || 0,
+            orders: latestHistory.details.orders || 0,
             cancelledOrders: latestHistory.details.cancelledOrders || 0,
             totalDistance: latestHistory.details.totalDistance || 0,
             loginHours: loginDuration
@@ -761,7 +725,7 @@ const getDeliveryAgentPayoutController = async (req, res, next) => {
               : "0:00 hr",
             cashInHand,
             totalEarnings: totalEarning,
-            calculatedPayment,
+            calculatedEarnings,
             paymentSettled: latestHistory.details.paymentSettled,
             detailId: latestHistory.detailId,
           };
@@ -769,7 +733,8 @@ const getDeliveryAgentPayoutController = async (req, res, next) => {
     );
 
     // Get total number of approved agents with history
-    const totalDocuments = formattedResponse?.length || 1;
+    const totalDocuments =
+      (await Agent.countDocuments({ isApproved: "Approved" })) || 1;
     const totalPages = Math.ceil(totalDocuments / limit);
 
     // Respond with formatted data and pagination
@@ -796,77 +761,69 @@ const searchAgentInPayoutController = async (req, res, next) => {
     if (!agentId)
       return res.status(400).json({ message: "Agent ID is required" });
 
-    // Find approved agents with a matching ID
-    const agents = await Agent.find({
+    const searchCriteria = {
       _id: { $regex: agentId, $options: "i" },
       isApproved: "Approved",
-    })
+    };
+
+    // Find approved agents with a matching ID
+    const agents = await Agent.find(searchCriteria)
       .select(
         "fullName phoneNumber appDetailHistory workStructure.cashInHand workStructure.salaryStructureId"
       )
       .lean();
 
-    // Filter agents with at least one entry in appDetailHistory and process each one
+    // Format the response data
     const formattedResponse = await Promise.all(
-      agents.map(async (agent) => {
-        const latestHistory = agent.appDetailHistory
-          .filter((history) => history.date)
-          .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+      agents
+        .filter((agent) => agent.appDetailHistory.length > 0)
+        .map((agent) => {
+          const { cashInHand } = agent.workStructure;
+          const latestHistory = agent.appDetailHistory.at(-1);
 
-        if (!latestHistory) return null; // Skip if no valid history found
+          const { totalEarning, loginDuration } = latestHistory.details;
 
-        // Fetch agent pricing details
-        const agentPricing = await AgentPricing.findById(
-          agent.workStructure.salaryStructureId
-        ).lean();
-        if (!agentPricing) return null;
+          // Calculate earnings after cash in hand is deducted
+          const calculatedEarnings = Math.max(totalEarning - cashInHand, 0);
 
-        // Calculate payment based on pricing and history details
-        const {
-          orders = 0,
-          loginDuration = 0,
-          totalEarning = 0,
-        } = latestHistory.details || {};
-        const loginHoursRequired = agentPricing.minLoginHours * 3600 * 1000;
-        let calculatedPayment = totalEarning;
-
-        // Adjust payment to meet base fare if conditions are met
-        if (
-          orders >= agentPricing.minOrderNumber &&
-          loginDuration >= loginHoursRequired
-        ) {
-          calculatedPayment = Math.max(totalEarning, agentPricing.baseFare);
-        }
-
-        // Deduct cashInHand from calculated payment
-        const cashInHand = agent.workStructure.cashInHand || 0;
-        calculatedPayment -= cashInHand;
-
-        // Format response for each agent
-        return {
-          agentId: agent._id,
-          fullName: agent.fullName,
-          phoneNumber: agent.phoneNumber,
-          workedDate: latestHistory.date ? formatDate(latestHistory.date) : "-",
-          orders,
-          cancelledOrders: latestHistory.details?.cancelledOrders || 0,
-          totalDistance: latestHistory.details?.totalDistance || 0,
-          loginHours: formatToHours(loginDuration),
-          cashInHand,
-          totalEarnings: totalEarning,
-          calculatedPayment,
-          paymentSettled: latestHistory.details?.paymentSettled,
-          detailId: latestHistory.detailId,
-        };
-      })
+          return {
+            agentId: agent._id,
+            fullName: agent.fullName,
+            phoneNumber: agent.phoneNumber,
+            workedDate: latestHistory.date
+              ? formatDate(latestHistory.date)
+              : "-",
+            orders: latestHistory.details.orders || 0,
+            cancelledOrders: latestHistory.details.cancelledOrders || 0,
+            totalDistance: latestHistory.details.totalDistance || 0,
+            loginHours: loginDuration
+              ? formatToHours(loginDuration)
+              : "0:00 hr",
+            cashInHand,
+            totalEarnings: totalEarning,
+            calculatedEarnings,
+            paymentSettled: latestHistory.details.paymentSettled,
+            detailId: latestHistory.detailId,
+          };
+        })
     );
 
-    // Remove any null entries from the response array in case any pricing or history was missing
-    const nonNullResponses = formattedResponse.filter(Boolean);
+    // Get total number of approved agents with history
+    const totalDocuments = (await Agent.countDocuments(searchCriteria)) || 1;
+    const totalPages = Math.ceil(totalDocuments / limit);
 
+    // Respond with formatted data and pagination
     res.status(200).json({
-      message: "Agent history details",
-      data: nonNullResponses,
+      message: "Agent payout detail",
+      data: formattedResponse,
+      pagination: {
+        totalDocuments,
+        totalPages,
+        currentPage: page,
+        pageSize: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
     });
   } catch (err) {
     next(appError(err.message));
@@ -899,10 +856,10 @@ const filterAgentPayoutController = async (req, res, next) => {
       dateFilter.date = { $gte: startDate, $lte: endDate };
     }
 
-    // Use aggregation to handle filtering and calculation in the database
-    const agents = await Agent.aggregate([
-      { $match: filterCriteria }, // Filter based on criteria
-      { $unwind: "$appDetailHistory" }, // Unwind appDetailHistory to treat each entry as a separate document
+    // Use aggregation to handle filtering, calculation, and counting in the database
+    const aggregationPipeline = [
+      { $match: filterCriteria },
+      { $unwind: "$appDetailHistory" },
       {
         $match: {
           ...(date ? { "appDetailHistory.date": dateFilter.date } : {}),
@@ -912,65 +869,17 @@ const filterAgentPayoutController = async (req, res, next) => {
         },
       },
       {
-        $lookup: {
-          from: "agentpricings",
-          localField: "workStructure.salaryStructureId",
-          foreignField: "_id",
-          as: "salaryStructure",
-        },
-      },
-      { $unwind: "$salaryStructure" },
-      {
         $addFields: {
-          calculatedPayment: {
-            $cond: {
-              if: {
-                $and: [
-                  {
-                    $gte: [
-                      "$appDetailHistory.details.orders",
-                      "$salaryStructure.minOrderNumber",
-                    ],
-                  },
-                  {
-                    $gte: [
-                      "$appDetailHistory.details.loginDuration",
-                      {
-                        $multiply: ["$salaryStructure.minLoginHours", 3600000],
-                      },
-                    ],
-                  },
-                ],
-              },
-              then: {
-                $cond: {
-                  if: {
-                    $lt: [
-                      "$appDetailHistory.details.totalEarning",
-                      "$salaryStructure.baseFare",
-                    ],
-                  },
-                  then: {
-                    $subtract: [
-                      "$salaryStructure.baseFare",
-                      "$workStructure.cashInHand",
-                    ],
-                  },
-                  else: {
-                    $subtract: [
-                      "$appDetailHistory.details.totalEarning",
-                      "$workStructure.cashInHand",
-                    ],
-                  },
-                },
-              },
-              else: {
+          calculatedEarnings: {
+            $max: [
+              {
                 $subtract: [
                   "$appDetailHistory.details.totalEarning",
                   "$workStructure.cashInHand",
                 ],
               },
-            },
+              0,
+            ],
           },
         },
       },
@@ -981,8 +890,8 @@ const filterAgentPayoutController = async (req, res, next) => {
           phoneNumber: 1,
           workedDate: {
             $dateToString: {
-              format: "%Y-%m-%d", // Format to DD-MM-YY HH:mm
-              date: { $add: ["$appDetailHistory.date", 19800000] }, // No offset needed as it's already set in UTC with 18:30
+              format: "%Y-%m-%d",
+              date: { $add: ["$appDetailHistory.date", 19800000] },
             },
           },
           orders: "$appDetailHistory.details.orders",
@@ -991,25 +900,31 @@ const filterAgentPayoutController = async (req, res, next) => {
           loginHours: "$appDetailHistory.details.loginDuration",
           cashInHand: "$workStructure.cashInHand",
           totalEarnings: "$appDetailHistory.details.totalEarning",
-          calculatedPayment: 1,
+          calculatedEarnings: 1,
           paymentSettled: "$appDetailHistory.details.paymentSettled",
           detailId: "$appDetailHistory.detailId",
           geofence: "$geofenceId",
         },
       },
       { $sort: { workedDate: -1 } },
-      {
-        $skip:
-          (parseInt(req.query.page || 1) - 1) * parseInt(req.query.limit || 50),
-      },
-      { $limit: parseInt(req.query.limit || 50) },
-    ]);
+    ];
 
-    // Total documents count for pagination
-    const totalDocuments = agents?.length || 1;
-    const totalPages = Math.ceil(
-      totalDocuments / parseInt(req.query.limit || 50)
-    );
+    // Get the total count before applying pagination
+    const countAggregation = [...aggregationPipeline, { $count: "total" }];
+    const countResult = await Agent.aggregate(countAggregation);
+    const totalDocuments = countResult[0]?.total || 0;
+
+    // Apply pagination
+    const page = parseInt(req.query.page || 1);
+    const limit = parseInt(req.query.limit || 50);
+    const paginationAggregation = [
+      ...aggregationPipeline,
+      { $skip: (page - 1) * limit },
+      { $limit: limit },
+    ];
+    const agents = await Agent.aggregate(paginationAggregation);
+
+    const totalPages = Math.ceil(totalDocuments / limit);
 
     const formattedResponse = agents.map(
       ({ _id, workedDate, loginHours, ...rest }) => ({
@@ -1026,10 +941,10 @@ const filterAgentPayoutController = async (req, res, next) => {
       pagination: {
         totalDocuments,
         totalPages,
-        currentPage: parseInt(req.query.page || 1),
-        pageSize: parseInt(req.query.limit || 50),
-        hasNextPage: parseInt(req.query.page || 1) < totalPages,
-        hasPrevPage: parseInt(req.query.page || 1) > 1,
+        currentPage: page,
+        pageSize: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
       },
     });
   } catch (err) {
@@ -1043,7 +958,7 @@ const approvePaymentController = async (req, res, next) => {
 
     // Find agent with required fields and the specific detail in appDetailHistory
     const agent = await Agent.findOne(
-      { _id: agentId, "appDetailHistory._id": detailId },
+      { _id: agentId, "appDetailHistory.detailId": detailId },
       {
         "appDetailHistory.$": 1,
         "workStructure.cashInHand": 1,
@@ -1075,25 +990,20 @@ const approvePaymentController = async (req, res, next) => {
       );
       const calculatedBalance = agent.workStructure.cashInHand - debitAmount;
 
-      console.log("cash in hand: ", agent.workStructure.cashInHand);
-      console.log("calculatedBalance: ", calculatedBalance);
-      console.log("detailTotalEarning: ", detailTotalEarning);
-      console.log("debitAmount: ", debitAmount);
-
       updates["workStructure.cashInHand"] = calculatedBalance;
 
       transactionUpdates.push(
-        {
-          type: "Debit",
-          title: "Cash in hand deducted",
-          madeOn: new Date(),
-          amount: debitAmount,
-        },
         {
           type: "Credit",
           title: "Salary credited",
           madeOn: new Date(),
           amount: detailTotalEarning,
+        },
+        {
+          type: "Debit",
+          title: "Cash in hand deducted",
+          madeOn: new Date(),
+          amount: debitAmount,
         }
       );
     } else {
@@ -1108,9 +1018,12 @@ const approvePaymentController = async (req, res, next) => {
 
     // Apply updates in a single atomic operation
     const updatedAgent = await Agent.updateOne(
-      { _id: agentId, "appDetailHistory._id": detailId },
+      { _id: agentId, "appDetailHistory.detailId": detailId },
       {
-        $set: updates,
+        $set: {
+          "appDetailHistory.$.details.paymentSettled": true,
+          "workStructure.cashInHand": updates["workStructure.cashInHand"],
+        },
         $push: { agentTransaction: { $each: transactionUpdates } },
       }
     );

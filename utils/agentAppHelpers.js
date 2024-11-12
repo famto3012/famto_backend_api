@@ -1,4 +1,3 @@
-const mongooses = require("mongoose");
 const AgentNotificationLogs = require("../models/AgentNotificationLog");
 const AgentPricing = require("../models/AgentPricing");
 const Customer = require("../models/Customer");
