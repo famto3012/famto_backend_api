@@ -390,7 +390,7 @@ const getAllMerchantSubscriptionLogController = async (req, res, next) => {
     // Step 1: Fetch all subscription logs for Merchants
     const subscriptionLogs = await SubscriptionLog.find({
       typeOfUser: "Merchant",
-    });
+    }).sort({ createdAt: -1 });
 
     // Step 2: Extract unique userIds and planIds from the subscription logs
     const userIds = [...new Set(subscriptionLogs.map((log) => log.userId))];
@@ -436,7 +436,7 @@ const getAllCustomerSubscriptionLogController = async (req, res, next) => {
     // Step 1: Fetch all subscription logs for Customers
     const subscriptionLogs = await SubscriptionLog.find({
       typeOfUser: "Customer",
-    });
+    }).sort({ createdAt: -1 });;
 
     // Step 2: Extract unique userIds and planIds from the subscription logs
     const userIds = [...new Set(subscriptionLogs.map((log) => log.userId))];
