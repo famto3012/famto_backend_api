@@ -892,9 +892,10 @@ const filterAgentPayoutController = async (req, res, next) => {
     const dateFilter = {};
     if (date) {
       const startDate = new Date(date);
-      startDate.setHours(18, 30, 0, 0);
+      startDate.setUTCHours(18, 30, 0, 0);
       const endDate = new Date(date);
-      endDate.setHours(18, 29, 59, 999);
+      endDate.setUTCDate(endDate.getUTCDate() + 1); // Move to the next day
+      endDate.setUTCHours(18, 29, 59, 999);
       dateFilter.date = { $gte: startDate, $lte: endDate };
     }
 
@@ -980,8 +981,8 @@ const filterAgentPayoutController = async (req, res, next) => {
           phoneNumber: 1,
           workedDate: {
             $dateToString: {
-              format: "%Y-%m-%d",
-              date: "$appDetailHistory.date",
+              format: "%Y-%m-%d", // Format to DD-MM-YY HH:mm
+              date: { $add: ["$appDetailHistory.date", 19800000] }, // No offset needed as it's already set in UTC with 18:30
             },
           },
           orders: "$appDetailHistory.details.orders",

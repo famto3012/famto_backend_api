@@ -1,1 +1,44 @@
-
+﻿Business Category Name*,Category Name*,Category Type*,Category Status*,Product Price*,Product Name*,Cost Price*,Product Type*,Min Quantity To Order,Max quantity Per Order,SKU,Preperation Time,Description,Long Description,Product Image,Inventory,Available quantity,Alert,Variant Name,Variant Type Name,Variant Type Cost Price,Variant Type Price
+Food,Burger,Both,true,100,Chicken Burger,-,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Burger,Both,true,200,Jumbo Beef Burger,-,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Burger,Both,true,209,CC Spl King Burger,-,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Burger,Both,true,150,Beef Burger,-,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Burger,Both,true,140,Jumbo Chicken Burger,-,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Burger,Both,true,80,Veg burger,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Sandwich,Both,true,239,CC Spl King Sandwich,-,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Sandwich,Both,true,80,Veg Sandwich,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Sandwich,Both,true,150,Beef Sandwich,-,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Sandwich,Both,true,100,Chicken Sandwich,-,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Combo's,Both,true,99,Veg Sandwich Combo,-,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Combo's,Both,true,99,Veg Burger Combo,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Combo's,Both,true,249,Mini platter,-,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Combo's,Both,true,128,Chicken Sandwich Combo,-,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Combo's,Both,true,128,Chicken Burger Combo,-,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Mojitos,Veg,true,59,Cold Blue,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Mojitos,Veg,true,59,Blueberry,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Mojitos,Veg,true,59,Litchi 59,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Mojitos,Veg,true,59,Passion Fruit,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Mojitos,Veg,true,59,Mint,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Mojitos,Veg,true,59,Guva,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Mojitos,Veg,true,59,Triple Berry,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Mojitos,Veg,true,59,Strawberry,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Lassi,Veg,true,50,Sweet lassi,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Lassi,Veg,true,60,Chocolate lassi,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Lassi,Veg,true,60,Mango lassi,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Lassi,Veg,true,60,Pineapple lassi,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Lassi,Veg,true,70,Berries lassi,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Fresh Juice,Veg,true,35,Mint lime,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Fresh Juice,Veg,true,50,Pineapple juice,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Fresh Juice,Veg,true,30,Fresh lime juice,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Fresh Juice,Veg,true,40,Water melon juice,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Fresh Juice,Veg,true,40,Musambi juice,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Fresh Juice,Veg,true,35,Pineapple lime,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Fresh Juice,Veg,true,35,Grape lime,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Fresh Juice,Veg,true,50,Rose milk,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Fresh Juice,Veg,true,60,Apple juice,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Pasta,Both,true,130,Chicken Pasta,-,Non-veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Pasta,Both,true,120,Veg Pasta,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Fries,Veg,true,90,Loaded Fries,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Fries,Veg,true,60,French Fries,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Fries,Veg,true,100,Cheesy Loaded Fries,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
+Food,Fries,Veg,true,70,Peri Peri Fries,-,Veg,-,-,-,-,-,-,-,true,-,-,-,-,-,-
