@@ -1068,14 +1068,15 @@ const getSingleMerchantController = async (req, res, next) => {
 
     const merchantDetail = {
       ...merchantFound.merchantDetail,
-      merchantImage: merchantFound.merchantDetail.merchantImageURL,
-      pancardImage: merchantFound.merchantDetail.pancardImageURL,
-      gstinImage: merchantFound.merchantDetail.GSTINImageURL,
-      faasiImage: merchantFound.merchantDetail.FSSAIImageURL,
-      aadharImage: merchantFound.merchantDetail.aadharImageURL,
+      merchantImage: merchantFound?.merchantDetail?.merchantImageURL,
+      pancardImage: merchantFound?.merchantDetail?.pancardImageURL,
+      gstinImage: merchantFound?.merchantDetail?.GSTINImageURL,
+      faasiImage: merchantFound?.merchantDetail?.FSSAIImageURL,
+      aadharImage: merchantFound?.merchantDetail?.aadharImageURL,
       pricing: merchantPricing,
-      geofenceId: merchantFound.merchantDetail.geofenceId?._id || "",
-      businessCategoryId: merchantFound.merchantDetail.businessCategoryId || [],
+      geofenceId: merchantFound?.merchantDetail?.geofenceId?._id || "",
+      businessCategoryId:
+        merchantFound?.merchantDetail?.businessCategoryId || [],
     };
 
     // Clean up redundant *ImageURL fields
@@ -2173,6 +2174,7 @@ const comfirmMerchantPayout = async (req, res, next) => {
   }
 };
 
+// TODO: complete the  controller
 // Download payout csv
 const downloadPayoutCSVController = async (req, res, next) => {
   try {

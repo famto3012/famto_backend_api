@@ -665,15 +665,12 @@ const searchProductsInMerchantController = async (req, res, next) => {
     const { merchantId, businessCategoryId } = req.params;
     const { query } = req.query;
 
-    if (!merchantId || !businessCategoryId) {
+    if (!merchantId || !businessCategoryId)
       return next(
         appError("Merchant id or Business category id is missing", 400)
       );
-    }
 
-    if (!query) {
-      return next(appError("Query is required", 400));
-    }
+    if (!query) return next(appError("Query is required", 400));
 
     // Find all categories belonging to the merchant with the given business category
     const categories = await Category.find({
@@ -695,10 +692,9 @@ const searchProductsInMerchantController = async (req, res, next) => {
 
     // Search products within the found categoryIds
     const products = await Product.find({
-      categoryId: { $in: categoryIds }, // Search within all relevant categories
+      categoryId: { $in: categoryIds },
       $or: [
         { productName: { $regex: query, $options: "i" } },
-        // { description: { $regex: query, $options: "i" } },
         { searchTags: { $elemMatch: { $regex: query, $options: "i" } } },
       ],
     })

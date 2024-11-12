@@ -492,4 +492,10 @@ customerRoute.get(
   getAllNotificationsOfCustomerController
 );
 
+customerRoute.get(
+  "/customization/timings",
+  isAuthenticated,
+  getAllNotificationsOfCustomerController
+);
+
 module.exports = customerRoute;
