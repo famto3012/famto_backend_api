@@ -28,16 +28,15 @@ const addShopController = async (req, res, next) => {
     const { latitude, longitude, shopName, place, buyFromAnyWhere } = req.body;
 
     const customerId = req.userAuth;
-
     const customer = await Customer.findById(customerId);
 
-    let cartFound;
     let updatedCartDetail;
     let pickupLocation;
     let deliveryLocation;
     let distance;
     let duration;
 
+    // If buyFromAnyWhere is true, set pickupLocation to null and set deliveryLocation to customer's location
     if (buyFromAnyWhere) {
       pickupLocation = null;
       deliveryLocation = customer.customerDetails.location;
@@ -60,8 +59,6 @@ const addShopController = async (req, res, next) => {
       const { distanceInKM, durationInMinutes } =
         await getDistanceFromPickupToDelivery(pickupLocation, deliveryLocation);
 
-      cartFound = await PickAndCustomCart.findOne({ customerId });
-
       distance = distanceInKM;
       duration = durationInMinutes;
 
@@ -79,19 +76,14 @@ const addShopController = async (req, res, next) => {
       };
     }
 
-    if (cartFound) {
-      if (cartFound.cartDetail.deliveryMode !== "Custom Order") {
-        await PickAndCustomCart.findByIdAndUpdate(
-          cartFound._id,
-          {
-            cartDetail: {},
-            items: [],
-            billDetail: {},
-          },
-          { new: true }
-        );
-      }
+    // Check if a cart with the same customerId and deliveryMode exists
+    let cartFound = await PickAndCustomCart.findOne({
+      customerId,
+      "cartDetail.deliveryMode": "Custom Order",
+    });
 
+    if (cartFound) {
+      // If cart exists, update its cartDetail
       await PickAndCustomCart.findByIdAndUpdate(
         cartFound._id,
         {
@@ -100,6 +92,7 @@ const addShopController = async (req, res, next) => {
         { new: true }
       );
     } else {
+      // If no cart exists, create a new one
       await PickAndCustomCart.create({
         customerId,
         cartDetail: updatedCartDetail,
@@ -112,7 +105,7 @@ const addShopController = async (req, res, next) => {
         shopName: shopName || null,
         place: place || null,
         distance: parseFloat(distance) || null,
-        duaration: duration || null,
+        duration: duration || null,
       },
     });
   } catch (err) {
@@ -305,13 +298,16 @@ const addDeliveryAddressController = async (req, res, next) => {
 
     const customerId = req.userAuth;
 
-    const customer = await Customer.findById(customerId);
+    const [customer, cartFound] = await Promise.all([
+      Customer.findById(customerId),
+      PickAndCustomCart.findOne({
+        customerId,
+        "cartDetail.deliveryMode": "Custom Order",
+      }),
+    ]);
 
-    if (!customer) {
-      return next(appError("Customer not found", 404));
-    }
-
-    const cartFound = await PickAndCustomCart.findOne({ customerId });
+    if (!customer) return next(appError("Customer not found", 404));
+    if (!cartFound) return next(appError("Cart not found", 404));
 
     // Retrieve the specified drop address coordinates from the customer data
     let deliveryCoordinates;
@@ -360,7 +356,11 @@ const addDeliveryAddressController = async (req, res, next) => {
 
     let distance,
       duration = 0;
-    if (cartFound.cartDetail.pickupLocation) {
+
+    const havePickupLocation =
+      cartFound?.cartDetail?.pickupLocation?.length === 2;
+
+    if (havePickupLocation) {
       const pickupLocation = cartFound.cartDetail.pickupLocation;
       const deliveryLocation = deliveryCoordinates;
 
@@ -385,7 +385,7 @@ const addDeliveryAddressController = async (req, res, next) => {
     }
 
     let updatedCartDetail = {
-      pickupLocation: cartFound.cartDetail.pickupLocation,
+      pickupLocation: cartFound?.cartDetail?.pickupLocation || [],
       pickupAddress: cartFound.cartDetail.pickupAddress,
       deliveryAddress: deliveryAddress._doc,
       deliveryLocation: deliveryCoordinates,
@@ -431,6 +431,9 @@ const addDeliveryAddressController = async (req, res, next) => {
 
     await cartFound.save();
 
+    console.log(cartFound.billDetail);
+    console.log(havePickupLocation);
+
     const formattedItems = cartFound.items.map((item) => ({
       itemId: item.itemId,
       itemName: item.itemName,
@@ -439,9 +442,33 @@ const addDeliveryAddressController = async (req, res, next) => {
       itemImage: item.itemImageURL,
     }));
 
+    const billDetail = {
+      deliveryChargePerDay: cartFound.billDetail.deliveryChargePerDay || null,
+      originalDeliveryCharge: havePickupLocation
+        ? cartFound.billDetail.originalDeliveryCharge
+        : null,
+      discountedDeliveryCharge: havePickupLocation
+        ? cartFound.billDetail.discountedDeliveryCharge
+        : null,
+      discountedAmount: havePickupLocation
+        ? cartFound.billDetail.discountedAmount
+        : null,
+      originalGrandTotal: havePickupLocation
+        ? cartFound.billDetail.originalGrandTotal
+        : null,
+      discountedGrandTotal: havePickupLocation
+        ? cartFound.billDetail.discountedGrandTotal
+        : null,
+      itemTotal: cartFound.billDetail.itemTotal || null,
+      addedTip: cartFound.billDetail.addedTip || null,
+      subTotal: havePickupLocation ? cartFound.billDetail.subTotal : null,
+      vehicleType: cartFound.billDetail.vehicleType || null,
+      surgePrice: cartFound.billDetail.surgePrice || null,
+    };
+
     const formattedResponse = {
       items: formattedItems,
-      billDetail: cartFound.billDetail,
+      billDetail,
     };
 
     res.status(200).json({
@@ -462,21 +489,16 @@ const addTipAndApplyPromocodeInCustomOrderController = async (
     const customerId = req.userAuth;
     const { addedTip, promoCode } = req.body;
 
-    // Ensure customer is authenticated
-    if (!customerId) {
-      return next(appError("Customer is not authenticated", 401));
-    }
+    const [customerFound, cart] = await Promise.all([
+      Customer.findById(customerId),
+      PickAndCustomCart.findOne({
+        customerId,
+        "cartDetail.deliveryMode": "Custom Order",
+      }),
+    ]);
 
-    const customerFound = await Customer.findById(customerId);
-    if (!customerFound) {
-      return next(appError("Customer not found", 404));
-    }
-
-    // Find the customer's cart
-    const cart = await PickAndCustomCart.findOne({ customerId });
-    if (!cart) {
-      return next(appError("Cart not found", 404));
-    }
+    if (!customerFound) return next(appError("Customer not found", 404));
+    if (!cart) return next(appError("Cart not found", 404));
 
     // Ensure the original delivery charge exists
     const originalDeliveryCharge =
@@ -553,6 +575,32 @@ const addTipAndApplyPromocodeInCustomOrderController = async (
 
     await cart.save();
 
+    const havePickupLocation = cart.cartDetail.pickupLocation.length === 2;
+
+    const billDetail = {
+      deliveryChargePerDay: cart.billDetail.deliveryChargePerDay || null,
+      originalDeliveryCharge: havePickupLocation
+        ? cart.billDetail.originalDeliveryCharge
+        : null,
+      discountedDeliveryCharge: havePickupLocation
+        ? cart.billDetail.discountedDeliveryCharge
+        : null,
+      discountedAmount: havePickupLocation
+        ? cart.billDetail.discountedAmount
+        : null,
+      originalGrandTotal: havePickupLocation
+        ? cart.billDetail.originalGrandTotal
+        : null,
+      discountedGrandTotal: havePickupLocation
+        ? cart.billDetail.discountedGrandTotal
+        : null,
+      itemTotal: cart.billDetail.itemTotal || null,
+      addedTip: cart.billDetail.addedTip || null,
+      subTotal: havePickupLocation ? cart.billDetail.subTotal : null,
+      vehicleType: cart.billDetail.vehicleType || null,
+      surgePrice: cart.billDetail.surgePrice || null,
+    };
+
     res.status(200).json({
       message: "Tip and promo code applied successfully",
       data: {
@@ -560,7 +608,7 @@ const addTipAndApplyPromocodeInCustomOrderController = async (
         customerId: cart.customerId,
         cartDetail: cart.cartDetail,
         items: cart.items,
-        billDetail: cart.billDetail,
+        billDetail,
       },
     });
   } catch (err) {
@@ -572,15 +620,16 @@ const confirmCustomOrderController = async (req, res, next) => {
   try {
     const customerId = req.userAuth;
 
-    const customer = await Customer.findById(customerId);
-    if (!customer) {
-      return next(appError("Customer not found", 404));
-    }
+    const [customer, cartFound] = await Promise.all([
+      Customer.findById(customerId),
+      PickAndCustomCart.findOne({
+        customerId,
+        "cartDetail.deliveryMode": "Custom Order",
+      }),
+    ]);
 
-    const cart = await PickAndCustomCart.findOne({ customerId });
-    if (!cart) {
-      return next(appError("Cart not found", 404));
-    }
+    if (!customer) return next(appError("Customer not found", 404));
+    if (!cartFound) return next(appError("Cart not found", 404));
 
     const orderAmount =
       cart.billDetail.discountedGrandTotal ||

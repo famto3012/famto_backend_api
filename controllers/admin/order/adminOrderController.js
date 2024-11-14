@@ -2208,8 +2208,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
       });
     }
 
-    console.log("merchantDiscountAmount", merchantDiscountAmount);
-
     const billDetail = calculateBill(
       itemTotal || 0,
       deliveryChargeForScheduledOrder || oneTimeDeliveryCharge || 0,
@@ -2261,6 +2259,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
         billDetail: cart.billDetail,
         items: formattedItems || cart.items,
         deliveryMode,
+        buyFromAnyWhere: cart.cartDetail.pickupLocation.length === 2,
       },
     });
   } catch (err) {

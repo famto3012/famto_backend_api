@@ -444,9 +444,13 @@ const handleAddressDetails = async (
 
   // Handle "Custom Order"
   if (deliveryMode === "Custom Order") {
-    if (customPickupLocation) {
-      pickupLocation = [...customPickupLocation];
-    }
+    // if (customPickupLocation) {
+    //   pickupLocation = [...customPickupLocation];
+    // }
+
+    customPickupLocation
+      ? (pickupLocation = [...customPickupLocation])
+      : (pickupLocation = []);
 
     if (newDeliveryAddress) {
       deliveryLocation = [
@@ -1004,12 +1008,18 @@ const customOrderCharges = async (
   if (!customerPricing) throw new Error("Customer pricing not found");
 
   // Calculate one-time delivery charge
-  let oneTimeDeliveryCharge = calculateDeliveryCharges(
-    distanceInKM,
-    customerPricing.baseFare,
-    customerPricing.baseDistance,
-    customerPricing.fareAfterBaseDistance
-  );
+  let oneTimeDeliveryCharge;
+
+  if (distanceInKM) {
+    oneTimeDeliveryCharge = calculateDeliveryCharges(
+      distanceInKM,
+      customerPricing.baseFare,
+      customerPricing.baseDistance,
+      customerPricing.fareAfterBaseDistance
+    );
+  } else {
+    oneTimeDeliveryCharge = customerPricing.purchaseFarePerHour;
+  }
 
   // Fetch surge charges if applicable
   const customerSurge = await CustomerSurge.findOne({
