@@ -175,8 +175,8 @@ const createNotificationLog = async (notificationSettings, message) => {
     if (notificationSettings?.driver) {
       try {
         const notificationFound = await AgentNotificationLogs.findOne({
-          agentId: message.agentId,
-          orderId: message.orderId,
+          agentId: message?.agentId,
+          orderId: message?.orderId,
           status: "Pending",
         });
 
@@ -186,8 +186,8 @@ const createNotificationLog = async (notificationSettings, message) => {
 
         await AgentNotificationLogs.create({
           ...logData,
-          agentId: message.agentId,
-          orderId: message.orderId,
+          agentId: message?.agentId,
+          orderId: message?.orderId,
           pickupDetail: {
             name: message?.pickupDetail?.fullName,
             address: {
@@ -199,16 +199,16 @@ const createNotificationLog = async (notificationSettings, message) => {
             },
           },
           deliveryDetail: {
-            name: message.deliveryDetail.fullName,
+            name: message?.deliveryDetail?.fullName,
             address: {
-              fullName: message.deliveryDetail.fullName,
-              phoneNumber: message.deliveryDetail.phoneNumber,
-              flat: message.deliveryDetail.flat,
-              area: message.deliveryDetail.area,
-              landmark: message.deliveryDetail.landmark,
+              fullName: message?.deliveryDetail?.fullName,
+              phoneNumber: message?.deliveryDetail?.phoneNumber,
+              flat: message?.deliveryDetail?.flat,
+              area: message?.deliveryDetail?.area,
+              landmark: message?.deliveryDetail?.landmark,
             },
           },
-          orderType: message.orderType,
+          orderType: message?.orderType,
         });
       } catch (err) {
         console.log(`Error in creating agent notification log: ${err.message}`);
@@ -244,7 +244,7 @@ const sendNotification = async (userId, eventName, data, role) => {
   }
 
   if (notificationSent) {
-    await createNotificationLog(notificationSettings, data.fcm, role);
+    await createNotificationLog(notificationSettings, data.fcm);
   } else {
     console.error(`No socketId or fcmToken found for userId: ${userId}`);
   }
@@ -816,14 +816,27 @@ io.on("connection", async (socket) => {
   });
 
   // Update agent location to customer app and admin panel
-  socket.on("agentLocationUpdateForUser", async ({ agentId }) => {
-    const agent = await Agent.findById(agentId);
-
-    const data = {
-      agentLocation: agent.location,
-    };
-
-    if (agent) sendSocketData(data.userId, "agentCurrentLocation", data);
+  socket.on("agentLocationUpdateForUser", async ({ orderId }) => {
+    const order = await Order.findById(orderId);
+    if (order?.status !== "Completed" && order?.status !== "Cancelled") {
+      const agent = await Agent.findById(order?.agentId);
+      if (agent) {
+        const data = {
+          agentLocation: agent?.location,
+        };
+        sendSocketData(order?.customerId, "agentCurrentLocation", data);
+      } else {
+        const data = {
+          message: "Agent not assigned to this order",
+        };
+        sendSocketData(order?.customerId, "agentCurrentLocation", data);
+      }
+    } else {
+      const data = {
+        message: "Order is already completed or cancelled",
+      };
+      sendSocketData(order?.customerId, "agentCurrentLocation", data);
+    }
   });
 
   // Update started stepper in order detail
@@ -918,7 +931,6 @@ io.on("connection", async (socket) => {
       }
 
       const eventName = "reachedPickupLocation";
-
       const { rolesToNotify, data } = await findRolesToNotify(eventName);
 
       const maxRadius = 0.1;
@@ -992,24 +1004,38 @@ io.on("connection", async (socket) => {
               sendSocketData(orderFound.merchantId, eventName, socketData);
             }
           } else {
-            const data = {
-              fcm: {
-                title: "Alert",
-                body: `It seems like you have not reached the pickup location. Please try again after reaching the pickup location`,
-                agentId,
-                orderId: orderFound._id,
-                pickupDetail: taskFound?.pickupDetail?.pickupAddress,
-                deliveryDetail: taskFound.deliveryDetail.deliveryAddress,
-                orderType: orderFound.orderDetail.deliveryMode,
-              },
-            };
+            const event = "agentNotReachedPickupLocation";
+            const { rolesToNotify, data } = await findRolesToNotify(event);
 
-            sendNotification(
-              agentFound._id,
-              parameters.eventName,
-              data,
-              parameters.role
-            );
+            for (const role of rolesToNotify) {
+              let roleId;
+
+              if (role === "admin") {
+                roleId = process.env.ADMIN_ID;
+              } else if (role === "merchant") {
+                roleId = orderFound?.merchantId;
+              } else if (role === "driver") {
+                roleId = orderFound?.agentId;
+              } else if (role === "customer") {
+                roleId = orderFound?.customerId;
+              }
+
+              const dataToSend = {
+                ...data,
+                orderId: taskFound.orderId,
+                agentId: roleId,
+              };
+
+              if (roleId) {
+                sendSocketData(roleId, event, data);
+                await sendNotification(
+                  roleId,
+                  event,
+                  dataToSend,
+                  role.charAt(0).toUpperCase() + role.slice(1)
+                );
+              }
+            }
           }
         }
       }
@@ -1182,12 +1208,11 @@ io.on("connection", async (socket) => {
           turf.point(agentLocation),
           { units: "kilometers" }
         );
-
         if (distance < maxRadius) {
           if (orderFound?.orderDetail?.deliveryMode === "Custom Order") {
             const customerPricing = await CustomerPricing.findOne({
               deliveryMode: "Custom Order",
-              geofenceId: orderFound?.customerId?.customerDetails?.geofendeId,
+              geofenceId: orderFound?.customerId?.customerDetails?.geofenceId,
               status: true,
             });
 
@@ -1203,7 +1228,7 @@ io.on("connection", async (socket) => {
             const diffInMs = now - startTime;
 
             // Convert the difference to minutes
-            const diffInHours = Math.celi(diffInMs / 3600000);
+            const diffInHours = Math.ceil(diffInMs / 3600000);
 
             if (diffInHours > 0) {
               let calculatedDeliveryFare = 0;
@@ -1270,19 +1295,38 @@ io.on("connection", async (socket) => {
           sendSocketData(process.env.ADMIN_ID, eventName, socketData);
           sendSocketData(orderFound.customerId, eventName, socketData);
         } else {
-          const notificationData = {
-            title: "Alert",
-            body: `It seems like you have not reached the delivery location. Please try again after reaching the delivery location`,
-            orderId: taskFound.orderId,
-            pickupDetail: {},
-            deliveryDetail: {},
-            orderType: "",
-            agentId,
-          };
+          const event = "agentNotReachedDeliveryLocation";
+          const { rolesToNotify, data } = await findRolesToNotify(event);
 
-          const role = "Agent";
+          for (const role of rolesToNotify) {
+            let roleId;
 
-          sendNotification(agentFound._id, eventName, notificationData, role);
+            if (role === "admin") {
+              roleId = process.env.ADMIN_ID;
+            } else if (role === "merchant") {
+              roleId = orderFound?.merchantId;
+            } else if (role === "driver") {
+              roleId = orderFound?.agentId;
+            } else if (role === "customer") {
+              roleId = orderFound?.customerId;
+            }
+
+            const dataToSend = {
+              ...data,
+              orderId: taskFound.orderId,
+              agentId: roleId,
+            };
+
+            if (roleId) {
+              sendSocketData(roleId, event, data);
+              await sendNotification(
+                roleId,
+                event,
+                dataToSend,
+                role.charAt(0).toUpperCase() + role.slice(1)
+              );
+            }
+          }
         }
       }
     } catch (err) {
