@@ -177,6 +177,7 @@ const createNotificationLog = async (notificationSettings, message) => {
         const notificationFound = await AgentNotificationLogs.findOne({
           agentId: message?.agentId,
           orderId: message?.orderId,
+          status: "Pending",
         });
 
         if (notificationFound) {
@@ -255,9 +256,7 @@ const sendSocketData = (userId, eventName, data) => {
   // console.log("SocketId", socketId);
   // console.log("data", data);
 
-  if (socketId) {
-    io.to(socketId).emit(eventName, data);
-  }
+  if (socketId) io.to(socketId).emit(eventName, data);
 
   // console.log("socketId", socketId);
   // console.log("eventName", eventName);
@@ -667,8 +666,6 @@ io.on("connection", async (socket) => {
           let shopUpdates = orderFound?.detailAddedByAgent?.shopUpdates || [];
 
           shopUpdates.push(data);
-
-          console.log("COMPLETED SHOP UPDATE");
         }
 
         await orderFound.save();
@@ -733,8 +730,6 @@ io.on("connection", async (socket) => {
       if (task?.orderId?.merchantId) {
         sendSocketData(task?.orderId?.merchantId, eventName, socketData);
       }
-
-      console.log("agentOrderAccepted completed successfully");
     } catch (err) {
       socket.emit("error", {
         message: err.message,
@@ -829,7 +824,6 @@ io.on("connection", async (socket) => {
         const data = {
           agentLocation: agent?.location,
         };
-
         sendSocketData(order?.customerId, "agentCurrentLocation", data);
       } else {
         const data = {
@@ -1195,6 +1189,7 @@ io.on("connection", async (socket) => {
         "customerId",
         "customerDetails.geofenceId"
       );
+
       if (!orderFound) {
         return socket.emit("error", { message: "Order not found" });
       }

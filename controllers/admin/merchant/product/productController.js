@@ -966,7 +966,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
 
             // Now, process products for the category
             const productPromises = products.map(async (productData) => {
-              console.log("productData", productData)
+              // console.log("productData", productData)
               productData.categoryId = newCategory._id;
               // console.log("Product Data to Save/Update:", productData);
 
@@ -996,7 +996,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
             });
 
             await Promise.all(productPromises);
-            console.log("productPromises", productPromises)
+            // console.log("productPromises", productPromises)
           }
 
           // Fetch all categories after adding, ordered by the 'order' field in ascending order
@@ -1010,14 +1010,14 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
             description: `Uploaded Product CSV by ${req.userRole} (${req.userAuth})`,
           });
 
-          console.log("allCategories", allCategories)
+          // console.log("allCategories", allCategories)
 
           res.status(200).json({
             message: "Categories and products added successfully.",
             data: allCategories,
           });
         } catch (err) {
-          console.error("Error processing categories and products:", err);
+          // console.error("Error processing categories and products:", err);
           next(appError(err.message));
         } finally {
           // Delete the file from Firebase after processing
@@ -1029,7 +1029,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
         next(appError(error.message));
       });
   } catch (err) {
-    console.error("General error:", err);
+    // console.error("General error:", err);
     next(appError(err.message));
   }
 };

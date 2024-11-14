@@ -673,10 +673,7 @@ const searchProductsInMerchantController = async (req, res, next) => {
     if (!query) return next(appError("Query is required", 400));
 
     // Find all categories belonging to the merchant with the given business category
-    const categories = await Category.find({
-      merchantId,
-      businessCategoryId,
-    });
+    const categories = await Category.find({ merchantId, businessCategoryId });
 
     if (!categories || categories.length === 0) {
       return next(
@@ -698,27 +695,109 @@ const searchProductsInMerchantController = async (req, res, next) => {
         { searchTags: { $elemMatch: { $regex: query, $options: "i" } } },
       ],
     })
+      .populate(
+        "discountId",
+        "discountName maxAmount discountType discountValue validFrom validTo onAddOn status"
+      )
       .select(
-        "_id productName price description productImageURL inventory variants"
+        "_id productName price description discountId productImageURL inventory variants"
       )
       .sort({ order: 1 });
 
-    const formattedResponse = products?.map((product) => ({
-      id: product._id,
-      productName: product.productName,
-      price: product.price,
-      description: product.description,
-      productImageUrl: product?.productImageURL || null,
-      variants: product.variants.map((variant) => ({
-        id: variant._id,
-        variantName: variant.variantName,
-        variantTypes: variant.variantTypes.map((variantType) => ({
-          id: variantType._id,
-          typeName: variantType.typeName,
-          price: variantType.price,
+    const currentDate = new Date();
+
+    const formattedResponse = products?.map((product) => {
+      const discount = product?.discountId;
+      const validFrom = new Date(discount?.validFrom);
+      const validTo = new Date(discount?.validTo);
+      validTo?.setHours(23, 59, 59, 999); // Adjust validTo to the end of the day
+
+      let discountPrice = null;
+
+      // Check if discount is applicable
+      if (
+        discount &&
+        validFrom <= currentDate &&
+        validTo >= currentDate &&
+        discount.status
+      ) {
+        if (discount.onAddOn) {
+          // Apply discount to each variant type price if onAddOn is true
+          return {
+            id: product._id,
+            productName: product.productName,
+            price: product.price,
+            discountPrice: null, // Main product discount price is null if discount is on variants
+            description: product.description,
+            productImageUrl: product?.productImageURL || null,
+            variants: product.variants.map((variant) => ({
+              id: variant._id,
+              variantName: variant.variantName,
+              variantTypes: variant.variantTypes.map((variantType) => {
+                let variantDiscountPrice = null;
+
+                if (discount.discountType === "Percentage-discount") {
+                  let discountAmount =
+                    (variantType.price * discount.discountValue) / 100;
+                  if (discountAmount > discount.maxAmount)
+                    discountAmount = discount.maxAmount;
+                  variantDiscountPrice = Math.round(
+                    Math.max(0, variantType.price - discountAmount)
+                  );
+                } else if (discount.discountType === "Flat-discount") {
+                  variantDiscountPrice = Math.round(
+                    Math.max(0, variantType.price - discount.discountValue)
+                  );
+                }
+
+                return {
+                  id: variantType._id,
+                  typeName: variantType.typeName,
+                  price: variantType.price,
+                  discountPrice: variantDiscountPrice,
+                };
+              }),
+            })),
+          };
+        } else {
+          // Apply discount to the main product price if onAddOn is false
+          if (discount.discountType === "Percentage-discount") {
+            let discountAmount = (product.price * discount.discountValue) / 100;
+            if (discountAmount > discount.maxAmount)
+              discountAmount = discount.maxAmount;
+            discountPrice = Math.round(
+              Math.max(0, product.price - discountAmount)
+            );
+          } else if (discount.discountType === "Flat-discount") {
+            discountPrice = Math.round(
+              Math.max(0, product.price - discount.discountValue)
+            );
+          }
+        }
+      }
+
+      // Return a unified format regardless of discount type or application
+      return {
+        id: product._id,
+        productName: product.productName,
+        price: product.price,
+        discountPrice, // Null if no discount or discount is applied to variants
+        description: product.description,
+        productImageUrl: product?.productImageURL || null,
+        variants: product.variants.map((variant) => ({
+          id: variant._id,
+          variantName: variant.variantName,
+          variantTypes: variant.variantTypes.map((variantType) => ({
+            id: variantType._id,
+            typeName: variantType.typeName,
+            price: variantType.price,
+            discountPrice: discount?.onAddOn
+              ? variantType.discountPrice || null
+              : null,
+          })),
         })),
-      })),
-    }));
+      };
+    });
 
     res.status(200).json({
       message: "Products found in merchant",

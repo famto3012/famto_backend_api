@@ -14,7 +14,6 @@ const pickupSchema = new mongoose.Schema({
     phoneNumber: String,
     flat: String,
     area: String,
-    phoneNumber: String,
     landmark: String,
   },
   completedTime: {
@@ -38,7 +37,6 @@ const deliverySchema = new mongoose.Schema({
     phoneNumber: String,
     flat: String,
     area: String,
-    phoneNumber: String,
     landmark: String,
   },
   completedTime: {

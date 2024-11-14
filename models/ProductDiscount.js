@@ -46,6 +46,13 @@ const productDiscountSchema = new mongoose.Schema(
       ref: "Product",
       required: true,
     },
+    // productId: [
+    //   {
+    //     type: mongoose.Schema.Types.ObjectId,
+    //     ref: "Product",
+    //     required: true,
+    //   },
+    // ],
     onAddOn: {
       type: Boolean,
       default: false,

@@ -1,6 +1,7 @@
 const { validationResult } = require("express-validator");
 const ProductDiscount = require("../../../../models/ProductDiscount");
 const appError = require("../../../../utils/appError");
+const Product = require("../../../../models/Product");
 
 // =====================================
 // ===============Merchant==============
@@ -17,7 +18,6 @@ const addProductDiscountController = async (req, res, next) => {
   }
 
   try {
-    const merchantId = req.userAuth;
     const {
       discountName,
       maxAmount,
@@ -31,7 +31,7 @@ const addProductDiscountController = async (req, res, next) => {
       onAddOn,
     } = req.body;
 
-    let addProductDiscount = await ProductDiscount.create({
+    const discount = await ProductDiscount.create({
       discountName,
       maxAmount,
       discountType,
@@ -40,56 +40,146 @@ const addProductDiscountController = async (req, res, next) => {
       validFrom,
       validTo,
       geofenceId,
-      merchantId,
+      merchantId: req.userRole === "Admin" ? merchantId : req.userAuth,
       productId,
       onAddOn,
     });
 
-    addProductDiscount = await addProductDiscount.populate(
-      "geofenceId",
-      "name"
-    );
+    await Product.updateOne({ _id: productId }, { discountId: discount._id });
+
+    const populatedDiscount = await ProductDiscount.findById(discount._id)
+      .populate("geofenceId", "name")
+      .populate("productId", "productName");
 
     res.status(201).json({
       success: "Product Discount created successfully",
-      data: addProductDiscount,
+      data: populatedDiscount,
     });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
+// For multiple products
+// const addProductDiscountController = async (req, res, next) => {
+//   const errors = validationResult(req);
+//   if (!errors.isEmpty()) {
+//     const formattedErrors = errors.array().reduce((acc, error) => {
+//       acc[error.param] = error.msg;
+//       return acc;
+//     }, {});
+//     return res.status(400).json({ errors: formattedErrors });
+//   }
+
+//   try {
+//     const {
+//       discountName,
+//       maxAmount,
+//       discountType,
+//       discountValue,
+//       description,
+//       productId,
+//       validFrom,
+//       validTo,
+//       geofenceId,
+//       onAddOn,
+//     } = req.body;
+
+//     const discount = await ProductDiscount.create({
+//       discountName,
+//       maxAmount,
+//       discountType,
+//       discountValue,
+//       description,
+//       validFrom,
+//       validTo,
+//       geofenceId,
+//       merchantId: req.userAuth,
+//       productId,
+//       onAddOn,
+//     });
+
+//     await Product.updateMany(
+//       { _id: { $in: productId } },
+//       { discountId: discount._id }
+//     );
+
+//     const populatedDiscount = await ProductDiscount.findById(discount._id)
+//       .populate("productId", "productName")
+//       .populate("geofenceId", "name");
+
+//     const formattedResponse = {
+//       discountId: populatedDiscount._id,
+//       discountName: populatedDiscount.discountName,
+//       value: `${discountValue} ${discountType === "Percentage" ? "%" : "Rs"}`,
+//       products: populatedDiscount.productId.map(
+//         (product) => product.productName
+//       ),
+//       validFrom: formatDate(populatedDiscount.validFrom),
+//       validTo: formatDate(populatedDiscount.validTo),
+//       geofence: populatedDiscount.geofenceId?.name || null,
+//       status: populatedDiscount.status,
+//     };
+
+//     res.status(201).json({
+//       success: true,
+//       data: formattedResponse,
+//     });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
+
 const editProductDiscountController = async (req, res, next) => {
   try {
     const { id } = req.params;
 
+    // Find the existing discount to check the current productId
     let existingDiscount = await ProductDiscount.findById(id);
-    if (!existingDiscount) {
-      return res.status(404).json({ error: "Discount not found" });
+    if (!existingDiscount) return next(appError("Discount not found", 404));
+
+    const {
+      discountName,
+      maxAmount,
+      discountType,
+      discountValue,
+      description,
+      productId,
+      validFrom,
+      validTo,
+      geofenceId,
+      onAddOn,
+    } = req.body;
+
+    // Check if the productId has changed
+    if (productId && productId !== existingDiscount.productId.toString()) {
+      // Remove discountId from the old product
+      await Product.updateOne(
+        { _id: existingDiscount.productId },
+        { $unset: { discountId: "" } }
+      );
+
+      // Update the new product with the discountId
+      await Product.updateOne({ _id: productId }, { discountId: id });
     }
 
-    const updateFields = [
-      "discountName",
-      "maxAmount",
-      "discountType",
-      "discountValue",
-      "description",
-      "validFrom",
-      "validTo",
-      "geofenceId",
-      "onAddOn",
-      "productId",
-    ];
-
-    updateFields.forEach((field) => {
-      if (req.body[field] !== undefined) {
-        existingDiscount[field] = req.body[field];
-      }
-    });
-
-    await existingDiscount.save();
-
-    const updatedDiscount = await ProductDiscount.findById(id)
+    // Update the discount document
+    const updatedDiscount = await ProductDiscount.findByIdAndUpdate(
+      id,
+      {
+        discountName,
+        maxAmount,
+        discountType,
+        discountValue,
+        description,
+        productId,
+        validFrom,
+        validTo,
+        geofenceId,
+        onAddOn,
+      },
+      { new: true }
+    )
       .populate("geofenceId", "name")
       .populate("productId", "productName");
 
@@ -102,6 +192,74 @@ const editProductDiscountController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
+
+// For multiple products
+// const editProductDiscountController = async (req, res, next) => {
+//   try {
+//     const { id } = req.params;
+
+//     let existingDiscount = await ProductDiscount.findById(id);
+//     if (!existingDiscount) return next(appError("Discount not found", 404));
+
+//     const {
+//       discountName,
+//       maxAmount,
+//       discountType,
+//       discountValue,
+//       description,
+//       validFrom,
+//       validTo,
+//       geofenceId,
+//       merchantId,
+//       productId,
+//       onAddOn,
+//     } = req.body;
+
+//     const removedProductIds = existingDiscount.productId.filter(
+//       (prodId) => !productId.includes(prodId.toString())
+//     );
+
+//     if (removedProductIds.length > 0) {
+//       await Product.updateMany(
+//         { _id: { $in: removedProductIds } },
+//         { $unset: { discountId: "" } }
+//       );
+//     }
+
+//     existingDiscount = await ProductDiscount.findByIdAndUpdate(
+//       id,
+//       {
+//         discountName,
+//         maxAmount,
+//         discountType,
+//         discountValue,
+//         description,
+//         validFrom,
+//         validTo,
+//         geofenceId,
+//         merchantId,
+//         productId,
+//         onAddOn,
+//       },
+//       { new: true }
+//     )
+//       .populate("geofenceId", "name")
+//       .populate("productId", "productName");
+
+//     await Product.updateMany(
+//       { _id: { $in: productId } },
+//       { discountId: existingDiscount._id }
+//     );
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Product Discount updated successfully",
+//       data: existingDiscount,
+//     });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
 
 const deleteProductDiscountController = async (req, res, next) => {
   try {
@@ -122,6 +280,27 @@ const deleteProductDiscountController = async (req, res, next) => {
   }
 };
 
+// For multiple products
+// const deleteProductDiscountController = async (req, res, next) => {
+//   try {
+//     const { id } = req.params;
+
+//     const discount = await ProductDiscount.findById(id);
+//     if (!discount) return next(appError("Discount not found", 404));
+
+//     await Promise.all([
+//       Product.updateMany({ discountId: id }, { discountId: null }),
+//       ProductDiscount.findByIdAndDelete(id),
+//     ]);
+
+//     res.status(200).json({
+//       success: "Product Discount deleted successfully",
+//     });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
+
 const getAllProductDiscountController = async (req, res, next) => {
   try {
     const merchantId = req.userAuth;
@@ -139,21 +318,46 @@ const getAllProductDiscountController = async (req, res, next) => {
   }
 };
 
+// For multiple products
+// const getAllProductDiscountController = async (req, res, next) => {
+//   try {
+//     const merchantId = req.userAuth;
+
+//     const discounts = await ProductDiscount.find({ merchantId })
+//       .populate("geofenceId", "name")
+//       .populate("productId", "productName");
+
+//     const formattedResponse = discounts?.map((discount) => ({
+//       discountId: discount._id,
+//       discountName: discount.discountName,
+//       value: `${discount.discountValue} ${
+//         discount.discountType === "Percentage" ? "%" : "Rs"
+//       }`,
+//       products: discount.productId.map((product) => product.productName),
+//       validFrom: formatDate(discount.validFrom),
+//       validTo: formatDate(discount.validTo),
+//       geofence: discount.geofenceId?.name || null,
+//       status: discount.status,
+//     }));
+
+//     res.status(200).json({
+//       success: true,
+//       data: formattedResponse,
+//     });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
+
 const updateProductDiscountStatusController = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Find the banner by ID and delete it
     const updateDiscount = await ProductDiscount.findOne({ _id: id });
 
-    // Check if the banner was found and deleted
-    if (!updateDiscount) {
-      return next(appError("Discount not found", 404));
-    } else if (updateDiscount.status) {
-      updateDiscount.status = false;
-    } else {
-      updateDiscount.status = true;
-    }
+    if (!updateDiscount) return next(appError("Discount not found", 404));
+
+    updateDiscount.status = !updateDiscount.status;
 
     await updateDiscount.save();
 
@@ -168,28 +372,51 @@ const updateProductDiscountStatusController = async (req, res, next) => {
 
 const getProductDiscountByIdController = async (req, res, next) => {
   try {
-    const { id } = req.params; // Extract the ID from the request parameters
+    const { id } = req.params;
 
-    // Find the MerchantDiscount by ID
     const productDiscount = await ProductDiscount.findById(id);
 
-    // Check if the MerchantDiscount exists
-    if (!productDiscount) {
-      return res.status(404).json({
-        error: "ProductDiscount not found",
-      });
-    }
+    if (!productDiscount) return next(appError("Discount not found", 404));
 
-    // Return the MerchantDiscount data
     res.status(200).json({
       success: "ProductDiscount retrieved successfully",
       data: productDiscount,
     });
   } catch (err) {
-    // Handle any errors
     next(appError(err.message));
   }
 };
+
+// For multiple products
+// const getProductDiscountByIdController = async (req, res, next) => {
+//   try {
+//     const { id } = req.params;
+
+//     const discount = await ProductDiscount.findById(id);
+
+//     if (!discount) return next(appError("Discount not found", 404));
+
+//     const formattedResponse = {
+//       discountId: discount._id,
+//       discountName: discount.discountName,
+//       value: `${discount.discountValue} ${
+//         discount.discountType === "Percentage" ? "%" : "Rs"
+//       }`,
+//       products: discount.productId.map((product) => product.productName),
+//       validFrom: formatDate(discount.validFrom),
+//       validTo: formatDate(discount.validTo),
+//       geofence: discount.geofenceId?.name || null,
+//       status: discount.status,
+//     };
+
+//     res.status(200).json({
+//       success: true,
+//       data: formattedResponse,
+//     });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
 
 // =======================================
 // =================Admin=================
@@ -245,6 +472,78 @@ const addProductDiscountAdminController = async (req, res, next) => {
   }
 };
 
+// For multiple products
+// const addProductDiscountAdminController = async (req, res, next) => {
+//   const errors = validationResult(req);
+
+//   if (!errors.isEmpty()) {
+//     const formattedErrors = errors.array().reduce((acc, error) => {
+//       acc[error.param] = error.msg;
+//       return acc;
+//     }, {});
+//     return res.status(400).json({ errors: formattedErrors });
+//   }
+
+//   try {
+//     const {
+//       discountName,
+//       maxAmount,
+//       discountType,
+//       discountValue,
+//       description,
+//       validFrom,
+//       validTo,
+//       geofenceId,
+//       merchantId,
+//       productId,
+//       onAddOn,
+//     } = req.body;
+
+//     const discount = await ProductDiscount.create({
+//       discountName,
+//       maxAmount,
+//       discountType,
+//       discountValue,
+//       description,
+//       validFrom,
+//       validTo,
+//       geofenceId,
+//       merchantId,
+//       productId,
+//       onAddOn,
+//     });
+
+//     await Product.updateMany(
+//       { _id: { $in: productId } },
+//       { discountId: discount._id }
+//     );
+
+//     const populatedDiscount = await ProductDiscount.findById(discount._id)
+//       .populate("productId", "productName")
+//       .populate("geofenceId", "name");
+
+//     const formattedResponse = {
+//       discountId: populatedDiscount._id,
+//       discountName: populatedDiscount.discountName,
+//       value: `${discountValue} ${discountType === "Percentage" ? "%" : "Rs"}`,
+//       products: populatedDiscount.productId.map(
+//         (product) => product.productName
+//       ),
+//       validFrom: formatDate(populatedDiscount.validFrom),
+//       validTo: formatDate(populatedDiscount.validTo),
+//       geofence: populatedDiscount.geofenceId?.name || null,
+//       status: populatedDiscount.status,
+//     };
+
+//     res.status(201).json({
+//       success: true,
+//       data: formattedResponse,
+//     });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
+
 const getAllProductDiscountAdminController = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -263,6 +562,39 @@ const getAllProductDiscountAdminController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
+
+// For multiple products
+// const getAllProductDiscountAdminController = async (req, res, next) => {
+//   try {
+//     const { id } = req.params;
+
+//     const discounts = await ProductDiscount.find({
+//       merchantId: id,
+//     })
+//       .populate("geofenceId", "name")
+//       .populate("productId", "productName");
+
+//     const formattedResponse = discounts?.map((discount) => ({
+//       discountId: discount._id,
+//       discountName: discount.discountName,
+//       value: `${discount.discountValue} ${
+//         discount.discountType === "Percentage" ? "%" : "Rs"
+//       }`,
+//       products: discount.productId.map((product) => product.productName),
+//       validFrom: formatDate(discount.validFrom),
+//       validTo: formatDate(discount.validTo),
+//       geofence: discount.geofenceId?.name || null,
+//       status: discount.status,
+//     }));
+
+//     res.status(200).json({
+//       success: true,
+//       data: formattedResponse,
+//     });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
 
 module.exports = {
   addProductDiscountController,
