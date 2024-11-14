@@ -85,6 +85,7 @@ const {
   addTipAndApplyPromocodeInCustomOrderController,
   confirmCustomOrderController,
   cancelCustomBeforeOrderCreationController,
+  getSingleItemController,
 } = require("../../controllers/customer/customOrderController");
 
 const customerRoute = express.Router();
@@ -414,6 +415,12 @@ customerRoute.post(
   upload.single("itemImage"),
   isAuthenticated,
   addItemsToCartController
+);
+
+customerRoute.get(
+  "/get-item/:itemId",
+  isAuthenticated,
+  getSingleItemController
 );
 
 customerRoute.patch(

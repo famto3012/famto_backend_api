@@ -160,9 +160,42 @@ const addItemsToCartController = async (req, res, next) => {
         cartId: cart._id,
         customerId: cart.customerId,
         cartDetail: cart.cartDetail,
-        items: cart.items,
+        items: cart.items?.map((item) => ({
+          itemId: item.itemId,
+          itemName: item.itemName,
+          quantity: item.quantity,
+          unit: item.unit,
+          numOfUnits: item.numOfUnits,
+          itemImage: item.itemImageURL,
+        })),
       },
     });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getSingleItemController = async (req, res, next) => {
+  try {
+    const { itemId } = req.params;
+
+    const cart = await PickAndCustomCart.findOne({ customerId: req.userAuth });
+
+    if (!cart) return next(appError("Cart not found", 404));
+
+    const item = cart.items?.find((item) => item.itemId.toString() === itemId);
+    if (!item) return next(appError("Item not found", 404));
+
+    const formattedResponse = {
+      itemId: item.itemId,
+      itemName: item.itemName,
+      quantity: item.quantity,
+      unit: item.unit,
+      numOfUnits: item.numOfUnits,
+      itemImage: item.itemImageURL,
+    };
+
+    res.status(200).json(formattedResponse);
   } catch (err) {
     next(appError(err.message));
   }
@@ -267,6 +300,7 @@ const addDeliveryAddressController = async (req, res, next) => {
       deliveryAddressOtherAddressId,
       newDeliveryAddress,
       addNewDeliveryToAddressBook,
+      instructionInDelivery,
     } = req.body;
 
     const customerId = req.userAuth;
@@ -358,6 +392,7 @@ const addDeliveryAddressController = async (req, res, next) => {
       deliveryMode: cartFound.cartDetail.deliveryMode,
       distance,
       duration,
+      instructionInDelivery,
       voiceInstructiontoAgent: voiceInstructiontoAgentURL,
       deliveryOption: "On-demand",
     };
@@ -780,4 +815,5 @@ module.exports = {
   addTipAndApplyPromocodeInCustomOrderController,
   confirmCustomOrderController,
   cancelCustomBeforeOrderCreationController,
+  getSingleItemController,
 };

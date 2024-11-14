@@ -1031,6 +1031,60 @@ const getTaskPreviewController = async (req, res, next) => {
   }
 };
 
+// const getTaskPreviewController = async (req, res, next) => {
+//   try {
+//     const { orderId } = req.params;
+
+//     const task = await Task.findOne({
+//       orderId,
+//       agentId: req.userAuth,
+//     });
+
+//     if (!task) return next(appError("Task not found", 404));
+
+//     const formattedResponse = {
+//       taskId: task._id,
+//       deliveryMode: task.deliveryMode,
+//       taskStatus: task.status,
+//       orderId: task.orderId,
+//       date: formatDate(task.createdAt),
+//       time: formatTime(task.createdAt),
+//       pickupLocation: task.pickupDetail.pickupLocation,
+//       pickupAddress: {
+//         fullName: task.pickupDetail.fullName || null,
+//         phoneNumber: task.pickupDetail.phoneNumber || null,
+//         flat: task.pickupDetail.flat || null,
+//         area: task.pickupDetail.area || null,
+//         phoneNumber: task.pickupDetail.phoneNumber || null,
+//         landmark: task.pickupDetail.landmark || null,
+//       },
+//       showPickupExpansion:
+//         task.pickupDetail.pickupStatus === "Completed" ||
+//         task.pickupDetail.pickupStatus === "Cancelled"
+//           ? false
+//           : true,
+//       deliveryLocation: task.deliveryDetail.pickupLocation,
+//       deliveryAddress: {
+//         fullName: task.deliveryDetail.fullName || null,
+//         phoneNumber: task.deliveryDetail.phoneNumber || null,
+//         flat: task.deliveryDetail.flat || null,
+//         area: task.deliveryDetail.area || null,
+//         phoneNumber: task.deliveryDetail.phoneNumber || null,
+//         landmark: task.deliveryDetail.landmark || null,
+//       },
+//       showDeliveryExpansion:
+//         task.deliveryDetail.deliveryStatus === "Completed" ||
+//         task.deliveryDetail.deliveryStatus === "Cancelled"
+//           ? false
+//           : true,
+//     };
+
+//     res.status(200).json(formattedResponse);
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
+
 // Get pickup details
 const getPickUpDetailController = async (req, res, next) => {
   try {
@@ -1874,9 +1928,9 @@ const getAllNotificationsController = async (req, res, next) => {
     // Set start and end of the day correctly
     const startOfDay = new Date();
     startOfDay.setDate(startOfDay.getDate() - 1);
-    startOfDay.setHours(0, 0, 0, 0);
+    startOfDay.setHours(18, 30, 0, 0);
     const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    endOfDay.setHours(18, 29, 59, 999);
 
     // Retrieve notifications within the day for the given agent, sorted by date
     const notifications = await AgentNotificationLogs.find({
