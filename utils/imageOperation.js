@@ -38,17 +38,40 @@ const uploadToFirebase = async (file, folderName) => {
   }
 
   const uniqueName = uuidv4();
-
   const storageRef = ref(
     storage,
     `${folderName}/${uniqueName}-${file.originalname || file.name}`
   );
-  const compressedImageBuffer = await sharp(file.buffer)
-    .resize({ width: 800 })
-    .jpeg({ quality: 80 })
-    .toBuffer();
 
-  await uploadBytes(storageRef, compressedImageBuffer);
+  let fileBuffer;
+
+  // Check and log the file MIME type for debugging
+  console.log("File MIME type:", file.mimetype);
+
+  if (file.mimetype.startsWith("image/")) {
+    // If it's an image, process it with sharp
+    try {
+      fileBuffer = await sharp(file.buffer)
+        .resize({ width: 800 })
+        .jpeg({ quality: 80 })
+        .toBuffer();
+    } catch (err) {
+      throw new Error("Image processing failed");
+    }
+  } else if (
+    file.mimetype === "text/csv" ||
+    file.mimetype === "application/vnd.ms-excel"
+  ) {
+    // If it's a CSV, skip sharp and use the original buffer
+    fileBuffer = file.buffer;
+  } else {
+    // For unsupported file types, log and throw an error
+    console.log("Unsupported file type:", file.mimetype);
+    throw new Error("Unsupported file format");
+  }
+
+  // Upload file to Firebase
+  await uploadBytes(storageRef, fileBuffer);
   const downloadURL = await getDownloadURL(storageRef);
 
   return downloadURL;
