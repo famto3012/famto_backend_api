@@ -62,6 +62,11 @@ const calculateDeliveryCharges = (
   baseDistance,
   fareAfterBaseDistance
 ) => {
+  console.log("distance", distance);
+  console.log("baseFare", baseFare);
+  console.log("baseDistance", baseDistance);
+  console.log("fareAfterBaseDistance", fareAfterBaseDistance);
+
   if (fareAfterBaseDistance) {
     if (distance <= baseDistance) {
       return Number(parseFloat(baseFare).toFixed(2) || 0);
@@ -419,15 +424,9 @@ const getDeliveryAndSurgeCharge = async (
 ) => {
   const customer = await Customer.findById(customerId);
 
-  if (!customer) {
-    throw new Error("Customer not found", 404);
-  }
+  if (!customer) throw new Error("Customer not found", 404);
 
   let customerPricing;
-
-  console.log(deliveryMode);
-  console.log(businessCategoryId);
-  console.log(customer.customerDetails.geofenceId);
 
   if (deliveryMode === "Home Delivery") {
     customerPricing = await CustomerPricing.findOne({
@@ -444,9 +443,7 @@ const getDeliveryAndSurgeCharge = async (
     });
   }
 
-  if (!customerPricing) {
-    throw new Error("Customer pricing not found", 404);
-  }
+  if (!customerPricing) throw new Error("Customer pricing not found", 404);
 
   let baseFare = customerPricing.baseFare;
   let baseDistance = customerPricing.baseDistance;
