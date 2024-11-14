@@ -821,7 +821,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
 
           // Check if the product already exists in the category
           let existingProduct = categoryEntry.products.find(
-            (p) => p.productName === productName
+            (p) => p.productName.toLowerCase() === productName.toLowerCase()
           );
 
           if (!existingProduct) {
@@ -840,7 +840,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
               maxQuantityPerOrder:
                 parseInt(row["Max Quantity Per Order"]?.trim()) || 0,
               costPrice: parseFloat(row["Product Cost Price*"]?.trim()),
-              sku: row["SKU"]?.trim() || "",
+              sku: row["SKU"]?.trim() || null,
               preparationTime: row["Preparation Time"]?.trim() || "",
               description: row["Description"]?.trim() || "",
               longDescription: row["Long Description"]?.trim() || "",
@@ -854,7 +854,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
 
             // Add the new product to the category's product list
             categoryEntry.products.push(existingProduct);
-            // console.log("New Product Added:", existingProduct);
+            // console.log("New Product Added:", existingProduct.productName);
           }
 
           // Now handle the variant part
@@ -879,7 +879,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
           ) {
             // Check if the product already has the variant
             let existingVariant = existingProduct.variants.find(
-              (v) => v.variantName === variantName
+              (v) => v.variantName.toLowerCase() === variantName.toLowerCase()
             );
 
             if (!existingVariant) {
@@ -914,7 +914,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
             { categoryData, products },
           ] of categoriesMap.entries()) {
             // console.log("Final Category Data to Save:", categoryData);
-            // console.log("Associated Products:", products);
+             console.log("Associated Products:", products);
 
             // Find or create the business category using businessCategoryName
             const businessCategoryFound = await BusinessCategory.findOne({
@@ -966,9 +966,9 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
 
             // Now, process products for the category
             const productPromises = products.map(async (productData) => {
-              // console.log("productData", productData)
+              // console.log("newCategory._id", newCategory._id);
               productData.categoryId = newCategory._id;
-              // console.log("Product Data to Save/Update:", productData);
+              // console.log("Product Data to Save/Update:", productData.productName);
 
               const existingProduct = await Product.findOne({
                 productName: productData.productName,
