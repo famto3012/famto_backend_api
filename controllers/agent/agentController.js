@@ -998,22 +998,21 @@ const getTaskPreviewController = async (req, res, next) => {
 
     // Separate tasks into currentTasks and nextTasks
     Object.values(groupedTasks).forEach((order) => {
-      const { pickup, delivery } = order.tasks;
-
+      // const { pickup, delivery } = order.tasks;
       // Check if either task has "Started" status and add both to currentTasks
-      if (
-        pickup.taskStatus === "Started" ||
-        delivery.taskStatus === "Started"
-      ) {
+      // if (
+      //   pickup.taskStatus === "Started" ||
+      //   delivery.taskStatus === "Started"
+      // ) {
         currentTasks.push(order);
-      }
-      // Check if both tasks are "Accepted" status and add both to nextTasks
-      else if (
-        pickup.taskStatus === "Accepted" &&
-        delivery.taskStatus === "Accepted"
-      ) {
-        nextTasks.push(order);
-      }
+      // }
+      // // Check if both tasks are "Accepted" status and add both to nextTasks
+      // else if (
+      //   pickup.taskStatus === "Accepted" &&
+      //   delivery.taskStatus === "Accepted"
+      // ) {
+      //   nextTasks.push(order);
+      // }
     });
 
     console.log(currentTasks);
