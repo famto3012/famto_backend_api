@@ -40,6 +40,7 @@ const {
   getCurrentOngoingOrders,
   getAllScheduledOrdersOfCustomer,
   getScheduledOrderDetailController,
+  getFavoriteProductsController,
 } = require("../../controllers/customer/customerController");
 const {
   getAllBusinessCategoryController,
@@ -298,6 +299,12 @@ customerRoute.get(
   getFavoriteMerchantsController
 );
 
+customerRoute.get(
+  "/favorite-products",
+  isAuthenticated,
+  getFavoriteProductsController
+);
+
 customerRoute.get("/orders", isAuthenticated, getCustomerOrdersController);
 
 customerRoute.get(
@@ -438,7 +445,7 @@ customerRoute.delete(
 
 customerRoute.post(
   "/add-delivery-address",
-  upload.single("voiceInstructiontoAgent"),
+  upload.single("voiceInstructionToAgent"),
   isAuthenticated,
   addDeliveryAddressController
 );
