@@ -914,7 +914,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
             { categoryData, products },
           ] of categoriesMap.entries()) {
             // console.log("Final Category Data to Save:", categoryData);
-             console.log("Associated Products:", products);
+            console.log("Associated Products:", products);
 
             // Find or create the business category using businessCategoryName
             const businessCategoryFound = await BusinessCategory.findOne({
