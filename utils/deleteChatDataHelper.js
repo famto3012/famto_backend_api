@@ -5,9 +5,9 @@ const { deleteFromFirebase } = require("./imageOperation");
 
 const deleteExpiredConversationsAndMessages = async () => {
   const currentDate = new Date();
-  console.log(
-    "Running chat window conversation deletion operation date: " + currentDate
-  );
+  // console.log(
+  //   "Running chat window conversation deletion operation date: " + currentDate
+  // );
   try {
     // Find and delete expired conversations
     await Conversation.find({
