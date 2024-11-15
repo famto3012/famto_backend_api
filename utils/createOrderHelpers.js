@@ -270,6 +270,7 @@ const updateCustomerAddress = async (
   newAddress.coordinates = location;
 
   console.log("addressType: ", addressType);
+  console.log("newAddress: ", newAddress);
 
   switch (addressType) {
     case "home":

@@ -371,8 +371,8 @@ const addDeliveryAddressController = async (req, res, next) => {
       duration = parseInt(durationInMinutes);
     }
 
-    let voiceInstructiontoAgentURL =
-      cartFound?.cartDetail?.voiceInstructiontoAgent || "";
+    let voiceInstructionToAgentURL =
+      cartFound?.cartDetail?.voiceInstructionToDeliveryAgent || "";
     if (req.file) {
       if (voiceInstructiontoAgentURL) {
         await deleteFromFirebase(voiceInstructiontoAgentURL);
@@ -393,7 +393,7 @@ const addDeliveryAddressController = async (req, res, next) => {
       distance,
       duration,
       instructionInDelivery,
-      voiceInstructiontoAgent: voiceInstructiontoAgentURL,
+      voiceInstructionToDeliveryAgent: voiceInstructionToAgentURL,
       deliveryOption: "On-demand",
     };
 
@@ -620,7 +620,7 @@ const confirmCustomOrderController = async (req, res, next) => {
   try {
     const customerId = req.userAuth;
 
-    const [customer, cartFound] = await Promise.all([
+    const [customer, cart] = await Promise.all([
       Customer.findById(customerId),
       PickAndCustomCart.findOne({
         customerId,
@@ -629,7 +629,7 @@ const confirmCustomOrderController = async (req, res, next) => {
     ]);
 
     if (!customer) return next(appError("Customer not found", 404));
-    if (!cartFound) return next(appError("Cart not found", 404));
+    if (!cart) return next(appError("Cart not found", 404));
 
     const orderAmount =
       cart.billDetail.discountedGrandTotal ||

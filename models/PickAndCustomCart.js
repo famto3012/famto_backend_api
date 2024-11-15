@@ -88,7 +88,7 @@ const cartDetailSchema = mongoose.Schema(
       type: String,
       default: null,
     },
-    voiceInstructiontoAgent: {
+    voiceInstructionToDeliveryAgent: {
       type: String,
       default: null,
     },

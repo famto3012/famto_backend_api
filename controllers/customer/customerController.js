@@ -475,7 +475,7 @@ const rateDeliveryAgentController = async (req, res, next) => {
   }
 };
 
-// Get favourite merchants
+// Get favorite merchants
 const getFavoriteMerchantsController = async (req, res, next) => {
   try {
     const currentCustomer = req.userAuth;
@@ -513,6 +513,40 @@ const getFavoriteMerchantsController = async (req, res, next) => {
       message: "Favourite merchants retrieved successfully",
       data: formattedMerchants,
     });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// Get favorite products
+const getFavoriteProductsController = async (req, res, next) => {
+  try {
+    const customer = await Customer.findById(req.userAuth)
+      .populate({
+        path: "customerDetails.favoriteProducts",
+        select: "productName price productImageURL categoryId inventory",
+        populate: {
+          path: "categoryId",
+          select: "businessCategoryId merchantId",
+        },
+      })
+      .select("customerDetails.favoriteProducts");
+
+    if (!customer) return next(appError("Customer not found", 404));
+
+    const formattedResponse = customer.customerDetails.favoriteProducts?.map(
+      (product) => ({
+        productId: product._id,
+        productName: product.productName || null,
+        price: product.price || null,
+        productImageURL: product.productImageURL || null,
+        businessCategoryId: product.categoryId.businessCategoryId || null,
+        merchantId: product.categoryId.merchantId || null,
+        inventory: product.inventory || null,
+      })
+    );
+
+    res.status(200).json(formattedResponse);
   } catch (err) {
     next(appError(err.message));
   }
@@ -1299,6 +1333,7 @@ module.exports = {
   verifyWalletRechargeController,
   rateDeliveryAgentController,
   getFavoriteMerchantsController,
+  getFavoriteProductsController,
   getCustomerOrdersController,
   getsingleOrderDetailController,
   getTransactionOfCustomerController,

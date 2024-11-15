@@ -2259,7 +2259,7 @@ const createInvoiceByAdminController = async (req, res, next) => {
         billDetail: cart.billDetail,
         items: formattedItems || cart.items,
         deliveryMode,
-        buyFromAnyWhere: cart.cartDetail.pickupLocation.length === 2,
+        buyFromAnyWhere: cart.cartDetail.pickupLocation.length !== 2,
       },
     });
   } catch (err) {
