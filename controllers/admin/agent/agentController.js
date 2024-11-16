@@ -555,7 +555,7 @@ const getRatingsByCustomerController = async (req, res, next) => {
     const agentFound = await Agent.findById(req.params.agentId).populate({
       path: "ratingsByCustomers",
       populate: {
-        path: "customerId",
+        path: "customerId", 
         model: "Customer",
         select: "fullName _id", // Selecting the fields of fullName and _id from Customer
       },
@@ -566,11 +566,11 @@ const getRatingsByCustomerController = async (req, res, next) => {
     }
 
     const ratings = agentFound.ratingsByCustomers.map((rating) => ({
-      review: rating.review,
-      rating: rating.rating,
+      review: rating?.review,
+      rating: rating?.rating,
       customerId: {
-        id: rating.customerId._id,
-        fullName: rating.customerId.fullName,
+        id: rating?.customerId?._id,
+        fullName: rating?.customerId?.fullName,
       },
     }));
 

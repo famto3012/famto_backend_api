@@ -60,7 +60,7 @@ const assignAgentToTaskController = async (req, res, next) => {
   try {
     const { taskId } = req.params;
     const { agentId } = req.body;
-
+    
     const task = await Task.findById(taskId);
     const order = await Order.findById(task.orderId);
     const agent = await Agent.findById(agentId);
@@ -112,6 +112,7 @@ const assignAgentToTaskController = async (req, res, next) => {
           notificationData,
           role.charAt(0).toUpperCase() + role.slice(1)
         );
+
       }
     }
 

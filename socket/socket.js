@@ -107,10 +107,17 @@ const sendPushNotificationToUser = async (fcmToken, message, eventName) => {
     },
     data: {
       orderId: message?.orderId || "",
-      message,
+      merchantName: message?.merchantName || "",
+      pickAddress: JSON.stringify(message?.pickAddress || {}),
+      customerName: message?.customerName || "",
+      customerAddress: JSON.stringify(message?.customerAddress || {}),
+      orderType: message?.orderType || "",
+      taskDate: message?.taskDate || "",
+      taskTime: message?.taskTime || "",
+      timer: JSON.stringify(message?.timer || ""), 
     },
     webpush: {
-      fcm_options: {
+      fcm_options: { 
         link: "https://dashboard.famto.in/home",
       },
       notification: {
@@ -119,22 +126,22 @@ const sendPushNotificationToUser = async (fcmToken, message, eventName) => {
     },
     token: fcmToken,
   };
-  // console.log(mes);
+   console.log(mes);
 
   try {
     // Try sending with the first project
     const response1 = await admin1.messaging(app1).send(mes);
-    // console.log("Successfully sent message with project1:", response1);
+     console.log("Successfully sent message with project1:", response1);
     return true; // Return true if the notification was sent successfully with project1
   } catch (error1) {
-    // console.error("Error sending message with project1:", error1);
+     console.error("Error sending message with project1:", error1);
 
     try {
       const response2 = await admin2.messaging(app2).send(mes);
-      // console.log("Successfully sent message with project2:", response2);
+       console.log("Successfully sent message with project2:", response2);
       return true; // Return true if the notification was sent successfully with project2
     } catch (error2) {
-      // console.error("Error sending message with project2:", error2);
+       console.error("Error sending message with project2:", error2);
       return false; // Return false if there was an error with both projects
     }
   }
@@ -243,6 +250,7 @@ const sendNotification = async (userId, eventName, data, role) => {
       eventName
     );
   }
+  console.log("Notification send", notificationSent)
 
   if (notificationSent) {
     await createNotificationLog(notificationSettings, data.fcm);
@@ -274,7 +282,7 @@ const populateUserSocketMap = async () => {
       }
     });
 
-    // console.log("User socket map", userSocketMap);
+    console.log("User socket map", userSocketMap);
   } catch (error) {
     console.error("Error populating User Socket Map:", error);
   }
