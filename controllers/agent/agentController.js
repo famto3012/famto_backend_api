@@ -900,11 +900,11 @@ const getRatingsOfAgentController = async (req, res, next) => {
     const ratingsOfAgent = agentFound.ratingsByCustomers.reverse();
 
     const formattedRatingAndReviews = ratingsOfAgent.map((rating) => ({
-      review: rating.review,
-      rating: rating.rating,
+      review: rating?.review,
+      rating: rating?.rating,
       customerId: {
-        id: rating.customerId._id,
-        fullName: rating.customerId.fullName || "-",
+        id: rating?.customerId?._id,
+        fullName: rating?.customerId?.fullName || "-",
       },
     }));
 
@@ -1927,9 +1927,9 @@ const getAllNotificationsController = async (req, res, next) => {
     // Set start and end of the day correctly
     const startOfDay = new Date();
     startOfDay.setDate(startOfDay.getDate() - 1);
-    startOfDay.setHours(18, 30, 0, 0);
+    startOfDay.setUTCHours(18, 30, 0, 0);
     const endOfDay = new Date();
-    endOfDay.setHours(18, 29, 59, 999);
+    endOfDay.setUTCHours(18, 29, 59, 999);
 
     // Retrieve notifications within the day for the given agent, sorted by date
     const notifications = await AgentNotificationLogs.find({
