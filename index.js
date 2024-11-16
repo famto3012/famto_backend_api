@@ -206,6 +206,7 @@ cron.schedule("30 18 * * *", async () => {
 
 // Cron jobs for every minutes
 cron.schedule("* * * * *", async () => {
+  // await moveAppDetailToHistoryAndResetForAllAgents();
   deleteExpiredConversationsAndMessages();
   populateUserSocketMap();
 

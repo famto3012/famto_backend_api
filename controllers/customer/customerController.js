@@ -543,6 +543,8 @@ const getFavoriteProductsController = async (req, res, next) => {
         businessCategoryId: product.categoryId.businessCategoryId || null,
         merchantId: product.categoryId.merchantId || null,
         inventory: product.inventory || null,
+        description: product.description || null,
+        isFavorite: true,
       })
     );
 

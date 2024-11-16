@@ -801,11 +801,11 @@ const getCurrentDayAppDetailController = async (req, res, next) => {
     }
 
     const formattedResponse = {
-      totalEarning: agentFound?.appDetail?.totalEarning || "0.0",
+      totalEarning: agentFound?.appDetail?.totalEarning || 0,
       orders: agentFound?.appDetail?.orders || 0,
       pendingOrders: agentFound?.appDetail?.pendingOrder || 0,
-      totalDistance: agentFound?.appDetail?.totalDistance || "0.0",
-      averageRating: agentFound.averageRating || "0.0",
+      totalDistance: agentFound?.appDetail?.totalDistance || 0.0,
+      averageRating: agentFound.averageRating || 0.0,
     };
 
     res.status(200).json({
@@ -869,10 +869,6 @@ const getHistoryOfAppDetailsController = async (req, res, next) => {
           })) || [],
       },
     }));
-
-    console.log("response");
-    console.log(formattedResponse[0]);
-    console.log(formattedResponse[1]);
 
     res.status(200).json({
       message: "App Detail history",
@@ -1004,7 +1000,7 @@ const getTaskPreviewController = async (req, res, next) => {
       //   pickup.taskStatus === "Started" ||
       //   delivery.taskStatus === "Started"
       // ) {
-        currentTasks.push(order);
+      currentTasks.push(order);
       // }
       // // Check if both tasks are "Accepted" status and add both to nextTasks
       // else if (
