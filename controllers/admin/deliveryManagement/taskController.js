@@ -20,24 +20,14 @@ const { formatDate, formatTime } = require("../../../utils/formatters");
 const getTaskFilterController = async (req, res, next) => {
   try {
     const { filter } = req.query;
-    let taskQuery;
 
-    if (filter === "Assigned") {
-      taskQuery = Task.find({ taskStatus: "Assigned" });
-    } else if (filter === "Completed") {
-      taskQuery = Task.find({ deliveryStatus: "Completed" });
-    } else {
-      taskQuery = Task.find({ taskStatus: "Unassigned" });
-    }
-
-    // Populate the agentId and orderId fields
-    taskQuery = taskQuery.populate("agentId").populate("orderId");
-
-    const task = await taskQuery;
+    const tasks = await Task.find({ taskStatus: filter })
+      .populate("agentId")
+      .populate("orderId");
 
     res.status(201).json({
       message: "Task fetched successfully",
-      data: task,
+      data: tasks,
     });
   } catch (err) {
     next(appError(err.message));
@@ -105,9 +95,14 @@ const assignAgentToTaskController = async (req, res, next) => {
             ...data,
             agentId,
             orderId: order._id,
-            orderType: order.orderDetail.deliveryMode,
-            pickupDetail: order?.orderDetail?.pickupAddress,
-            deliveryDetail: order.orderDetail.deliveryAddress,
+            merchantName: order?.orderDetail?.pickupAddress?.fullName || null,
+            pickAddress: order?.orderDetail?.pickupAddress || null,
+            customerName: deliveryAddress?.fullName || null,
+            customerAddress: deliveryAddress,
+            orderType: order?.orderDetail?.deliveryMode || null,
+            taskDate: formatDate(order?.orderDetail?.deliveryTime),
+            taskTime: formatTime(order?.orderDetail?.deliveryTime),
+            timer: autoAllocation?.expireTime || null,
           },
         };
 
@@ -160,7 +155,10 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
     });
 
     let geofence;
-    const agents = await Agent.find({ isApproved: "Approved" });
+    const agents = await Agent.find({
+      isApproved: "Approved",
+      location: { $exists: true, $ne: [] },
+    });
 
     if (task?.orderId?.orderDetail?.deliveryMode === "Custom Order") {
       // const deliveryLocation = task?.orderId?.orderDetail?.pickupLocation;

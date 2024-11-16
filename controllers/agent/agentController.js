@@ -1000,7 +1000,7 @@ const getTaskPreviewController = async (req, res, next) => {
       //   pickup.taskStatus === "Started" ||
       //   delivery.taskStatus === "Started"
       // ) {
-        currentTasks.push(order);
+      currentTasks.push(order);
       // }
       // // Check if both tasks are "Accepted" status and add both to nextTasks
       // else if (
