@@ -618,11 +618,16 @@ io.on("connection", async (socket) => {
 
       const agent = await Agent.findById(agentId);
 
-      if (!agent) return socket.emit("error", { message: "Agent not found" });
+      if (!agent)
+        return socket.emit("error", {
+          message: "Agent not found",
+          success: false,
+        });
 
       if (agent.status === "Inactive") {
         return socket.emit("error", {
           message: "Agent should be online to accept new order",
+          success: false,
         });
       }
 
@@ -643,6 +648,7 @@ io.on("connection", async (socket) => {
         console.log("Don't have notification");
         return socket.emit("error", {
           message: "Notification log of agent is not found",
+          success: false,
         });
       }
 
@@ -741,6 +747,7 @@ io.on("connection", async (socket) => {
         agentImgURL: agent.agentImageURL,
         customerId: task.orderId.customerId,
         orderDetailStepper: stepperDetail,
+        success: true,
       };
 
       sendSocketData(orderFound.customerId, eventName, socketData);
@@ -755,6 +762,7 @@ io.on("connection", async (socket) => {
 
       socket.emit("error", {
         message: err.message,
+        success: false,
       });
     }
   });
@@ -774,10 +782,16 @@ io.on("connection", async (socket) => {
       ]);
 
       if (!agentFound)
-        return socket.emit("error", { message: "Agent not found" });
+        return socket.emit("error", {
+          message: "Agent not found",
+          success: false,
+        });
 
       if (!orderFound)
-        return socket.emit("error", { message: "Order not found" });
+        return socket.emit("error", {
+          message: "Order not found",
+          success: false,
+        });
 
       if (agentNotification) {
         agentNotification.status = "Rejected";
@@ -785,6 +799,7 @@ io.on("connection", async (socket) => {
       } else {
         return socket.emit("error", {
           message: "Agent notification not found",
+          success: false,
         });
       }
 
@@ -837,6 +852,7 @@ io.on("connection", async (socket) => {
 
       return socket.emit("error", {
         message: `Error in rejecting order by agent: ${err}`,
+        success: false,
       });
     }
   });
@@ -875,24 +891,36 @@ io.on("connection", async (socket) => {
       const taskFound = await Task.findById(taskId);
       if (!taskFound) {
         console.log("Task not found");
-        return socket.emit("error", { message: "Task not found" });
+        return socket.emit("error", {
+          message: "Task not found",
+          success: false,
+        });
       }
 
       const orderFound = await Order.findById(taskFound.orderId);
       if (!orderFound) {
         console.log("Order not found");
-        return socket.emit("error", { message: "Order not found" });
+        return socket.emit("error", {
+          message: "Order not found",
+          success: false,
+        });
       }
 
       const agentFound = await Agent.findById(agentId);
       if (!agentFound) {
         console.log("Agent not found");
-        return socket.emit("error", { message: "Agent not found" });
+        return socket.emit("error", {
+          message: "Agent not found",
+          success: false,
+        });
       }
 
       if (taskFound.pickupDetail.pickupStatus === "Completed") {
         console.log("Pickup has already been completed");
-        return socket.emit("error", { message: "Pickup is already completed" });
+        return socket.emit("error", {
+          message: "Pickup is already completed",
+          success: false,
+        });
       }
 
       const stepperDetail = {
@@ -933,6 +961,7 @@ io.on("connection", async (socket) => {
 
       const data = {
         orderDetailStepper: stepperDetail,
+        success: true,
       };
 
       sendSocketData(process.env.ADMIN_ID, eventName, data);
@@ -952,6 +981,7 @@ io.on("connection", async (socket) => {
 
       return socket.emit("error", {
         message: `Error in starting pickup: ${err}`,
+        success: false,
       });
     }
   });
@@ -1112,18 +1142,27 @@ io.on("connection", async (socket) => {
 
       if (!agentFound) {
         console.log("Agent not found");
-        return socket.emit("error", { message: "Agent not found" });
+        return socket.emit("error", {
+          message: "Agent not found",
+          success: false,
+        });
       }
 
       if (!taskFound) {
         console.log("Task not found");
-        return socket.emit("error", { message: "Task not found" });
+        return socket.emit("error", {
+          message: "Task not found",
+          success: false,
+        });
       }
 
       const orderFound = await Order.findById(taskFound.orderId);
       if (!orderFound) {
         console.log("Order not found");
-        return socket.emit("error", { message: "Order not found" });
+        return socket.emit("error", {
+          message: "Order not found",
+          success: false,
+        });
       }
 
       const eventName = "reachedPickupLocation";
@@ -1141,6 +1180,7 @@ io.on("connection", async (socket) => {
         console.log("Invalid pickup location data");
         return socket.emit("error", {
           message: "Invalid pickup location data",
+          success: false,
         });
       }
 
@@ -1150,7 +1190,10 @@ io.on("connection", async (socket) => {
         agentLocation.length !== 2
       ) {
         console.log("Invalid agent location data");
-        return socket.emit("error", { message: "Invalid agent location data" });
+        return socket.emit("error", {
+          message: "Invalid agent location data",
+          success: false,
+        });
       }
 
       console.log("Pickup Location: ", pickupLocation);
@@ -1216,6 +1259,7 @@ io.on("connection", async (socket) => {
           agentId: agentId,
           agentName: agentFound.fullName,
           orderDetailStepper: stepperDetail,
+          success: true,
         };
 
         sendSocketData(orderFound.customerId, eventName, socketData);
@@ -1242,6 +1286,7 @@ io.on("connection", async (socket) => {
 
         return socket.emit("error", {
           message: "Agent is far from pickup point",
+          success: false,
         });
       }
     } catch (err) {
@@ -1252,6 +1297,7 @@ io.on("connection", async (socket) => {
 
       return socket.emit("error", {
         message: `Error in reaching pickup location: ${err.message || err}`,
+        success: false,
       });
     }
   });
@@ -1269,11 +1315,17 @@ io.on("connection", async (socket) => {
       ]);
 
       if (!agentFound) {
-        return socket.emit("error", { message: "Agent not found" });
+        return socket.emit("error", {
+          message: "Agent not found",
+          success: false,
+        });
       }
 
       if (!taskFound) {
-        return socket.emit("error", { message: "Task not found" });
+        return socket.emit("error", {
+          message: "Task not found",
+          success: false,
+        });
       }
 
       const orderFound = await Order.findById(taskFound.orderId).populate(
@@ -1282,7 +1334,10 @@ io.on("connection", async (socket) => {
       );
 
       if (!orderFound) {
-        return socket.emit("error", { message: "Order not found" });
+        return socket.emit("error", {
+          message: "Order not found",
+          success: false,
+        });
       }
 
       taskFound.pickupDetail.pickupStatus = "Completed";
@@ -1298,6 +1353,7 @@ io.on("connection", async (socket) => {
         if (!customerPricing) {
           return socket.emit("error", {
             message: `Customer pricing for custom order not found`,
+            success: false,
           });
         }
 
@@ -1388,6 +1444,7 @@ io.on("connection", async (socket) => {
       if (socketId)
         io.to(socketId).emit("agentDeliveryStarted", {
           data: "Delivery successfully started",
+          success: true,
         });
 
       console.log("Agent successfully started delivery");
@@ -1401,6 +1458,7 @@ io.on("connection", async (socket) => {
 
       return socket.emit("error", {
         message: `Error in starting delivery trip: ${err}`,
+        success: false,
       });
     }
   });
@@ -1414,12 +1472,18 @@ io.on("connection", async (socket) => {
 
       const agentFound = await Agent.findById(agentId);
       if (!agentFound) {
-        return socket.emit("error", { message: "Agent not found" });
+        return socket.emit("error", {
+          message: "Agent not found",
+          success: false,
+        });
       }
 
       const taskFound = await Task.findOne({ _id: taskId, agentId });
       if (!taskFound) {
-        return socket.emit("error", { message: "Task not found" });
+        return socket.emit("error", {
+          message: "Task not found",
+          success: false,
+        });
       }
 
       const orderFound = await Order.findById(taskFound.orderId).populate(
@@ -1428,7 +1492,10 @@ io.on("connection", async (socket) => {
       );
 
       if (!orderFound) {
-        return socket.emit("error", { message: "Order not found" });
+        return socket.emit("error", {
+          message: "Order not found",
+          success: false,
+        });
       }
 
       const eventName = "reachedDeliveryLocation";
@@ -1457,6 +1524,7 @@ io.on("connection", async (socket) => {
             if (!customerPricing) {
               return socket.emit("error", {
                 message: `Customer pricing for custom order not found`,
+                success: false,
               });
             }
 
@@ -1528,6 +1596,7 @@ io.on("connection", async (socket) => {
 
           const socketData = {
             orderDetailStepper: stepperDetail,
+            success: true,
           };
 
           sendSocketData(process.env.ADMIN_ID, eventName, socketData);
@@ -1548,6 +1617,7 @@ io.on("connection", async (socket) => {
 
           return socket.emit("error", {
             message: "Agent is far from delivery point",
+            success: false,
           });
         }
       }
@@ -1563,6 +1633,7 @@ io.on("connection", async (socket) => {
 
       return socket.emit("error", {
         message: `Error in reaching delivery location`,
+        success: false,
       });
     }
   });
