@@ -361,6 +361,7 @@ const getAllProductDiscountController = async (req, res, next) => {
       validTo: formatDate(discount.validTo),
       geofence: discount.geofenceId?.name || null,
       status: discount.status,
+      onAddOn: discount.onAddOn,
     }));
 
     res.status(200).json({
@@ -614,6 +615,7 @@ const getAllProductDiscountAdminController = async (req, res, next) => {
       validTo: formatDate(discount.validTo),
       geofence: discount.geofenceId?.name || null,
       status: discount.status,
+      onAddOn: discount.onAddOn,
     }));
 
     res.status(200).json({
