@@ -2,6 +2,7 @@ const { validationResult } = require("express-validator");
 const ProductDiscount = require("../../../../models/ProductDiscount");
 const appError = require("../../../../utils/appError");
 const Product = require("../../../../models/Product");
+const { formatDate } = require("../../../../utils/formatters");
 
 // =====================================
 // ===============Merchant==============
@@ -111,7 +112,10 @@ const addProductDiscountController = async (req, res, next) => {
     const formattedResponse = {
       discountId: populatedDiscount._id,
       discountName: populatedDiscount.discountName,
-      value: `${discountValue} ${discountType === "Percentage" ? "%" : "Rs"}`,
+      value:
+        discount.discountType === "Percentage-discount"
+          ? `${discount.discountValue} %`
+          : `₹ ${discount.discountValue}`,
       products: populatedDiscount.productId.map(
         (product) => product.productName
       ),
@@ -252,10 +256,26 @@ const editProductDiscountController = async (req, res, next) => {
       { discountId: existingDiscount._id }
     );
 
+    const formattedResponse = {
+      discountId: existingDiscount._id,
+      discountName: existingDiscount.discountName,
+      value:
+        existingDiscount.discountType === "Percentage-discount"
+          ? `${existingDiscount.discountValue} %`
+          : `₹ ${existingDiscount.discountValue}`,
+      products: existingDiscount.productId.map(
+        (product) => product.productName
+      ),
+      validFrom: formatDate(existingDiscount.validFrom),
+      validTo: formatDate(existingDiscount.validTo),
+      geofence: existingDiscount.geofenceId?.name || null,
+      status: existingDiscount.status,
+    };
+
     res.status(200).json({
       success: true,
       message: "Product Discount updated successfully",
-      data: existingDiscount,
+      data: formattedResponse,
     });
   } catch (err) {
     next(appError(err.message));
@@ -332,9 +352,10 @@ const getAllProductDiscountController = async (req, res, next) => {
     const formattedResponse = discounts?.map((discount) => ({
       discountId: discount._id,
       discountName: discount.discountName,
-      value: `${discount.discountValue} ${
-        discount.discountType === "Percentage" ? "%" : "Rs"
-      }`,
+      value:
+        discount.discountType === "Percentage-discount"
+          ? `${discount.discountValue} %`
+          : `₹ ${discount.discountValue}`,
       products: discount.productId.map((product) => product.productName),
       validFrom: formatDate(discount.validFrom),
       validTo: formatDate(discount.validTo),
@@ -401,14 +422,16 @@ const getProductDiscountByIdController = async (req, res, next) => {
     const formattedResponse = {
       discountId: discount._id,
       discountName: discount.discountName,
-      value: `${discount.discountValue} ${
-        discount.discountType === "Percentage" ? "%" : "Rs"
-      }`,
-      products: discount.productId.map((product) => product._id),
-      validFrom: formatDate(discount.validFrom),
-      validTo: formatDate(discount.validTo),
-      geofence: discount.geofenceId?.name || null,
+      discountType: discount.discountType,
+      value: discount.discountValue,
+      maxAmount: discount.maxAmount,
+      productId: discount.productId.map((product) => product._id),
+      validFrom: discount.validFrom,
+      validTo: discount.validTo,
+      geofenceId: discount.geofenceId?._id || null,
       status: discount.status,
+      onAddOn: discount.onAddOn,
+      merchantId: discount.merchantId,
     };
 
     res.status(200).json({
@@ -527,7 +550,10 @@ const addProductDiscountAdminController = async (req, res, next) => {
     const formattedResponse = {
       discountId: populatedDiscount._id,
       discountName: populatedDiscount.discountName,
-      value: `${discountValue} ${discountType === "Percentage" ? "%" : "Rs"}`,
+      value:
+        discount.discountType === "Percentage-discount"
+          ? `${discount.discountValue} %`
+          : `₹ ${discount.discountValue}`,
       products: populatedDiscount.productId.map(
         (product) => product.productName
       ),
@@ -579,9 +605,10 @@ const getAllProductDiscountAdminController = async (req, res, next) => {
     const formattedResponse = discounts?.map((discount) => ({
       discountId: discount._id,
       discountName: discount.discountName,
-      value: `${discount.discountValue} ${
-        discount.discountType === "Percentage" ? "%" : "Rs"
-      }`,
+      value:
+        discount.discountType === "Percentage-discount"
+          ? `${discount.discountValue} %`
+          : `₹ ${discount.discountValue}`,
       products: discount.productId.map((product) => product.productName),
       validFrom: formatDate(discount.validFrom),
       validTo: formatDate(discount.validTo),
