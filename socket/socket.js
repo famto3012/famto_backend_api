@@ -261,14 +261,14 @@ const sendNotification = async (userId, eventName, data, role) => {
 
 const sendSocketData = (userId, eventName, data) => {
   const socketId = userSocketMap[userId]?.socketId;
-  // console.log("Event", eventName);
-  // console.log("SocketId", socketId);
-  // console.log("data", data);
+  console.log("Event", eventName);
+  console.log("SocketId", socketId);
+  console.log("data", data);
 
   if (socketId) io.to(socketId).emit(eventName, data);
 
-  // console.log("socketId", socketId);
-  // console.log("eventName", eventName);
+  console.log("socketId", socketId);
+  console.log("eventName", eventName);
 };
 
 const populateUserSocketMap = async () => {
@@ -1262,11 +1262,19 @@ io.on("connection", async (socket) => {
           success: true,
         };
 
+        const event = "agentReachedPickupLocation";
+
+        const socketDataForAgent = {
+          message: "Agent reached pickup location",
+          success: true,
+        };
+
         sendSocketData(orderFound.customerId, eventName, socketData);
         sendSocketData(process.env.ADMIN_ID, eventName, socketData);
         if (orderFound?.merchantId) {
           sendSocketData(orderFound.merchantId, eventName, socketData);
         }
+        sendSocketData(agentId, event, socketDataForAgent);
 
         console.log("Agent successfully reached pick up");
       } else {
@@ -1599,8 +1607,16 @@ io.on("connection", async (socket) => {
             success: true,
           };
 
+          const event = "agentReachedDeliveryLocation";
+
+          const socketDataForAgent = {
+            message: "Agent reached delivery location",
+            success: true,
+          };
+
           sendSocketData(process.env.ADMIN_ID, eventName, socketData);
           sendSocketData(orderFound.customerId, eventName, socketData);
+          sendSocketData(agentId, event, socketDataForAgent);
         } else {
           console.log("Agent is far from delivery point");
           const event = "agentNotReachedDeliveryLocation";

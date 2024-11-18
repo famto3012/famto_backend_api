@@ -27,6 +27,7 @@ const {
   getMerchantPayoutController,
   getMerchantPayoutDetail,
   comfirmMerchantPayout,
+  downloadPayoutCSVController,
 } = require("../../../controllers/admin/merchant/merchantController");
 const { upload } = require("../../../utils/imageOperation");
 const isAdmin = require("../../../middlewares/isAdmin");
@@ -163,6 +164,13 @@ merchantRoute.get(
   isAuthenticated,
   isAdmin,
   getMerchantPayoutController
+);
+
+merchantRoute.get(
+  "/admin/payout-csv",
+  isAuthenticated,
+  isAdmin,
+  downloadPayoutCSVController
 );
 
 // Get merchants payout detail
