@@ -203,17 +203,13 @@ const editItemInCartController = async (req, res, next) => {
 
     const cart = await PickAndCustomCart.findOne({ customerId });
 
-    if (!cart) {
-      return next(appError("Cart not found", 404));
-    }
+    if (!cart) return next(appError("Cart not found", 404));
 
     const itemIndex = cart.items.findIndex(
       (item) => item.itemId.toString() === itemId
     );
 
-    if (itemIndex === -1) {
-      return next(appError("Item not found", 404));
-    }
+    if (itemIndex === -1) return next(appError("Item not found", 404));
 
     let itemImageURL = cart.items[itemIndex].itemImageURL;
 
@@ -250,29 +246,21 @@ const editItemInCartController = async (req, res, next) => {
 const deleteItemInCartController = async (req, res, next) => {
   try {
     const { itemId } = req.params;
-
     const customerId = req.userAuth;
 
     const cart = await PickAndCustomCart.findOne({ customerId });
 
-    if (!cart) {
-      return next(appError("Cart not found", 404));
-    }
+    if (!cart) return next(appError("Cart not found", 404));
 
     const itemIndex = cart.items.findIndex(
       (item) => item.itemId.toString() === itemId
     );
 
-    if (itemIndex === -1) {
-      return next(appError("Item not found", 404));
-    }
+    if (itemIndex === -1) return next(appError("Item not found", 404));
 
     let itemImageURL = cart.items[itemIndex].itemImageURL;
 
-    if (itemImageURL) {
-      // Delete the item image from Firebase
-      await deleteFromFirebase(itemImageURL);
-    }
+    if (itemImageURL) await deleteFromFirebase(itemImageURL);
 
     // Remove the item from the cart
     cart.items.splice(itemIndex, 1);
@@ -374,11 +362,11 @@ const addDeliveryAddressController = async (req, res, next) => {
     let voiceInstructionToAgentURL =
       cartFound?.cartDetail?.voiceInstructionToDeliveryAgent || "";
     if (req.file) {
-      if (voiceInstructiontoAgentURL) {
-        await deleteFromFirebase(voiceInstructiontoAgentURL);
+      if (voiceInstructionToAgentURL) {
+        await deleteFromFirebase(voiceInstructionToAgentURL);
       }
 
-      voiceInstructiontoAgentURL = await uploadToFirebase(
+      voiceInstructionToAgentURL = await uploadToFirebase(
         req.file,
         "VoiceInstructions"
       );
@@ -430,9 +418,6 @@ const addDeliveryAddressController = async (req, res, next) => {
     cartFound.billDetail = updatedBillDetail;
 
     await cartFound.save();
-
-    console.log(cartFound.billDetail);
-    console.log(havePickupLocation);
 
     const formattedItems = cartFound.items.map((item) => ({
       itemId: item.itemId,
@@ -686,7 +671,7 @@ const confirmCustomOrderController = async (req, res, next) => {
     await customer.save();
 
     if (!tempOrder) {
-      return next(appError("Error in creating temperory order"));
+      return next(appError("Error in creating temporary order"));
     }
 
     // Clear the cart
@@ -773,7 +758,7 @@ const confirmCustomOrderController = async (req, res, next) => {
           billDetail: newOrder.billDetail,
           orderDetailStepper: newOrder.orderDetailStepper.created,
 
-          //? Data for displayinf detail in all orders table
+          //? Data for displaying detail in all orders table
           _id: newOrder._id,
           orderStatus: newOrder.status,
           merchantName: "-",
@@ -810,12 +795,14 @@ const cancelCustomBeforeOrderCreationController = async (req, res, next) => {
     const { orderId } = req.params;
 
     const orderFound = await TemperoryOrder.findOne({ orderId });
+    if (!orderFound) return next(appError("Order not found", 404));
 
     const customerFound = await Customer.findById(orderFound.customerId);
+    if (!customerFound) return next(appError("Customer not found", 404));
 
     let updatedTransactionDetail = {
       transactionType: "Refund",
-      madeon: new Date(),
+      madeOn: new Date(),
       type: "Credit",
     };
 
@@ -827,12 +814,13 @@ const cancelCustomBeforeOrderCreationController = async (req, res, next) => {
           updatedTransactionDetail.transactionAmount = orderAmount;
         }
 
-        // Remove the temporary order data from the database
-        await TemperoryOrder.deleteOne({ orderId });
-
         customerFound.transactionDetail.push(updatedTransactionDetail);
 
-        await customerFound.save();
+        // Remove the temporary order data from the database and push transaction to customer transaction
+        await Promise.all([
+          TemperoryOrder.deleteOne({ orderId }),
+          customerFound.save(),
+        ]);
 
         res.status(200).json({
           message: "Order cancelled and amount refunded to wallet",

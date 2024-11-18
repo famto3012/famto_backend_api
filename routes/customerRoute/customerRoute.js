@@ -28,7 +28,7 @@ const {
   getWalletAndLoyaltyController,
   getCustomerCartController,
   getCustomerAppBannerController,
-  getSpalshScreenImageController,
+  getSplashScreenImageController,
   getPickAndDropBannersController,
   getCustomOrderBannersController,
   getAvailableServiceController,
@@ -41,6 +41,7 @@ const {
   getAllScheduledOrdersOfCustomer,
   getScheduledOrderDetailController,
   getFavoriteProductsController,
+  getVisibilityOfReferralAndLoyaltyPoint,
 } = require("../../controllers/customer/customerController");
 const {
   getAllBusinessCategoryController,
@@ -75,7 +76,7 @@ const {
   confirmPickAndDropController,
   verifyPickAndDropPaymentController,
   cancelPickBeforeOrderCreationController,
-  getVehiclePricingDetalsController,
+  getVehiclePricingDetailsController,
 } = require("../../controllers/customer/pickAndDropController");
 const {
   addShopController,
@@ -378,7 +379,7 @@ customerRoute.post(
 customerRoute.get(
   "/get-vehicle-charges/:cartId",
   isAuthenticated,
-  getVehiclePricingDetalsController
+  getVehiclePricingDetailsController
 );
 
 customerRoute.post(
@@ -488,7 +489,7 @@ customerRoute.get(
 
 customerRoute.get("/app-banners", getCustomerAppBannerController);
 
-customerRoute.get("/app-splash-screen", getSpalshScreenImageController);
+customerRoute.get("/app-splash-screen", getSplashScreenImageController);
 
 customerRoute.get("/pick-and-drop-banners", getPickAndDropBannersController);
 
@@ -498,7 +499,7 @@ customerRoute.get("/available-services", getAvailableServiceController);
 
 customerRoute.get("/generate-referral", isAuthenticated, generateReferralCode);
 
-customerRoute.get("/referral-status", generateReferralCode);
+customerRoute.get("/visibility-status", getVisibilityOfReferralAndLoyaltyPoint);
 
 customerRoute.get(
   "/all-notifications",

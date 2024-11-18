@@ -35,7 +35,7 @@ const {
 const { sendNotification, sendSocketData } = require("../../socket/socket");
 const {
   processSchedule,
-  processDeliverydetailInApp,
+  processDeliveryDetailInApp,
 } = require("../../utils/createOrderHelpers");
 
 // Add pick and drop address
@@ -64,7 +64,7 @@ const addPickUpAddressController = async (req, res, next) => {
     }
 
     const { pickupLocation, pickupAddress, deliveryLocation, deliveryAddress } =
-      await processDeliverydetailInApp(
+      await processDeliveryDetailInApp(
         customer,
         pickUpAddressType,
         pickUpAddressOtherAddressId,
@@ -175,7 +175,7 @@ const addPickUpAddressController = async (req, res, next) => {
 };
 
 // Get vehicle charges
-const getVehiclePricingDetalsController = async (req, res, next) => {
+const getVehiclePricingDetailsController = async (req, res, next) => {
   try {
     const customerId = req.userAuth;
 
@@ -272,7 +272,7 @@ const addPickandDropItemsController = async (req, res, next) => {
     const { items, vehicleType, deliveryCharges } = req.body;
     const customerId = req.userAuth;
 
-    if (items.length === 0) return next(appError("Add atleast onr item", 400));
+    if (items.length === 0) return next(appError("Add at-least one item", 400));
 
     // Find the cart for the customer
     const cart = await PickAndCustomCart.findOne({ customerId });
@@ -319,7 +319,7 @@ const addPickandDropItemsController = async (req, res, next) => {
   }
 };
 
-// Add tip and promocode
+// Add tip and promo code
 const addTipAndApplyPromocodeInPickAndDropController = async (
   req,
   res,
@@ -441,32 +441,22 @@ const confirmPickAndDropController = async (req, res, next) => {
     const { paymentMode } = req.body;
     const customerId = req.userAuth;
 
-    const cartFound = await PickAndCustomCart.findOne({ customerId });
+    const [customer, cart] = await Promise.all([
+      Customer.findById(customerId),
+      PickAndCustomCart.findOne({ customerId }),
+    ]);
 
-    if (!cartFound) {
-      return next(appError("Cart not found", 404));
-    }
+    if (!customer) return next(appError("Customer not found", 404));
+    if (!cart) return next(appError("Cart not found", 404));
 
     const orderAmount = parseFloat(
-      cartFound.billDetail.discountedGrandTotal ||
-        cartFound.billDetail.originalGrandTotal
+      cart.billDetail.discountedGrandTotal || cart.billDetail.originalGrandTotal
     );
 
-    if (isNaN(orderAmount) || orderAmount <= 0) {
+    if (isNaN(orderAmount) || orderAmount <= 0)
       return next(appError("Invalid order amount", 400));
-    }
 
     if (paymentMode === "Famto-cash") {
-      const customer = await Customer.findById(customerId);
-      if (!customer) {
-        return next(appError("Customer not found", 404));
-      }
-
-      const cart = await PickAndCustomCart.findOne({ customerId });
-      if (!cart) {
-        return next(appError("Cart not found", 404));
-      }
-
       const orderAmount =
         cart.billDetail.discountedGrandTotal ||
         cart.billDetail.originalGrandTotal;
@@ -490,7 +480,7 @@ const confirmPickAndDropController = async (req, res, next) => {
         type: "Debit",
       };
 
-      let customerTransation = {
+      let customerTransaction = {
         madeOn: new Date(),
         transactionType: "Bill",
         transactionAmount: orderAmount,
@@ -499,15 +489,15 @@ const confirmPickAndDropController = async (req, res, next) => {
 
       let startDate, endDate, newOrder;
       if (cart.cartDetail.deliveryOption === "Scheduled") {
-        startDate = convertStartDateToUTC(
-          cart.cartDetail.startDate,
-          cart.cartDetail.time
-        );
+        // startDate = convertStartDateToUTC(
+        //   cart.cartDetail.startDate,
+        //   cart.cartDetail.time
+        // );
 
-        endDate = convertEndDateToUTC(
-          cart.cartDetail.endDate,
-          cart.cartDetail.time
-        );
+        // endDate = convertEndDateToUTC(
+        //   cart.cartDetail.endDate,
+        //   cart.cartDetail.time
+        // );
 
         // Create scheduled Pick and Drop
         newOrder = await ScheduledPickAndCustom.create({
@@ -519,14 +509,14 @@ const confirmPickAndDropController = async (req, res, next) => {
           status: "Pending",
           paymentMode: "Online-payment",
           paymentStatus: "Completed",
-          startDate,
-          endDate,
+          startDate: cart.cartDetail.startDate,
+          endDate: cart.cartDetail.endDate,
           time: cart.cartDetail.time,
         });
 
         // Clear the cart
         await PickAndCustomCart.deleteOne({ customerId });
-        customer.transactionDetail.push(customerTransation);
+        customer.transactionDetail.push(customerTransaction);
         customer.walletTransactionDetail.push(walletTransaction);
         await customer.save();
 
@@ -553,16 +543,15 @@ const confirmPickAndDropController = async (req, res, next) => {
         paymentStatus: "Completed",
       });
 
-      customer.transactionDetail.push(customerTransation);
+      customer.transactionDetail.push(customerTransaction);
       customer.walletTransactionDetail.push(walletTransaction);
       await customer.save();
 
       // Clear the cart
       await PickAndCustomCart.deleteOne({ customerId });
 
-      if (!tempOrder) {
-        return next(appError("Error in creating temperory order"));
-      }
+      if (!tempOrder)
+        return next(appError("Error in creating temporary order"));
 
       // Return countdown timer to client
       res.status(200).json({
@@ -722,7 +711,7 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
       addedTip: cart.billDetail.addedTip,
     };
 
-    let customerTransation = {
+    let customerTransaction = {
       madeOn: new Date(),
       transactionType: "Bill",
       transactionAmount: orderAmount,
@@ -758,7 +747,7 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
 
       // Clear the cart
       await PickAndCustomCart.deleteOne({ customerId });
-      customer.transactionDetail.push(customerTransation);
+      customer.transactionDetail.push(customerTransaction);
       await customer.save();
 
       res.status(200).json({
@@ -785,7 +774,7 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
       paymentId: paymentDetails.razorpay_payment_id,
     });
 
-    customer.transactionDetail.push(customerTransation);
+    customer.transactionDetail.push(customerTransaction);
     await customer.save();
 
     // Clear the cart
@@ -962,7 +951,7 @@ const cancelPickBeforeOrderCreationController = async (req, res, next) => {
 
         return;
       } else if (orderFound.paymentMode === "Online-payment") {
-        console.log("Inside online paymant");
+        console.log("Inside online payment");
         const paymentId = orderFound.paymentId;
 
         let refundAmount;
@@ -1007,7 +996,7 @@ const cancelPickBeforeOrderCreationController = async (req, res, next) => {
 
 module.exports = {
   addPickUpAddressController,
-  getVehiclePricingDetalsController,
+  getVehiclePricingDetailsController,
   addPickandDropItemsController,
   addTipAndApplyPromocodeInPickAndDropController,
   confirmPickAndDropController,
