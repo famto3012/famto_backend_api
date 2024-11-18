@@ -783,7 +783,7 @@ const confirmCustomOrderController = async (req, res, next) => {
         sendSocketData(newOrder.customerId, eventName, socketData);
         sendSocketData(process.env.ADMIN_ID, eventName, socketData);
       }
-    }, 2000);
+    }, 60000);
   } catch (err) {
     next(appError(err.message));
   }
@@ -793,6 +793,7 @@ const confirmCustomOrderController = async (req, res, next) => {
 const cancelCustomBeforeOrderCreationController = async (req, res, next) => {
   try {
     const { orderId } = req.params;
+    console.log("Order Id for cancel: ", orderId);
 
     const orderFound = await TemperoryOrder.findOne({ orderId });
     if (!orderFound) return next(appError("Order not found", 404));

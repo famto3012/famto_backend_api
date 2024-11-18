@@ -718,18 +718,8 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
       type: "Debit",
     };
 
-    let startDate, endDate, newOrder;
+    let newOrder;
     if (cart.cartDetail.deliveryOption === "Scheduled") {
-      startDate = convertStartDateToUTC(
-        cart.cartDetail.startDate,
-        cart.cartDetail.time
-      );
-
-      endDate = convertEndDateToUTC(
-        cart.cartDetail.endDate,
-        cart.cartDetail.time
-      );
-
       // Create scheduled Pick and Drop
       newOrder = await ScheduledPickAndCustom.create({
         customerId,
@@ -740,8 +730,8 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
         status: "Pending",
         paymentMode: "Online-payment",
         paymentStatus: "Completed",
-        startDate,
-        endDate,
+        startDate: cart.cartDetail.startDate,
+        endDate: cart.cartDetail.endDate,
         time: cart.cartDetail.time,
       });
 
