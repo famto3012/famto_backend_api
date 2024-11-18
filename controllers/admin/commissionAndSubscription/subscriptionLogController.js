@@ -118,6 +118,10 @@ const verifyRazorpayPayment = async (req, res, next) => {
 
   try {
     const isValidPayment = verifyPayment(paymentDetails);
+
+    if (!isValidPayment)
+      return res.status(400).json({ message: "Invalid payment details" });
+
     const {
       razorpay_order_id,
       razorpay_payment_id,
@@ -125,9 +129,6 @@ const verifyRazorpayPayment = async (req, res, next) => {
       userId,
       paymentMode,
     } = paymentDetails;
-    if (!isValidPayment) {
-      return res.status(400).json({ message: "Invalid payment details" });
-    }
 
     const merchant = await Merchant.findById(userId);
 
@@ -138,9 +139,9 @@ const verifyRazorpayPayment = async (req, res, next) => {
       subscriptionPlan = await CustomerSubscription.findById(currentPlan);
     }
 
-    if (!subscriptionPlan) {
+    if (!subscriptionPlan)
       return res.status(404).json({ message: "Subscription plan not found" });
-    }
+
     const customer = await Customer.findById(userId);
 
     let typeOfUser = "";
@@ -436,7 +437,7 @@ const getAllCustomerSubscriptionLogController = async (req, res, next) => {
     // Step 1: Fetch all subscription logs for Customers
     const subscriptionLogs = await SubscriptionLog.find({
       typeOfUser: "Customer",
-    }).sort({ createdAt: -1 });;
+    }).sort({ createdAt: -1 });
 
     // Step 2: Extract unique userIds and planIds from the subscription logs
     const userIds = [...new Set(subscriptionLogs.map((log) => log.userId))];
@@ -528,7 +529,9 @@ const getMerchantSubscriptionLogsByName = async (req, res, next) => {
     // Find merchants whose names start with the given letter, case-insensitive
     const merchants = await Merchant.find({
       "merchantDetail.merchantName": new RegExp(`^${name}`, "i"),
-    }).populate("merchantDetail.pricing").sort({ createdAt: -1 });
+    })
+      .populate("merchantDetail.pricing")
+      .sort({ createdAt: -1 });
 
     if (merchants.length === 0) {
       return res.status(200).json({ message: "No merchants found", data: [] });
@@ -637,7 +640,9 @@ const getCustomerSubscriptionLogsByName = async (req, res, next) => {
     // Find customers whose names start with the given name, case-insensitive
     const customers = await Customer.find({
       fullName: new RegExp(`^${name}`, "i"),
-    }).populate("customerDetails.pricing").sort({ createdAt: -1 });
+    })
+      .populate("customerDetails.pricing")
+      .sort({ createdAt: -1 });
 
     if (customers.length === 0) {
       return res.status(200).json({ message: "No customers found", data: [] });
