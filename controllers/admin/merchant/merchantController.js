@@ -17,6 +17,7 @@ const {
 const mongoose = require("mongoose");
 const AccountLogs = require("../../../models/AccountLogs");
 const csvParser = require("csv-parser");
+const fs = require("fs");
 const { Readable } = require("stream");
 const axios = require("axios");
 const path = require("path");
@@ -2178,6 +2179,160 @@ const comfirmMerchantPayout = async (req, res, next) => {
 // Download payout csv
 const downloadPayoutCSVController = async (req, res, next) => {
   try {
+    let {
+      page = 1,
+      limit = 50,
+      paymentStatus,
+      merchantId,
+      geofenceId,
+      startDate,
+      endDate,
+      query,
+      isPaginated = "true",
+      timezoneOffset = 0,
+    } = req.query;
+
+    // Parse and normalize pagination inputs
+    isPaginated = isPaginated === "true";
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+    const skip = (page - 1) * limit;
+
+    // Initial filter criteria setup
+    const filterCriteria = { "payoutDetail.0": { $exists: true } };
+
+    // Apply search by merchant name if query is provided
+    if (query && query !== "") {
+      filterCriteria["merchantDetail.merchantName"] = {
+        $regex: query,
+        $options: "i",
+      };
+    }
+
+    // Filter by merchantId if specified
+    if (merchantId && merchantId !== "all") filterCriteria["_id"] = merchantId;
+
+    // Filter by geofenceId if specified
+    if (geofenceId && geofenceId !== "all") {
+      filterCriteria["merchantDetail.geofenceId"] =
+        mongoose.Types.ObjectId.createFromHexString(geofenceId);
+    }
+
+    // Set start and end date boundaries, adjusting for timezone offset
+    const dateFilter = {};
+    if (startDate) {
+      startDate = new Date(startDate);
+      startDate.setHours(0, 0, 0, 0);
+      startDate.setMinutes(startDate.getMinutes() - timezoneOffset); // Apply timezone offset
+      dateFilter.$gte = startDate;
+    }
+    if (endDate) {
+      endDate = new Date(endDate);
+      endDate.setHours(23, 59, 59, 999);
+      endDate.setMinutes(endDate.getMinutes() - timezoneOffset); // Apply timezone offset
+      dateFilter.$lte = endDate;
+    }
+
+    // Aggregation query with filters applied to payoutDetail
+    const merchantPayoutQuery = Merchant.aggregate([
+      { $match: filterCriteria },
+      {
+        $addFields: {
+          payoutDetail: {
+            $filter: {
+              input: "$payoutDetail",
+              as: "payout",
+              cond: {
+                $and: [
+                  // Payment status filter
+                  ...(paymentStatus && paymentStatus !== "all"
+                    ? [
+                        {
+                          $eq: [
+                            "$$payout.isSettled",
+                            paymentStatus.toLowerCase() === "true",
+                          ],
+                        },
+                      ]
+                    : []),
+                  // Date range filter
+                  ...(startDate || endDate
+                    ? [
+                        {
+                          $and: [
+                            ...(startDate
+                              ? [{ $gte: ["$$payout.date", startDate] }]
+                              : []),
+                            ...(endDate
+                              ? [{ $lte: ["$$payout.date", endDate] }]
+                              : []),
+                          ],
+                        },
+                      ]
+                    : []),
+                ],
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          payoutDetail: 1,
+          phoneNumber: 1,
+          "merchantDetail.merchantName": 1,
+        },
+      },
+      ...(isPaginated ? [{ $skip: skip }, { $limit: limit }] : []),
+    ]);
+
+    // Execute the query and transform data as required
+    const merchants = await merchantPayoutQuery.exec();
+    const data = merchants.flatMap((merchant) =>
+      merchant.payoutDetail.map((payout) => ({
+        merchantId: merchant._id,
+        merchantName: merchant.merchantDetail.merchantName,
+        phoneNumber: merchant.phoneNumber,
+        date: formatDate(payout.date),
+        totalCostPrice: payout.totalCostPrice,
+        completedOrders: payout.completedOrders,
+        isSettled: payout.isSettled,
+        payoutId: payout.payoutId,
+      }))
+    );
+
+    // If CSV export is requested
+    const csvFilePath = path.join(
+      __dirname,
+      "../../../sample_CSV/sample_Payout_CSV.csv"
+    );
+    const writer = csvWriter({
+      path: csvFilePath,
+      header: [
+        { id: "merchantId", title: "Merchant ID" },
+        { id: "merchantName", title: "Merchant Name" },
+        { id: "phoneNumber", title: "Phone Number" },
+        { id: "date", title: "Date" },
+        { id: "totalCostPrice", title: "Total Cost Price" },
+        { id: "completedOrders", title: "Completed Orders" },
+        { id: "isSettled", title: "Is Settled" },
+        { id: "payoutId", title: "Payout ID" },
+      ],
+    });
+
+    // Write data to CSV file
+    await writer.writeRecords(data);
+
+    // Send the file as a response
+    res.download(csvFilePath, "merchant_payouts.csv", (err) => {
+      if (err) {
+        console.error(err);
+        next(appError("Error in downloading the CSV file."));
+      } else {
+        // Optionally delete the file after download
+        fs.unlinkSync(csvFilePath);
+      }
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -2214,4 +2369,5 @@ module.exports = {
   getMerchantPayoutController,
   getMerchantPayoutDetail,
   comfirmMerchantPayout,
+  downloadPayoutCSVController,
 };
