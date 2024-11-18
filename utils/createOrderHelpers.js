@@ -1218,7 +1218,7 @@ const clearCart = async (customerId, deliveryMode) => {
 // ==============================
 // =========Customer APP=========
 // ==============================
-const processDeliverydetailInApp = async (
+const processDeliveryDetailInApp = async (
   customer,
   pickUpAddressType,
   pickUpAddressOtherAddressId,
@@ -1381,6 +1381,6 @@ module.exports = {
   updateCustomerTransaction,
   clearCart,
   // App
-  processDeliverydetailInApp,
+  processDeliveryDetailInApp,
   processHomeDeliveryDetailInApp,
 };

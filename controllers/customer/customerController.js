@@ -37,6 +37,7 @@ const {
 const { formatDate, formatTime } = require("../../utils/formatters");
 
 const { sendNotification, sendSocketData } = require("../../socket/socket");
+const LoyaltyPoint = require("../../models/LoyaltyPoint");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -1061,15 +1062,15 @@ const getCustomerCartController = async (req, res, next) => {
 };
 
 //
-const getSpalshScreenImageController = async (req, res, next) => {
+const getSplashScreenImageController = async (req, res, next) => {
   try {
-    const spalshScreenImage = await CustomerAppCustomization.findOne({}).select(
+    const splashScreenImage = await CustomerAppCustomization.findOne({}).select(
       "splashScreenUrl"
     );
 
     res.status(200).json({
       message: "Splash screen image",
-      data: spalshScreenImage.splashScreenUrl,
+      data: splashScreenImage.splashScreenUrl,
     });
   } catch (err) {
     next(appError(err.message));
@@ -1288,11 +1289,19 @@ const getAllNotificationsOfCustomerController = async (req, res, next) => {
 };
 
 //
-const getVisibilityOfReferal = async (req, res, next) => {
+const getVisibilityOfReferralAndLoyaltyPoint = async (req, res, next) => {
   try {
-    const referalFound = await Referral.find({ status: true });
+    const { query } = req.query;
 
-    let status = referalFound.length >= 1 ? true : false;
+    let itemFound;
+
+    if (query === "loyalty-point") {
+      itemFound = await LoyaltyPoint.find({ status: true });
+    } else if (query === "referral") {
+      itemFound = await Referral.find({ status: true });
+    }
+
+    let status = itemFound.length >= 1 ? true : false;
 
     res.status(200).json({ status });
   } catch (err) {
@@ -1346,14 +1355,14 @@ module.exports = {
   getWalletAndLoyaltyController,
   getCustomerCartController,
   getCustomerAppBannerController,
-  getSpalshScreenImageController,
+  getSplashScreenImageController,
   getPickAndDropBannersController,
   getCustomOrderBannersController,
   getAvailableServiceController,
   generateReferralCode,
   getSelectedOngoingOrderDetailController,
   getAllNotificationsOfCustomerController,
-  getVisibilityOfReferal,
+  getVisibilityOfReferralAndLoyaltyPoint,
   getCurrentOngoingOrders,
   getAllScheduledOrdersOfCustomer,
   getScheduledOrderDetailController,
