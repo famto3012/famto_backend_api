@@ -22,7 +22,6 @@ const {
 const { formatDate, formatTime } = require("../../utils/formatters");
 
 const Agent = require("../../models/Agent");
-const Geofence = require("../../models/Geofence");
 const Task = require("../../models/Task");
 const LoyaltyPoint = require("../../models/LoyaltyPoint");
 const NotificationSetting = require("../../models/NotificationSetting");
@@ -210,13 +209,9 @@ const agentLoginController = async (req, res, next) => {
 // Get agent drawer detail
 const getAppDrawerDetailsController = async (req, res, next) => {
   try {
-    const agentId = req.userAuth;
+    const agentFound = await Agent.findById(req.userAuth);
 
-    const agentFound = await Agent.findById(agentId);
-
-    if (!agentFound) {
-      return next(appError("Agent not found", 400));
-    }
+    if (!agentFound) return next(appError("Agent not found", 400));
 
     let status;
     let statusTitle;
@@ -229,7 +224,7 @@ const getAppDrawerDetailsController = async (req, res, next) => {
     }
 
     const formattedResponse = {
-      agentId: agentFound._id,
+      agentId: req.userAuth,
       agentImageURL: agentFound.agentImageURL,
       agentName: agentFound.fullName,
       status,
@@ -351,9 +346,7 @@ const updateAgentBankDetailController = async (req, res, next) => {
   try {
     const currentAgent = await Agent.findById(req.userAuth);
 
-    if (!currentAgent) {
-      return next(appError("Agent not found", 404));
-    }
+    if (!currentAgent) return next(appError("Agent not found", 404));
 
     const bankDetails = {
       accountHolderName,
@@ -366,9 +359,9 @@ const updateAgentBankDetailController = async (req, res, next) => {
 
     await currentAgent.save();
 
-    res
-      .status(200)
-      .json({ message: "Agent's bank details added successfully" });
+    res.status(200).json({
+      message: "Agent's bank details added successfully",
+    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -379,9 +372,7 @@ const getBankDetailController = async (req, res, next) => {
   try {
     const currentAgent = await Agent.findById(req.userAuth);
 
-    if (!currentAgent) {
-      return next(appError("Agent not found", 404));
-    }
+    if (!currentAgent) return next(appError("Agent not found", 404));
 
     // Check if bankDetail exists and set default values if not
     const bankDetails = currentAgent.bankDetail || {
@@ -509,9 +500,7 @@ const getAllVehicleDetailsController = async (req, res, next) => {
       "vehicleDetail"
     );
 
-    if (!currentAgent) {
-      return next(appError("Agent not found", 404));
-    }
+    if (!currentAgent) return next(appError("Agent not found", 404));
 
     res.status(200).json({
       message: "Agent vehicle details",
@@ -527,16 +516,12 @@ const getSingleVehicleDetailController = async (req, res, next) => {
   try {
     const currentAgent = await Agent.findById(req.userAuth);
 
-    if (!currentAgent) {
-      return next(appError("Agent not found", 404));
-    }
+    if (!currentAgent) return next(appError("Agent not found", 404));
 
     const { vehicleId } = req.params;
     const vehicle = currentAgent.vehicleDetail.id(vehicleId);
 
-    if (!vehicle) {
-      return next(appError("Vehicle not found", 404));
-    }
+    if (!vehicle) return next(appError("Vehicle not found", 404));
 
     res.status(200).json({
       message: "Vehicle details fetched successfully",
@@ -616,9 +601,7 @@ const toggleOnlineController = async (req, res, next) => {
   try {
     const currentAgent = await Agent.findById(req.userAuth);
 
-    if (!currentAgent) {
-      return res.status(404).json({ message: "Agent not found" });
-    }
+    if (!currentAgent) return next(appError("Agent not found", 404));
 
     // Ensure appDetail exists
     if (!currentAgent.appDetail) {
@@ -680,9 +663,7 @@ const deleteAgentVehicleController = async (req, res, next) => {
   try {
     const agentFound = await Agent.findById(req.userAuth);
 
-    if (!agentFound) {
-      return next(appError("Agent not found", 404));
-    }
+    if (!agentFound) return next(appError("Agent not found", 404));
 
     const { vehicleId } = req.params;
 
@@ -690,9 +671,7 @@ const deleteAgentVehicleController = async (req, res, next) => {
       (vehicle) => vehicle._id.toString() === vehicleId
     );
 
-    if (vehicleIndex === -1) {
-      return next(appError("Vehicle not found", 404));
-    }
+    if (vehicleIndex === -1) return next(appError("Vehicle not found", 404));
 
     // Remove the vehicle from the array
     agentFound.vehicleDetail.splice(vehicleIndex, 1);
@@ -712,9 +691,7 @@ const changeVehicleStatusController = async (req, res, next) => {
   try {
     const agentFound = await Agent.findById(req.userAuth);
 
-    if (!agentFound) {
-      return next(appError("Agent not found", 404));
-    }
+    if (!agentFound) return next(appError("Agent not found", 404));
 
     const { vehicleId } = req.params;
 
@@ -730,9 +707,7 @@ const changeVehicleStatusController = async (req, res, next) => {
       }
     });
 
-    if (!vehicleFound) {
-      return next(appError("Vehicle not found", 404));
-    }
+    if (!vehicleFound) return next(appError("Vehicle not found", 404));
 
     await agentFound.save();
 
@@ -748,39 +723,31 @@ const changeVehicleStatusController = async (req, res, next) => {
 // Rate customer by order
 const rateCustomerController = async (req, res, next) => {
   try {
-    const currentAgent = req.userAuth;
-
     const { orderId } = req.params;
-
     const { rating, review } = req.body;
 
     const orderFound = await Order.findById(orderId);
 
-    if (!orderFound) {
-      return next(appError("Order not found", 404));
-    }
+    if (!orderFound) return next(appError("Order not found", 404));
 
     const customerFound = await Customer.findById(orderFound.customerId);
 
-    if (!customerFound) {
-      return next(appError("Customer not found", 404));
-    }
+    if (!customerFound) return next(appError("Customer not found", 404));
 
     orderFound.orderRating.ratingByDeliveryAgent.review = review;
     orderFound.orderRating.ratingByDeliveryAgent.rating = rating;
 
     let updatedCustomerRating = {
-      agentId: currentAgent,
+      agentId: req.userAuth,
       review,
       rating,
     };
 
     customerFound.ratingsByAgents.push(updatedCustomerRating);
 
-    await orderFound.save();
-    await customerFound.save();
+    await Promise.all([orderFound.save(), customerFound.save()]);
 
-    res.status(200).josn({ message: "Customer rated successfully" });
+    res.status(200).json({ message: "Customer rated successfully" });
   } catch (err) {
     next(appError(err.message));
   }
@@ -796,9 +763,7 @@ const getCurrentDayAppDetailController = async (req, res, next) => {
       .lean({ virtuals: true })
       .exec();
 
-    if (!agentFound) {
-      return next(appError("Agent not found", 404));
-    }
+    if (!agentFound) return next(appError("Agent not found", 404));
 
     const formattedResponse = {
       totalEarning: agentFound?.appDetail?.totalEarning || 0,
@@ -1025,60 +990,6 @@ const getTaskPreviewController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
-
-// const getTaskPreviewController = async (req, res, next) => {
-//   try {
-//     const { orderId } = req.params;
-
-//     const task = await Task.findOne({
-//       orderId,
-//       agentId: req.userAuth,
-//     });
-
-//     if (!task) return next(appError("Task not found", 404));
-
-//     const formattedResponse = {
-//       taskId: task._id,
-//       deliveryMode: task.deliveryMode,
-//       taskStatus: task.status,
-//       orderId: task.orderId,
-//       date: formatDate(task.createdAt),
-//       time: formatTime(task.createdAt),
-//       pickupLocation: task.pickupDetail.pickupLocation,
-//       pickupAddress: {
-//         fullName: task.pickupDetail.fullName || null,
-//         phoneNumber: task.pickupDetail.phoneNumber || null,
-//         flat: task.pickupDetail.flat || null,
-//         area: task.pickupDetail.area || null,
-//         phoneNumber: task.pickupDetail.phoneNumber || null,
-//         landmark: task.pickupDetail.landmark || null,
-//       },
-//       showPickupExpansion:
-//         task.pickupDetail.pickupStatus === "Completed" ||
-//         task.pickupDetail.pickupStatus === "Cancelled"
-//           ? false
-//           : true,
-//       deliveryLocation: task.deliveryDetail.pickupLocation,
-//       deliveryAddress: {
-//         fullName: task.deliveryDetail.fullName || null,
-//         phoneNumber: task.deliveryDetail.phoneNumber || null,
-//         flat: task.deliveryDetail.flat || null,
-//         area: task.deliveryDetail.area || null,
-//         phoneNumber: task.deliveryDetail.phoneNumber || null,
-//         landmark: task.deliveryDetail.landmark || null,
-//       },
-//       showDeliveryExpansion:
-//         task.deliveryDetail.deliveryStatus === "Completed" ||
-//         task.deliveryDetail.deliveryStatus === "Cancelled"
-//           ? false
-//           : true,
-//     };
-
-//     res.status(200).json(formattedResponse);
-//   } catch (err) {
-//     next(appError(err.message));
-//   }
-// };
 
 // Get pickup details
 const getPickUpDetailController = async (req, res, next) => {
@@ -1600,8 +1511,8 @@ const getCashInHandController = async (req, res, next) => {
   }
 };
 
-// Initiate deposite by razorpay
-const depositeCashToFamtoController = async (req, res, next) => {
+// Initiate deposit by razorpay
+const depositCashToFamtoController = async (req, res, next) => {
   try {
     const { amount } = req.body;
 
@@ -1802,7 +1713,7 @@ const updateCustomOrderStatusController = async (req, res, next) => {
   }
 };
 
-// Get agent earinig for the delivery
+// Get agent earning for the delivery
 const getCompleteOrderMessageController = async (req, res, next) => {
   try {
     const { orderId } = req.params;
@@ -1932,6 +1843,7 @@ const getAllNotificationsController = async (req, res, next) => {
       agentId,
       createdAt: { $gte: startOfDay, $lte: endOfDay },
     })
+      .populate("orderId", "orderDetail")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -1943,8 +1855,8 @@ const getAllNotificationsController = async (req, res, next) => {
       deliveryDetail: notification.deliveryDetail?.address || null,
       orderType: notification.orderType || null,
       status: notification.status || null,
-      taskDate: formatDate(notification.createdAt) || null,
-      taskTime: formatTime(notification.createdAt) || null,
+      taskDate: formatDate(notification.orderId.orderDetail.deliveryTime),
+      taskTime: formatDate(notification.orderId.orderDetail.deliveryTime),
     }));
 
     res.status(200).json({
@@ -2066,7 +1978,7 @@ module.exports = {
   completeOrderController,
   addRatingsToCustomer,
   getCashInHandController,
-  depositeCashToFamtoController,
+  depositCashToFamtoController,
   verifyDepositController,
   getAgentTransactionsController,
   getAgentEarningsLast7DaysController,

@@ -47,6 +47,10 @@ const AgentNotificationLogSchema = new mongoose.Schema(
       enum: ["Accepted", "Rejected", "Pending", "Completed"],
       default: "Pending",
     },
+    expiresIn: {
+      type: Date,
+      required: true,
+    },
   },
   {
     timestamps: true,

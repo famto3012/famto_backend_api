@@ -144,11 +144,7 @@ const listRestaurantsController = async (req, res, next) => {
 
     const foundGeofence = await geoLocation(latitude, longitude);
 
-    if (!foundGeofence) {
-      return next(appError("Geofence not found", 404));
-    }
-
-    console.log(foundGeofence._id);
+    if (!foundGeofence) return next(appError("Geofence not found", 404));
 
     const merchants = await Merchant.find({
       "merchantDetail.geofenceId": foundGeofence._id,
@@ -330,22 +326,21 @@ const searchMerchantsOrProducts = async (req, res, next) => {
 const getAllCategoriesOfMerchants = async (req, res, next) => {
   try {
     const { merchantId, businessCategoryId } = req.params;
-    const { latitude, longitude } = req.query;
-    const customerId = req.userAuth;
 
-    const merchantFound = await Merchant.findById(merchantId);
+    const [merchantFound, customerFound] = await Promise.all([
+      Merchant.findById(merchantId),
+      Customer.findById(req.userAuth),
+    ]);
 
     if (!merchantFound) return next(appError("Merchant not found", 404));
-
-    const customerFound = await Customer.findById(customerId);
-
     if (!customerFound) return next(appError("Customer not found", 404));
 
     const merchantLocation = merchantFound.merchantDetail.location;
-    const customerLocation = [latitude, longitude];
+    const customerLocation = customerFound.customerDetails.location;
 
     let distanceInKM;
     if (latitude && longitude) {
+      console.log("Finding distance");
       const distance = await getDistanceFromPickupToDelivery(
         merchantLocation,
         customerLocation
@@ -355,9 +350,7 @@ const getAllCategoriesOfMerchants = async (req, res, next) => {
     }
 
     let distanceWarning = false;
-    if (distanceInKM > 12) {
-      distanceWarning = true;
-    }
+    if (distanceInKM > 12) distanceWarning = true;
 
     let isFavourite = false;
 

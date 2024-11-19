@@ -367,6 +367,7 @@ const getAllProductDiscountController = async (req, res, next) => {
       productId: discount.productId.map((product) => product._id),
       geofenceId: discount.geofenceId?._id || null,
       maxAmount: discount.maxAmount,
+      discountType: discount.discountType,
     }));
 
     res.status(200).json({
