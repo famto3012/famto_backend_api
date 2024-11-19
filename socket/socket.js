@@ -1,16 +1,12 @@
 const socketio = require("socket.io");
 const http = require("http");
-const fs = require("fs");
-const https = require("https");
 const express = require("express");
 const Task = require("../models/Task");
 const Agent = require("../models/Agent");
 const Customer = require("../models/Customer");
 const Merchant = require("../models/Merchant");
 const turf = require("@turf/turf");
-const admin = require("firebase-admin");
 const Order = require("../models/Order");
-const { getMessaging } = require("firebase-admin/messaging");
 const FcmToken = require("../models/fcmToken");
 const AgentNotificationLogs = require("../models/AgentNotificationLog");
 const Message = require("../models/Message");
@@ -27,12 +23,11 @@ const {
   updateAgentDetails,
 } = require("../utils/agentAppHelpers");
 const NotificationSetting = require("../models/NotificationSetting");
-const Admin = require("../models/Admin");
-
 const admin1 = require("firebase-admin");
 const admin2 = require("firebase-admin");
-const { MessagePort } = require("worker_threads");
 const CustomerPricing = require("../models/CustomerPricing");
+const AutoAllocation = require("../models/AutoAllocation");
+const { formatDate, formatTime } = require("../utils/formatters");
 
 const serviceAccount1 = {
   type: process.env.TYPE_1,
@@ -188,35 +183,42 @@ const createNotificationLog = async (notificationSettings, message) => {
           status: "Pending",
         });
 
-        if (notificationFound) {
+        if (notificationFound)
           await AgentNotificationLogs.findByIdAndDelete(notificationFound._id);
-        }
+
+        console.log("message", message);
+
+        const expiryDuration = message?.timer ? message.timer * 1000 : 60000;
+
+        const createdAt = new Date();
+        const expiresIn = new Date(createdAt.getTime() + expiryDuration);
 
         await AgentNotificationLogs.create({
           ...logData,
           agentId: message?.agentId,
           orderId: message?.orderId,
           pickupDetail: {
-            name: message?.pickupDetail?.fullName,
+            name: message?.pickAddress?.fullName,
             address: {
-              fullName: message?.pickupDetail?.fullName,
-              phoneNumber: message?.pickupDetail?.phoneNumber,
-              flat: message?.pickupDetail?.flat,
-              area: message?.pickupDetail?.area,
-              landmark: message?.pickupDetail?.landmark,
+              fullName: message?.pickAddress?.fullName,
+              phoneNumber: message?.pickAddress?.phoneNumber,
+              flat: message?.pickAddress?.flat,
+              area: message?.pickAddress?.area,
+              landmark: message?.pickAddress?.landmark,
             },
           },
           deliveryDetail: {
-            name: message?.deliveryDetail?.fullName,
+            name: message?.customerAddress?.fullName,
             address: {
-              fullName: message?.deliveryDetail?.fullName,
-              phoneNumber: message?.deliveryDetail?.phoneNumber,
-              flat: message?.deliveryDetail?.flat,
-              area: message?.deliveryDetail?.area,
-              landmark: message?.deliveryDetail?.landmark,
+              fullName: message?.customerAddress?.fullName,
+              phoneNumber: message?.customerAddress?.phoneNumber,
+              flat: message?.customerAddress?.flat,
+              area: message?.customerAddress?.area,
+              landmark: message?.customerAddress?.landmark,
             },
           },
           orderType: message?.orderType,
+          expiresIn,
         });
       } catch (err) {
         console.log(`Error in creating agent notification log: ${err.message}`);
@@ -534,6 +536,94 @@ Merchant.watch().on("change", async (change) => {
 Agent.watch().on("change", async (change) => {
   getRealTimeDataCount();
 });
+
+const handleAgentNotificationLogs = async () => {
+  try {
+    const AllocationTimeFound = await AutoAllocation.findOne({});
+    const STATUS_UPDATE_THRESHOLD = AllocationTimeFound
+      ? AllocationTimeFound.expireTime * 1000
+      : 60000;
+
+    // Watch for changes in AgentNotificationLogs
+    const changeStream = AgentNotificationLogs.watch();
+
+    changeStream.on("change", async (change) => {
+      if (change.operationType === "insert") {
+        const { _id, createdAt, status } = change.fullDocument;
+
+        // Check if status is "Pending" and exceeds the threshold
+        if (status === "Pending") {
+          setTimeout(async () => {
+            const log = await AgentNotificationLogs.findById(_id);
+
+            if (log && log.status === "Pending") {
+              // Update status to "Rejected"
+              log.status = "Rejected";
+              await log.save();
+
+              console.log(`Log with ID ${_id} was updated to Rejected.`);
+
+              // Emit a socket event (optional)
+              const eventName = "agentNotificationRejected";
+              io.emit(eventName, {
+                message: `Notification ${_id} has been automatically rejected.`,
+                log,
+              });
+            }
+          }, STATUS_UPDATE_THRESHOLD);
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Error in handling AgentNotificationLogs:", error.message);
+  }
+};
+
+handleAgentNotificationLogs();
+
+const getPendingNotificationsWithTimers = async (agentId) => {
+  try {
+    const pendingNotifications = await AgentNotificationLogs.find({
+      agentId,
+      status: "Pending",
+    })
+      .populate("orderId", "orderDetail")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // console.log("Pending: ", pendingNotifications[0]);
+
+    const now = Date.now();
+
+    // Calculate remaining time for each notification
+    const notificationsWithTimers = pendingNotifications.map((notification) => {
+      const remainingTime = Math.max(
+        new Date(notification.expiresIn).getTime() - now,
+        0
+      ); // Prevent negative values
+
+      const totalSeconds = Math.floor(remainingTime / 1000);
+      const seconds = totalSeconds % 60;
+
+      return {
+        notificationId: notification._id || null,
+        orderId: notification.orderId._id || null,
+        pickAddress: notification.pickupDetail?.address || null,
+        customerAddress: notification.deliveryDetail?.address || null,
+        orderType: notification.orderType || null,
+        status: notification.status || null,
+        taskDate: formatDate(notification.orderId.orderDetail.deliveryTime),
+        taskTime: formatTime(notification.orderId.orderDetail.deliveryTime),
+        remainingTime: totalSeconds,
+      };
+    });
+
+    return notificationsWithTimers;
+  } catch (error) {
+    console.error("Error fetching pending notifications:", error.message);
+    throw error;
+  }
+};
 
 // Connection socket
 io.on("connection", async (socket) => {
@@ -985,148 +1075,6 @@ io.on("connection", async (socket) => {
       });
     }
   });
-
-  // Agent reached pickup location socket
-  // socket.on("reachedPickupLocation", async ({ taskId, agentId }) => {
-  //   try {
-  //     console.log("Agent attempting to reach pick up");
-  //     console.log("Agent Id: ", agentId);
-  //     console.log("Task Id: ", taskId);
-
-  //     const [agentFound, taskFound] = await Promise.all([
-  //       Agent.findById(agentId),
-  //       Task.findOne({ _id: taskId, agentId }),
-  //     ]);
-
-  //     if (!agentFound)
-  //       return socket.emit("error", { message: "Agent not found" });
-
-  //     if (!taskFound)
-  //       return socket.emit("error", { message: "Task not found" });
-
-  //     const orderFound = await Order.findById(taskFound.orderId);
-  //     if (!orderFound) {
-  //       return socket.emit("error", { message: "Order not found" });
-  //     }
-
-  //     const eventName = "reachedPickupLocation";
-  //     const { rolesToNotify, data } = await findRolesToNotify(eventName);
-
-  //     const maxRadius = 0.25;
-  //     if (maxRadius > 0) {
-  //       const pickupLocation = taskFound?.pickupDetail?.pickupLocation;
-  //       const agentLocation = agentFound.location;
-
-  //       if (pickupLocation) {
-  //         console.log("Have Pickup location");
-
-  //         const distance = turf.distance(
-  //           turf.point(pickupLocation),
-  //           turf.point(agentLocation),
-  //           { units: "kilometers" }
-  //         );
-
-  //         if (distance < maxRadius) {
-  //           console.log("Agent Reached near to pick up");
-
-  //           const stepperDetail = {
-  //             by: agentFound.fullName,
-  //             userId: agentId,
-  //             date: new Date(),
-  //             location: agentFound.location,
-  //           };
-
-  //           orderFound.orderDetailStepper.reachedPickupLocation = stepperDetail;
-
-  //           taskFound.pickupDetail.pickupStatus = "Completed";
-
-  //           await taskFound.save();
-  //           await orderFound.save();
-
-  //           // Send notifications to each role dynamically
-  //           for (const role of rolesToNotify) {
-  //             let roleId;
-
-  //             if (role === "admin") {
-  //               roleId = process.env.ADMIN_ID;
-  //             } else if (role === "merchant") {
-  //               roleId = orderFound?.merchantId;
-  //             } else if (role === "driver") {
-  //               roleId = orderFound?.agentId;
-  //             } else if (role === "customer") {
-  //               roleId = orderFound?.customerId;
-  //             }
-
-  //             if (roleId) {
-  //               const notificationData = {
-  //                 fcm: {
-  //                   customerId: orderFound.customerId,
-  //                 },
-  //               };
-
-  //               await sendNotification(
-  //                 roleId,
-  //                 eventName,
-  //                 notificationData,
-  //                 role.charAt(0).toUpperCase() + role.slice(1)
-  //               );
-  //             }
-  //           }
-
-  //           const socketData = {
-  //             ...data,
-  //             orderId: taskFound.orderId,
-  //             agentId: userId,
-  //             agentName: agentFound.fullName,
-  //             orderDetailStepper: stepperDetail,
-  //           };
-
-  //           sendSocketData(orderFound.customerId, eventName, socketData);
-  //           sendSocketData(process.env.ADMIN_ID, eventName, socketData);
-  //           if (orderFound?.merchantId) {
-  //             sendSocketData(orderFound.merchantId, eventName, socketData);
-  //           }
-  //         } else {
-  //           console.log("Agent haven't reached near to pick up");
-
-  //           const event = "agentNotReachedPickupLocation";
-
-  //           const { data } = await findRolesToNotify(event);
-
-  //           const dataToSend = {
-  //             ...data,
-  //             orderId: taskFound.orderId,
-  //             agentId,
-  //           };
-
-  //           await sendNotification(
-  //             agentId,
-  //             event,
-  //             dataToSend,
-  //             role.charAt(0).toUpperCase() + role.slice(1)
-  //           );
-
-  //           return socket.emit("error", {
-  //             message: "Agent is far from pickup point",
-  //           });
-  //         }
-  //       }
-  //     }
-
-  //     console.log("Agent successfully reached pick up");
-  //     console.log("Agent Id: ", agentId);
-  //     console.log("Task Id: ", taskId);
-  //   } catch (err) {
-  //     console.log("Agent failed to reach pick up");
-  //     console.log("Agent Id: ", agentId);
-  //     console.log("Task Id: ", taskId);
-  //     console.log("Message: ", err);
-
-  //     return socket.emit("error", {
-  //       message: `Error in reaching pickup location: ${err}`,
-  //     });
-  //   }
-  // });
 
   socket.on("reachedPickupLocation", async ({ taskId, agentId }) => {
     try {
@@ -1682,18 +1630,14 @@ io.on("connection", async (socket) => {
     "cancelCustomOrderByAgent",
     async ({ status, description, orderId, latitude, longitude }) => {
       try {
-        console.log(status);
-        console.log(description);
-        console.log(orderId);
-        console.log(latitude);
-        console.log(longitude);
+        const [orderFound, taskFound] = await Promise.all([
+          Order.findById(orderId),
+          Task.findOne({ orderId }),
+        ]);
 
-        const orderFound = await Order.findById(orderId);
         if (!orderFound) {
           return socket.emit("error", { message: "Order not found" });
         }
-
-        const taskFound = await Task.findOne({ orderId });
         if (!taskFound) {
           return socket.emit("error", { message: "Task not found" });
         }
@@ -1709,8 +1653,6 @@ io.on("connection", async (socket) => {
           description,
         };
 
-        console.log("dataByAgent", dataByAgent);
-
         let oldDistance = orderFound.orderDetail?.distance || 0;
 
         const lastLocation =
@@ -1725,8 +1667,6 @@ io.on("connection", async (socket) => {
           lastLocation
         );
 
-        console.log("distanceInKM", distanceInKM);
-
         const newDistance = parseFloat(distanceInKM);
 
         orderFound.orderDetail.distance = oldDistance + newDistance;
@@ -1737,8 +1677,6 @@ io.on("connection", async (socket) => {
           orderFound.orderDetail.deliveryMode,
           distanceInKM
         );
-
-        console.log("deliveryCharges", deliveryCharges);
 
         let oldDeliveryCharge = orderFound.billDetail?.deliveryCharge || 0;
         let oldGrandTotal = orderFound.billDetail?.grandTotal || 0;
@@ -1759,8 +1697,6 @@ io.on("connection", async (socket) => {
               orderFound.detailAddedByAgent.shopUpdates.length - 1
             ].location;
         }
-
-        console.log("Here");
 
         const currentTime = new Date();
         let delayedBy = null;
@@ -1802,15 +1738,13 @@ io.on("connection", async (socket) => {
           location: agentFound.location,
         };
 
-        orderFound.orderStepperDetil.cancelled = stepperDetail;
+        orderFound.orderDetailStepper.cancelled = stepperDetail;
 
         await Promise.all([
           orderFound.save(),
           taskFound.save(),
           agentFound.save(),
         ]);
-
-        console.log("Here 2");
 
         const eventName = "cancelCustomOrderByAgent";
 
@@ -1861,6 +1795,48 @@ io.on("connection", async (socket) => {
       }
     }
   );
+
+  let lastPendingNotifications = [];
+  socket.on("pendingNotificationsUpdate", async ({ agentId }) => {
+    setInterval(async () => {
+      try {
+        // console.log("Checking pending notifications for agent:", agentId);
+
+        // Fetch the current pending notifications
+        const currentNotifications = await getPendingNotificationsWithTimers(
+          agentId
+        );
+
+        // Extract current order IDs for comparison
+        const currentOrderIds = currentNotifications.map(
+          (notif) => notif.orderId
+        );
+
+        // Extract last order IDs
+        const lastOrderIds = lastPendingNotifications.map(
+          (notif) => notif.orderId
+        );
+
+        // Determine new orders (present in current but not in last)
+        const newNotifications = currentNotifications.filter(
+          (notif) => !lastOrderIds.includes(notif.orderId)
+        );
+
+        // Update the last notifications state
+        lastPendingNotifications = currentNotifications;
+
+        const dataToSend = newNotifications.length > 0 ? newNotifications : [];
+        // console.log("dataToSend", dataToSend);
+
+        io.to(userSocketMap[agentId].socketId).emit(
+          "pendingNotificationsUpdate",
+          dataToSend
+        );
+      } catch (err) {
+        console.error("Error emitting notification updates:", err.message);
+      }
+    }, 1000);
+  });
 
   // User disconnected socket
   socket.on("disconnect", () => {

@@ -28,7 +28,7 @@ const {
   addRatingsToCustomer,
   completeOrderController,
   getCashInHandController,
-  depositeCashToFamtoController,
+  depositCashToFamtoController,
   verifyDepositController,
   getAgentTransactionsController,
   getAgentEarningsLast7DaysController,
@@ -256,7 +256,7 @@ agentRoute.get("/get-cash-in-hand", isAuthenticated, getCashInHandController);
 agentRoute.post(
   "/initiate-deposite",
   isAuthenticated,
-  depositeCashToFamtoController
+  depositCashToFamtoController
 );
 
 agentRoute.post(
