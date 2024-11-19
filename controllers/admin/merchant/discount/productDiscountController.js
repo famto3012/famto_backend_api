@@ -224,10 +224,12 @@ const editProductDiscountController = async (req, res, next) => {
       (prodId) => !productId.includes(prodId.toString())
     );
 
+    console.log("removedProductIds: ", removedProductIds);
+
     if (removedProductIds.length > 0) {
       await Product.updateMany(
         { _id: { $in: removedProductIds } },
-        { $unset: { discountId: "" } }
+        { $unset: { discountId: null } }
       );
     }
 
@@ -362,10 +364,13 @@ const getAllProductDiscountController = async (req, res, next) => {
       geofence: discount.geofenceId?.name || null,
       status: discount.status,
       onAddOn: discount.onAddOn,
+      productId: discount.productId.map((product) => product._id),
+      geofenceId: discount.geofenceId?._id || null,
+      maxAmount: discount.maxAmount,
     }));
 
     res.status(200).json({
-      success: true,
+      success: "true",
       data: formattedResponse,
     });
   } catch (err) {

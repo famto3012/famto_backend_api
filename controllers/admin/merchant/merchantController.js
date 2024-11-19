@@ -2175,7 +2175,6 @@ const comfirmMerchantPayout = async (req, res, next) => {
   }
 };
 
-// TODO: complete the  controller
 // Download payout csv
 const downloadPayoutCSVController = async (req, res, next) => {
   try {
