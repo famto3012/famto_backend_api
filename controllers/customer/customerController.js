@@ -76,10 +76,13 @@ const registerAndLoginController = async (req, res, next) => {
       });
       await customer.save();
     } else {
-      // Update the existing customer's details
       customer.lastPlatformUsed = os.platform();
-      customer.customerDetails.location = location;
-      customer.customerDetails.geofenceId = geofence._id;
+
+      customer.customerDetails = {
+        ...customer.customerDetails,
+        location,
+        geofenceId: geofence._id,
+      };
       await customer.save();
     }
 
@@ -144,12 +147,12 @@ const setSelectedGeofence = async (req, res, next) => {
   try {
     const { geofenceId } = req.body;
 
-    const geofenceFound = await Geofence.findById(geofenceId);
+    const [geofenceFound, customerFound] = await Promise.all([
+      Geofence.findById(geofenceId),
+      Customer.findById(req.userAuth),
+    ]);
 
     if (!geofenceFound) return next(appError("Geofence not found", 404));
-
-    const customerFound = await Customer.findById(req.userAuth);
-
     if (!customerFound) return next(appError("Customer not found", 404));
 
     customerFound.customerDetails.geofenceId = geofenceId;
@@ -169,9 +172,7 @@ const getCustomerProfileController = async (req, res, next) => {
       "fullName phoneNumber email customerDetails"
     );
 
-    if (!currentCustomer) {
-      return next(appError("Customer not found", 404));
-    }
+    if (!currentCustomer) return next(appError("Customer not found", 404));
 
     const formattedCustomer = {
       id: currentCustomer._id,
@@ -202,10 +203,10 @@ const updateCustomerProfileController = async (req, res, next) => {
     return res.status(500).json({ errors: formattedErrors });
   }
 
-  const { fullName, email } = req.body;
-  const normalizedEmail = email ? email.toLowerCase() : null;
-
   try {
+    const { fullName, email } = req.body;
+    const normalizedEmail = email ? email.toLowerCase() : null;
+
     const currentCustomer = await Customer.findById(req.userAuth);
 
     if (!currentCustomer) return next(appError("Customer not found", 404));
@@ -258,13 +259,11 @@ const updateCustomerAddressController = async (req, res, next) => {
     return res.status(400).json({ errors: formattedErrors });
   }
 
-  const { addresses } = req.body;
-
   try {
+    const { addresses } = req.body;
+
     const currentCustomer = await Customer.findById(req.userAuth);
-    if (!currentCustomer) {
-      return next(appError("Customer not found", 404));
-    }
+    if (!currentCustomer) return next(appError("Customer not found", 404));
 
     // Initialize other addresses if not present
     const updatedOtherAddresses =
@@ -338,9 +337,7 @@ const getCustomerAddressController = async (req, res, next) => {
   try {
     const currentCustomer = await Customer.findById(req.userAuth);
 
-    if (!currentCustomer) {
-      return next(appError("Customer not found", 404));
-    }
+    if (!currentCustomer) return next(appError("Customer not found", 404));
 
     const { homeAddress, workAddress, otherAddress } =
       currentCustomer.customerDetails;
@@ -362,9 +359,8 @@ const addWalletBalanceController = async (req, res, next) => {
 
     const { success, orderId } = await createRazorpayOrderId(amount);
 
-    if (!success) {
+    if (!success)
       return next(appError("Error in creating Razorpay order", 500));
-    }
 
     res.status(200).json({ success: true, orderId, amount });
   } catch (err) {
@@ -378,21 +374,13 @@ const verifyWalletRechargeController = async (req, res, next) => {
     const { paymentDetails, amount } = req.body;
     const customerId = req.userAuth;
 
-    if (!customerId) {
-      return next(appError("Customer is not authenticated", 200));
-    }
-
     const customer = await Customer.findById(customerId);
-    if (!customer) {
-      return next(appError("Customer not found", 404));
-    }
+    if (!customer) return next(appError("Customer not found", 404));
 
     const parsedAmount = parseFloat(amount);
 
     const isPaymentValid = await verifyPayment(paymentDetails);
-    if (!isPaymentValid) {
-      return next(appError("Invalid payment", 400));
-    }
+    if (!isPaymentValid) return next(appError("Invalid payment", 400));
 
     let walletTransaction = {
       closingBalance: customer?.customerDetails?.walletBalance || 0,
@@ -402,7 +390,7 @@ const verifyWalletRechargeController = async (req, res, next) => {
       type: "Credit",
     };
 
-    let customerTransation = {
+    let customerTransaction = {
       madeOn: new Date(),
       transactionType: "Top-up",
       transactionAmount: parsedAmount,
@@ -416,7 +404,7 @@ const verifyWalletRechargeController = async (req, res, next) => {
 
     customer.walletTransactionDetail.push(walletTransaction);
 
-    customer.transactionDetail.push(customerTransation);
+    customer.transactionDetail.push(customerTransaction);
 
     await customer.save();
 
@@ -437,15 +425,11 @@ const rateDeliveryAgentController = async (req, res, next) => {
 
     const orderFound = await Order.findById(orderId);
 
-    if (!orderFound) {
-      return next(appError("Order not found", 404));
-    }
+    if (!orderFound) return next(appError("Order not found", 404));
 
     const agentFound = await Agent.findById(orderFound.agentId);
 
-    if (!agentFound) {
-      return next(appError("Agent not found", 404));
-    }
+    if (!agentFound) return next(appError("Agent not found", 404));
 
     let updatedRating = {
       review,
@@ -453,9 +437,7 @@ const rateDeliveryAgentController = async (req, res, next) => {
     };
 
     // Initialize orderRating if it doesn't exist
-    if (!orderFound.orderRating) {
-      orderFound.orderRating = {};
-    }
+    if (!orderFound.orderRating) orderFound.orderRating = {};
 
     orderFound.orderRating.ratingToDeliveryAgent = updatedRating;
 
@@ -467,8 +449,7 @@ const rateDeliveryAgentController = async (req, res, next) => {
 
     agentFound.ratingsByCustomers.push(updatedAgentRating);
 
-    await orderFound.save();
-    await agentFound.save();
+    await Promise.all([orderFound.save(), agentFound.save()]);
 
     res.status(200).json({ message: "Agent rated successfully" });
   } catch (err) {
@@ -511,7 +492,7 @@ const getFavoriteMerchantsController = async (req, res, next) => {
     );
 
     res.status(200).json({
-      message: "Favourite merchants retrieved successfully",
+      message: "Favorite merchants retrieved successfully",
       data: formattedMerchants,
     });
   } catch (err) {
@@ -602,7 +583,7 @@ const getAllScheduledOrdersOfCustomer = async (req, res, next) => {
   try {
     const customerId = req.userAuth;
 
-    const [universalOrders, pickandCustomOrders] = await Promise.all([
+    const [universalOrders, pickAndCustomOrders] = await Promise.all([
       ScheduledOrder.find({ customerId }).populate(
         "merchantId",
         "merchantDetail.merchantName merchantDetail.displayAddress"
@@ -610,7 +591,7 @@ const getAllScheduledOrdersOfCustomer = async (req, res, next) => {
       scheduledPickAndCustom.find({ customerId }),
     ]);
 
-    const allOrders = [...universalOrders, ...pickandCustomOrders].sort(
+    const allOrders = [...universalOrders, ...pickAndCustomOrders].sort(
       (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
     );
 
@@ -636,7 +617,6 @@ const getAllScheduledOrdersOfCustomer = async (req, res, next) => {
 const getsingleOrderDetailController = async (req, res, next) => {
   try {
     const currentCustomer = req.userAuth;
-
     const { orderId } = req.params;
 
     const orderFound = await Order.findOne({
@@ -699,9 +679,6 @@ const getScheduledOrderDetailController = async (req, res, next) => {
     }
 
     if (!orderFound) return next(appError("Order not found", 404));
-
-    console.log("Start: ", orderFound?.startDate);
-    console.log("End: ", orderFound?.endDate);
 
     const formattedResponse = {
       orderId: orderFound._id,
