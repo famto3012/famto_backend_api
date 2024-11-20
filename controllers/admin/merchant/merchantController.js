@@ -509,7 +509,7 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
           "MerchantLocationImage"
         );
       } catch (err) {
-        res.status(500).json({ error: "Failed to fetch data from Mappls API" });
+        // res.status(500).json({ error: "Failed to fetch data from Mappls API" });
       }
     }
 
@@ -1272,7 +1272,7 @@ const updateMerchantDetailsController = async (req, res, next) => {
   try {
     const { merchantId } = req.params;
 
-    console.log(merchantDetail);
+    // console.log(merchantDetail);
 
     const merchantFound = await Merchant.findById(merchantId);
     if (!merchantFound) {
@@ -1383,7 +1383,7 @@ const updateMerchantDetailsController = async (req, res, next) => {
           "MerchantLocationImage"
         );
       } catch (err) {
-        res.status(500).json({ error: "Failed to fetch data from Mappls API" });
+        // res.status(500).json({ error: "Failed to fetch data from Mappls API" });
       }
     }
 
