@@ -22,12 +22,12 @@ const createOrUpdateCustomerCustomizationController = async (
       loginViaGoogle,
       loginViaApple,
       loginViaFacebook,
-      customOrderTiming,
-      pickAndDropTiming,
     } = req.body;
-
+    const customOrderTiming = JSON.parse(req.body.customOrderTiming);
+    const pickAndDropTiming = JSON.parse(req.body.pickAndDropTiming);
     const customization = await CustomerAppCustomization.findOne();
-
+    console.log("customOrderTiming", customOrderTiming)
+    console.log("pickAndDropTiming", pickAndDropTiming)
     // Helper function to update fields only if provided
     const updateField = (field, newValue) =>
       newValue !== undefined ? newValue : field;
