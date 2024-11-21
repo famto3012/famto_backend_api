@@ -595,7 +595,6 @@ const getPendingNotificationsWithTimers = async (agentId) => {
         status: notification.status || null,
         taskDate: formatDate(notification.orderId.orderDetail.deliveryTime),
         taskTime: formatTime(notification.orderId.orderDetail.deliveryTime),
-        timer: notification?.expiresIn || 60,
       };
     });
 
@@ -764,9 +763,8 @@ io.on("connection", async (socket) => {
           let shopUpdates = orderFound?.detailAddedByAgent?.shopUpdates || [];
 
           shopUpdates.push(data);
+          await orderFound.save();
         }
-
-        await orderFound.save();
       } else {
         await Task.findByIdAndUpdate(task._id, {
           agentId,
@@ -1101,7 +1099,7 @@ io.on("connection", async (socket) => {
       const eventName = "reachedPickupLocation";
       const { rolesToNotify, data } = await findRolesToNotify(eventName);
 
-      const maxRadius = 0.25; // 250 meters in kilometers
+      const maxRadius = 0.5; // 500 meters in kilometers
       const pickupLocation = taskFound?.pickupDetail?.pickupLocation;
       const agentLocation = agentFound.location;
 
@@ -1443,7 +1441,7 @@ io.on("connection", async (socket) => {
 
       const { rolesToNotify } = await findRolesToNotify(eventName);
 
-      const maxRadius = 0.25;
+      const maxRadius = 0.5;
       if (maxRadius > 0) {
         const deliveryLocation = taskFound.deliveryDetail.deliveryLocation;
         const agentLocation = agentFound.location;
@@ -1453,6 +1451,7 @@ io.on("connection", async (socket) => {
           turf.point(agentLocation),
           { units: "kilometers" }
         );
+
         if (distance < maxRadius) {
           console.log("Agent reached delivery");
           if (orderFound?.orderDetail?.deliveryMode === "Custom Order") {
@@ -1615,6 +1614,7 @@ io.on("connection", async (socket) => {
     "cancelCustomOrderByAgent",
     async ({ status, description, orderId, latitude, longitude }) => {
       try {
+        console.log("Trying to cancel order");
         const [orderFound, taskFound] = await Promise.all([
           Order.findById(orderId),
           Task.findOne({ orderId }),
@@ -1623,6 +1623,7 @@ io.on("connection", async (socket) => {
         if (!orderFound) {
           return socket.emit("error", { message: "Order not found" });
         }
+
         if (!taskFound) {
           return socket.emit("error", { message: "Task not found" });
         }
@@ -1654,6 +1655,8 @@ io.on("connection", async (socket) => {
 
         const newDistance = parseFloat(distanceInKM);
 
+        console.log("newDistance", newDistance);
+
         orderFound.orderDetail.distance = oldDistance + newDistance;
 
         // Calculate delivery charges
@@ -1662,6 +1665,8 @@ io.on("connection", async (socket) => {
           orderFound.orderDetail.deliveryMode,
           distanceInKM
         );
+
+        console.log("deliveryCharges", deliveryCharges);
 
         let oldDeliveryCharge = orderFound.billDetail?.deliveryCharge || 0;
         let oldGrandTotal = orderFound.billDetail?.grandTotal || 0;
@@ -1699,6 +1704,7 @@ io.on("connection", async (socket) => {
         orderFound.detailAddedByAgent.shopUpdates.push(dataByAgent);
         orderFound.status = "Cancelled";
 
+        taskFound.taskStatus = "Cancelled";
         taskFound.pickupDetail.pickupStatus = "Cancelled";
         taskFound.deliveryDetail.deliveryStatus = "Cancelled";
 
@@ -1707,6 +1713,8 @@ io.on("connection", async (socket) => {
           agentFound,
           orderFound
         );
+
+        console.log("calculatedSalary", calculatedSalary);
 
         // Update agent details
         await updateAgentDetails(
@@ -1789,6 +1797,8 @@ io.on("connection", async (socket) => {
       const currentNotifications = await getPendingNotificationsWithTimers(
         agentId
       );
+
+      console.log("currentNotifications", currentNotifications);
 
       io.to(userSocketMap[agentId].socketId).emit(
         "pendingNotificationsUpdate",

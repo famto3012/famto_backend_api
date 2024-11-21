@@ -59,9 +59,14 @@ const transformAvailabilityValues = (availability) => {
         dayData && typeof dayData === "object"
           ? {
               ...dayData,
-              openAllDay: dayData.openAllDay === "true",
-              closedAllDay: dayData.closedAllDay === "true",
-              specificTime: dayData.specificTime === "true",
+              openAllDay:
+                dayData.openAllDay === "true" || dayData.openAllDay === true,
+              closedAllDay:
+                dayData.closedAllDay === "true" ||
+                dayData.closedAllDay === true,
+              specificTime:
+                dayData.specificTime === "true" ||
+                dayData.specificTime === true,
               startTime:
                 dayData.startTime === "null" ? null : dayData.startTime,
               endTime: dayData.endTime === "null" ? null : dayData.endTime,
@@ -545,13 +550,14 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
     merchantFound.phoneNumber = phoneNumber;
     merchantFound.merchantDetail = details;
 
-    await merchantFound.save();
-
-    await ActivityLog.create({
-      userId: req.userAuth,
-      userType: req.userRole,
-      description: `Details are updated by Merchant (${req.userAuth})`,
-    });
+    await Promise.all([
+      merchantFound.save(),
+      ActivityLog.create({
+        userId: req.userAuth,
+        userType: req.userRole,
+        description: `Details are updated by Merchant (${req.userAuth})`,
+      }),
+    ]);
 
     res.status(200).json({ message: "Merchant details added successfully" });
   } catch (err) {

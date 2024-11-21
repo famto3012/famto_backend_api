@@ -301,6 +301,9 @@ const addPickandDropItemsController = async (req, res, next) => {
       originalGrandTotal: Math.round(deliveryCharges),
     };
 
+    // TODO: Add tax calculation in bill and slo in custom order
+    // TODO: Also group these functionalities of tax selection and timings in app customization in front end
+
     cart.billDetail = updatedBill;
     await cart.save();
 
