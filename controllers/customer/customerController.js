@@ -207,6 +207,8 @@ const updateCustomerProfileController = async (req, res, next) => {
     const { fullName, email } = req.body;
     const normalizedEmail = email ? email.toLowerCase() : null;
 
+    console.log(req.body);
+
     const currentCustomer = await Customer.findById(req.userAuth);
 
     if (!currentCustomer) return next(appError("Customer not found", 404));
@@ -227,12 +229,14 @@ const updateCustomerProfileController = async (req, res, next) => {
     // Handle image update if provided
     let customerImageURL =
       currentCustomer?.customerDetails?.customerImageURL || "";
+
+    console.log("Existing image", customerImageURL);
     if (req.file) {
       try {
         if (customerImageURL) await deleteFromFirebase(customerImageURL);
         customerImageURL = await uploadToFirebase(req.file, "CustomerImages");
       } catch (err) {
-        return next(appError("Error uploading image", 500));
+        return next(appError(err, 500));
       }
     }
 

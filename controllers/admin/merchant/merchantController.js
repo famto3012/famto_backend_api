@@ -504,12 +504,18 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
         const response = await axios.get(url, { responseType: "arraybuffer" });
         // Process the image using sharp to convert it to PNG format
         const imageBuffer = await sharp(response.data).png().toBuffer();
+
+        console.log("imageBuffer", imageBuffer);
+
         locationImage = await uploadToFirebase(
           imageBuffer,
-          "MerchantLocationImage"
+          "MerchantLocationImage",
+          true
         );
       } catch (err) {
+        console.log(`Error in location image:`, err);
         res.status(500).json({ error: "Failed to fetch data from Mappls API" });
+        return;
       }
     }
 

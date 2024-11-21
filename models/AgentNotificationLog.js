@@ -48,7 +48,7 @@ const AgentNotificationLogSchema = new mongoose.Schema(
       default: "Pending",
     },
     expiresIn: {
-      type: Date,
+      type: Number,
       required: true,
     },
   },
