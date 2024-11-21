@@ -1850,7 +1850,7 @@ const getAllNotificationsController = async (req, res, next) => {
     // Format response
     const formattedResponse = notifications.map((notification) => ({
       notificationId: notification._id || null,
-      orderId: notification.orderId || null,
+      orderId: notification.orderId._id || null,
       pickupDetail: notification.pickupDetail?.address || null,
       deliveryDetail: notification.deliveryDetail?.address || null,
       orderType: notification.orderType || null,

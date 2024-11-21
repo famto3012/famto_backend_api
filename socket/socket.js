@@ -186,13 +186,6 @@ const createNotificationLog = async (notificationSettings, message) => {
         if (notificationFound)
           await AgentNotificationLogs.findByIdAndDelete(notificationFound._id);
 
-        console.log("message", message);
-
-        const expiryDuration = message?.timer ? message.timer * 1000 : 60000;
-
-        const createdAt = new Date();
-        const expiresIn = new Date(createdAt.getTime() + expiryDuration);
-
         await AgentNotificationLogs.create({
           ...logData,
           agentId: message?.agentId,
@@ -218,7 +211,7 @@ const createNotificationLog = async (notificationSettings, message) => {
             },
           },
           orderType: message?.orderType,
-          expiresIn,
+          expiresIn: message?.timer || 60,
         });
       } catch (err) {
         console.log(`Error in creating agent notification log: ${err.message}`);
@@ -557,11 +550,12 @@ const handleAgentNotificationLogs = async () => {
             const log = await AgentNotificationLogs.findById(_id);
 
             if (log && log.status === "Pending") {
+              const agent = await Agent.findById(log.agentId);
               // Update status to "Rejected"
               log.status = "Rejected";
-              await log.save();
+              agent.appDetail.cancelledOrders += 1;
 
-              console.log(`Log with ID ${_id} was updated to Rejected.`);
+              await Promise.all([log.save(), agent.save()]);
 
               // Emit a socket event (optional)
               const eventName = "agentNotificationRejected";
@@ -591,20 +585,7 @@ const getPendingNotificationsWithTimers = async (agentId) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    // console.log("Pending: ", pendingNotifications[0]);
-
-    const now = Date.now();
-
-    // Calculate remaining time for each notification
     const notificationsWithTimers = pendingNotifications.map((notification) => {
-      const remainingTime = Math.max(
-        new Date(notification.expiresIn).getTime() - now,
-        0
-      ); // Prevent negative values
-
-      const totalSeconds = Math.floor(remainingTime / 1000);
-      const seconds = totalSeconds % 60;
-
       return {
         notificationId: notification._id || null,
         orderId: notification.orderId._id || null,
@@ -614,7 +595,7 @@ const getPendingNotificationsWithTimers = async (agentId) => {
         status: notification.status || null,
         taskDate: formatDate(notification.orderId.orderDetail.deliveryTime),
         taskTime: formatTime(notification.orderId.orderDetail.deliveryTime),
-        remainingTime: totalSeconds,
+        timer: notification?.expiresIn || 60,
       };
     });
 
@@ -721,14 +702,17 @@ io.on("connection", async (socket) => {
         });
       }
 
-      const [task, orderFound, agentNotification] = await Promise.all([
-        Task.findOne({ orderId }).populate("orderId"),
-        Order.findById(orderId),
-        AgentNotificationLogs.findOne({
-          orderId,
-          agentId,
-        }),
-      ]);
+      const [task, orderFound, agentNotification, sameCancelledOrders] =
+        await Promise.all([
+          Task.findOne({ orderId }).populate("orderId"),
+          Order.findById(orderId),
+          AgentNotificationLogs.findOne({
+            orderId,
+            agentId,
+            status: "Pending",
+          }),
+          Order.countDocuments({ orderId, agentId, status: "Rejected" }),
+        ]);
 
       if (agentNotification) {
         console.log("Have notification");
@@ -794,6 +778,7 @@ io.on("connection", async (socket) => {
 
       agent.status = "Busy";
       agent.appDetail.pendingOrder -= 1;
+      agent.appDetail.cancelledOrders -= sameCancelledOrders;
 
       await agent.save();
 
@@ -1796,46 +1781,25 @@ io.on("connection", async (socket) => {
     }
   );
 
-  let lastPendingNotifications = [];
   socket.on("pendingNotificationsUpdate", async ({ agentId }) => {
-    setInterval(async () => {
-      try {
-        // console.log("Checking pending notifications for agent:", agentId);
+    try {
+      console.log("Checking pending notifications for agent:", agentId);
 
-        // Fetch the current pending notifications
-        const currentNotifications = await getPendingNotificationsWithTimers(
-          agentId
-        );
+      // Fetch the current pending notifications
+      const currentNotifications = await getPendingNotificationsWithTimers(
+        agentId
+      );
 
-        // Extract current order IDs for comparison
-        const currentOrderIds = currentNotifications.map(
-          (notif) => notif.orderId
-        );
-
-        // Extract last order IDs
-        const lastOrderIds = lastPendingNotifications.map(
-          (notif) => notif.orderId
-        );
-
-        // Determine new orders (present in current but not in last)
-        const newNotifications = currentNotifications.filter(
-          (notif) => !lastOrderIds.includes(notif.orderId)
-        );
-
-        // Update the last notifications state
-        lastPendingNotifications = currentNotifications;
-
-        const dataToSend = newNotifications.length > 0 ? newNotifications : [];
-        // console.log("dataToSend", dataToSend);
-
-        io.to(userSocketMap[agentId].socketId).emit(
-          "pendingNotificationsUpdate",
-          dataToSend
-        );
-      } catch (err) {
-        console.error("Error emitting notification updates:", err.message);
-      }
-    }, 1000);
+      io.to(userSocketMap[agentId].socketId).emit(
+        "pendingNotificationsUpdate",
+        currentNotifications
+      );
+    } catch (err) {
+      return socket.emit("error", {
+        message: "Error in getting pending tasks of agent",
+        success: false,
+      });
+    }
   });
 
   // User disconnected socket

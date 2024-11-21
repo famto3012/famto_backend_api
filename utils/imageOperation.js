@@ -32,7 +32,7 @@ const upload = multer({
   },
 });
 
-const uploadToFirebase = async (file, folderName) => {
+const uploadToFirebase = async (file, folderName, locationImage = false) => {
   if (!file) {
     throw new Error("File not found");
   }
@@ -64,6 +64,8 @@ const uploadToFirebase = async (file, folderName) => {
   ) {
     // If it's a CSV, skip sharp and use the original buffer
     fileBuffer = file.buffer;
+  } else if (locationImage && file.mimetype === undefined) {
+    fileBuffer = file;
   } else {
     // For unsupported file types, log and throw an error
     console.log("Unsupported file type:", file.mimetype);
