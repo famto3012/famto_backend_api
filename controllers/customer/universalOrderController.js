@@ -339,7 +339,7 @@ const getAllCategoriesOfMerchants = async (req, res, next) => {
     const customerLocation = customerFound.customerDetails.location;
 
     let distanceInKM;
-    if (latitude && longitude) {
+    // if (latitude && longitude) {
       console.log("Finding distance");
       const distance = await getDistanceFromPickupToDelivery(
         merchantLocation,
@@ -347,7 +347,7 @@ const getAllCategoriesOfMerchants = async (req, res, next) => {
       );
 
       distanceInKM = distance.distanceInKM;
-    }
+    // }
 
     let distanceWarning = false;
     if (distanceInKM > 12) distanceWarning = true;
