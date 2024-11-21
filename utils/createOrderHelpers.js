@@ -559,6 +559,10 @@ const calculateDeliveryChargesHelper = async (
     const businessCategoryId = selectedBusinessCategory;
     if (!businessCategoryId) throw new Error("Business category not found");
 
+    // console.log("1", deliveryMode);
+    // console.log("2", businessCategoryId);
+    // console.log("3", customer.customerDetails.geofenceId);
+
     const customerPricing = await CustomerPricing.findOne({
       deliveryMode,
       businessCategoryId,
