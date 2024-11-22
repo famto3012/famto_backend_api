@@ -4,6 +4,7 @@ const appError = require("../../../utils/appError");
 const {
   uploadToFirebase,
   deleteFromFirebase,
+  changeBufferToImage,
 } = require("../../../utils/imageOperation");
 const Merchant = require("../../../models/Merchant");
 const {
@@ -17,7 +18,7 @@ const {
 const mongoose = require("mongoose");
 const AccountLogs = require("../../../models/AccountLogs");
 const csvParser = require("csv-parser");
-const fs = require("fs");
+const fs = require("fs").promises;
 const { Readable } = require("stream");
 const axios = require("axios");
 const path = require("path");
@@ -35,6 +36,7 @@ const ActivityLog = require("../../../models/ActivityLog");
 const ejs = require("ejs");
 const MerchantSubscription = require("../../../models/MerchantSubscription");
 const Order = require("../../../models/Order");
+const { v4: uuidv4 } = require("uuid");
 
 // Helper function to handle null or empty string values
 const convertNullValues = (obj) => {
@@ -507,16 +509,22 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
 
       try {
         const response = await axios.get(url, { responseType: "arraybuffer" });
-        // Process the image using sharp to convert it to PNG format
-        const imageBuffer = await sharp(response.data).png().toBuffer();
-
-        console.log("imageBuffer", imageBuffer);
+        const uniqueName = uuidv4();
+        const format = `jpeg`;
+        const fileName = path.join(
+          __dirname,
+          `../../../merchant_location/${uniqueName}-location.jpeg`
+        );
+        const buffer = Buffer.from(response.data);
+        const imageBuffer = await changeBufferToImage(buffer, fileName, format);
 
         locationImage = await uploadToFirebase(
           imageBuffer,
-          "MerchantLocationImage",
-          true
+          "MerchantLocationImage"
         );
+        if (locationImage) {
+          await fs.unlink(fileName);
+        }
       } catch (err) {
         console.log(`Error in location image:`, err);
         res.status(500).json({ error: "Failed to fetch data from Mappls API" });
@@ -1378,9 +1386,10 @@ const updateMerchantDetailsController = async (req, res, next) => {
     };
 
     let locationImage;
-
+    console.log("Here");
     if (!arraysAreEqual(newLocation, merchantFound?.merchantDetail?.location)) {
       if (merchantFound?.merchantDetail?.locationImage) {
+        console.log("Here");
         await deleteFromFirebase(merchantFound?.merchantDetail?.locationImage);
       }
 
@@ -1388,13 +1397,24 @@ const updateMerchantDetailsController = async (req, res, next) => {
 
       try {
         const response = await axios.get(url, { responseType: "arraybuffer" });
-        // Process the image using sharp to convert it to PNG format
-        const imageBuffer = await sharp(response.data).png().toBuffer();
+        const uniqueName = uuidv4();
+        const format = `jpeg`;
+        const fileName = path.join(
+          __dirname,
+          `../../../merchant_location/${uniqueName}-location.jpeg`
+        );
+        const buffer = Buffer.from(response.data);
+        const imageBuffer = await changeBufferToImage(buffer, fileName, format);
+
         locationImage = await uploadToFirebase(
           imageBuffer,
           "MerchantLocationImage"
         );
+        if (locationImage) {
+          await fs.unlink(fileName);
+        }
       } catch (err) {
+        console.error("Failed to fetch data from Mappls API:", err);
         // res.status(500).json({ error: "Failed to fetch data from Mappls API" });
       }
     }
