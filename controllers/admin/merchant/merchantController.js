@@ -4,6 +4,7 @@ const appError = require("../../../utils/appError");
 const {
   uploadToFirebase,
   deleteFromFirebase,
+  changeBufferToImage,
 } = require("../../../utils/imageOperation");
 const Merchant = require("../../../models/Merchant");
 const {
@@ -17,7 +18,7 @@ const {
 const mongoose = require("mongoose");
 const AccountLogs = require("../../../models/AccountLogs");
 const csvParser = require("csv-parser");
-const fs = require("fs");
+const fs = require("fs").promises;
 const { Readable } = require("stream");
 const axios = require("axios");
 const path = require("path");
@@ -35,6 +36,7 @@ const ActivityLog = require("../../../models/ActivityLog");
 const ejs = require("ejs");
 const MerchantSubscription = require("../../../models/MerchantSubscription");
 const Order = require("../../../models/Order");
+const { v4: uuidv4 } = require("uuid");
 
 // Helper function to handle null or empty string values
 const convertNullValues = (obj) => {
@@ -496,35 +498,41 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
       );
     };
 
-    // let locationImage;
+     let locationImage;
 
-    // if (!arraysAreEqual(newLocation, merchantFound?.merchantDetail?.location)) {
-    //   if (merchantFound?.merchantDetail?.locationImage) {
-    //     await deleteFromFirebase(merchantFound?.merchantDetail?.locationImage);
-    //   }
+     if (!arraysAreEqual(newLocation, merchantFound?.merchantDetail?.location)) {
+      if (merchantFound?.merchantDetail?.locationImage) {
+        await deleteFromFirebase(merchantFound?.merchantDetail?.locationImage);
+      }
 
-    //   const url = `https://apis.mapmyindia.com/advancedmaps/v1/9a632cda78b871b3a6eb69bddc470fef/still_image?center=${newLocation[0]}, ${newLocation[1]}&size=400x500&markers=${newLocation[0]}, ${newLocation[1]}&zoom=15`;
+    const url = `https://apis.mapmyindia.com/advancedmaps/v1/9a632cda78b871b3a6eb69bddc470fef/still_image?center=${newLocation[0]}, ${newLocation[1]}&size=400x500&markers=${newLocation[0]}, ${newLocation[1]}&zoom=15`;
+     
+       try {
+        const response = await axios.get(url, { responseType: "arraybuffer" });
+        const uniqueName = uuidv4();
+        const format = `jpeg`;
+        const fileName = path.join(
+          __dirname,
+          `../../../merchant_location/${uniqueName}-location.jpeg`
+        );
+        const buffer = Buffer.from(response.data);
+        const imageBuffer = await changeBufferToImage(buffer, fileName, format);
 
-    //   try {
-    //     const response = await axios.get(url, { responseType: "arraybuffer" });
-    //     // Process the image using sharp to convert it to PNG format
-    //     const imageBuffer = await sharp(response.data).png().toBuffer();
+        locationImage = await uploadToFirebase(
+          imageBuffer,
+          "MerchantLocationImage"
+        );
+        if (locationImage) {
+          await fs.unlink(fileName);
+        }
+      } catch (err) {
+        console.log(`Error in location image:`, err);
+        res.status(500).json({ error: "Failed to fetch data from Mappls API" });
+        return;
+      }
+    }
 
-    //     console.log("imageBuffer", imageBuffer);
-
-    //     locationImage = await uploadToFirebase(
-    //       imageBuffer,
-    //       "MerchantLocationImage",
-    //       true
-    //     );
-    //   } catch (err) {
-    //     console.log(`Error in location image:`, err);
-    //     res.status(500).json({ error: "Failed to fetch data from Mappls API" });
-    //     return;
-    //   }
-    // }
-
-    // merchantDetail.locationImage = locationImage;
+    merchantDetail.locationImage = locationImage;
 
     const details = {
       ...merchantDetail,
@@ -1377,29 +1385,41 @@ const updateMerchantDetailsController = async (req, res, next) => {
       );
     };
 
-    // let locationImage;
+    let locationImage;
+  
+    if (!arraysAreEqual(newLocation, merchantFound?.merchantDetail?.location)) {
+      if (merchantFound?.merchantDetail?.locationImage) {
+        console.log("Here");
+        await deleteFromFirebase(merchantFound?.merchantDetail?.locationImage);
+      }
 
-    // if (!arraysAreEqual(newLocation, merchantFound?.merchantDetail?.location)) {
-    //   if (merchantFound?.merchantDetail?.locationImage) {
-    //     await deleteFromFirebase(merchantFound?.merchantDetail?.locationImage);
-    //   }
+      const url = `https://apis.mapmyindia.com/advancedmaps/v1/9a632cda78b871b3a6eb69bddc470fef/still_image?center=${newLocation[0]}, ${newLocation[1]}&size=400x500&markers=${newLocation[0]}, ${newLocation[1]}&zoom=15`;
 
-    //   const url = `https://apis.mapmyindia.com/advancedmaps/v1/9a632cda78b871b3a6eb69bddc470fef/still_image?center=${newLocation[0]}, ${newLocation[1]}&size=400x500&markers=${newLocation[0]}, ${newLocation[1]}&zoom=15`;
+      try {
+        const response = await axios.get(url, { responseType: "arraybuffer" });
+        const uniqueName = uuidv4();
+        const format = `jpeg`;
+        const fileName = path.join(
+          __dirname,
+          `../../../merchant_location/${uniqueName}-location.jpeg`
+        );
+        const buffer = Buffer.from(response.data);
+        const imageBuffer = await changeBufferToImage(buffer, fileName, format);
 
-    //   try {
-    //     const response = await axios.get(url, { responseType: "arraybuffer" });
-    //     // Process the image using sharp to convert it to PNG format
-    //     const imageBuffer = await sharp(response.data).png().toBuffer();
-    //     locationImage = await uploadToFirebase(
-    //       imageBuffer,
-    //       "MerchantLocationImage"
-    //     );
-    //   } catch (err) {
-    //     // res.status(500).json({ error: "Failed to fetch data from Mappls API" });
-    //   }
-    // }
+        locationImage = await uploadToFirebase(
+          imageBuffer,
+          "MerchantLocationImage"
+        );
+        if (locationImage) {
+          await fs.unlink(fileName);
+        }
+      } catch (err) {
+        console.error("Failed to fetch data from Mappls API:", err);
+        // res.status(500).json({ error: "Failed to fetch data from Mappls API" });
+      }
+    }
 
-    // merchantDetail.locationImage = locationImage;
+    merchantDetail.locationImage = locationImage;
 
     const details = {
       ...merchantDetail,

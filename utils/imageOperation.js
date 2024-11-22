@@ -36,7 +36,6 @@ const uploadToFirebase = async (file, folderName, locationImage = false) => {
   if (!file) {
     throw new Error("File not found");
   }
-
   const uniqueName = uuidv4();
   const storageRef = ref(
     storage,
@@ -64,8 +63,6 @@ const uploadToFirebase = async (file, folderName, locationImage = false) => {
   ) {
     // If it's a CSV, skip sharp and use the original buffer
     fileBuffer = file.buffer;
-  } else if (locationImage && file.mimetype === undefined) {
-    fileBuffer = file;
   } else {
     // For unsupported file types, log and throw an error
     console.log("Unsupported file type:", file.mimetype);
@@ -92,4 +89,28 @@ const deleteFromFirebase = async (fileUrl) => {
   }
 };
 
-module.exports = { upload, uploadToFirebase, deleteFromFirebase };
+const changeBufferToImage = async (buffer, outputPath, newFormat) => {
+  try {
+    // Process the buffer and convert it to the new format
+    const image = await sharp(buffer)
+      .toFormat(newFormat) // Change the image format
+      .toFile(outputPath); // Save the converted image to a file
+
+    // Determine the MIME type based on the new format
+    image.mimetype = `image/${newFormat}`;
+    image.buffer = buffer;
+
+    // console.log(`File saved to ${outputPath} with MIME type: ${mimeType}`);
+    return image;
+  } catch (error) {
+    console.error("Error converting image format:", error);
+    throw error;
+  }
+};
+
+module.exports = {
+  upload,
+  uploadToFirebase,
+  deleteFromFirebase,
+  changeBufferToImage,
+};
