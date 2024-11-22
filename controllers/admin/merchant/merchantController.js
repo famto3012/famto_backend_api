@@ -498,16 +498,16 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
       );
     };
 
-    let locationImage;
+     let locationImage;
 
-    if (!arraysAreEqual(newLocation, merchantFound?.merchantDetail?.location)) {
+     if (!arraysAreEqual(newLocation, merchantFound?.merchantDetail?.location)) {
       if (merchantFound?.merchantDetail?.locationImage) {
         await deleteFromFirebase(merchantFound?.merchantDetail?.locationImage);
       }
 
-      const url = `https://apis.mapmyindia.com/advancedmaps/v1/9a632cda78b871b3a6eb69bddc470fef/still_image?center=${newLocation[0]}, ${newLocation[1]}&size=400x500&markers=${newLocation[0]}, ${newLocation[1]}&zoom=15`;
-
-      try {
+    const url = `https://apis.mapmyindia.com/advancedmaps/v1/9a632cda78b871b3a6eb69bddc470fef/still_image?center=${newLocation[0]}, ${newLocation[1]}&size=400x500&markers=${newLocation[0]}, ${newLocation[1]}&zoom=15`;
+     
+       try {
         const response = await axios.get(url, { responseType: "arraybuffer" });
         const uniqueName = uuidv4();
         const format = `jpeg`;
@@ -1386,7 +1386,7 @@ const updateMerchantDetailsController = async (req, res, next) => {
     };
 
     let locationImage;
-    console.log("Here");
+  
     if (!arraysAreEqual(newLocation, merchantFound?.merchantDetail?.location)) {
       if (merchantFound?.merchantDetail?.locationImage) {
         console.log("Here");

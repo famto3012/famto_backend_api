@@ -22,6 +22,8 @@ const {
   sendSocketData,
   findRolesToNotify,
 } = require("../../socket/socket");
+const CustomerAppCustomization = require("../../models/CustomerAppCustomization");
+const Tax = require("../../models/Tax");
 
 const addShopController = async (req, res, next) => {
   try {
@@ -401,17 +403,30 @@ const addDeliveryAddressController = async (req, res, next) => {
       updatedSurgeCharges = surgeCharges;
     }
 
+    const tax = await CustomerAppCustomization.findOne({}).select(
+      "customOrderCustomization"
+    );
+
+    const taxFound = await Tax.findById(tax.customOrderCustomization.taxId);
+
+    let taxAmount = 0;
+    if (taxFound) {
+      taxAmount = (updatedDeliveryCharges * taxFound.tax) / 100;
+    }
+
     updatedBillDetail = {
-      originalDeliveryCharge: Math.round(updatedDeliveryCharges) || 0,
+      originalDeliveryCharge:
+        Math.round(updatedDeliveryCharges + taxAmount) || 0,
       deliveryChargePerDay: null,
       discountedDeliveryCharge: null,
       discountedAmount: null,
-      originalGrandTotal: Math.round(updatedDeliveryCharges) || 0,
+      originalGrandTotal: Math.round(updatedDeliveryCharges + taxAmount) || 0,
       discountedGrandTotal: null,
       itemTotal: null,
       addedTip: null,
       subTotal: null,
       vehicleType: null,
+      taxAmount,
       surgePrice: Math.round(updatedSurgeCharges) || null,
     };
 
@@ -444,6 +459,7 @@ const addDeliveryAddressController = async (req, res, next) => {
       discountedGrandTotal: havePickupLocation
         ? cartFound.billDetail.discountedGrandTotal
         : null,
+      taxAmount: havePickupLocation ? cartFound.billDetail.taxAmount : null,
       itemTotal: cartFound.billDetail.itemTotal || null,
       addedTip: cartFound.billDetail.addedTip || null,
       subTotal: havePickupLocation ? cartFound.billDetail.subTotal : null,
@@ -579,6 +595,7 @@ const addTipAndApplyPromocodeInCustomOrderController = async (
       discountedGrandTotal: havePickupLocation
         ? cart.billDetail.discountedGrandTotal
         : null,
+      taxAmount: havePickupLocation ? cart.billDetail.taxAmount : null,
       itemTotal: cart.billDetail.itemTotal || null,
       addedTip: cart.billDetail.addedTip || null,
       subTotal: havePickupLocation ? cart.billDetail.subTotal : null,

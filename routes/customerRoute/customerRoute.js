@@ -89,6 +89,9 @@ const {
   cancelCustomBeforeOrderCreationController,
   getSingleItemController,
 } = require("../../controllers/customer/customOrderController");
+const {
+  getTimingsForCustomerApp,
+} = require("../../controllers/admin/appCustomization/customerAppCustomization");
 
 const customerRoute = express.Router();
 
@@ -510,7 +513,7 @@ customerRoute.get(
 customerRoute.get(
   "/customization/timings",
   isAuthenticated,
-  getAllNotificationsOfCustomerController
+  getTimingsForCustomerApp
 );
 
 module.exports = customerRoute;
