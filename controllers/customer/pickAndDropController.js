@@ -37,6 +37,8 @@ const {
   processSchedule,
   processDeliveryDetailInApp,
 } = require("../../utils/createOrderHelpers");
+const CustomerAppCustomization = require("../../models/CustomerAppCustomization");
+const Tax = require("../../models/Tax");
 
 // Add pick and drop address
 const addPickUpAddressController = async (req, res, next) => {
@@ -295,14 +297,25 @@ const addPickandDropItemsController = async (req, res, next) => {
 
     cart.items.push(...formattedItems);
 
-    let updatedBill = {
-      originalDeliveryCharge: Math.round(deliveryCharges),
-      vehicleType,
-      originalGrandTotal: Math.round(deliveryCharges),
-    };
+    const tax = await CustomerAppCustomization.findOne({}).select(
+      "pickAndDropOrderCustomization"
+    );
 
-    // TODO: Add tax calculation in bill and slo in custom order
-    // TODO: Also group these functionalities of tax selection and timings in app customization in front end
+    const taxFound = await Tax.findById(
+      tax.pickAndDropOrderCustomization.taxId
+    );
+
+    let taxAmount = 0;
+    if (taxFound) {
+      taxAmount = (deliveryCharges * taxFound.tax) / 100;
+    }
+
+    let updatedBill = {
+      taxAmount,
+      originalDeliveryCharge: Math.round(deliveryCharges + taxAmount),
+      vehicleType,
+      originalGrandTotal: Math.round(deliveryCharges + taxAmount),
+    };
 
     cart.billDetail = updatedBill;
     await cart.save();

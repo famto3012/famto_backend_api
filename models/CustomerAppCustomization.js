@@ -1,5 +1,47 @@
 const mongoose = require("mongoose");
 
+const customOrderCustomizationSchema = new mongoose.Schema(
+  {
+    startTime: {
+      type: String,
+      required: true,
+    },
+    endTime: {
+      type: String,
+      required: true,
+    },
+    taxId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Tax",
+      default: null,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
+const pickAndDropOrderCustomizationSchema = new mongoose.Schema(
+  {
+    startTime: {
+      type: String,
+      required: true,
+    },
+    endTime: {
+      type: String,
+      required: true,
+    },
+    taxId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Tax",
+      default: null,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
 const customerAppCustomizationSchema = new mongoose.Schema(
   {
     splashScreenUrl: {
@@ -38,26 +80,8 @@ const customerAppCustomizationSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    customOrderTiming: {
-      startTime: {
-        type: Date,
-        required: true,
-      },
-      endTime: {
-        type: Date,
-        required: true,
-      },
-    },
-    pickAndDropTiming: {
-      startTime: {
-        type: Date,
-        required: true,
-      },
-      endTime: {
-        type: Date,
-        required: true,
-      },
-    },
+    customOrderCustomization: customOrderCustomizationSchema,
+    pickAndDropOrderCustomization: pickAndDropOrderCustomizationSchema,
   },
   {
     timestamps: true,

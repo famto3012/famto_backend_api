@@ -100,9 +100,7 @@ const getTaxAmount = async (
       geofences: { $in: [geofenceId] },
     });
 
-    if (!taxFound) {
-      throw new Error("Tax not found");
-    }
+    if (!taxFound) throw new Error("Tax not found");
 
     const taxPercentage = taxFound.tax;
 

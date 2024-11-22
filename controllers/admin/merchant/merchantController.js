@@ -496,35 +496,35 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
       );
     };
 
-    let locationImage;
+    // let locationImage;
 
-    if (!arraysAreEqual(newLocation, merchantFound?.merchantDetail?.location)) {
-      if (merchantFound?.merchantDetail?.locationImage) {
-        await deleteFromFirebase(merchantFound?.merchantDetail?.locationImage);
-      }
+    // if (!arraysAreEqual(newLocation, merchantFound?.merchantDetail?.location)) {
+    //   if (merchantFound?.merchantDetail?.locationImage) {
+    //     await deleteFromFirebase(merchantFound?.merchantDetail?.locationImage);
+    //   }
 
-      const url = `https://apis.mapmyindia.com/advancedmaps/v1/9a632cda78b871b3a6eb69bddc470fef/still_image?center=${newLocation[0]}, ${newLocation[1]}&size=400x500&markers=${newLocation[0]}, ${newLocation[1]}&zoom=15`;
+    //   const url = `https://apis.mapmyindia.com/advancedmaps/v1/9a632cda78b871b3a6eb69bddc470fef/still_image?center=${newLocation[0]}, ${newLocation[1]}&size=400x500&markers=${newLocation[0]}, ${newLocation[1]}&zoom=15`;
 
-      try {
-        const response = await axios.get(url, { responseType: "arraybuffer" });
-        // Process the image using sharp to convert it to PNG format
-        const imageBuffer = await sharp(response.data).png().toBuffer();
+    //   try {
+    //     const response = await axios.get(url, { responseType: "arraybuffer" });
+    //     // Process the image using sharp to convert it to PNG format
+    //     const imageBuffer = await sharp(response.data).png().toBuffer();
 
-        console.log("imageBuffer", imageBuffer);
+    //     console.log("imageBuffer", imageBuffer);
 
-        locationImage = await uploadToFirebase(
-          imageBuffer,
-          "MerchantLocationImage",
-          true
-        );
-      } catch (err) {
-        console.log(`Error in location image:`, err);
-        res.status(500).json({ error: "Failed to fetch data from Mappls API" });
-        return;
-      }
-    }
+    //     locationImage = await uploadToFirebase(
+    //       imageBuffer,
+    //       "MerchantLocationImage",
+    //       true
+    //     );
+    //   } catch (err) {
+    //     console.log(`Error in location image:`, err);
+    //     res.status(500).json({ error: "Failed to fetch data from Mappls API" });
+    //     return;
+    //   }
+    // }
 
-    merchantDetail.locationImage = locationImage;
+    // merchantDetail.locationImage = locationImage;
 
     const details = {
       ...merchantDetail,
@@ -1377,29 +1377,29 @@ const updateMerchantDetailsController = async (req, res, next) => {
       );
     };
 
-    let locationImage;
+    // let locationImage;
 
-    if (!arraysAreEqual(newLocation, merchantFound?.merchantDetail?.location)) {
-      if (merchantFound?.merchantDetail?.locationImage) {
-        await deleteFromFirebase(merchantFound?.merchantDetail?.locationImage);
-      }
+    // if (!arraysAreEqual(newLocation, merchantFound?.merchantDetail?.location)) {
+    //   if (merchantFound?.merchantDetail?.locationImage) {
+    //     await deleteFromFirebase(merchantFound?.merchantDetail?.locationImage);
+    //   }
 
-      const url = `https://apis.mapmyindia.com/advancedmaps/v1/9a632cda78b871b3a6eb69bddc470fef/still_image?center=${newLocation[0]}, ${newLocation[1]}&size=400x500&markers=${newLocation[0]}, ${newLocation[1]}&zoom=15`;
+    //   const url = `https://apis.mapmyindia.com/advancedmaps/v1/9a632cda78b871b3a6eb69bddc470fef/still_image?center=${newLocation[0]}, ${newLocation[1]}&size=400x500&markers=${newLocation[0]}, ${newLocation[1]}&zoom=15`;
 
-      try {
-        const response = await axios.get(url, { responseType: "arraybuffer" });
-        // Process the image using sharp to convert it to PNG format
-        const imageBuffer = await sharp(response.data).png().toBuffer();
-        locationImage = await uploadToFirebase(
-          imageBuffer,
-          "MerchantLocationImage"
-        );
-      } catch (err) {
-        // res.status(500).json({ error: "Failed to fetch data from Mappls API" });
-      }
-    }
+    //   try {
+    //     const response = await axios.get(url, { responseType: "arraybuffer" });
+    //     // Process the image using sharp to convert it to PNG format
+    //     const imageBuffer = await sharp(response.data).png().toBuffer();
+    //     locationImage = await uploadToFirebase(
+    //       imageBuffer,
+    //       "MerchantLocationImage"
+    //     );
+    //   } catch (err) {
+    //     // res.status(500).json({ error: "Failed to fetch data from Mappls API" });
+    //   }
+    // }
 
-    merchantDetail.locationImage = locationImage;
+    // merchantDetail.locationImage = locationImage;
 
     const details = {
       ...merchantDetail,

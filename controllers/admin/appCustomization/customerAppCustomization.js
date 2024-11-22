@@ -22,19 +22,23 @@ const createOrUpdateCustomerCustomizationController = async (
       loginViaGoogle,
       loginViaApple,
       loginViaFacebook,
+      customOrderCustomization,
+      pickAndDropOrderCustomization,
     } = req.body;
-    const customOrderTiming = JSON.parse(req.body.customOrderTiming);
-    const pickAndDropTiming = JSON.parse(req.body.pickAndDropTiming);
-    const customization = await CustomerAppCustomization.findOne();
-    console.log("customOrderTiming", customOrderTiming)
-    console.log("pickAndDropTiming", pickAndDropTiming)
-    // Helper function to update fields only if provided
+
+    const parsedCustomOrderCustomization = JSON.parse(customOrderCustomization);
+    const parsedPickAndDropOrderCustomization = JSON.parse(
+      pickAndDropOrderCustomization
+    );
+
+    const customization = await CustomerAppCustomization.findOne({});
+
     const updateField = (field, newValue) =>
       newValue !== undefined ? newValue : field;
 
     if (customization) {
       // Handle file upload and deletion
-      let splashScreenUrl = customization.splashScreenUrl;
+      let splashScreenUrl = customization?.splashScreenUrl;
       if (req.file) {
         await deleteFromFirebase(customization.splashScreenUrl);
         splashScreenUrl = await uploadToFirebase(
@@ -74,13 +78,16 @@ const createOrUpdateCustomerCustomizationController = async (
         loginViaFacebook
       );
       customization.splashScreenUrl = splashScreenUrl;
-      customization.customOrderTiming = {
-        startTime: customOrderTiming?.startTime,
-        endTime: customOrderTiming?.endTime,
+
+      customization.customOrderCustomization = {
+        startTime: parsedCustomOrderCustomization?.startTime,
+        endTime: parsedCustomOrderCustomization?.endTime,
+        taxId: parsedCustomOrderCustomization?.taxId,
       };
-      customization.pickAndDropTiming = {
-        startTime: pickAndDropTiming?.startTime,
-        endTime: pickAndDropTiming?.endTime,
+      customization.pickAndDropOrderCustomization = {
+        startTime: parsedPickAndDropOrderCustomization?.startTime,
+        endTime: parsedPickAndDropOrderCustomization?.endTime,
+        taxId: parsedPickAndDropOrderCustomization?.taxId,
       };
 
       // Save and respond
@@ -107,8 +114,8 @@ const createOrUpdateCustomerCustomizationController = async (
       loginViaApple,
       loginViaFacebook,
       splashScreenUrl,
-      customOrderTiming,
-      pickAndDropTiming,
+      customOrderCustomization,
+      pickAndDropOrderCustomization,
     });
 
     await newCustomerAppCustomization.save();
@@ -124,35 +131,52 @@ const createOrUpdateCustomerCustomizationController = async (
 
 const getCustomerCustomizationController = async (req, res, next) => {
   try {
-    const customization = await CustomerAppCustomization.findOne();
+    const customization = await CustomerAppCustomization.findOne({});
 
-    if (!customization) {
-      return res.status(404).json({
-        error: "Customer App Customization not found",
-      });
-    }
+    if (!customization) return next(appError("Customization not found", 404));
 
-    res.status(200).json({
-      success: "Customer App Customization fetched successfully",
-      data: customization,
-    });
+    const formattedResponse = {
+      splashScreenUrl: customization?.splashScreenUrl || null,
+      phoneNumber: customization.phoneNumber || false,
+      emailVerification: customization.emailVerification || false,
+      email: customization.email || false,
+      otpVerification: customization.otpVerification || false,
+      loginViaOtp: customization.loginViaOtp || false,
+      loginViaGoogle: customization.loginViaGoogle || false,
+      loginViaApple: customization.loginViaApple || false,
+      loginViaFacebook: customization.loginViaFacebook || false,
+      customOrderCustomization: {
+        startTime: customization.customOrderCustomization.startTime,
+        endTime: customization.customOrderCustomization.endTime,
+        taxId: customization.customOrderCustomization.taxId || null,
+      },
+      pickAndDropOrderCustomization: {
+        startTime: customization.pickAndDropOrderCustomization.startTime,
+        endTime: customization.pickAndDropOrderCustomization.endTime,
+        taxId: customization.pickAndDropOrderCustomization.taxId || null,
+      },
+    };
+
+    res.status(200).json(formattedResponse);
   } catch (err) {
     next(appError(err.message));
   }
 };
 
-const getTimingsOfOrdersController = async (req, res, next) => {
+const getTimingsForCustomerApp = async (req, res, next) => {
   try {
-    const customization = await CustomerAppCustomization.findOne();
+    const customization = await CustomerAppCustomization.findOne({}).select(
+      "customOrderCustomization pickAndDropOrderCustomization"
+    );
 
     const formattedResponse = {
-      customerOrderTimings: {
-        startTime: formatTime(customization.customOrderTiming.startTime),
-        endTime: formatTime(customization.customOrderTiming.endTime),
+      customOrderTimings: {
+        startTime: customization.customOrderCustomization.startTime,
+        endTime: customization.customOrderCustomization.endTime,
       },
-      pickAndDropTimings: {
-        startTime: formatTime(customization.pickAndDropTiming.startTime),
-        endTime: formatTime(customization.pickAndDropTiming.endTime),
+      pickAndDropOrderTimings: {
+        startTime: customization.pickAndDropOrderCustomization.startTime,
+        endTime: customization.pickAndDropOrderCustomization.endTime,
       },
     };
 
@@ -165,5 +189,5 @@ const getTimingsOfOrdersController = async (req, res, next) => {
 module.exports = {
   createOrUpdateCustomerCustomizationController,
   getCustomerCustomizationController,
-  getTimingsOfOrdersController,
+  getTimingsForCustomerApp,
 };
