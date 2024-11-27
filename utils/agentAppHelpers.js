@@ -281,11 +281,23 @@ const calculateAgentEarnings = async (agent, order) => {
     const taskFound = await Task.findOne({ orderId: order._id });
     if (taskFound) {
       const durationInHours =
-        (new Date(taskFound.endTime) - new Date(taskFound.startTime)) /
+        (new Date(taskFound?.endTime || new Date()) -
+          new Date(taskFound.startTime)) /
         (1000 * 60 * 60);
-      totalPurchaseFare = durationInHours * agentPricing.purchaseFarePerHour;
+
+      const normalizedHours =
+        durationInHours < 1 ? 1 : Math.floor(durationInHours);
+
+      console.log("durationInHours:", durationInHours);
+      console.log("normalizedHours:", normalizedHours);
+      console.log("purchaseFare:", agentPricing.purchaseFarePerHour);
+
+      totalPurchaseFare = normalizedHours * agentPricing.purchaseFarePerHour;
     }
   }
+
+  console.log("orderSalary: ", orderSalary);
+  console.log("totalPurchaseFare: ", totalPurchaseFare);
 
   return parseFloat(orderSalary + totalPurchaseFare).toFixed(2);
 };
@@ -345,8 +357,9 @@ const updateAgentDetails = async (
   if (agentTasks.length > 0) {
     agentTasks[0].pickupDetail.pickupStatus = "Started";
     agentTasks[0].startTime = new Date();
-
-    // await agentTasks.save();
+    agent.status = "Busy";
+  } else {
+    agent.status = "Free";
   }
 };
 

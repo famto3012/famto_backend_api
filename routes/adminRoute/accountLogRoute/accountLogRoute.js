@@ -6,6 +6,8 @@ const {
   searchUserByDateController,
   unBlockUserController,
   searchUserByNameController,
+  filterUserInAccountLogs,
+  downloadUserCSVInAccountLogs,
 } = require("../../../controllers/admin/accountLogs/accountLogsController");
 
 const accountLogRoute = express.Router();
@@ -31,8 +33,22 @@ accountLogRoute.get(
   searchUserByDateController
 );
 
+accountLogRoute.get(
+  "/filter",
+  isAuthenticated,
+  isAdmin,
+  filterUserInAccountLogs
+);
+
+accountLogRoute.get(
+  "/csv",
+  isAuthenticated,
+  isAdmin,
+  downloadUserCSVInAccountLogs
+);
+
 accountLogRoute.put(
-  "/unblock-user/:id",
+  "/unblock-user/:userId",
   isAuthenticated,
   isAdmin,
   unBlockUserController

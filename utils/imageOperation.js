@@ -15,7 +15,7 @@ const storage = getStorage(firebaseApp);
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // Set a higher limit globally, but enforce limits conditionally
+
   fileFilter: (req, file, cb) => {
     // Allow CSV files of any size
     if (
@@ -23,9 +23,6 @@ const upload = multer({
       file.mimetype === "application/vnd.ms-excel"
     ) {
       cb(null, true); // Accept CSV files without size limitation
-    } else if (file.size > 1 * 1024 * 1024) {
-      // Check file size for non-CSV files
-      cb(new Error("File size exceeds 1 MB for non-CSV files"), false);
     } else {
       cb(null, true); // Accept other files below 1 MB
     }

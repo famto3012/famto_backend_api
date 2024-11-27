@@ -886,9 +886,7 @@ const getTaskPreviewController = async (req, res, next) => {
 
     const agentFound = await Agent.findById(agentId);
 
-    if (!agentFound) {
-      return next(appError("Agent not found", 404));
-    }
+    if (!agentFound) return next(appError("Agent not found", 404));
 
     const taskFound = await Task.find({
       agentId,
@@ -976,8 +974,8 @@ const getTaskPreviewController = async (req, res, next) => {
       // }
     });
 
-    console.log(currentTasks);
-    console.log(nextTasks);
+    // console.log(currentTasks);
+    // console.log(nextTasks);
 
     res.status(200).json({
       message: "Task preview",
@@ -1380,7 +1378,6 @@ const completeOrderController = async (req, res, next) => {
       date: new Date(),
     };
 
-    console.log("8");
     orderFound.orderDetailStepper.completed = stepperDetail;
 
     await Promise.all([
@@ -1634,23 +1631,23 @@ const updateCustomOrderStatusController = async (req, res, next) => {
     const { orderId } = req.params;
     const agentId = req.userAuth;
 
+    console.log(req.body);
+
     const orderFound = await Order.findOne({
       _id: orderId,
       "orderDetail.deliveryMode": "Custom Order",
     });
 
-    if (!orderFound) {
-      return next(appError("Order not found", 404));
-    }
+    if (!orderFound) return next(appError("Order not found", 404));
 
     if (orderFound.agentId !== agentId) {
       return next(appError("Agent access denied (Different agent)"));
     }
 
-    const agentLocation = [latitude, longitude];
+    const location = [latitude, longitude];
 
     let updatedData = {
-      agentLocation,
+      location,
       status,
       description,
     };
@@ -1666,7 +1663,7 @@ const updateCustomOrderStatusController = async (req, res, next) => {
 
     // Ensure getDistanceFromPickupToDelivery returns a number
     const { distanceInKM } = await getDistanceFromPickupToDelivery(
-      agentLocation,
+      location,
       lastLocation
     );
 

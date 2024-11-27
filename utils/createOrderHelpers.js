@@ -360,7 +360,9 @@ const handleAddressDetails = async (
         newCustomerAddress.longitude,
       ];
       deliveryAddress = newCustomerAddress;
-    } else if (newCustomerAddress) {
+    }
+
+    if (newCustomerAddress) {
       deliveryLocation = [
         newCustomerAddress.latitude,
         newCustomerAddress.longitude,
@@ -375,12 +377,17 @@ const handleAddressDetails = async (
           customerAddressOtherAddressId
         );
       }
-    } else if (customerAddressType) {
+    }
+
+    if (customerAddressType) {
       const address = getAddressDetails(
         customer,
         customerAddressType,
         customerAddressOtherAddressId
       );
+
+      console.log("address", address);
+
       if (!address) throw new Error("Address not found");
       deliveryLocation = address.coordinates;
       deliveryAddress = address;
@@ -445,13 +452,16 @@ const handleAddressDetails = async (
 
   // Handle "Custom Order"
   if (deliveryMode === "Custom Order") {
-    // if (customPickupLocation) {
-    //   pickupLocation = [...customPickupLocation];
-    // }
-
-    customPickupLocation
-      ? (pickupLocation = [...customPickupLocation])
-      : (pickupLocation = []);
+    if (
+      Array.isArray(customPickupLocation) &&
+      customPickupLocation.every(
+        (coord) => coord !== null && coord !== undefined
+      )
+    ) {
+      pickupLocation = [...customPickupLocation];
+    } else {
+      pickupLocation = [];
+    }
 
     if (newDeliveryAddress) {
       deliveryLocation = [
@@ -819,13 +829,16 @@ const handleDeliveryModeForAdmin = async (
     customPickupLocation
   );
 
+  console.log("Here");
+  console.log("Pick", addressDetails.pickupLocation);
+  console.log("Delivery", addressDetails.deliveryLocation);
+
   let distance = 0;
 
+  const customOrderWithPick = addressDetails.pickupLocation.length === 2;
+
   // Calculate distance only if the delivery mode is not "Take Away" and pickupLocation is available
-  if (
-    deliveryMode !== "Take Away" &&
-    addressDetails.pickupLocation?.every((coord) => coord !== null)
-  ) {
+  if (deliveryMode !== "Take Away" && customOrderWithPick) {
     const { distanceInKM } = await getDistanceFromPickupToDelivery(
       addressDetails.pickupLocation,
       addressDetails.deliveryLocation
@@ -833,6 +846,8 @@ const handleDeliveryModeForAdmin = async (
 
     distance = distanceInKM;
   }
+
+  console.log("distance", distance);
 
   return {
     ...addressDetails,

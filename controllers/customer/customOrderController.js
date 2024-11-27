@@ -40,7 +40,7 @@ const addShopController = async (req, res, next) => {
 
     // If buyFromAnyWhere is true, set pickupLocation to null and set deliveryLocation to customer's location
     if (buyFromAnyWhere) {
-      pickupLocation = null;
+      pickupLocation = [];
       deliveryLocation = customer.customerDetails.location;
 
       distance = 0;
@@ -79,27 +79,17 @@ const addShopController = async (req, res, next) => {
     }
 
     // Check if a cart with the same customerId and deliveryMode exists
-    let cartFound = await PickAndCustomCart.findOne({
+    const cartFound = await PickAndCustomCart.findOne({
       customerId,
       "cartDetail.deliveryMode": "Custom Order",
     });
 
-    if (cartFound) {
-      // If cart exists, update its cartDetail
-      await PickAndCustomCart.findByIdAndUpdate(
-        cartFound._id,
-        {
-          cartDetail: updatedCartDetail,
-        },
-        { new: true }
-      );
-    } else {
-      // If no cart exists, create a new one
-      await PickAndCustomCart.create({
-        customerId,
-        cartDetail: updatedCartDetail,
-      });
-    }
+    if (cartFound) await PickAndCustomCart.findByIdAndDelete(cartFound._id);
+
+    const cart = await PickAndCustomCart.create({
+      customerId,
+      cartDetail: updatedCartDetail,
+    });
 
     res.status(200).json({
       message: "Shop detail added successfully in Custom order",
@@ -108,6 +98,7 @@ const addShopController = async (req, res, next) => {
         place: place || null,
         distance: parseFloat(distance) || null,
         duration: duration || null,
+        items: cart?.items || [],
       },
     });
   } catch (err) {
@@ -687,9 +678,7 @@ const confirmCustomOrderController = async (req, res, next) => {
 
     await customer.save();
 
-    if (!tempOrder) {
-      return next(appError("Error in creating temporary order"));
-    }
+    if (!tempOrder) return next(appError("Error in creating temporary order"));
 
     // Clear the cart
     await PickAndCustomCart.deleteOne({ customerId });
@@ -706,10 +695,13 @@ const confirmCustomOrderController = async (req, res, next) => {
       const storedOrderData = await TemperoryOrder.findOne({ orderId });
 
       if (storedOrderData) {
+        const deliveryTime = new Date();
+        deliveryTime.setHours(deliveryTime.getHours() + 1);
+
         const newOrder = await Order.create({
           customerId: storedOrderData.customerId,
           items: storedOrderData.items,
-          orderDetail: storedOrderData.orderDetail,
+          orderDetail: { ...storedOrderData.orderDetail, deliveryTime },
           billDetail: storedOrderData.billDetail,
           totalAmount: storedOrderData.totalAmount,
           status: storedOrderData.status,

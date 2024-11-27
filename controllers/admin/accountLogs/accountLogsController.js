@@ -1,9 +1,12 @@
 const moment = require("moment");
+const path = require("path");
 const AccountLogs = require("../../../models/AccountLogs");
 const Agent = require("../../../models/Agent");
 const Customer = require("../../../models/Customer");
 const Merchant = require("../../../models/Merchant");
 const appError = require("../../../utils/appError");
+const { formatDate, formatTime } = require("../../../utils/formatters");
+const csvWriter = require("csv-writer").createObjectCsvWriter;
 
 const searchUserByRoleController = async (req, res, next) => {
   try {
@@ -86,51 +89,158 @@ const searchUserByDateController = async (req, res, next) => {
   }
 };
 
+// TODO: remove above controller after finishing Panel V2
+
+const filterUserInAccountLogs = async (req, res, next) => {
+  try {
+    const { role, query, date } = req.query;
+
+    const filterCriteria = {};
+
+    if (role) {
+      filterCriteria.role = role;
+    }
+
+    if (query) {
+      filterCriteria.fullName = { $regex: query.trim(), $options: "i" };
+    }
+
+    if (date) {
+      const formattedStartDate = new Date(date);
+      formattedStartDate.setHours(0, 0, 0, 0);
+      const formattedEndDate = new Date(date);
+      formattedEndDate.setHours(23, 59, 59, 999);
+
+      filterCriteria.createdAt = {
+        $gte: formattedStartDate,
+        $lte: formattedEndDate,
+      };
+    }
+
+    const logs = await AccountLogs.find(filterCriteria).sort({ createdAt: -1 });
+
+    const formattedResponse = logs.map((log) => ({
+      logId: log._id,
+      userId: log.userId,
+      role: log.role,
+      fullName: log.fullName,
+      description: log.description,
+      blockedDate: formatDate(log.createdAt),
+      blockedTime: formatTime(log.createdAt),
+      status: true,
+    }));
+
+    res.status(200).json(formattedResponse);
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 const unBlockUserController = async (req, res, next) => {
   try {
-    const userLog = await AccountLogs.findById(req.params.id);
+    const userLog = await AccountLogs.findById(req.params.userId);
 
-    if (!userLog) {
-      return next(appError("User not found in logs", 404));
-    }
+    if (!userLog) return next(appError("User not found in logs", 404));
 
-    let user;
-    if (userLog.role === "Merchant") {
-      user = await Merchant.findById(userLog.userId); // Assuming userId stores the Merchant's ID
-      if (!user) return next(appError("Merchant not found", 404));
+    const userModels = {
+      Merchant,
+      Agent,
+      Customer,
+    };
 
-      await Merchant.findByIdAndUpdate(userLog.userId, {
-        isBlocked: false,
-        reasonForBlockingOrDeleting: null,
-        blockedDate: null,
-      });
-    } else if (userLog.role === "Agent") {
-      user = await Agent.findById(userLog.userId); // Assuming userId stores the Agent's ID
-      if (!user) return next(appError("Agent not found", 404));
+    const userModel = userModels[userLog.role];
+    if (!userModel) return next(appError("Invalid role specified", 400));
 
-      await Agent.findByIdAndUpdate(userLog.userId, {
-        isBlocked: false,
-        reasonForBlockingOrDeleting: null,
-        blockedDate: null,
-      });
-    } else {
-      user = await Customer.findById(userLog.userId); // Assuming userId stores the Customer's ID
-      if (!user) return next(appError("Customer not found", 404));
+    const user = await userModel.findById(userLog.userId);
+    if (!user) return next(appError(`${userLog.role} not found`, 404));
 
-      await Customer.findByIdAndUpdate(userLog.userId, {
-        isBlocked: false,
-        reasonForBlockingOrDeleting: null,
-        blockedDate: null,
-      });
-    }
+    const updateData =
+      userLog.role === "Customer"
+        ? {
+            "customerDetails.isBlocked": false,
+            "customerDetails.reasonForBlockingOrDeleting": null,
+            "customerDetails.blockedDate": null,
+          }
+        : {
+            isBlocked: false,
+            reasonForBlockingOrDeleting: null,
+            blockedDate: null,
+          };
 
-    // After updating the user, delete the log entry
-    await AccountLogs.findByIdAndDelete(req.params.id);
+    await Promise.all([
+      userModel.findByIdAndUpdate(userLog.userId, updateData),
+      AccountLogs.findByIdAndDelete(req.params.id),
+    ]);
 
     res.status(200).json({ message: "User unblocked successfully" });
   } catch (err) {
-    console.error("Error unblocking user:", err); // Logs the error for debugging
-    next(appError(err.message, 500)); // Include status code
+    console.error("Error unblocking user:", err);
+    next(appError(err.message, 500));
+  }
+};
+
+const downloadUserCSVInAccountLogs = async (req, res, next) => {
+  try {
+    const { role, query, date } = req.query;
+
+    const filterCriteria = {};
+
+    if (role) {
+      filterCriteria.role = role;
+    }
+
+    if (query) {
+      filterCriteria.fullName = { $regex: query.trim(), $options: "i" };
+    }
+
+    if (date) {
+      const formattedStartDate = new Date(date);
+      formattedStartDate.setHours(0, 0, 0, 0);
+      const formattedEndDate = new Date(date);
+      formattedEndDate.setHours(23, 59, 59, 999);
+
+      filterCriteria.createdAt = {
+        $gte: formattedStartDate,
+        $lte: formattedEndDate,
+      };
+    }
+
+    const logs = await AccountLogs.find(filterCriteria).sort({ createdAt: -1 });
+
+    const formattedResponse = logs.map((log) => ({
+      userId: log.userId,
+      role: log.role,
+      fullName: log.fullName,
+      description: log.description,
+      blockedDate: formatDate(log.createdAt),
+      blockedTime: formatTime(log.createdAt),
+    }));
+
+    const filePath = path.join(__dirname, "../../../Sample_CSV/data.csv");
+
+    const csvHeaders = [
+      { id: "userId", title: "User ID" },
+      { id: "role", title: "Role" },
+      { id: "fullName", title: "Full Name" },
+      { id: "description", title: "Description" },
+      { id: "blockedDate", title: "Blocked Date" },
+      { id: "blockedTime", title: "Blocked Time" },
+    ];
+
+    const writer = csvWriter({
+      path: filePath,
+      header: csvHeaders,
+    });
+
+    await writer.writeRecords(formattedResponse);
+
+    res.status(200).download(filePath, "Account_Log.csv", (err) => {
+      if (err) {
+        next(err);
+      }
+    });
+  } catch (err) {
+    next(appError(err.message));
   }
 };
 
@@ -138,5 +248,7 @@ module.exports = {
   searchUserByRoleController,
   searchUserByNameController,
   searchUserByDateController,
+  filterUserInAccountLogs,
+  downloadUserCSVInAccountLogs,
   unBlockUserController,
 };

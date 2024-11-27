@@ -114,8 +114,8 @@ const createOrUpdateCustomerCustomizationController = async (
       loginViaApple,
       loginViaFacebook,
       splashScreenUrl,
-      customOrderCustomization,
-      pickAndDropOrderCustomization,
+      customOrderCustomization: parsedCustomOrderCustomization,
+      pickAndDropOrderCustomization: parsedPickAndDropOrderCustomization,
     });
 
     await newCustomerAppCustomization.save();
@@ -133,27 +133,26 @@ const getCustomerCustomizationController = async (req, res, next) => {
   try {
     const customization = await CustomerAppCustomization.findOne({});
 
-    if (!customization) return next(appError("Customization not found", 404));
-
     const formattedResponse = {
       splashScreenUrl: customization?.splashScreenUrl || null,
-      phoneNumber: customization.phoneNumber || false,
-      emailVerification: customization.emailVerification || false,
-      email: customization.email || false,
-      otpVerification: customization.otpVerification || false,
-      loginViaOtp: customization.loginViaOtp || false,
-      loginViaGoogle: customization.loginViaGoogle || false,
-      loginViaApple: customization.loginViaApple || false,
-      loginViaFacebook: customization.loginViaFacebook || false,
+      phoneNumber: customization?.phoneNumber || false,
+      emailVerification: customization?.emailVerification || false,
+      email: customization?.email || false,
+      otpVerification: customization?.otpVerification || false,
+      loginViaOtp: customization?.loginViaOtp || false,
+      loginViaGoogle: customization?.loginViaGoogle || false,
+      loginViaApple: customization?.loginViaApple || false,
+      loginViaFacebook: customization?.loginViaFacebook || false,
       customOrderCustomization: {
-        startTime: customization.customOrderCustomization.startTime,
-        endTime: customization.customOrderCustomization.endTime,
-        taxId: customization.customOrderCustomization.taxId || null,
+        startTime: customization?.customOrderCustomization?.startTime || null,
+        endTime: customization?.customOrderCustomization?.endTime || null,
+        taxId: customization?.customOrderCustomization?.taxId || null,
       },
       pickAndDropOrderCustomization: {
-        startTime: customization.pickAndDropOrderCustomization.startTime,
-        endTime: customization.pickAndDropOrderCustomization.endTime,
-        taxId: customization.pickAndDropOrderCustomization.taxId || null,
+        startTime:
+          customization?.pickAndDropOrderCustomization?.startTime || null,
+        endTime: customization?.pickAndDropOrderCustomization?.endTime || null,
+        taxId: customization?.pickAndDropOrderCustomization?.taxId || null,
       },
     };
 

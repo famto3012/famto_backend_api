@@ -34,6 +34,8 @@ const addPromoCodeController = async (req, res, next) => {
       geofenceId,
     } = req.body;
 
+    console.log(req.file);
+
     let imageUrl = "";
     if (req.file) {
       imageUrl = await uploadToFirebase(req.file, "PromoCodeImages");

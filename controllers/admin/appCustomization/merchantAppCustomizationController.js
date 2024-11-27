@@ -1,4 +1,5 @@
 const MerchantAppCustomization = require("../../../models/MerchantAppCustomization");
+const appError = require("../../../utils/appError");
 
 const {
   deleteFromFirebase,
