@@ -106,35 +106,32 @@ const addOrUpdateReferralController = async (req, res, next) => {
   }
 };
 
-
 const updateReferralStatus = async (req, res, next) => {
   try {
-    const referral = await Referral.find({});
-    console.log(referral)
-    if (!referral) {
-      return res.status(404).json({ message: "Referral not found" });
+    const { referralType } = req.query;
+
+    const referral = await Referral.findOne({ referralType });
+
+    if (!referral) return next(appError("Referral not found", 404));
+
+    if (!referral.status) {
+      await Referral.updateMany(
+        { referralType: { $ne: referralType } },
+        { $set: { status: false } }
+      );
     }
 
-    const updatedReferrals = await Promise.all(
-      referral.map(async (data) => {
-        if(data.status){
-          data.status = false;
-        }
-        await data.save(); 
-        return data;
-      })
-    );
+    referral.status = !referral.status;
+    await referral.save();
 
     res.status(200).json({
       message: "Referral status updated successfully",
-      updatedReferrals,
+      updatedReferral: referral,
     });
-
   } catch (err) {
-    next(appError(err.message));
+    next(appError(err.message || "Internal server error", 500));
   }
 };
-
 
 const getReferralController = async (req, res, next) => {
   try {
@@ -166,12 +163,17 @@ const getReferralController = async (req, res, next) => {
 
 const getReferralDetailController = async (req, res, next) => {
   try {
-    const allReferrals = await ReferralCode.find({});
+    const referrals = await ReferralCode.find({});
 
-    res.status(200).json({
-      message: "All referrals",
-      data: allReferrals,
-    });
+    const formattedResponse = referrals?.map((referral) => ({
+      customerId: referral.customerId,
+      name: referral.name,
+      email: referral.email,
+      referralCode: referral.referralCode,
+      numOfReferrals: referral.numOfReferrals,
+    }));
+
+    res.status(200).json(formattedResponse);
   } catch (err) {
     next(appError(err.message));
   }

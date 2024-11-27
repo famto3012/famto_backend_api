@@ -87,6 +87,7 @@ const searchCustomerByNameController = async (req, res, next) => {
 
     const searchCriteria = {
       fullName: { $regex: query.trim(), $options: "i" },
+      "customerDetails.isBlocked": false,
     };
 
     const searchResults = await Customer.find(searchCriteria)
@@ -153,6 +154,7 @@ const searchCustomerByNameForOrderController = async (req, res, next) => {
 
     const searchResults = await Customer.find({
       fullName: { $regex: query.trim(), $options: "i" },
+      "customerDetails.isBlocked": false,
     })
       .select(
         "fullName email phoneNumber lastPlatformUsed createdAt customerDetails"
@@ -202,7 +204,7 @@ const filterCustomerByGeofenceController = async (req, res, next) => {
     const skip = (page - 1) * limit;
 
     // Base query
-    let query = {};
+    let query = { "customerDetails.isBlocked": false };
 
     // If filter is not "all", filter by geofenceId
     if (filter && filter.trim().toLowerCase() !== "all") {
@@ -300,7 +302,7 @@ const getSingleCustomerController = async (req, res, next) => {
         )}`,
         paymentMethod: order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
-        amount: order.billDetail.grandTotal,
+        amount: order?.billDetail?.grandTotal,
         paymentStatus: order.paymentStatus,
       };
     });
@@ -335,6 +337,7 @@ const getSingleCustomerController = async (req, res, next) => {
       phoneNumber: customerFound.phoneNumber,
       customerImageURL: customerFound?.customerDetails?.customerImageURL || "",
       lastPlatformUsed: customerFound.lastPlatformUsed,
+      isBlocked: customerFound.customerDetails.isBlocked,
       registrationDate: formatDate(customerFound.createdAt),
       walletBalance: customerFound.customerDetails.walletBalance,
       homeAddress: customerFound.customerDetails?.homeAddress || {},
@@ -364,18 +367,19 @@ const blockCustomerController = async (req, res, next) => {
     if (customerFound.isBlocked)
       return next(appError("Customer is already blocked", 400));
 
-    customerFound.isBlocked = true;
-    customerFound.reasonForBlockingOrDeleting = reason;
-    customerFound.blockedDate = new Date();
+    customerFound.customerDetails.isBlocked = true;
+    customerFound.customerDetails.reasonForBlockingOrDeleting = reason;
+    customerFound.customerDetails.blockedDate = new Date();
 
-    await AccountLogs.create({
-      userId: customerFound._id,
-      fullName: customerFound.fullName,
-      role: customerFound.role,
-      description: reason,
-    });
-
-    await customerFound.save();
+    await Promise.all([
+      customerFound.save(),
+      AccountLogs.create({
+        userId: customerFound._id,
+        fullName: customerFound.fullName,
+        role: customerFound.role,
+        description: reason,
+      }),
+    ]);
 
     res.status(200).json({ message: "Customer blocked successfully" });
   } catch (err) {

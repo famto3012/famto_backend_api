@@ -158,7 +158,7 @@ const notifyNearestAgents = async (order, priorityType, maxRadius, io) => {
       sendNotification(agent.id, parameter.eventName, data, parameter.user);
     }
   } catch (err) {
-    appError(err.message);
+    throw new Error(err.message);
   }
 };
 

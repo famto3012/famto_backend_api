@@ -42,6 +42,7 @@ const {
   getScheduledOrderDetailController,
   getFavoriteProductsController,
   getVisibilityOfReferralAndLoyaltyPoint,
+  getMerchantAppBannerController,
 } = require("../../controllers/customer/customerController");
 const {
   getAllBusinessCategoryController,
@@ -449,7 +450,7 @@ customerRoute.delete(
 
 customerRoute.post(
   "/add-delivery-address",
-  upload.single("voiceInstructionToAgent"),
+  upload.single("voiceInstructionToDeliveryAgent"),
   isAuthenticated,
   addDeliveryAddressController
 );
@@ -497,6 +498,12 @@ customerRoute.get("/app-splash-screen", getSplashScreenImageController);
 customerRoute.get("/pick-and-drop-banners", getPickAndDropBannersController);
 
 customerRoute.get("/custom-order-banners", getCustomOrderBannersController);
+
+customerRoute.get(
+  "/merchant-banner/:merchantId",
+  isAuthenticated,
+  getMerchantAppBannerController
+);
 
 customerRoute.get("/available-services", getAvailableServiceController);
 

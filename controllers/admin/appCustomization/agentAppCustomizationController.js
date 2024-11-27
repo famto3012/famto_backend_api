@@ -1,4 +1,5 @@
 const AgentAppCustomization = require("../../../models/AgentAppCustomization");
+const appError = require("../../../utils/appError");
 
 const {
   deleteFromFirebase,

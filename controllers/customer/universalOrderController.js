@@ -340,13 +340,13 @@ const getAllCategoriesOfMerchants = async (req, res, next) => {
 
     let distanceInKM;
     // if (latitude && longitude) {
-      console.log("Finding distance");
-      const distance = await getDistanceFromPickupToDelivery(
-        merchantLocation,
-        customerLocation
-      );
+    console.log("Finding distance");
+    const distance = await getDistanceFromPickupToDelivery(
+      merchantLocation,
+      customerLocation
+    );
 
-      distanceInKM = distance.distanceInKM;
+    distanceInKM = distance.distanceInKM;
     // }
 
     let distanceWarning = false;
@@ -1040,7 +1040,7 @@ const getTotalRatingOfMerchantController = async (req, res, next) => {
 const addOrUpdateCartItemController = async (req, res, next) => {
   try {
     const { productId, quantity, variantTypeId } = req.body;
-    console.log(req.body);
+
     const customerId = req.userAuth;
 
     if (!customerId) {
@@ -1089,7 +1089,7 @@ const addOrUpdateCartItemController = async (req, res, next) => {
     let cart = await CustomerCart.findOne({ customerId });
 
     if (cart) {
-      if (!cart.merchantId === merchantId) {
+      if (cart.merchantId !== merchantId) {
         cart.merchantId = merchantId;
         cart.items = [];
       }

@@ -37,10 +37,6 @@ const referralSchema = mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    referralCodeOnCustomerSignUp: {
-      type: Boolean,
-      default: true,
-    },
   },
   {
     timestamps: true,

@@ -38,6 +38,7 @@ const { formatDate, formatTime } = require("../../utils/formatters");
 
 const { sendNotification, sendSocketData } = require("../../socket/socket");
 const LoyaltyPoint = require("../../models/LoyaltyPoint");
+const Banner = require("../../models/Banner");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -472,7 +473,7 @@ const getFavoriteMerchantsController = async (req, res, next) => {
       .populate({
         path: "customerDetails.favoriteMerchants",
         select:
-          "merchantDetail.merchantName merchantDetail.deliveryTime merchantDetail.description merchantDetail.averageRating status merchantDetail.merchantFoodType merchantDetail.merchantImageURL merchantDetail.preOrderStatus",
+          "merchantDetail.merchantName merchantDetail.deliveryTime merchantDetail.description merchantDetail.displayAddress merchantDetail.averageRating status merchantDetail.merchantFoodType merchantDetail.merchantImageURL merchantDetail.preOrderStatus",
       });
 
     if (!customer || !customer.customerDetails) {
@@ -878,9 +879,7 @@ const getPromocodesOfCustomerController = async (req, res, next) => {
     const currentCustomer = req.userAuth;
     const customerFound = await Customer.findById(currentCustomer);
 
-    if (!customerFound) {
-      return next(appError("Customer not found", 404));
-    }
+    if (!customerFound) return next(appError("Customer not found", 404));
 
     const currentDate = new Date();
 
@@ -898,6 +897,8 @@ const getPromocodesOfCustomerController = async (req, res, next) => {
         id: promo._id,
         imageURL: promo.imageUrl,
         promoCode: promo.promoCode,
+        discount: promo.discount,
+        promoType: promo.promoType,
         validUpTo: formatDate(promo.toDate),
       };
     });
@@ -918,16 +919,14 @@ const searchPromocodeController = async (req, res, next) => {
 
     const customerFound = await Customer.findById(currentCustomer);
 
-    if (!customerFound) {
-      return next(appError("Customer not found", 404));
-    }
+    if (!customerFound) return next(appError("Customer not found", 404));
 
     const { query } = req.query;
 
     const currentDate = new Date();
 
     const promocodesFound = await PromoCode.find({
-      promoCode: { $regex: query.trim(), $options: "i" },
+      promoCode: query.trim(),
       status: true,
       geofenceId: customerFound.customerDetails.geofenceId,
       fromDate: { $lte: currentDate },
@@ -940,6 +939,8 @@ const searchPromocodeController = async (req, res, next) => {
         id: promo._id,
         imageURL: promo.imageUrl,
         promoCode: promo.promoCode,
+        discount: promo.discount,
+        promoType: promo.promoType,
         validUpTo: formatDate(promo.toDate),
       };
     });
@@ -1115,6 +1116,23 @@ const getCustomOrderBannersController = async (req, res, next) => {
     });
 
     res.status(200).json({ message: "Banner", data: formattedResponse });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+//
+const getMerchantAppBannerController = async (req, res, next) => {
+  try {
+    const { merchantId } = req.params;
+
+    const banners = await Banner.find({ merchantId }).select("imageUrl");
+
+    const formattedResponse = banners?.map((banner) => ({
+      imageURL: banner.imageUrl,
+    }));
+
+    res.status(200).json(formattedResponse);
   } catch (err) {
     next(appError(err.message));
   }
@@ -1347,4 +1365,5 @@ module.exports = {
   getCurrentOngoingOrders,
   getAllScheduledOrdersOfCustomer,
   getScheduledOrderDetailController,
+  getMerchantAppBannerController,
 };
