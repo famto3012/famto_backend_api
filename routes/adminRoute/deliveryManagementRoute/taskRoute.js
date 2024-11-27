@@ -10,9 +10,12 @@ const {
   getOrderByOrderIdController,
   getAgentByNameController,
   getTaskByDateRangeController,
+  getTaskByIdController,
 } = require("../../../controllers/admin/deliveryManagement/taskController");
 
 taskRoute.get("/task", isAdmin, isAuthenticated, getTaskFilterController);
+
+taskRoute.get("/task/:taskId", isAdmin, isAuthenticated, getTaskByIdController);
 
 taskRoute.get("/agent", isAdmin, isAuthenticated, getAgentByStatusController);
 

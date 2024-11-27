@@ -109,6 +109,7 @@ const getRevenueDataByDateRangeForMerchant = async (req, res, next) => {
     const { startDate, endDate } = req.query;
 
     // Convert to ISO strings for querying
+
     const start = new Date(startDate);
     const end = new Date(endDate);
 

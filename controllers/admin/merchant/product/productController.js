@@ -665,8 +665,8 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
             ? product.variants
             : [
                 {
-                  variantName: "-",
-                  variantTypes: [{ typeName: "-", price: "-" }],
+                  variantName: null,
+                  variantTypes: [{ typeName: null, price: null }],
                 },
               ];
 
@@ -674,33 +674,33 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
           const variantTypes =
             variant.variantTypes.length > 0
               ? variant.variantTypes
-              : [{ typeName: "-", price: "-" }];
+              : [{ typeName: null, price: null }];
 
           variantTypes.forEach((type) => {
             console.log("product.costPrice", product.costPrice);
             formattedResponse.push({
-              businessCategory: category.businessCategoryId?.title || "-",
-              categoryName: category.categoryName || "-",
-              categoryType: category.type || "-",
-              categoryStatus: category.status || "-",
-              productName: product.productName || "-",
-              productPrice: product.price || "-",
-              minQuantityToOrder: product.minQuantityToOrder || "-",
-              maxQuantityPerOrder: product.maxQuantityPerOrder || "-",
-              productCostPrice: product.costPrice || "-",
-              sku: product.sku || "-",
-              preparationTime: product.preparationTime || "-",
-              description: product.description || "-",
-              longDescription: product.longDescription || "-",
-              type: product.type || "-",
-              productImageURL: product.productImageURL || "-",
-              inventory: product.inventory || "-",
-              availableQuantity: product.availableQuantity || "-",
-              alert: product.alert || "-",
-              variantName: variant.variantName || "-",
-              typeName: type.typeName || "-",
-              variantTypePrice: type.price || "-",
-              variantTypeCostPrice: type.costPrice || "-",
+              businessCategory: category.businessCategoryId?.title || null,
+              categoryName: category.categoryName || null,
+              categoryType: category.type || null,
+              categoryStatus: category.status || null,
+              productName: product.productName || null,
+              productPrice: product.price || null,
+              minQuantityToOrder: product.minQuantityToOrder || null,
+              maxQuantityPerOrder: product.maxQuantityPerOrder || null,
+              productCostPrice: product.costPrice || null,
+              sku: product.sku || null,
+              preparationTime: product.preparationTime || null,
+              description: product.description || null,
+              longDescription: product.longDescription || null,
+              type: product.type || null,
+              productImageURL: product.productImageURL || null,
+              inventory: product.inventory || null,
+              availableQuantity: product.availableQuantity || null,
+              alert: product.alert || null,
+              variantName: variant.variantName || null,
+              typeName: type.typeName || null,
+              variantTypePrice: type.price || null,
+              variantTypeCostPrice: type.costPrice || null,
             });
           });
         });
@@ -723,7 +723,7 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
       { id: "minQuantityToOrder", title: "Min Quantity To Order" },
       { id: "maxQuantityPerOrder", title: "Max quantity Per Order" },
       { id: "sku", title: "SKU" },
-      { id: "preparationTime", title: "Preperation Time" },
+      { id: "preparationTime", title: "Preparation Time" },
       { id: "description", title: "Description" },
       { id: "longDescription", title: "Long Description" },
       { id: "productImageURL", title: "Product Image" },
@@ -820,11 +820,20 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
           const categoryEntry = categoriesMap.get(categoryKey);
 
           // Check if the product already exists in the category
-          let existingProduct = categoryEntry.products.find(
-            (p) => p.productName.toLowerCase() === productName.toLowerCase()
-          );
+          let existingProduct = categoryEntry.products.find((p) => {
+            console.log("Product", p.productName.toLowerCase());
+            console.log("NProduct", productName.toLowerCase());
+            console.log(
+              "NProductTruthy",
+              p.productName.toLowerCase() === productName.toLowerCase()
+            );
+            return p.productName.toLowerCase() === productName.toLowerCase();
+          });
+
+          console.log("Existing product out", existingProduct);
 
           if (!existingProduct) {
+            console.log("Inside");
             // Create a new product if it doesn't exist
             existingProduct = {
               productName,
@@ -854,7 +863,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
 
             // Add the new product to the category's product list
             categoryEntry.products.push(existingProduct);
-            // console.log("New Product Added:", existingProduct.productName);
+            console.log("New Product Added:", existingProduct.productName);
           }
 
           // Now handle the variant part
@@ -891,7 +900,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
 
               // Add the new variant to the product's variants array
               existingProduct.variants.push(existingVariant);
-              // console.log("New Variant Added:", existingVariant);
+              console.log("New Variant Added:", existingVariant);
             }
 
             // Add the variant type to the existing or newly created variant
@@ -901,10 +910,10 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
               costPrice: variantTypeCostPrice,
             });
 
-            // console.log("Updated Variant:", existingVariant);
+            console.log("Updated Variant:", existingVariant);
           }
 
-          // console.log("Final Updated Product Data:", existingProduct);
+          console.log("Final Updated Product Data:", existingProduct);
         }
       })
       .on("end", async () => {
@@ -928,9 +937,9 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
               continue; // Skip this category if the business category does not exist
             }
 
-            // console.log(
-            //   `Found business category: ${businessCategoryFound.title}`
-            // );
+            console.log(
+              `Found business category: ${businessCategoryFound.title}`
+            );
 
             // Add business category ID to category data
             categoryData.businessCategoryId = businessCategoryFound._id;
@@ -940,21 +949,24 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
               merchantId,
               categoryName: categoryData.categoryName,
             });
+            console.log("existingCategory", existingCategory._id)
 
             let newCategory;
             if (existingCategory) {
-              // console.log(
-              //   `Updating existing category: ${categoryData.categoryName}`
-              // );
+              console.log(
+                `Updating existing category: ${categoryData.categoryName}`
+              );
+              console.log("categoryData", categoryData)
               newCategory = await Category.findByIdAndUpdate(
                 existingCategory._id,
                 { $set: categoryData },
                 { new: true }
               );
+              console.log("Updated Category:", newCategory._id);
             } else {
-              // console.log(
-              //   `Creating new category: ${categoryData.categoryName}`
-              // );
+              console.log(
+                `Creating new category: ${categoryData.categoryName}`
+              );
               // Get the last category order
               let lastCategory = await Category.findOne().sort({ order: -1 });
               let newOrder = lastCategory ? lastCategory.order + 1 : 1;
@@ -966,25 +978,33 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
 
             // Now, process products for the category
             const productPromises = products.map(async (productData) => {
-              // console.log("newCategory._id", newCategory._id);
+              console.log("newCategory._id", newCategory._id);
+              console.log("oldCategory._id",  productData.categoryId);
               productData.categoryId = newCategory._id;
-              // console.log("Product Data to Save/Update:", productData.productName);
+              console.log("newCategory._id after", productData.categoryId);
+              console.log(
+                "Product Data to Save/Update:",
+                productData.productName
+              );
+              console.log("productData.categoryId", productData.categoryId);
+              console.log("productData.sku", productData.sku);
 
               const existingProduct = await Product.findOne({
                 productName: productData.productName,
                 categoryId: productData.categoryId,
                 sku: productData.sku,
               });
+              console.log("Existing product:", existingProduct);
 
               if (existingProduct) {
-                // console.log(`Updating product: ${productData.productName}`);
+                console.log(`Updating product: ${productData.productName}`);
                 await Product.findByIdAndUpdate(
                   existingProduct._id,
                   { ...productData, order: existingProduct.order },
                   { new: true }
                 );
               } else {
-                // console.log(`Creating new product: ${productData.productName}`);
+                console.log(`Creating new product: ${productData.productName}`);
                 // Get the last product order
                 let lastProduct = await Product.findOne().sort({ order: -1 });
                 let newOrder = lastProduct ? lastProduct.order + 1 : 1;
