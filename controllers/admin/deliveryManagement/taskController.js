@@ -34,6 +34,23 @@ const getTaskFilterController = async (req, res, next) => {
   }
 };
 
+const getTaskByIdController = async (req, res, next) => {
+  try {
+    const { taskId } = req.params;
+
+    const task = await Task.findById(taskId)
+      .populate("agentId")
+      .populate("orderId");
+
+    res.status(201).json({
+      message: "Task fetched successfully",
+      data: task,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 const getAgentByStatusController = async (req, res, next) => {
   try {
     const { filter } = req.query;
@@ -182,9 +199,7 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
         success: true,
         data: responseData,
       });
-    }
-
-    if (task?.orderId?.orderDetail?.deliveryMode === "Pick and Drop") {
+    } else if (task?.orderId?.orderDetail?.deliveryMode === "Pick and Drop") {
       const deliveryLocation = task?.orderId?.orderDetail?.pickupLocation;
       const responseData = await Promise.all(
         agents.map(async (agent) => {
@@ -206,67 +221,67 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
         success: true,
         data: responseData,
       });
-    }
-
-    const merchantLocation =
-      task?.orderId?.merchantId?.merchantDetail?.location;
-    geofence = task?.orderId?.merchantId?.merchantDetail?.geofenceId;
-    const coordinates = geofence?.coordinates;
-
-    if (coordinates[0] !== coordinates[coordinates?.length - 1]) {
-      coordinates.push(coordinates[0]);
-    }
-
-    const geofencePolygon = turf.polygon([coordinates]);
-
-    if (geofenceStatus) {
-      const agentsWithinGeofence = agents.filter((agent) => {
-        const agentPoint = turf.point(agent.location);
-        return turf.booleanPointInPolygon(agentPoint, geofencePolygon);
-      });
-
-      const responseData = await Promise.all(
-        agentsWithinGeofence.map(async (agent) => {
-          const { distanceInKM } = await getDistanceFromPickupToDelivery(
-            agent.location,
-            merchantLocation
-          );
-          return {
-            _id: agent._id,
-            name: agent.fullName,
-            workStructure: agent?.workStructure?.tag,
-            status: agent.status,
-            distance: distanceInKM, // distance in kilometers, rounded to 2 decimal places
-          };
-        })
-      );
-
-      // Return the found agents
-      res.status(200).json({
-        success: true,
-        data: responseData,
-      });
     } else {
-      const responseData = await Promise.all(
-        agents.map(async (agent) => {
-          const { distanceInKM } = await getDistanceFromPickupToDelivery(
-            agent.location,
-            merchantLocation
-          );
-          return {
-            _id: agent._id,
-            name: agent.fullName,
-            workStructure: agent?.workStructure?.tag,
-            status: agent.status,
-            distance: distanceInKM, // distance in kilometers, rounded to 2 decimal places
-          };
-        })
-      );
+      const merchantLocation =
+        task?.orderId?.merchantId?.merchantDetail?.location;
+      geofence = task?.orderId?.merchantId?.merchantDetail?.geofenceId;
+      const coordinates = geofence?.coordinates;
 
-      res.status(200).json({
-        success: true,
-        data: responseData,
-      });
+      if (coordinates[0] !== coordinates[coordinates?.length - 1]) {
+        coordinates.push(coordinates[0]);
+      }
+
+      const geofencePolygon = turf.polygon([coordinates]);
+
+      if (geofenceStatus) {
+        const agentsWithinGeofence = agents.filter((agent) => {
+          const agentPoint = turf.point(agent.location);
+          return turf.booleanPointInPolygon(agentPoint, geofencePolygon);
+        });
+
+        const responseData = await Promise.all(
+          agentsWithinGeofence.map(async (agent) => {
+            const { distanceInKM } = await getDistanceFromPickupToDelivery(
+              agent.location,
+              merchantLocation
+            );
+            return {
+              _id: agent._id,
+              name: agent.fullName,
+              workStructure: agent?.workStructure?.tag,
+              status: agent.status,
+              distance: distanceInKM, // distance in kilometers, rounded to 2 decimal places
+            };
+          })
+        );
+
+        // Return the found agents
+        res.status(200).json({
+          success: true,
+          data: responseData,
+        });
+      } else {
+        const responseData = await Promise.all(
+          agents.map(async (agent) => {
+            const { distanceInKM } = await getDistanceFromPickupToDelivery(
+              agent.location,
+              merchantLocation
+            );
+            return {
+              _id: agent._id,
+              name: agent.fullName,
+              workStructure: agent?.workStructure?.tag,
+              status: agent.status,
+              distance: distanceInKM, // distance in kilometers, rounded to 2 decimal places
+            };
+          })
+        );
+
+        res.status(200).json({
+          success: true,
+          data: responseData,
+        });
+      }
     }
   } catch (err) {
     next(appError(err.message));
@@ -319,7 +334,9 @@ const getTaskByDateRangeController = async (req, res, next) => {
 
     // Convert to ISO strings for querying
     const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
     const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
 
     // Fetch data between the startDate and endDate
     const taskData = await Task.find({
@@ -344,4 +361,5 @@ module.exports = {
   getOrderByOrderIdController,
   getAgentByNameController,
   getTaskByDateRangeController,
+  getTaskByIdController,
 };
