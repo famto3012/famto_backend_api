@@ -607,7 +607,7 @@ const toggleOnlineController = async (req, res, next) => {
     if (!currentAgent.appDetail) {
       currentAgent.appDetail = {
         orders: 0,
-        pendingOrder: 0,
+        pendingOrders: 0,
         totalDistance: 0,
         cancelledOrders: 0,
         loginHours: 0,
@@ -768,7 +768,7 @@ const getCurrentDayAppDetailController = async (req, res, next) => {
     const formattedResponse = {
       totalEarning: agentFound?.appDetail?.totalEarning || 0,
       orders: agentFound?.appDetail?.orders || 0,
-      pendingOrders: agentFound?.appDetail?.pendingOrder || 0,
+      pendingOrders: agentFound?.appDetail?.pendingOrders || 0,
       totalDistance: agentFound?.appDetail?.totalDistance || 0.0,
       averageRating: agentFound.averageRating || 0.0,
     };
@@ -1098,18 +1098,18 @@ const addCustomOrderItemPriceController = async (req, res, next) => {
   try {
     const { orderId, itemId } = req.params;
     const { price } = req.body;
-
     const agentId = req.userAuth;
 
-    if (!price || isNaN(price)) {
-      return next(appError("Invalid price", 400));
+    // Validate price input
+    const newPrice = parseFloat(price);
+    if (isNaN(newPrice) || newPrice <= 0) {
+      return next(
+        appError("Invalid price. It must be a positive number.", 400)
+      );
     }
 
     const orderFound = await Order.findById(orderId);
-
-    if (!orderFound) {
-      return next(appError("Order not found", 404));
-    }
+    if (!orderFound) return next(appError("Order not found", 404));
 
     if (orderFound.agentId.toString() !== agentId.toString()) {
       return next(appError("Agent access denied", 403));
@@ -1118,47 +1118,35 @@ const addCustomOrderItemPriceController = async (req, res, next) => {
     const itemFound = orderFound.items.find(
       (item) => item.itemId.toString() === itemId.toString()
     );
+    if (!itemFound) return next(appError("Item not found in order", 404));
 
-    if (!itemFound) {
-      return next(appError("Item not found", 404));
-    }
-
-    // Calculate the difference in price
-    const oldPrice = itemFound.price || 0;
-    const newPrice = parseFloat(price);
-
-    // Update item price
+    // Update price changes
     itemFound.price = newPrice;
 
-    // Calculate the updated item total
-    const updatedItemTotal = orderFound.items.reduce((total, item) => {
-      return total + (item.price || 0);
-    }, 0);
+    // Update itemTotal, subTotal, and grandTotal
+    const updatedItemTotal = orderFound.items.reduce(
+      (total, item) => total + (item?.price || 0),
+      0
+    );
 
     const deliveryCharge = orderFound.billDetail.deliveryCharge || 0;
     const surgePrice = orderFound.billDetail.surgePrice || 0;
 
     // Update subTotal and grandTotal
-    const updatedSubTotal = (
-      updatedItemTotal +
-      deliveryCharge +
-      surgePrice
-    ).toFixed(2);
-    const updatedGrandTotal = (
-      parseFloat(orderFound.billDetail.grandTotal || 0) +
-      newPrice -
-      oldPrice
-    ).toFixed(2);
+    const updatedSubTotal = updatedItemTotal + deliveryCharge + surgePrice;
+    const updatedGrandTotal =
+      (orderFound.billDetail.grandTotal || 0) + newPrice;
 
+    // Update the order's billing details
     orderFound.billDetail.itemTotal = parseFloat(updatedItemTotal.toFixed(2));
-    orderFound.billDetail.subTotal = parseFloat(updatedSubTotal);
-    orderFound.billDetail.grandTotal = parseFloat(updatedGrandTotal);
+    orderFound.billDetail.subTotal = parseFloat(updatedSubTotal.toFixed(2));
+    orderFound.billDetail.grandTotal = parseFloat(updatedGrandTotal.toFixed(2));
 
     await orderFound.save();
 
     res.status(200).json({
       message: "Item price updated successfully",
-      data: price,
+      data: newPrice,
     });
   } catch (err) {
     next(appError(err.message));
@@ -1281,39 +1269,22 @@ const confirmCashReceivedController = async (req, res, next) => {
   try {
     const { amount, orderId } = req.body;
     const agentId = req.userAuth;
-
-    const agentFound = await Agent.findById(agentId);
-
-    if (!agentFound) {
-      return next(appError("Agent not found", 404));
-    }
-
-    if (!amount && isNaN(amount)) {
+    if (!amount && isNaN(amount))
       return next(appError("Amount must be a number"));
-    }
 
-    const orderFound = await Order.findById(orderId);
+    const [agent, order] = await Promise.all([
+      Agent.findById(agentId),
+      Order.findById(orderId),
+    ]);
 
-    if (!orderFound) {
-      return next(appError("Order not found", 404));
-    }
-
-    if (orderFound.billDetail.grandTotal !== amount) {
+    if (!agent) return next(appError("Agent not found", 404));
+    if (!order) return next(appError("Order not found", 404));
+    if (amount < order.billDetail.grandTotal)
       return next(appError("Enter the correct bill amount"));
-    }
 
-    let updatedOrderDetail = {
-      orderId,
-      deliveryMode: orderFound.orderDetail.deliveryMode,
-      customerName: orderFound.orderDetail.deliveryAddress.fullName || "-",
-      completedOn: new Date(),
-      grandTotal: orderFound.billDetail.grandTotal,
-    };
+    agent.workStructure.cashInHand += parseInt(amount);
 
-    agentFound.workStructure.cashInHand += parseInt(amount);
-    agentFound.appDetail.orderDetail.push(updatedOrderDetail);
-
-    await agentFound.save();
+    await agent.save();
 
     res.status(200).json({ message: "Order completed successfully" });
   } catch (err) {
@@ -1389,7 +1360,6 @@ const completeOrderController = async (req, res, next) => {
       }),
     ]);
 
-    console.log("9");
     const eventName = "orderCompleted";
 
     const { rolesToNotify, data } = await findRolesToNotify(eventName);
@@ -1646,58 +1616,42 @@ const updateCustomOrderStatusController = async (req, res, next) => {
 
     const location = [latitude, longitude];
 
-    let updatedData = {
-      location,
-      status,
-      description,
-    };
-
-    let oldDistance = orderFound.orderDetail?.distance || 0;
-
+    // Determine last location and calculate distance
+    const shopUpdates = orderFound.detailAddedByAgent?.shopUpdates || [];
     const lastLocation =
-      orderFound.detailAddedByAgent.shopUpdates.length > 0
-        ? orderFound.detailAddedByAgent.shopUpdates[
-            orderFound.detailAddedByAgent.shopUpdates.length - 1
-          ].location
+      shopUpdates.length > 0
+        ? shopUpdates[shopUpdates.length - 1]?.location
         : null;
 
-    // Ensure getDistanceFromPickupToDelivery returns a number
-    const { distanceInKM } = await getDistanceFromPickupToDelivery(
-      location,
-      lastLocation
-    );
+    const [{ distanceInKM }, { deliveryCharges }] = await Promise.all([
+      getDistanceFromPickupToDelivery(location, lastLocation),
+      getDeliveryAndSurgeCharge(
+        orderFound.customerId,
+        orderFound.orderDetail.deliveryMode,
+        distanceInKM
+      ),
+    ]);
 
-    const newDistance = parseFloat(distanceInKM);
+    // Update order details
+    const newDistance = distanceInKM || 0;
+    orderFound.orderDetail.distance =
+      (orderFound.orderDetail?.distance || 0) + newDistance;
 
-    orderFound.orderDetail.distance = oldDistance + newDistance;
-
-    // Calculate delivery charges
-    const { deliveryCharges } = await getDeliveryAndSurgeCharge(
-      orderFound.customerId,
-      orderFound.orderDetail.deliveryMode,
-      distanceInKM
-    );
-
-    let oldDeliveryCharge = orderFound.billDetail?.deliveryCharge || 0;
-    let oldGrandTotal = orderFound.billDetail?.grandTotal || 0;
-
+    const newDeliveryCharge = parseFloat(deliveryCharges || 0);
     orderFound.billDetail.deliveryCharge =
-      oldDeliveryCharge + parseFloat(deliveryCharges);
-
+      (orderFound.billDetail?.deliveryCharge || 0) + newDeliveryCharge;
     orderFound.billDetail.grandTotal =
-      oldGrandTotal + parseFloat(deliveryCharges);
+      (orderFound.billDetail?.grandTotal || 0) + newDeliveryCharge;
+    orderFound.billDetail.subTotal =
+      (orderFound.billDetail?.subTotal || 0) + newDeliveryCharge;
 
-    // Initialize pickupLocation if needed
-    if (
-      !orderFound.orderDetail.pickupLocation &&
-      (shopUpdates.length === 0 || shopUpdates === null)
-    ) {
-      orderFound.orderDetail.pickupLocation =
-        orderFound.detailAddedByAgent.shopUpdates[
-          orderFound.detailAddedByAgent.shopUpdates.length - 1
-        ].location;
+    // Initialize pickup location if not set
+    if (!orderFound.orderDetail.pickupLocation && shopUpdates.length === 0) {
+      orderFound.orderDetail.pickupLocation = location;
     }
 
+    // Add shop update
+    const updatedData = { location, status, description };
     orderFound.detailAddedByAgent.shopUpdates.push(updatedData);
 
     await orderFound.save();

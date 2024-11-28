@@ -46,6 +46,7 @@ const {
   calculateBill,
   processScheduledDelivery,
 } = require("../../utils/createOrderHelpers");
+const Task = require("../../models/Task");
 
 // Get all available business categories according to the order
 const getAllBusinessCategoryController = async (req, res, next) => {
@@ -204,123 +205,123 @@ const listRestaurantsController = async (req, res, next) => {
   }
 };
 
-// Search Restaurants or Products in a businesscategory
-const searchMerchantsOrProducts = async (req, res, next) => {
-  try {
-    const { query, businessCategoryId, latitude, longitude } = req.query;
+// // Search Restaurants or Products in a businesscategory
+// const searchMerchantsOrProducts = async (req, res, next) => {
+//   try {
+//     const { query, businessCategoryId, latitude, longitude } = req.query;
 
-    const foundGeofence = await geoLocation(latitude, longitude);
+//     const foundGeofence = await geoLocation(latitude, longitude);
 
-    if (!foundGeofence) {
-      return next(appError("Geofence not found", 404));
-    }
+//     if (!foundGeofence) {
+//       return next(appError("Geofence not found", 404));
+//     }
 
-    const customerId = req.userAuth;
+//     const customerId = req.userAuth;
 
-    const currentCustomer = await Customer.findById(customerId)
-      .select("customerDetails.favoriteMerchants")
-      .exec();
+//     const currentCustomer = await Customer.findById(customerId)
+//       .select("customerDetails.favoriteMerchants")
+//       .exec();
 
-    if (!currentCustomer) return next(appError("Customer not found", 404));
+//     if (!currentCustomer) return next(appError("Customer not found", 404));
 
-    const customerLocation = [latitude, longitude];
+//     const customerLocation = [latitude, longitude];
 
-    const availableMerchants = await Merchant.find({
-      "merchantDetail.merchantName": { $regex: query, $options: "i" },
-      "merchantDetail.geofenceId": foundGeofence._id,
-      "merchantDetail.businessCategoryId": { $in: [businessCategoryId] },
-      "merchantDetail.pricing.0": { $exists: true },
-      "merchantDetail.pricing.modelType": { $exists: true },
-      "merchantDetail.pricing.modelId": { $exists: true },
-      "merchantDetail.location": { $ne: [] },
-      isBlocked: false,
-      isApproved: "Approved",
-    });
+//     const availableMerchants = await Merchant.find({
+//       "merchantDetail.merchantName": { $regex: query, $options: "i" },
+//       "merchantDetail.geofenceId": foundGeofence._id,
+//       "merchantDetail.businessCategoryId": { $in: [businessCategoryId] },
+//       "merchantDetail.pricing.0": { $exists: true },
+//       "merchantDetail.pricing.modelType": { $exists: true },
+//       "merchantDetail.pricing.modelId": { $exists: true },
+//       "merchantDetail.location": { $ne: [] },
+//       isBlocked: false,
+//       isApproved: "Approved",
+//     });
 
-    const filteredMerchants = availableMerchants?.filter((merchant) => {
-      const servingRadius = merchant.merchantDetail.servingRadius || 0;
-      if (servingRadius > 0) {
-        const merchantLocation = merchant.merchantDetail.location;
-        const distance = turf.distance(
-          turf.point(merchantLocation),
-          turf.point(customerLocation),
-          { units: "kilometers" }
-        );
-        return distance <= servingRadius;
-      }
-      return true;
-    });
+//     const filteredMerchants = availableMerchants?.filter((merchant) => {
+//       const servingRadius = merchant.merchantDetail.servingRadius || 0;
+//       if (servingRadius > 0) {
+//         const merchantLocation = merchant.merchantDetail.location;
+//         const distance = turf.distance(
+//           turf.point(merchantLocation),
+//           turf.point(customerLocation),
+//           { units: "kilometers" }
+//         );
+//         return distance <= servingRadius;
+//       }
+//       return true;
+//     });
 
-    const sortedMerchants = await sortMerchantsBySponsorship(filteredMerchants);
+//     const sortedMerchants = await sortMerchantsBySponsorship(filteredMerchants);
 
-    const simplifiedMerchants = await Promise.all(
-      sortedMerchants.map(async (merchant) => {
-        const isFavorite =
-          currentCustomer?.customerDetails?.favoriteMerchants?.includes(
-            merchant._id
-          ) ?? false;
+//     const simplifiedMerchants = await Promise.all(
+//       sortedMerchants.map(async (merchant) => {
+//         const isFavorite =
+//           currentCustomer?.customerDetails?.favoriteMerchants?.includes(
+//             merchant._id
+//           ) ?? false;
 
-        return {
-          id: merchant._id,
-          merchantName: merchant.merchantDetail.merchantName,
-          description: merchant.merchantDetail.description,
-          averageRating: merchant.merchantDetail.averageRating,
-          status: merchant.status,
-          restaurantType: merchant.merchantDetail.merchantFoodType || "-",
-          merchantImageURL: merchant.merchantDetail.merchantImageURL,
-          displayAddress: merchant.merchantDetail.displayAddress || "-",
-          preOrderStatus: merchant.merchantDetail.preOrderStatus,
-          isFavorite,
-        };
-      })
-    );
+//         return {
+//           id: merchant._id,
+//           merchantName: merchant.merchantDetail.merchantName,
+//           description: merchant.merchantDetail.description,
+//           averageRating: merchant.merchantDetail.averageRating,
+//           status: merchant.status,
+//           restaurantType: merchant.merchantDetail.merchantFoodType || "-",
+//           merchantImageURL: merchant.merchantDetail.merchantImageURL,
+//           displayAddress: merchant.merchantDetail.displayAddress || "-",
+//           preOrderStatus: merchant.merchantDetail.preOrderStatus,
+//           isFavorite,
+//         };
+//       })
+//     );
 
-    const categories = await Category.find({
-      businessCategoryId,
-    });
+//     const categories = await Category.find({
+//       businessCategoryId,
+//     });
 
-    // Extract all category ids to search products within all these categories
-    const categoryIds = categories.map((category) => category._id);
+//     // Extract all category ids to search products within all these categories
+//     const categoryIds = categories.map((category) => category._id);
 
-    // Search products within the found categoryIds
-    const products = await Product.find({
-      categoryId: { $in: categoryIds }, // Search within all relevant categories
-      $or: [
-        { productName: { $regex: query, $options: "i" } },
-        // { description: { $regex: query, $options: "i" } },
-        { searchTags: { $elemMatch: { $regex: query, $options: "i" } } },
-      ],
-    })
-      .select(
-        "_id productName price description productImageURL inventory variants"
-      )
-      .sort({ order: 1 });
+//     // Search products within the found categoryIds
+//     const products = await Product.find({
+//       categoryId: { $in: categoryIds }, // Search within all relevant categories
+//       $or: [
+//         { productName: { $regex: query, $options: "i" } },
+//         // { description: { $regex: query, $options: "i" } },
+//         { searchTags: { $elemMatch: { $regex: query, $options: "i" } } },
+//       ],
+//     })
+//       .select(
+//         "_id productName price description productImageURL inventory variants"
+//       )
+//       .sort({ order: 1 });
 
-    const formattedResponse = products?.map((product) => ({
-      id: product._id,
-      productName: product.productName,
-      price: product.price,
-      description: product.description,
-      productImageUrl: product?.productImageURL || null,
-      variants: product.variants.map((variant) => ({
-        id: variant._id,
-        variantName: variant.variantName,
-        variantTypes: variant.variantTypes.map((variantType) => ({
-          id: variantType._id,
-          typeName: variantType.typeName,
-          price: variantType.price,
-        })),
-      })),
-    }));
+//     const formattedResponse = products?.map((product) => ({
+//       id: product._id,
+//       productName: product.productName,
+//       price: product.price,
+//       description: product.description,
+//       productImageUrl: product?.productImageURL || null,
+//       variants: product.variants.map((variant) => ({
+//         id: variant._id,
+//         variantName: variant.variantName,
+//         variantTypes: variant.variantTypes.map((variantType) => ({
+//           id: variantType._id,
+//           typeName: variantType.typeName,
+//           price: variantType.price,
+//         })),
+//       })),
+//     }));
 
-    res.status(200).json({
-      merchants: simplifiedMerchants,
-      products: formattedResponse,
-    });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
+//     res.status(200).json({
+//       merchants: simplifiedMerchants,
+//       products: formattedResponse,
+//     });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
 
 // Get all categories of merchant
 const getAllCategoriesOfMerchants = async (req, res, next) => {
@@ -430,7 +431,7 @@ const getAllProductsOfMerchantController = async (req, res, next) => {
       const validTo = new Date(product?.discountId?.validTo);
 
       // Adjusting the validTo date to the end of the day
-      validTo?.setHours(23, 59, 59, 999);
+      validTo?.setHours(18, 29, 59, 999);
 
       let discountPrice = null;
 
@@ -463,7 +464,7 @@ const getAllProductsOfMerchantController = async (req, res, next) => {
         productId: product._id,
         productName: product.productName || null,
         price: product.price || null,
-        discountPrice: discountPrice || null,
+        discountPrice: Math.round(discountPrice) || null,
         minQuantityToOrder: product.minQuantityToOrder || null,
         maxQuantityPerOrder: product.maxQuantityPerOrder || null,
         isFavorite,
@@ -503,7 +504,7 @@ const getProductVariantsByProductIdController = async (req, res, next) => {
     const currentDate = new Date();
     const validFrom = new Date(product?.discountId?.validFrom);
     const validTo = new Date(product?.discountId?.validTo);
-    validTo?.setHours(23, 59, 59, 999);
+    validTo?.setHours(18, 29, 59, 999);
 
     let variantsWithDiscount = product.variants.map((variant) => {
       return {
@@ -548,7 +549,7 @@ const getProductVariantsByProductIdController = async (req, res, next) => {
 
               return {
                 ...variantType._doc,
-                discountPrice: variantDiscountPrice,
+                discountPrice: Math.round(variantDiscountPrice),
               };
             }
           );
@@ -570,45 +571,64 @@ const getProductVariantsByProductIdController = async (req, res, next) => {
 };
 
 // Filter merchants based on (Pure veg, Rating, Nearby)
-const filterMerchantController = async (req, res, next) => {
+const filterAndSearchMerchantController = async (req, res, next) => {
   try {
-    const { businessCategoryId, filterType, latitude, longitude } = req.body;
+    const { businessCategoryId, filterType, query = "" } = req.query;
+    const customerId = req.userAuth;
 
-    if (!filterType || !businessCategoryId)
-      return next(
-        appError("Filter type or Business catgory id is missing", 400)
-      );
+    // Validate required inputs
+    if (!businessCategoryId)
+      return next(appError("Business category is required", 400));
 
-    // Define filter criteria based on filter type
-    let filterCriteria = {
+    // Fetch customer and validate existence
+    const customer = await Customer.findById(customerId).select(
+      "customerDetails.location"
+    );
+    if (!customer) return next(appError("Customer not found", 404));
+
+    const foundGeofence = await geoLocation(
+      customer.customerDetails.location[0],
+      customer.customerDetails.location[1]
+    );
+
+    if (!foundGeofence) return next(appError("Geofence not found", 404));
+
+    // Define base filter criteria
+    const filterCriteria = {
       isBlocked: false,
       isApproved: "Approved",
+      "merchantDetail.geofenceId": foundGeofence._id,
       "merchantDetail.businessCategoryId": { $in: [businessCategoryId] },
       "merchantDetail.pricing.0": { $exists: true },
-      "merchantDetail.pricing.modelType": { $exists: true }, // Ensures modelType exists
+      "merchantDetail.pricing.modelType": { $exists: true },
       "merchantDetail.pricing.modelId": { $exists: true },
+      "merchantDetail.location": { $exists: true, $ne: [] },
     };
 
+    // Apply additional filters based on filterType
+    if (query) {
+      filterCriteria["merchantDetail.merchantName"] = {
+        $regex: query.trim(),
+        $options: "i",
+      };
+    }
     if (filterType === "Veg") {
-      filterCriteria["merchantDetail.merchantFoodType"] = { $in: ["Veg"] };
+      filterCriteria["merchantDetail.merchantFoodType"] = "Veg";
     } else if (filterType === "Rating") {
       filterCriteria["merchantDetail.averageRating"] = { $gte: 4.0 };
     }
 
-    let merchants = await Merchant.find(filterCriteria).exec();
+    // Fetch merchants based on filter criteria
+    let merchants = await Merchant.find(filterCriteria).lean();
 
-    if (filterType === "Nearby") {
-      if (!latitude || !longitude) {
-        return next(
-          appError("Latitude and longitude are required for nearby filter", 400)
-        );
-      }
-
-      const customerLocation = [latitude, longitude];
+    const customerLocation = customer.customerDetails.location;
+    // Apply "Nearby" filter if required
+    const turf = require("@turf/turf");
+    if (filterType === "Nearby" && customerLocation) {
       merchants = merchants.filter((merchant) => {
         const servingRadius = merchant.merchantDetail.servingRadius || 0;
-        if (servingRadius > 0) {
-          const merchantLocation = merchant.merchantDetail.location;
+        const merchantLocation = merchant.merchantDetail.location;
+        if (servingRadius > 0 && Array.isArray(merchantLocation)) {
           const distance = turf.distance(
             turf.point(merchantLocation),
             turf.point(customerLocation),
@@ -620,31 +640,32 @@ const filterMerchantController = async (req, res, next) => {
       });
     }
 
+    // Sort merchants by sponsorship or other criteria
     const sortedMerchants = sortMerchantsBySponsorship(merchants);
 
+    // Map sorted merchants to response format
     const responseMerchants = sortedMerchants.map((merchant) => {
-      const merchantLocation = merchant.merchantDetail.location;
-      const distance = turf.distance(
-        turf.point(merchantLocation),
-        turf.point([latitude, longitude]),
-        { units: "kilometers" }
-      );
+      const isFavorite =
+        customer?.customerDetails?.favoriteMerchants?.includes(merchant._id) ??
+        false;
 
       return {
         id: merchant._id,
         merchantName: merchant.merchantDetail.merchantName,
-        averageRating: merchant.merchantDetail.averageRating,
-        merchantImageURL: merchant.merchantDetail.merchantImageURL,
-        description: merchant.merchantDetail.description,
-        deliveryTime: merchant.merchantDetail.deliveryTime,
-        displayAddress: merchant.merchantDetail.displayAddress,
-        merchantFoodType: merchant.merchantDetail.merchantFoodType,
-        distance: distance.toFixed(2),
+        description: merchant.merchantDetail.description || "",
+        averageRating: merchant.merchantDetail.averageRating || 0,
+        status: merchant?.status,
+        restaurantType: merchant?.merchantDetail?.merchantFoodType || null,
+        merchantImageURL: merchant.merchantDetail.merchantImageURL || null,
+        displayAddress: merchant.merchantDetail.displayAddress || null,
+        preOrderStatus: merchant?.merchantDetail?.preOrderStatus,
+        isFavorite,
       };
     });
 
+    // Respond with filtered merchants
     res.status(200).json({
-      message: "Filtered merchants",
+      message: "Filtered and searched merchants",
       data: responseMerchants,
     });
   } catch (err) {
@@ -807,6 +828,14 @@ const filterAndSortProductsController = async (req, res, next) => {
     const { merchantId } = req.params;
     const { filter, sort } = req.query;
 
+    const customerId = req.userAuth;
+
+    const currentCustomer = await Customer.findById(customerId)
+      .select("customerDetails.favoriteProducts")
+      .exec();
+
+    if (!currentCustomer) return next(appError("Customer not found", 404));
+
     // Get category IDs associated with the merchant
     const categories = await Category.find({ merchantId }).select("_id");
     const categoryIds = categories.map((category) => category._id);
@@ -816,7 +845,7 @@ const filterAndSortProductsController = async (req, res, next) => {
 
     // Add filter conditions
     if (filter) {
-      if (filter === "Veg" || filter === "Non-veg") {
+      if (filter === "Veg") {
         query.type = filter;
       } else if (filter === "Favorite") {
         const customer = await Customer.findOne({
@@ -828,7 +857,7 @@ const filterAndSortProductsController = async (req, res, next) => {
         if (customer) {
           query._id = { $in: customer.customerDetails.favoriteProducts };
         } else {
-          query._id = { $in: [] }; // No favorite products found, return empty result
+          query._id = { $in: [] };
         }
       }
     }
@@ -851,23 +880,29 @@ const filterAndSortProductsController = async (req, res, next) => {
       .sort(sortObj);
 
     // Convert _id to id
-    const formattedProducts = products.map((product) => ({
-      id: product._id,
-      productName: product.productName,
-      price: product.price,
-      longDescription: product.longDescription,
-      productImageURL: product.productImageURL,
-      inventory: product.inventory,
-      variants: product.variants.map((variant) => ({
-        id: variant._id,
-        variantName: variant.variantName,
-        variantTypes: variant.variantTypes.map((variantType) => ({
-          id: variantType._id,
-          typeName: variantType.typeName,
-          price: variantType.price,
-        })),
-      })),
-    }));
+    const formattedProducts = products.map((product) => {
+      const isFavorite =
+        currentCustomer?.customerDetails?.favoriteProducts?.includes(
+          product._id
+        ) ?? false;
+
+      return {
+        productId: product._id,
+        productName: product.productName || null,
+        price: product.price || null,
+        discountPrice: Math.round(discountPrice) || null,
+        minQuantityToOrder: product.minQuantityToOrder || null,
+        maxQuantityPerOrder: product.maxQuantityPerOrder || null,
+        isFavorite,
+        preparationTime: `${product.preparationTime} min` || null,
+        description: product.description || null,
+        longDescription: product.longDescription || null,
+        type: product.type || null,
+        productImageURL: product.productImageURL || null,
+        inventory: product.inventory || null,
+        variantAvailable: product.variants && product.variants.length > 0,
+      };
+    });
 
     res.status(200).json({
       message: "Filtered and sorted products retrieved successfully",
@@ -2502,7 +2537,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
   }
 };
 
-// Cancel order vefore getting created
+// Cancel order before getting created
 const cancelOrderBeforeCreationController = async (req, res, next) => {
   try {
     const { orderId } = req.params;
@@ -2600,6 +2635,86 @@ const clearCartController = async (req, res, next) => {
   }
 };
 
+const getOrderTrackingDetail = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+
+    const [order, task] = await Promise.all([
+      Order.findById(orderId).populate("merchantId"),
+      Task.findOne({ orderId }).populate("agentId"),
+    ]);
+
+    const formattedResponse = {
+      pickupLocation: order.orderDetail.pickupLocation,
+      deliveryLocation: order.orderDetail.deliveryLocation,
+      deliveryMode: order.orderDetail.deliveryMode,
+      agentId: task.agentId._id,
+      agentName: task.agentId._id,
+      agentImage: task.agentId.agentImageURL,
+      merchantId: order?.merchantId?._id || null,
+      merchantName: order?.merchantId?.merchantDetail?.merchantName || null,
+      merchantPhone: order?.merchantId?.phoneNumber || null,
+      deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
+      orderCreatedStatus: {
+        status: true,
+        time: formatTime(order.createdAt),
+      },
+      inTransit:
+        task.pickupDetail.pickupStatus === "Started" ||
+        task.pickupDetail.pickupStatus === "Completed" ||
+        task.deliveryDetail.deliveryStatus === "Started" ||
+        task.deliveryDetail.deliveryStatus === "Completed"
+          ? true
+          : false,
+      completeStatus: order.status === "Completed" ? true : false,
+    };
+
+    res.status(200).json(formattedResponse);
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getOrderTrackingStepper = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+
+    const [order, task] = await Promise.all([
+      Order.findById(orderId).populate("merchantId"),
+      Task.findOne({ orderId }).populate("agentId"),
+    ]);
+
+    const formattedResponse = {
+      deliveryTime: formatTime(order.orderDetail.deliveryTime),
+      createdAt: true,
+      createAt: formatTime(order.createdAt),
+      acceptedByAgent: task.taskStatus === "Assigned" ? true : false,
+      acceptedAt: formatTime(order.orderDetail.agentAcceptedAt),
+      reachedPickupLocation:
+        task.pickupDetail.pickupStatus === "Completed" ? true : false,
+      reachedPickupLocationAt: formatTime(task?.pickupDetail?.completedTime),
+      pickedByAgent:
+        task.deliveryDetail.deliveryStatus === "Started" ? true : false,
+      pickedByAgentAt: formatTime(task?.deliveryDetail?.startTime),
+      noteStatus: order?.detailAddedByAgent?.notes ? true : false,
+      note: order.detailAddedByAgent.notes,
+      signatureStatus: order?.detailAddedByAgent?.signatureImageURL
+        ? true
+        : false,
+      signature: order.detailAddedByAgent.signatureImageURL,
+      imageURLStatus: order?.detailAddedByAgent?.imageURL ? true : false,
+      imageURL: order.detailAddedByAgent.imageURL,
+      billStatus: true,
+      billDetail: order?.billDetail,
+      orderCompletedStatus: order.status === "Completed" ? true : false,
+    };
+
+    res.status(200).json(formattedResponse);
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getAllBusinessCategoryController,
   homeSearchController,
@@ -2607,7 +2722,7 @@ module.exports = {
   getAllCategoriesOfMerchants,
   getAllProductsOfMerchantController,
   getProductVariantsByProductIdController,
-  filterMerchantController,
+  filterAndSearchMerchantController,
   searchProductsInMerchantController,
   filterAndSortProductsController,
   toggleProductFavoriteController,
@@ -2620,10 +2735,12 @@ module.exports = {
   orderPaymentController,
   verifyOnlinePaymentController,
   cancelOrderBeforeCreationController,
-  searchMerchantsOrProducts,
+  // searchMerchantsOrProducts,
   clearCartController,
   applyTipController,
   //
   confirmOrderDetailController,
   getCartBillController,
+  getOrderTrackingDetail,
+  getOrderTrackingStepper,
 };

@@ -99,10 +99,6 @@ const orderDetailSchema = mongoose.Schema(
       type: Date,
       default: null,
     },
-    agentStartedAt: {
-      type: Date,
-      default: null,
-    },
     timeTaken: {
       type: Number, // Storing in milliseconds
       default: null,

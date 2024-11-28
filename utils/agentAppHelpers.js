@@ -47,7 +47,7 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
       const appDetail = agent.appDetail || {
         totalEarning: 0,
         orders: 0,
-        pendingOrder: 0,
+        pendingOrders: 0,
         totalDistance: 0,
         cancelledOrders: 0,
         loginDuration: 0,
@@ -117,7 +117,7 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
         $set: {
           "appDetail.totalEarning": 0,
           "appDetail.orders": 0,
-          "appDetail.pendingOrder": 0,
+          "appDetail.pendingOrders": 0,
           "appDetail.totalDistance": 0,
           "appDetail.cancelledOrders": 0,
           "appDetail.loginDuration": 0,
@@ -282,7 +282,7 @@ const calculateAgentEarnings = async (agent, order) => {
     if (taskFound) {
       const durationInHours =
         (new Date(taskFound?.endTime || new Date()) -
-          new Date(taskFound.startTime)) /
+          new Date(taskFound.pickupDetail.startTime)) /
         (1000 * 60 * 60);
 
       const normalizedHours =
@@ -296,10 +296,13 @@ const calculateAgentEarnings = async (agent, order) => {
     }
   }
 
-  console.log("orderSalary: ", orderSalary);
-  console.log("totalPurchaseFare: ", totalPurchaseFare);
+  console.log("orderSalary:", orderSalary);
+  console.log("totalPurchaseFare:", totalPurchaseFare);
 
-  return parseFloat(orderSalary + totalPurchaseFare).toFixed(2);
+  const totalEarnings = orderSalary + totalPurchaseFare;
+
+  // Use parseFloat to ensure it's a number with two decimal places
+  return parseFloat(totalEarnings.toFixed(2));
 };
 
 const updateOrderDetails = (order, calculatedSalary) => {
@@ -317,9 +320,7 @@ const updateOrderDetails = (order, calculatedSalary) => {
     currentTime - new Date(order.orderDetail.agentAcceptedAt);
   order.orderDetail.delayedBy = delayedBy;
 
-  if (!order.detailAddedByAgent) {
-    order.detailAddedByAgent = {};
-  }
+  if (!order?.detailAddedByAgent) order.detailAddedByAgent = {};
 
   order.detailAddedByAgent.agentEarning = calculatedSalary;
 };
@@ -337,7 +338,7 @@ const updateAgentDetails = async (
   }
 
   agent.appDetail.totalEarning += parseFloat(calculatedSalary);
-  agent.appDetail.totalDistance += order.orderDetail.distance;
+  agent.appDetail.totalDistance += parseFloat(order.orderDetail.distance);
 
   agent.appDetail.orderDetail.push({
     orderId: order._id,
@@ -354,13 +355,7 @@ const updateAgentDetails = async (
     createdAt: 1,
   });
 
-  if (agentTasks.length > 0) {
-    agentTasks[0].pickupDetail.pickupStatus = "Started";
-    agentTasks[0].startTime = new Date();
-    agent.status = "Busy";
-  } else {
-    agent.status = "Free";
-  }
+  agentTasks.length > 0 ? (agent.status = "Busy") : (agent.status = "Free");
 };
 
 const updateNotificationStatus = async (orderId) => {
