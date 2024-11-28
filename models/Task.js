@@ -16,6 +16,10 @@ const pickupSchema = new mongoose.Schema({
     area: String,
     landmark: String,
   },
+  startTime: {
+    type: Date,
+    default: null,
+  },
   completedTime: {
     type: Date,
     default: null,
@@ -38,6 +42,10 @@ const deliverySchema = new mongoose.Schema({
     flat: String,
     area: String,
     landmark: String,
+  },
+  startTime: {
+    type: Date,
+    default: null,
   },
   completedTime: {
     type: Date,
@@ -67,12 +75,12 @@ const taskSchema = new mongoose.Schema(
       enum: ["Home Delivery", "Take Away", "Pick and Drop", "Custom Order"],
       required: true,
     },
-    startTime: {
-      type: Date,
-    },
-    endTime: {
-      type: Date,
-    },
+    // startTime: {
+    //   type: Date,
+    // },
+    // endTime: {
+    //   type: Date,
+    // },
     pickupDetail: pickupSchema,
     deliveryDetail: deliverySchema,
   },

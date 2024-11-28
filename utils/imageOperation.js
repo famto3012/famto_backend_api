@@ -56,7 +56,8 @@ const uploadToFirebase = async (file, folderName, locationImage = false) => {
     }
   } else if (
     file.mimetype === "text/csv" ||
-    file.mimetype === "application/vnd.ms-excel"
+    file.mimetype === "application/vnd.ms-excel" ||
+    file.mimetype === "audio/wav"
   ) {
     // If it's a CSV, skip sharp and use the original buffer
     fileBuffer = file.buffer;

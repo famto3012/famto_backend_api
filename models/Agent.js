@@ -139,7 +139,7 @@ const agentAppDetailSchema = mongoose.Schema(
       type: Number,
       default: 0,
     },
-    pendingOrder: {
+    pendingOrders: {
       type: Number,
       default: 0,
     },

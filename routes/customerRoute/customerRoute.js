@@ -47,7 +47,7 @@ const {
 const {
   getAllBusinessCategoryController,
   homeSearchController,
-  filterMerchantController,
+  filterAndSearchMerchantController,
   searchProductsInMerchantController,
   filterAndSortProductsController,
   toggleProductFavoriteController,
@@ -69,6 +69,8 @@ const {
   applyTipController,
   confirmOrderDetailController,
   getCartBillController,
+  getOrderTrackingDetail,
+  getOrderTrackingStepper,
 } = require("../../controllers/customer/universalOrderController");
 const {
   addPickUpAddressController,
@@ -152,12 +154,12 @@ customerRoute.post(
   listRestaurantsController
 );
 
-// List all restaurants in customers geofence
-customerRoute.get(
-  "/search-merchant-or-product",
-  isAuthenticated,
-  searchMerchantsOrProducts
-);
+// // List all restaurants in customers geofence
+// customerRoute.get(
+//   "/search-merchant-or-product",
+//   isAuthenticated,
+//   searchMerchantsOrProducts
+// );
 
 // Get all categories a merchant
 customerRoute.get(
@@ -180,11 +182,11 @@ customerRoute.get(
   getProductVariantsByProductIdController
 );
 
-// Filter merchants by criteria (Pure veg, Rating, Nearby)
-customerRoute.post(
-  "/filter-merchants",
+// Filter ans search merchants by criteria (Pure veg, Rating, Nearby)
+customerRoute.get(
+  "/filter-and-search-merchants",
   isAuthenticated,
-  filterMerchantController
+  filterAndSearchMerchantController
 );
 
 // Search products in merchant
@@ -521,6 +523,18 @@ customerRoute.get(
   "/customization/timings",
   isAuthenticated,
   getTimingsForCustomerApp
+);
+
+customerRoute.get(
+  "/order-tracking/:orderId/detail",
+  isAuthenticated,
+  getOrderTrackingDetail
+);
+
+customerRoute.get(
+  "/order-tracking/:orderId/stepper",
+  isAuthenticated,
+  getOrderTrackingStepper
 );
 
 module.exports = customerRoute;
