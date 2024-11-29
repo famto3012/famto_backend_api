@@ -1,3 +1,5 @@
+const mongoose = require("mongoose");
+
 const Agent = require("../models/Agent");
 const Customer = require("../models/Customer");
 const CustomerCart = require("../models/CustomerCart");
@@ -133,7 +135,7 @@ const processSchedule = (ifScheduled) => {
   };
 };
 
-// Calculat the item total in cart
+// Calculate the item total in cart
 const calculateItemTotal = (items, numOfDays) => {
   const calculatedTotal = items
     .reduce((total, item) => total + item.price * item.quantity, 0)
@@ -175,7 +177,7 @@ const calculateAdditionalWeightCharge = (
   return 0;
 };
 
-// Calcula the subTotal in cart
+// Calculate the subTotal in cart
 const calculateSubTotal = ({
   itemTotal,
   surgeCharge = 0,
@@ -211,7 +213,7 @@ const calculateGrandTotal = ({
   return Number(total.toFixed(2));
 };
 
-// Get the number of days betweeb scheduled dates
+// Get the number of days between scheduled dates
 const getTotalDaysBetweenDates = (startDate, endDate) =>
   Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
 
@@ -567,11 +569,8 @@ const calculateDeliveryChargesHelper = async (
 
   if (deliveryMode === "Home Delivery") {
     const businessCategoryId = selectedBusinessCategory;
-    if (!businessCategoryId) throw new Error("Business category not found");
 
-    // console.log("1", deliveryMode);
-    // console.log("2", businessCategoryId);
-    // console.log("3", customer.customerDetails.geofenceId);
+    if (!businessCategoryId) throw new Error("Business category not found");
 
     const customerPricing = await CustomerPricing.findOne({
       deliveryMode,
@@ -1015,7 +1014,7 @@ const pickAndDropCharges = async (
 const customOrderCharges = async (
   customer,
   items,
-  distanceInKM,
+  distance,
   scheduledDetails
 ) => {
   // Fetch customer pricing for custom orders
@@ -1030,9 +1029,9 @@ const customOrderCharges = async (
   // Calculate one-time delivery charge
   let oneTimeDeliveryCharge;
 
-  if (distanceInKM) {
+  if (distance) {
     oneTimeDeliveryCharge = calculateDeliveryCharges(
-      distanceInKM,
+      distance,
       customerPricing.baseFare,
       customerPricing.baseDistance,
       customerPricing.fareAfterBaseDistance
@@ -1049,7 +1048,7 @@ const customOrderCharges = async (
 
   const surgeCharges = customerSurge
     ? calculateDeliveryCharges(
-        distanceInKM,
+        distance,
         customerSurge.baseFare,
         customerSurge.baseDistance,
         customerSurge.fareAfterBaseDistance
@@ -1082,9 +1081,11 @@ const customOrderCharges = async (
   }
 
   return {
-    oneTimeDeliveryCharge: oneTimeDeliveryCharge.toFixed(2),
-    surgeCharges: surgeCharges.toFixed(2),
-    deliveryChargeForScheduledOrder: deliveryChargeForScheduledOrder || null,
+    oneTimeDeliveryCharge: distance ? oneTimeDeliveryCharge.toFixed(2) : 0,
+    surgeCharges: distance ? surgeCharges.toFixed(2) : 0,
+    deliveryChargeForScheduledOrder: distance
+      ? deliveryChargeForScheduledOrder
+      : 0,
     taxAmount: 0,
     itemTotal: 0,
   };
@@ -1109,10 +1110,18 @@ const saveCustomerCart = async (
   instructionInPickup,
   instructionInDelivery
 ) => {
+  const updatedItems =
+    deliveryMode === "Custom Order"
+      ? items.map((item) => ({
+          ...item,
+          itemId: new mongoose.Types.ObjectId(),
+        }))
+      : items;
+
   const cartDetails = {
     customerId: customer._id,
     merchantId: merchant?._id || null,
-    items,
+    items: updatedItems,
     cartDetail: {
       pickupLocation,
       pickupAddress,
