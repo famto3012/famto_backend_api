@@ -17,6 +17,7 @@ const MerchantNotificationLogs = require("../models/MerchantNotificationLog");
 const {
   getDistanceFromPickupToDelivery,
   getDeliveryAndSurgeCharge,
+  calculateDeliveryCharges,
 } = require("../utils/customerAppHelpers");
 const {
   calculateAgentEarnings,
@@ -537,7 +538,8 @@ Agent.watch().on("change", async (change) => {
 const handleAgentNotificationLogs = async () => {
   try {
     const AllocationTimeFound = await AutoAllocation.findOne({});
-    const STATUS_UPDATE_THRESHOLD = AllocationTimeFound
+
+    const STATUS_UPDATE_THRESHOLD = AllocationTimeFound?.expireTime
       ? AllocationTimeFound.expireTime * 1000
       : 60000;
 
@@ -546,28 +548,25 @@ const handleAgentNotificationLogs = async () => {
 
     changeStream.on("change", async (change) => {
       if (change.operationType === "insert") {
-        const { _id, createdAt, status } = change.fullDocument;
+        const { _id, status } = change.fullDocument;
 
         // Check if status is "Pending" and exceeds the threshold
         if (status === "Pending") {
           setTimeout(async () => {
             const log = await AgentNotificationLogs.findById(_id);
-
             if (log && log.status === "Pending") {
               const agent = await Agent.findById(log.agentId);
+
               // Update status to "Rejected"
               log.status = "Rejected";
+
               agent.appDetail.cancelledOrders += 1;
-              agent.appDetail.pendingOrders -= 1;
+              agent.appDetail.pendingOrders = Math.max(
+                0,
+                agent.appDetail.pendingOrders - 1
+              );
 
               await Promise.all([log.save(), agent.save()]);
-
-              // Emit a socket event (optional)
-              const eventName = "agentNotificationRejected";
-              io.emit(eventName, {
-                message: `Notification ${_id} has been automatically rejected.`,
-                log,
-              });
             }
           }, STATUS_UPDATE_THRESHOLD);
         }
@@ -698,7 +697,11 @@ io.on("connection", async (socket) => {
             agentId,
             status: "Pending",
           }),
-          Order.countDocuments({ orderId, agentId, status: "Rejected" }),
+          AgentNotificationLogs.countDocuments({
+            orderId,
+            agentId,
+            status: "Rejected",
+          }),
         ]);
 
       if (!agent) {
@@ -753,10 +756,18 @@ io.on("connection", async (socket) => {
           }),
       ]);
 
+      console.log("sameCancelledOrders", sameCancelledOrders);
+
       // Update agent status
       agent.status = "Busy";
-      agent.appDetail.pendingOrders -= 1;
-      agent.appDetail.cancelledOrders -= sameCancelledOrders;
+      agent.appDetail.pendingOrders = Math.max(
+        0,
+        agent.appDetail.pendingOrders - 1
+      );
+      agent.appDetail.cancelledOrders = Math.max(
+        0,
+        agent.appDetail.cancelledOrders - sameCancelledOrders
+      );
       await agent.save();
 
       const eventName = "agentOrderAccepted";
@@ -824,7 +835,7 @@ io.on("connection", async (socket) => {
   // Order rejected socket
   socket.on("agentOrderRejected", async ({ orderId, agentId }) => {
     try {
-      // console.log("Trying to reject order");
+      console.log("Trying reject");
 
       const [agentFound, orderFound, agentNotification] = await Promise.all([
         Agent.findById(agentId),
@@ -847,17 +858,23 @@ io.on("connection", async (socket) => {
           success: false,
         });
 
-      if (agentNotification) {
-        agentNotification.status = "Rejected";
-        await agentNotification.save();
-      } else {
+      if (!agentNotification) {
         return socket.emit("error", {
           message: "Agent notification not found",
-          success: false,
         });
       }
 
-      agentFound.appDetail.pendingOrders -= 1;
+      // Update the agentNotification
+      agentNotification.status = "Rejected";
+      await agentNotification.save();
+
+      console.log("Rejected Order");
+
+      agentFound.appDetail.pendingOrders = Math.max(
+        0,
+        agentFound.appDetail.pendingOrders - 1
+      );
+
       agentFound.appDetail.cancelledOrders += 1;
 
       await agentFound.save();
@@ -1334,50 +1351,45 @@ io.on("connection", async (socket) => {
       taskFound.deliveryDetail.deliveryStatus = "Started";
       taskFound.deliveryDetail.startTime = new Date();
 
-      if (orderFound?.orderDetail?.deliveryMode === "Custom Order") {
-        const customerPricing = await CustomerPricing.findOne({
-          deliveryMode: "Custom Order",
-          geofenceId: orderFound?.customerId?.customerDetails?.geofenceId,
-          status: true,
-        });
+      // if (orderFound?.orderDetail?.deliveryMode === "Custom Order") {
+      //   const customerPricing = await CustomerPricing.findOne({
+      //     deliveryMode: "Custom Order",
+      //     geofenceId: orderFound?.customerId?.customerDetails?.geofenceId,
+      //     status: true,
+      //   });
 
-        if (!customerPricing) {
-          return socket.emit("error", {
-            message: `Customer pricing for custom order not found`,
-            success: false,
-          });
-        }
+      //   if (!customerPricing) {
+      //     console.log("Customer Pricing not found");
+      //     return socket.emit("error", {
+      //       message: `Customer pricing for custom order not found`,
+      //       success: false,
+      //     });
+      //   }
 
-        const waitingFare = customerPricing.waitingFare;
-        const waitingTime = customerPricing.waitingTime;
+      //   const { waitingFare, waitingTime } = customerPricing;
+      //   const now = new Date();
+      //   const reachedTime = taskFound?.pickupDetail?.completedTime;
 
-        const now = new Date();
-        const reachedTime = taskFound?.pickupDetail?.completedTime;
+      //   if (reachedTime) {
+      //     const diffInMinutes = Math.floor(
+      //       (now - new Date(reachedTime)) / 60000
+      //     );
 
-        const diffInMs = now - reachedTime;
+      //     if (diffInMinutes > waitingTime) {
+      //       const additionalMinutes = diffInMinutes - waitingTime;
+      //       const calculatedWaitingFare = parseFloat(
+      //         waitingFare * additionalMinutes
+      //       );
 
-        // Convert the difference to minutes
-        const diffInMinutes = Math.floor(diffInMs / 60000);
-
-        if (diffInMinutes - waitingTime > 0) {
-          let calculatedWaitingFare = 0;
-
-          calculatedWaitingFare = parseFloat(
-            waitingFare * (diffInMinutes - waitingTime)
-          );
-
-          orderFound.billDetail.waitingCharges = calculatedWaitingFare;
-
-          await orderFound.save();
-        }
-      }
+      //       orderFound.billDetail.waitingCharges = calculatedWaitingFare;
+      //       await orderFound.save();
+      //     }
+      //   }
+      // }
 
       await taskFound.save();
 
-      const eventName = "agentDeliveryStarted";
-
-      const { rolesToNotify, data } = await findRolesToNotify(eventName);
-
+      // Update order stepper details
       const stepperDetail = {
         by: agentFound.fullName,
         userId: agentId,
@@ -1386,22 +1398,19 @@ io.on("connection", async (socket) => {
       };
 
       orderFound.orderDetailStepper.deliveryStarted = stepperDetail;
-
       await orderFound.save();
 
-      // Send notifications to each role dynamically
-      for (const role of rolesToNotify) {
-        let roleId;
+      // Notify roles
+      const eventName = "agentDeliveryStarted";
+      const { rolesToNotify, data } = await findRolesToNotify(eventName);
 
-        if (role === "admin") {
-          roleId = process.env.ADMIN_ID;
-        } else if (role === "merchant") {
-          roleId = orderFound?.merchantId;
-        } else if (role === "driver") {
-          roleId = orderFound?.agentId;
-        } else if (role === "customer") {
-          roleId = orderFound?.customerId;
-        }
+      for (const role of rolesToNotify) {
+        const roleId = {
+          admin: process.env.ADMIN_ID,
+          merchant: orderFound?.merchantId,
+          driver: orderFound?.agentId,
+          customer: orderFound?.customerId,
+        }[role];
 
         if (roleId) {
           const notificationData = {
@@ -1420,27 +1429,24 @@ io.on("connection", async (socket) => {
         }
       }
 
-      const socketData = {
-        orderDetailStepper: stepperDetail,
-      };
-
+      // Emit socket events to relevant users
+      const socketData = { orderDetailStepper: stepperDetail };
       sendSocketData(process.env.ADMIN_ID, eventName, socketData);
       sendSocketData(orderFound?.customerId, eventName, socketData);
+
       if (orderFound?.merchantId) {
-        sendSocketData(orderFound?.merchantId, eventName, socketData);
+        sendSocketData(orderFound.merchantId, eventName, socketData);
       }
 
-      const socketId = userSocketMap[agentId]?.socketId;
-
-      if (socketId)
-        io.to(socketId).emit("agentDeliveryStarted", {
+      const agentSocketId = userSocketMap[agentId]?.socketId;
+      if (agentSocketId) {
+        io.to(agentSocketId).emit(eventName, {
           data: "Delivery successfully started",
           success: true,
         });
+      }
 
       console.log("Agent successfully started delivery");
-      console.log("Agent Id: ", agentId);
-      console.log("Task Id: ", taskId);
     } catch (err) {
       console.log("Agent failed to start delivery");
       console.log("Agent Id: ", agentId);
@@ -1512,6 +1518,15 @@ io.on("connection", async (socket) => {
 
         if (distance < maxRadius) {
           console.log("Agent reached delivery");
+
+          const pickupStartAt = taskFound?.pickupDetail?.startTime;
+          const reachedPickupAt = taskFound?.pickupDetail?.completedTime;
+          const deliveryStartAt = taskFound?.deliveryDetail?.startTime;
+          const now = new Date();
+
+          let calculatedWaitingFare = 0;
+          let totalDistance = orderFound?.orderDetail?.distance || 0;
+
           if (orderFound?.orderDetail?.deliveryMode === "Custom Order") {
             const customerPricing = await CustomerPricing.findOne({
               deliveryMode: "Custom Order",
@@ -1526,28 +1541,72 @@ io.on("connection", async (socket) => {
               });
             }
 
-            const startTime = taskFound?.pickupDetail?.startTime;
-            const now = new Date();
+            const shopUpdates = orderFound.detailAddedByAgent.shopUpdates;
 
-            const diffInMs = now - startTime;
+            const lastLocation =
+              shopUpdates.length > 0
+                ? shopUpdates[shopUpdates.length - 1]?.location
+                : null;
+
+            const { distanceInKM } = await getDistanceFromPickupToDelivery(
+              lastLocation,
+              orderFound.orderDetail.deliveryLocation
+            );
+
+            const {
+              baseFare,
+              baseDistance,
+              fareAfterBaseDistance,
+              waitingFare,
+              waitingTime,
+            } = customerPricing;
+
+            totalDistance += distanceInKM;
+
+            const deliveryCharge = calculateDeliveryCharges(
+              totalDistance,
+              baseFare,
+              baseDistance,
+              fareAfterBaseDistance
+            );
+
+            const minutesWaitedAtPickup = Math.floor(
+              (new Date(deliveryStartAt) - new Date(reachedPickupAt)) / 60000
+            );
+
+            if (minutesWaitedAtPickup > waitingTime) {
+              const additionalMinutes = minutesWaitedAtPickup - waitingTime;
+              calculatedWaitingFare = parseFloat(
+                waitingFare * additionalMinutes
+              );
+            }
+
+            const totalTaskTime = new Date(now) - new Date(pickupStartAt);
 
             // Convert the difference to minutes
-            const diffInHours = Math.ceil(diffInMs / 3600000);
+            const diffInHours = Math.ceil(totalTaskTime / 3600000);
+
+            let calculatedPurchaseFare = 0;
 
             if (diffInHours > 0) {
-              let calculatedDeliveryFare = parseFloat(
+              calculatedPurchaseFare = parseFloat(
                 (diffInHours * customerPricing.purchaseFarePerHour).toFixed(2)
               );
-
-              console.log("calculatedDeliveryFare", calculatedDeliveryFare);
-              console.log("type", typeof calculatedDeliveryFare);
-
-              orderFound.billDetail.deliveryCharge += calculatedDeliveryFare;
-              orderFound.billDetail.grandTotal += calculatedDeliveryFare;
-              orderFound.billDetail.subTotal += calculatedDeliveryFare;
-
-              await orderFound.save();
             }
+
+            console.log("deliveryCharge", deliveryCharge);
+            console.log("calculatedPurchaseFare", calculatedPurchaseFare);
+            console.log("calculatedWaitingFare", calculatedWaitingFare);
+
+            const calculatedDeliveryFare =
+              deliveryCharge + calculatedPurchaseFare + calculatedWaitingFare;
+
+            orderFound.billDetail.waitingCharges = calculatedDeliveryFare;
+            orderFound.billDetail.deliveryCharge = calculatedDeliveryFare;
+            orderFound.billDetail.grandTotal += calculatedDeliveryFare;
+            orderFound.billDetail.subTotal += calculatedDeliveryFare;
+
+            await orderFound.save();
           }
 
           const stepperDetail = {
@@ -1557,8 +1616,12 @@ io.on("connection", async (socket) => {
             location: agentFound.location,
           };
 
+          const timeTaken = new Date() - new Date(pickupStartAt);
+
           orderFound.orderDetailStepper.reachedDeliveryLocation = stepperDetail;
           orderFound.orderDetail.deliveryTime = new Date();
+          orderFound.orderDetail.timeTaken = timeTaken;
+          orderFound.orderDetail.distance = totalDistance;
 
           taskFound.deliveryDetail.deliveryStatus = "Completed";
           taskFound.deliveryDetail.completedTime = new Date();
@@ -1787,12 +1850,13 @@ io.on("connection", async (socket) => {
 
         console.log("calculatedSalary", calculatedSalary);
 
+        const isOrderCompleted = false;
         // Update agent details
         await updateAgentDetails(
           agentFound,
           orderFound,
           calculatedSalary,
-          false
+          isOrderCompleted
         );
 
         const stepperDetail = {

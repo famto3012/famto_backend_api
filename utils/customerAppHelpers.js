@@ -104,9 +104,6 @@ const getTaxAmount = async (
 
     const taxPercentage = taxFound.tax;
 
-    // const taxAmount =
-    //   ((parseFloat(itemTotal) + parseFloat(deliveryCharges)) * taxPercentage) /
-    //   100;
     const taxAmount = (parseFloat(itemTotal) * taxPercentage) / 100;
 
     return parseFloat(taxAmount.toFixed(2));

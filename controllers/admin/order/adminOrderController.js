@@ -102,7 +102,7 @@ const getAllOrdersForAdminController = async (req, res, next) => {
             ? "Pay-on-delivery"
             : order.paymentMode,
         deliveryOption: order?.orderDetail?.deliveryOption,
-        amount: order?.billDetail?.grandTotal,
+        amount: order.billDetail.grandTotal,
       };
     });
 
@@ -760,7 +760,7 @@ const filterOrdersByAdminController = async (req, res, next) => {
             ? "Pay-on-delivery"
             : order?.paymentMode,
         deliveryOption: order?.orderDetail?.deliveryOption || null,
-        amount: order?.billDetail?.grandTotal || null,
+        amount: order.billDetail.grandTotal,
       };
     });
 
@@ -2253,6 +2253,14 @@ const createInvoiceByAdminController = async (req, res, next) => {
         quantity: item.quantity,
         price: item.price,
         variantTypeName: item?.variantTypeId?.variantTypeName,
+      }));
+    } else if (deliveryMode === "Custom Order") {
+      formattedItems = cart.items.map((item) => ({
+        itemId: new mongoose.Types.ObjectId(),
+        itemName: item.itemName,
+        itemImageURL: item.itemImageURL,
+        quantity: item.quantity,
+        unit: item.unit,
       }));
     }
 

@@ -920,7 +920,7 @@ const getTaskPreviewController = async (req, res, next) => {
         type: "Pickup",
         taskId: task._id,
         taskStatus: task.pickupDetail.pickupStatus,
-        date: formatDate(task.createdAt),
+        date: formatDate(task.orderId?.orderDetail?.deliveryTime),
         time: formatTime(task.createdAt),
         address: {
           fullName: task?.pickupDetail?.pickupAddress?.fullName || null,
@@ -1120,22 +1120,30 @@ const addCustomOrderItemPriceController = async (req, res, next) => {
     );
     if (!itemFound) return next(appError("Item not found in order", 404));
 
-    // Update price changes
+    // Check if the new price is equal to the existing price
+    const existingPrice = itemFound.price || 0;
+    if (existingPrice === newPrice) {
+      return res.status(200).json({
+        message:
+          "No changes made. The new price is the same as the existing price.",
+        data: existingPrice,
+      });
+    }
+
+    // Update the item's price
     itemFound.price = newPrice;
 
-    // Update itemTotal, subTotal, and grandTotal
-    const updatedItemTotal = orderFound.items.reduce(
-      (total, item) => total + (item?.price || 0),
-      0
-    );
+    // Adjust totals by subtracting the existing price and adding the new price
+    const updatedItemTotal =
+      orderFound.billDetail.itemTotal - existingPrice + newPrice;
 
     const deliveryCharge = orderFound.billDetail.deliveryCharge || 0;
     const surgePrice = orderFound.billDetail.surgePrice || 0;
 
-    // Update subTotal and grandTotal
     const updatedSubTotal = updatedItemTotal + deliveryCharge + surgePrice;
-    const updatedGrandTotal =
-      (orderFound.billDetail.grandTotal || 0) + newPrice;
+
+    // Grand total is recalculated based on adjusted totals
+    const updatedGrandTotal = updatedSubTotal;
 
     // Update the order's billing details
     orderFound.billDetail.itemTotal = parseFloat(updatedItemTotal.toFixed(2));
@@ -1338,10 +1346,17 @@ const completeOrderController = async (req, res, next) => {
     // Update order details
     updateOrderDetails(orderFound, calculatedSalary);
 
+    const isOrderCompleted = true;
+
     await Promise.all([
       updateCustomerSubscriptionCount(customerFound._id),
       updateNotificationStatus(orderId),
-      updateAgentDetails(agentFound, orderFound, calculatedSalary, true),
+      updateAgentDetails(
+        agentFound,
+        orderFound,
+        calculatedSalary,
+        isOrderCompleted
+      ),
     ]);
 
     const stepperDetail = {
@@ -1601,8 +1616,6 @@ const updateCustomOrderStatusController = async (req, res, next) => {
     const { orderId } = req.params;
     const agentId = req.userAuth;
 
-    console.log(req.body);
-
     const orderFound = await Order.findOne({
       _id: orderId,
       "orderDetail.deliveryMode": "Custom Order",
@@ -1610,9 +1623,8 @@ const updateCustomOrderStatusController = async (req, res, next) => {
 
     if (!orderFound) return next(appError("Order not found", 404));
 
-    if (orderFound.agentId !== agentId) {
+    if (orderFound.agentId !== agentId)
       return next(appError("Agent access denied (Different agent)"));
-    }
 
     const location = [latitude, longitude];
 
@@ -1623,27 +1635,15 @@ const updateCustomOrderStatusController = async (req, res, next) => {
         ? shopUpdates[shopUpdates.length - 1]?.location
         : null;
 
-    const [{ distanceInKM }, { deliveryCharges }] = await Promise.all([
-      getDistanceFromPickupToDelivery(location, lastLocation),
-      getDeliveryAndSurgeCharge(
-        orderFound.customerId,
-        orderFound.orderDetail.deliveryMode,
-        distanceInKM
-      ),
-    ]);
+    const { distanceInKM } = await getDistanceFromPickupToDelivery(
+      lastLocation,
+      location
+    );
 
     // Update order details
     const newDistance = distanceInKM || 0;
     orderFound.orderDetail.distance =
       (orderFound.orderDetail?.distance || 0) + newDistance;
-
-    const newDeliveryCharge = parseFloat(deliveryCharges || 0);
-    orderFound.billDetail.deliveryCharge =
-      (orderFound.billDetail?.deliveryCharge || 0) + newDeliveryCharge;
-    orderFound.billDetail.grandTotal =
-      (orderFound.billDetail?.grandTotal || 0) + newDeliveryCharge;
-    orderFound.billDetail.subTotal =
-      (orderFound.billDetail?.subTotal || 0) + newDeliveryCharge;
 
     // Initialize pickup location if not set
     if (!orderFound.orderDetail.pickupLocation && shopUpdates.length === 0) {
@@ -1807,7 +1807,7 @@ const getAllNotificationsController = async (req, res, next) => {
       orderType: notification.orderType || null,
       status: notification.status || null,
       taskDate: formatDate(notification.orderId.orderDetail.deliveryTime),
-      taskTime: formatDate(notification.orderId.orderDetail.deliveryTime),
+      taskTime: formatTime(notification.orderId.orderDetail.deliveryTime),
     }));
 
     res.status(200).json({

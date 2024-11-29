@@ -2,7 +2,6 @@ const express = require("express");
 const cors = require("cors");
 const cron = require("node-cron");
 const morgan = require("morgan");
-// const NodeCache = require("node-cache");
 
 const globalErrorHandler = require("./middlewares/globalErrorHandler");
 
@@ -51,7 +50,6 @@ const autoAllocationRoute = require("./routes/adminRoute/deliveryManagementRoute
 require("dotenv").config();
 require("./config/dbConnect");
 require("./DBSeeder/adminSeeder");
-// require("./dbtest");
 
 const {
   createOrdersFromScheduled,
@@ -86,7 +84,6 @@ const { preparePayoutForMerchant } = require("./utils/merchantHelpers.js");
 const {
   deleteOldActivityLogs,
 } = require("./controllers/admin/activityLogs/activityLogController.js");
-// const { createSettlement } = require("./utils/razorpayPayment.js");
 
 //middlewares
 app.use(express.json());
@@ -105,10 +102,6 @@ app.use(
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   })
 );
-
-// const nodeCache = new NodeCache({
-//   stdTTL: 60,
-// });
 
 // =====================================================
 // ------------------Routers----------------------------
@@ -206,7 +199,6 @@ cron.schedule("30 18 * * *", async () => {
 
 // Cron jobs for every minutes
 cron.schedule("* * * * *", async () => {
-  // await moveAppDetailToHistoryAndResetForAllAgents();
   deleteExpiredConversationsAndMessages();
   populateUserSocketMap();
 
