@@ -115,19 +115,11 @@ const orderDetailSchema = mongoose.Schema(
       type: String,
       default: null,
     },
-    instructionInDelivery: {
-      type: String,
-      default: null,
-    },
     instructionInPickup: {
       type: String,
       default: null,
     },
-    voiceInstructionToMerchant: {
-      type: String,
-      default: null,
-    },
-    voiceInstructionToDeliveryAgent: {
+    instructionInDelivery: {
       type: String,
       default: null,
     },
@@ -136,6 +128,14 @@ const orderDetailSchema = mongoose.Schema(
       default: null,
     },
     voiceInstructionInDelivery: {
+      type: String,
+      default: null,
+    },
+    voiceInstructionToMerchant: {
+      type: String,
+      default: null,
+    },
+    voiceInstructionToDeliveryAgent: {
       type: String,
       default: null,
     },

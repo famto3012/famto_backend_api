@@ -892,36 +892,36 @@ const fetchcustomerAndMerchantAndCart = async (customerId, next) => {
 
 const processVoiceInstructions = async (req, cart, next) => {
   try {
-    let voiceInstructiontoMerchantURL =
-      cart?.cartDetail?.voiceInstructiontoMerchant || "";
-    let voiceInstructiontoAgentURL =
-      cart?.cartDetail?.voiceInstructiontoAgent || "";
+    let voiceInstructionToMerchantURL =
+      cart?.cartDetail?.voiceInstructionToMerchant || "";
+    let voiceInstructionToAgentURL =
+      cart?.cartDetail?.voiceInstructionToAgent || "";
 
     if (req.files) {
-      const { voiceInstructiontoMerchant, voiceInstructiontoAgent } = req.files;
+      const { voiceInstructionToMerchant, voiceInstructionToAgent } = req.files;
 
-      if (req.files.voiceInstructiontoMerchant) {
-        if (voiceInstructiontoMerchantURL) {
-          await deleteFromFirebase(voiceInstructiontoMerchantURL);
+      if (req.files.voiceInstructionToMerchant) {
+        if (voiceInstructionToMerchantURL) {
+          await deleteFromFirebase(voiceInstructionToMerchantURL);
         }
-        voiceInstructiontoMerchantURL = await uploadToFirebase(
-          voiceInstructiontoMerchant,
+        voiceInstructionToMerchantURL = await uploadToFirebase(
+          voiceInstructionToMerchant,
           "VoiceInstructions"
         );
       }
 
-      if (req.files.voiceInstructiontoAgent) {
-        if (voiceInstructiontoAgentURL) {
-          await deleteFromFirebase(voiceInstructiontoAgentURL);
+      if (req.files.voiceInstructionToAgent) {
+        if (voiceInstructionToAgentURL) {
+          await deleteFromFirebase(voiceInstructionToAgentURL);
         }
-        voiceInstructiontoAgentURL = await uploadToFirebase(
-          voiceInstructiontoAgent,
+        voiceInstructionToAgentURL = await uploadToFirebase(
+          voiceInstructionToAgent,
           "VoiceInstructions"
         );
       }
     }
 
-    return { voiceInstructiontoMerchantURL, voiceInstructiontoAgentURL };
+    return { voiceInstructionToMerchantURL, voiceInstructionToAgentURL };
   } catch (err) {
     next(appError(err.message));
   }

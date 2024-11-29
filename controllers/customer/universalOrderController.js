@@ -47,6 +47,9 @@ const {
   processScheduledDelivery,
 } = require("../../utils/createOrderHelpers");
 const Task = require("../../models/Task");
+const {
+  editNotificationSettingStatusController,
+} = require("../admin/notification/notificationSetting/notificationSettingController");
 
 // Get all available business categories according to the order
 const getAllBusinessCategoryController = async (req, res, next) => {
@@ -204,124 +207,6 @@ const listRestaurantsController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
-
-// // Search Restaurants or Products in a businesscategory
-// const searchMerchantsOrProducts = async (req, res, next) => {
-//   try {
-//     const { query, businessCategoryId, latitude, longitude } = req.query;
-
-//     const foundGeofence = await geoLocation(latitude, longitude);
-
-//     if (!foundGeofence) {
-//       return next(appError("Geofence not found", 404));
-//     }
-
-//     const customerId = req.userAuth;
-
-//     const currentCustomer = await Customer.findById(customerId)
-//       .select("customerDetails.favoriteMerchants")
-//       .exec();
-
-//     if (!currentCustomer) return next(appError("Customer not found", 404));
-
-//     const customerLocation = [latitude, longitude];
-
-//     const availableMerchants = await Merchant.find({
-//       "merchantDetail.merchantName": { $regex: query, $options: "i" },
-//       "merchantDetail.geofenceId": foundGeofence._id,
-//       "merchantDetail.businessCategoryId": { $in: [businessCategoryId] },
-//       "merchantDetail.pricing.0": { $exists: true },
-//       "merchantDetail.pricing.modelType": { $exists: true },
-//       "merchantDetail.pricing.modelId": { $exists: true },
-//       "merchantDetail.location": { $ne: [] },
-//       isBlocked: false,
-//       isApproved: "Approved",
-//     });
-
-//     const filteredMerchants = availableMerchants?.filter((merchant) => {
-//       const servingRadius = merchant.merchantDetail.servingRadius || 0;
-//       if (servingRadius > 0) {
-//         const merchantLocation = merchant.merchantDetail.location;
-//         const distance = turf.distance(
-//           turf.point(merchantLocation),
-//           turf.point(customerLocation),
-//           { units: "kilometers" }
-//         );
-//         return distance <= servingRadius;
-//       }
-//       return true;
-//     });
-
-//     const sortedMerchants = await sortMerchantsBySponsorship(filteredMerchants);
-
-//     const simplifiedMerchants = await Promise.all(
-//       sortedMerchants.map(async (merchant) => {
-//         const isFavorite =
-//           currentCustomer?.customerDetails?.favoriteMerchants?.includes(
-//             merchant._id
-//           ) ?? false;
-
-//         return {
-//           id: merchant._id,
-//           merchantName: merchant.merchantDetail.merchantName,
-//           description: merchant.merchantDetail.description,
-//           averageRating: merchant.merchantDetail.averageRating,
-//           status: merchant.status,
-//           restaurantType: merchant.merchantDetail.merchantFoodType || "-",
-//           merchantImageURL: merchant.merchantDetail.merchantImageURL,
-//           displayAddress: merchant.merchantDetail.displayAddress || "-",
-//           preOrderStatus: merchant.merchantDetail.preOrderStatus,
-//           isFavorite,
-//         };
-//       })
-//     );
-
-//     const categories = await Category.find({
-//       businessCategoryId,
-//     });
-
-//     // Extract all category ids to search products within all these categories
-//     const categoryIds = categories.map((category) => category._id);
-
-//     // Search products within the found categoryIds
-//     const products = await Product.find({
-//       categoryId: { $in: categoryIds }, // Search within all relevant categories
-//       $or: [
-//         { productName: { $regex: query, $options: "i" } },
-//         // { description: { $regex: query, $options: "i" } },
-//         { searchTags: { $elemMatch: { $regex: query, $options: "i" } } },
-//       ],
-//     })
-//       .select(
-//         "_id productName price description productImageURL inventory variants"
-//       )
-//       .sort({ order: 1 });
-
-//     const formattedResponse = products?.map((product) => ({
-//       id: product._id,
-//       productName: product.productName,
-//       price: product.price,
-//       description: product.description,
-//       productImageUrl: product?.productImageURL || null,
-//       variants: product.variants.map((variant) => ({
-//         id: variant._id,
-//         variantName: variant.variantName,
-//         variantTypes: variant.variantTypes.map((variantType) => ({
-//           id: variantType._id,
-//           typeName: variantType.typeName,
-//           price: variantType.price,
-//         })),
-//       })),
-//     }));
-
-//     res.status(200).json({
-//       merchants: simplifiedMerchants,
-//       products: formattedResponse,
-//     });
-//   } catch (err) {
-//     next(appError(err.message));
-//   }
-// };
 
 // Get all categories of merchant
 const getAllCategoriesOfMerchants = async (req, res, next) => {
@@ -673,160 +558,11 @@ const filterAndSearchMerchantController = async (req, res, next) => {
   }
 };
 
-// Search for a product in the merchant
-const searchProductsInMerchantController = async (req, res, next) => {
-  try {
-    const { merchantId, businessCategoryId } = req.params;
-    const { query } = req.query;
-
-    if (!merchantId || !businessCategoryId)
-      return next(
-        appError("Merchant id or Business category id is missing", 400)
-      );
-
-    if (!query) return next(appError("Query is required", 400));
-
-    // Find all categories belonging to the merchant with the given business category
-    const categories = await Category.find({ merchantId, businessCategoryId });
-
-    if (!categories || categories.length === 0) {
-      return next(
-        appError(
-          "Categories not found for the given merchant and business category",
-          404
-        )
-      );
-    }
-
-    // Extract all category ids to search products within all these categories
-    const categoryIds = categories.map((category) => category._id);
-
-    // Search products within the found categoryIds
-    const products = await Product.find({
-      categoryId: { $in: categoryIds },
-      $or: [
-        { productName: { $regex: query, $options: "i" } },
-        { searchTags: { $elemMatch: { $regex: query, $options: "i" } } },
-      ],
-    })
-      .populate(
-        "discountId",
-        "discountName maxAmount discountType discountValue validFrom validTo onAddOn status"
-      )
-      .select(
-        "_id productName price description discountId productImageURL inventory variants"
-      )
-      .sort({ order: 1 });
-
-    const currentDate = new Date();
-
-    const formattedResponse = products?.map((product) => {
-      const discount = product?.discountId;
-      const validFrom = new Date(discount?.validFrom);
-      const validTo = new Date(discount?.validTo);
-      validTo?.setHours(23, 59, 59, 999); // Adjust validTo to the end of the day
-
-      let discountPrice = null;
-
-      // Check if discount is applicable
-      if (
-        discount &&
-        validFrom <= currentDate &&
-        validTo >= currentDate &&
-        discount.status
-      ) {
-        if (discount.onAddOn) {
-          // Apply discount to each variant type price if onAddOn is true
-          return {
-            id: product._id,
-            productName: product.productName,
-            price: product.price,
-            discountPrice: null, // Main product discount price is null if discount is on variants
-            description: product.description,
-            productImageUrl: product?.productImageURL || null,
-            variants: product.variants.map((variant) => ({
-              id: variant._id,
-              variantName: variant.variantName,
-              variantTypes: variant.variantTypes.map((variantType) => {
-                let variantDiscountPrice = null;
-
-                if (discount.discountType === "Percentage-discount") {
-                  let discountAmount =
-                    (variantType.price * discount.discountValue) / 100;
-                  if (discountAmount > discount.maxAmount)
-                    discountAmount = discount.maxAmount;
-                  variantDiscountPrice = Math.round(
-                    Math.max(0, variantType.price - discountAmount)
-                  );
-                } else if (discount.discountType === "Flat-discount") {
-                  variantDiscountPrice = Math.round(
-                    Math.max(0, variantType.price - discount.discountValue)
-                  );
-                }
-
-                return {
-                  id: variantType._id,
-                  typeName: variantType.typeName,
-                  price: variantType.price,
-                  discountPrice: variantDiscountPrice,
-                };
-              }),
-            })),
-          };
-        } else {
-          // Apply discount to the main product price if onAddOn is false
-          if (discount.discountType === "Percentage-discount") {
-            let discountAmount = (product.price * discount.discountValue) / 100;
-            if (discountAmount > discount.maxAmount)
-              discountAmount = discount.maxAmount;
-            discountPrice = Math.round(
-              Math.max(0, product.price - discountAmount)
-            );
-          } else if (discount.discountType === "Flat-discount") {
-            discountPrice = Math.round(
-              Math.max(0, product.price - discount.discountValue)
-            );
-          }
-        }
-      }
-
-      // Return a unified format regardless of discount type or application
-      return {
-        id: product._id,
-        productName: product.productName,
-        price: product.price,
-        discountPrice, // Null if no discount or discount is applied to variants
-        description: product.description,
-        productImageUrl: product?.productImageURL || null,
-        variants: product.variants.map((variant) => ({
-          id: variant._id,
-          variantName: variant.variantName,
-          variantTypes: variant.variantTypes.map((variantType) => ({
-            id: variantType._id,
-            typeName: variantType.typeName,
-            price: variantType.price,
-            discountPrice: discount?.onAddOn
-              ? variantType.discountPrice || null
-              : null,
-          })),
-        })),
-      };
-    });
-
-    res.status(200).json({
-      message: "Products found in merchant",
-      data: formattedResponse,
-    });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
 // Filter and sort products
-const filterAndSortProductsController = async (req, res, next) => {
+const filterAndSortAndSearchProductsController = async (req, res, next) => {
   try {
     const { merchantId } = req.params;
-    const { filter, sort } = req.query;
+    const { filter, sort, productName } = req.query;
 
     const customerId = req.userAuth;
 
@@ -848,43 +584,66 @@ const filterAndSortProductsController = async (req, res, next) => {
       if (filter === "Veg") {
         query.type = filter;
       } else if (filter === "Favorite") {
-        const customer = await Customer.findOne({
-          "customerDetails.favoriteProducts": {
-            $exists: true,
-            $not: { $size: 0 },
-          },
-        }).select("customerDetails.favoriteProducts");
-        if (customer) {
-          query._id = { $in: customer.customerDetails.favoriteProducts };
-        } else {
-          query._id = { $in: [] };
-        }
+        query._id = { $in: currentCustomer.customerDetails.favoriteProducts };
       }
+    }
+
+    if (productName) {
+      query.productName = { $regex: productName.trim(), $options: "i" };
     }
 
     // Build the sort object
     let sortObj = {};
     if (sort) {
       if (sort === "Price - low to high") {
-        sortObj.price = 1; // Ascending order
+        sortObj.price = 1;
       } else if (sort === "Price - high to low") {
-        sortObj.price = -1; // Descending order
+        sortObj.price = -1;
       }
     }
 
     // Fetch the filtered and sorted products
     const products = await Product.find(query)
       .select(
-        "productName price longDescription productImageURL inventory variants"
+        "productName price longDescription type productImageURL inventory variants minQuantityToOrder maxQuantityPerOrder preparationTime description"
       )
       .sort(sortObj);
 
-    // Convert _id to id
-    const formattedProducts = products.map((product) => {
+    const currentDate = new Date();
+
+    const formattedResponse = products?.map((product) => {
       const isFavorite =
         currentCustomer?.customerDetails?.favoriteProducts?.includes(
           product._id
         ) ?? false;
+
+      const discount = product?.discountId;
+      const validFrom = new Date(discount?.validFrom);
+      const validTo = new Date(discount?.validTo);
+      validTo?.setHours(23, 59, 59, 999);
+
+      let discountPrice = null;
+
+      // Check if discount is applicable
+      if (
+        discount &&
+        validFrom <= currentDate &&
+        validTo >= currentDate &&
+        discount.status
+      ) {
+        if (discount.discountType === "Percentage-discount") {
+          let discountAmount = (product.price * discount.discountValue) / 100;
+          if (discountAmount > discount.maxAmount)
+            discountAmount = discount.maxAmount;
+          discountPrice = Math.round(
+            Math.max(0, product.price - discountAmount)
+          );
+        } else if (discount.discountType === "Flat-discount") {
+          discountPrice = Math.round(
+            Math.max(0, product.price - discount.discountValue)
+          );
+        }
+      }
 
       return {
         productId: product._id,
@@ -894,19 +653,21 @@ const filterAndSortProductsController = async (req, res, next) => {
         minQuantityToOrder: product.minQuantityToOrder || null,
         maxQuantityPerOrder: product.maxQuantityPerOrder || null,
         isFavorite,
-        preparationTime: `${product.preparationTime} min` || null,
-        description: product.description || null,
-        longDescription: product.longDescription || null,
+        preparationTime: product?.preparationTime
+          ? `${product.preparationTime} min`
+          : null,
+        description: product?.description || null,
+        longDescription: product?.longDescription || null,
         type: product.type || null,
-        productImageURL: product.productImageURL || null,
+        productImageURL: product?.productImageURL || null,
         inventory: product.inventory || null,
-        variantAvailable: product.variants && product.variants.length > 0,
+        variantAvailable: product?.variants && product?.variants?.length > 0,
       };
     });
 
     res.status(200).json({
-      message: "Filtered and sorted products retrieved successfully",
-      products: formattedProducts,
+      success: true,
+      products: formattedResponse,
     });
   } catch (err) {
     next(appError(err.message));
@@ -1288,7 +1049,7 @@ const confirmOrderDetailController = async (req, res, next) => {
 
     const scheduledDetails = processScheduledDelivery(deliveryOption, req);
 
-    const { voiceInstructiontoMerchantURL, voiceInstructiontoAgentURL } =
+    const { voiceInstructionToMerchantURL, voiceInstructionToAgentURL } =
       processVoiceInstructions(req, cart, next);
 
     const {
@@ -1385,8 +1146,8 @@ const confirmOrderDetailController = async (req, res, next) => {
           deliveryAddress,
           instructionToDeliveryAgent,
           instructionToMerchant,
-          voiceInstructiontoMerchantURL,
-          voiceInstructiontoAgentURL,
+          voiceInstructionToMerchantURL,
+          voiceInstructionToAgentURL,
           distance,
           deliveryOption,
           startDate: scheduledDetails?.startDate || null,
@@ -1455,7 +1216,7 @@ const applyTipController = async (req, res, next) => {
   }
 };
 
-// Apply promocode
+// Apply Promo code
 const applyPromocodeController = async (req, res, next) => {
   try {
     const { promoCode, addedTip = 0 } = req.body;
@@ -2723,8 +2484,7 @@ module.exports = {
   getAllProductsOfMerchantController,
   getProductVariantsByProductIdController,
   filterAndSearchMerchantController,
-  searchProductsInMerchantController,
-  filterAndSortProductsController,
+  filterAndSortAndSearchProductsController,
   toggleProductFavoriteController,
   toggleMerchantFavoriteController,
   addRatingToMerchantController,
