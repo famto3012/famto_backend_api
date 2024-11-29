@@ -20,7 +20,7 @@ const addAndUpdateAutoAllocationController = async (req, res, next) => {
       });
 
       res.status(201).json({
-        message: "AutoAllocation updated successfully",
+        message: "Auto Allocation updated successfully",
       });
     } else {
       await AutoAllocation.create({
@@ -31,7 +31,7 @@ const addAndUpdateAutoAllocationController = async (req, res, next) => {
       });
 
       res.status(201).json({
-        message: "AutoAllocation created successfully",
+        message: "Auto Allocation created successfully",
       });
     }
   } catch (err) {
@@ -63,7 +63,8 @@ const updateAutoAllocationStatus = async (req, res, next) => {
         });
 
         res.status(201).json({
-          message: "AutoAllocation is set to inactive",
+          isActive: false,
+          message: "Auto Allocation is set to inactive",
         });
       } else {
         await AutoAllocation.findByIdAndUpdate(autoAllocation._id, {
@@ -71,12 +72,13 @@ const updateAutoAllocationStatus = async (req, res, next) => {
         });
 
         res.status(201).json({
-          message: "AutoAllocation is set to active",
+          isActive: true,
+          message: "Auto Allocation is set to active",
         });
       }
     } else {
       res.status(404).json({
-        message: "Please set  an autoAllocation rule",
+        message: "Please set an Auto Allocation rule",
       });
     }
   } catch (err) {
