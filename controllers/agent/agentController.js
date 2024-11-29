@@ -1023,8 +1023,12 @@ const getPickUpDetailController = async (req, res, next) => {
       pickupPhoneNumber:
         taskFound?.pickupDetail?.pickupAddress?.phoneNumber || null,
       instructions:
-        taskFound?.orderId?.orderDetail?.instructionInPickup || null,
+        taskFound?.orderId?.orderDetail?.instructionToMerchant ||
+        taskFound?.orderId?.orderDetail?.instructionInPickup ||
+        null,
       voiceInstructions:
+        taskFound?.orderId?.orderDetail?.voiceInstructionToMerchant ||
+        taskFound?.orderId?.orderDetail?.voiceInstructionInPickup ||
         taskFound?.orderId?.orderDetail?.voiceInstructionToDeliveryAgent ||
         null,
       pickupLocation: taskFound?.pickupDetail?.pickupLocation,
@@ -1064,10 +1068,13 @@ const getDeliveryDetailController = async (req, res, next) => {
       customerPhoneNumber:
         taskFound?.deliveryDetail?.deliveryAddress?.phoneNumber,
       instructions:
+        taskFound?.orderId?.orderDetail?.instructionInDelivery ||
         taskFound?.orderId?.orderDetail?.instructionToDeliveryAgent ||
-        taskFound?.orderId?.orderDetail?.instructionInDelivery,
+        null,
       voiceInstructions:
-        taskFound?.orderId?.orderDetail?.voiceInstructionToDeliveryAgent,
+        taskFound?.orderId?.orderDetail?.voiceInstructionInDelivery ||
+        taskFound?.orderId?.orderDetail?.voiceInstructionToDeliveryAgent ||
+        null,
       deliveryLocation: taskFound?.deliveryDetail?.deliveryLocation,
       deliveryMode: taskFound.orderId.orderDetail.deliveryMode,
       orderItems: taskFound.orderId.items,

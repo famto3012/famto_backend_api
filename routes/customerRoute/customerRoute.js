@@ -48,8 +48,6 @@ const {
   getAllBusinessCategoryController,
   homeSearchController,
   filterAndSearchMerchantController,
-  searchProductsInMerchantController,
-  filterAndSortProductsController,
   toggleProductFavoriteController,
   toggleMerchantFavoriteController,
   addRatingToMerchantController,
@@ -71,6 +69,7 @@ const {
   getCartBillController,
   getOrderTrackingDetail,
   getOrderTrackingStepper,
+  filterAndSortAndSearchProductsController,
 } = require("../../controllers/customer/universalOrderController");
 const {
   addPickUpAddressController,
@@ -189,17 +188,10 @@ customerRoute.get(
   filterAndSearchMerchantController
 );
 
-// Search products in merchant
-customerRoute.get(
-  "/search-products/:merchantId/:businessCategoryId",
-  isAuthenticated,
-  searchProductsInMerchantController
-);
-
 customerRoute.get(
   "/products/filter-and-sort/:merchantId",
   isAuthenticated,
-  filterAndSortProductsController
+  filterAndSortAndSearchProductsController
 );
 
 // Toggle Product favorite
