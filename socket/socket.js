@@ -97,8 +97,8 @@ const sendPushNotificationToUser = async (fcmToken, message, eventName) => {
 
   const mes = {
     notification: {
-      title: notificationSettings?.title || message.title,
-      body: notificationSettings?.description || message.body,
+      title: notificationSettings?.title || message?.title,
+      body: notificationSettings?.description || message?.body,
       image: message?.image,
     },
     data: {
@@ -146,13 +146,22 @@ const sendPushNotificationToUser = async (fcmToken, message, eventName) => {
 const createNotificationLog = async (notificationSettings, message) => {
   const logData = {
     imageUrl: message?.image,
-    title: notificationSettings?.title,
-    description: notificationSettings?.description,
+    title: notificationSettings?.title || message?.title,
+    description: notificationSettings?.description || message?.body,
     ...(!notificationSettings?.customer && { orderId: message?.orderId }),
   };
 
   try {
     if (notificationSettings?.customer) {
+      try {
+        await CustomerNotificationLogs.create({
+          ...logData,
+          customerId: message?.customerId,
+        });
+      } catch (err) {
+        console.log(`Error in creating Customer notification log: ${err}`);
+      }
+    } else if (message?.sendToCustomer) {
       try {
         await CustomerNotificationLogs.create({
           ...logData,
@@ -236,7 +245,7 @@ const sendNotification = async (userId, eventName, data, role) => {
   let notificationSent = false;
 
   const notificationSettings = await NotificationSetting.findOne({
-    event: eventName,
+    event: eventName || "",
   });
 
   if (fcmToken && !notificationSent) {
