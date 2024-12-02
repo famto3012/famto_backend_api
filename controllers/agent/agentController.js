@@ -1159,6 +1159,24 @@ const addCustomOrderItemPriceController = async (req, res, next) => {
 
     await orderFound.save();
 
+    if (orderFound?.customerId) {
+      const notificationData = {
+        fcm: {
+          title: "Custom order status update.",
+          body: `The price of item ${itemFound?.itemName} is ${price}.`,
+          sendToCustomer: true,
+        },
+      };
+
+      const eventName = "";
+
+      await sendNotification(
+        orderFound?.customerId,
+        eventName,
+        notificationData
+      );
+    }
+
     res.status(200).json({
       message: "Item price updated successfully",
       data: newPrice,
@@ -1662,6 +1680,24 @@ const updateCustomOrderStatusController = async (req, res, next) => {
     orderFound.detailAddedByAgent.shopUpdates.push(updatedData);
 
     await orderFound.save();
+
+    if (orderFound?.customerId) {
+      const notificationData = {
+        fcm: {
+          title: "Custom order status update.",
+          body: description,
+          sendToCustomer: true,
+        },
+      };
+
+      const eventName = "";
+
+      await sendNotification(
+        orderFound?.customerId,
+        eventName,
+        notificationData
+      );
+    }
 
     res.status(200).json({
       message: "Shop updated successfully in custom order",
