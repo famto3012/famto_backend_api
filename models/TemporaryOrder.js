@@ -20,5 +20,5 @@ const tempOrderSchema = new mongoose.Schema({
   },
 });
 
-const TemperoryOrder = mongoose.model("TemperoryOrder", tempOrderSchema);
-module.exports = TemperoryOrder;
+const TemporaryOrder = mongoose.model("TemporaryOrder", tempOrderSchema);
+module.exports = TemporaryOrder;

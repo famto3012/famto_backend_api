@@ -87,10 +87,7 @@ const convertISTToUTC = (startDate, time12hr) => {
   );
   // Convert to UTC
   const utcDateTime = istDateTime.utc();
-  console.log("istDateTime", istDateTime);
-  // Convert IST to UTC
-  // let utcDateTime = istDateTime.utcOffset("+05:30").utc(); // Adjust for IST (UTC +5:30) and convert to UTC
-  console.log("utcDateTime", utcDateTime);
+
   // Return the UTC date and time in ISO format
   return new Date(utcDateTime);
 };

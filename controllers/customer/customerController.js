@@ -170,7 +170,7 @@ const setSelectedGeofence = async (req, res, next) => {
 const getCustomerProfileController = async (req, res, next) => {
   try {
     const currentCustomer = await Customer.findById(req.userAuth).select(
-      "fullName phoneNumber email customerDetails"
+      "fullName phoneNumber email customerDetails.customerImageURL customerDetails.walletBalance customerDetails.pricing"
     );
 
     if (!currentCustomer) return next(appError("Customer not found", 404));
@@ -182,6 +182,8 @@ const getCustomerProfileController = async (req, res, next) => {
       email: currentCustomer.email || "-",
       phoneNumber: currentCustomer.phoneNumber,
       walletBalance: currentCustomer?.customerDetails?.walletBalance || 0.0,
+      haveSubscription:
+        currentCustomer?.customerDetails?.pricing?.length > 0 ? true : false,
     };
 
     res.status(200).json({
@@ -208,8 +210,6 @@ const updateCustomerProfileController = async (req, res, next) => {
     const { fullName, email } = req.body;
     const normalizedEmail = email ? email.toLowerCase() : null;
 
-    console.log(req.body);
-
     const currentCustomer = await Customer.findById(req.userAuth);
 
     if (!currentCustomer) return next(appError("Customer not found", 404));
@@ -231,7 +231,6 @@ const updateCustomerProfileController = async (req, res, next) => {
     let customerImageURL =
       currentCustomer?.customerDetails?.customerImageURL || "";
 
-    console.log("Existing image", customerImageURL);
     if (req.file) {
       try {
         if (customerImageURL) await deleteFromFirebase(customerImageURL);
@@ -619,7 +618,7 @@ const getAllScheduledOrdersOfCustomer = async (req, res, next) => {
 };
 
 // Get single order detail
-const getsingleOrderDetailController = async (req, res, next) => {
+const getSingleOrderDetailController = async (req, res, next) => {
   try {
     const currentCustomer = req.userAuth;
     const { orderId } = req.params;
@@ -873,24 +872,28 @@ const getCustomerSubscriptionDetailController = async (req, res, next) => {
   }
 };
 
-// Get all promocodes by customer geofence
-const getPromocodesOfCustomerController = async (req, res, next) => {
+// Fetch promo codes
+const fetchPromoCodesController = async (req, res, next) => {
   try {
-    const currentCustomer = req.userAuth;
-    const customerFound = await Customer.findById(currentCustomer);
+    const customerId = req.userAuth;
+    const customer = await Customer.findById(customerId);
 
-    if (!customerFound) return next(appError("Customer not found", 404));
+    if (!customer) return next(appError("Customer not found", 404));
+
+    const { deliveryMode, query } = req.query;
 
     const currentDate = new Date();
-
-    const promocodesFound = await PromoCode.find({
-      status: true,
-      geofenceId: customerFound.customerDetails.geofenceId,
+    const filter = {
+      geofenceId: customer.customerDetails.geofenceId,
       fromDate: { $lte: currentDate },
-      applicationMode: "Public",
       toDate: { $gte: currentDate },
       $expr: { $lt: ["$noOfUserUsed", "$maxAllowedUsers"] },
-    });
+      deliveryMode,
+    };
+
+    if (query) filter.promoCode = query;
+
+    const promocodesFound = await PromoCode.find(filter);
 
     const formattedResponse = promocodesFound.map((promo) => {
       return {
@@ -898,55 +901,17 @@ const getPromocodesOfCustomerController = async (req, res, next) => {
         imageURL: promo.imageUrl,
         promoCode: promo.promoCode,
         discount: promo.discount,
+        description: promo.description,
         promoType: promo.promoType,
         validUpTo: formatDate(promo.toDate),
+        maxDiscountValue: promo.maxDiscountValue,
+        minOrderAmount: promo.minOrderAmount,
+        status: promo.status,
       };
     });
 
     res.status(200).json({
       status: "Available promocodes",
-      data: formattedResponse,
-    });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
-// Search available promo codes
-const searchPromocodeController = async (req, res, next) => {
-  try {
-    const currentCustomer = req.userAuth;
-
-    const customerFound = await Customer.findById(currentCustomer);
-
-    if (!customerFound) return next(appError("Customer not found", 404));
-
-    const { query } = req.query;
-
-    const currentDate = new Date();
-
-    const promocodesFound = await PromoCode.find({
-      promoCode: query.trim(),
-      status: true,
-      geofenceId: customerFound.customerDetails.geofenceId,
-      fromDate: { $lte: currentDate },
-      toDate: { $gte: currentDate },
-      $expr: { $lt: ["$noOfUserUsed", "$maxAllowedUsers"] },
-    });
-
-    const formattedResponse = promocodesFound.map((promo) => {
-      return {
-        id: promo._id,
-        imageURL: promo.imageUrl,
-        promoCode: promo.promoCode,
-        discount: promo.discount,
-        promoType: promo.promoType,
-        validUpTo: formatDate(promo.toDate),
-      };
-    });
-
-    res.status(200).json({
-      status: "Search results of promocode",
       data: formattedResponse,
     });
   } catch (err) {
@@ -1030,12 +995,15 @@ const getCustomerCartController = async (req, res, next) => {
     res.status(200).json({
       message: "Customer cart found",
       data: {
-        cartId: populatedCartWithVariantNames._id,
-        customerId: populatedCartWithVariantNames.customerId,
+        showCart:
+          populatedCartWithVariantNames?.items?.length > 0 ? true : false,
+        cartId: populatedCartWithVariantNames?._id || null,
+        customerId: populatedCartWithVariantNames?.customerId || null,
         merchantId: populatedCartWithVariantNames?.merchantId || null,
         items: populatedCartWithVariantNames?.items || [],
         deliveryOption:
           populatedCartWithVariantNames?.cartDetail?.deliveryOption || null,
+        itemLength: populatedCartWithVariantNames?.items?.length || 0,
       },
     });
   } catch (err) {
@@ -1345,11 +1313,11 @@ module.exports = {
   getFavoriteMerchantsController,
   getFavoriteProductsController,
   getCustomerOrdersController,
-  getsingleOrderDetailController,
+  getSingleOrderDetailController,
   getTransactionOfCustomerController,
   getCustomerSubscriptionDetailController,
   getPromocodesOfCustomerController,
-  searchPromocodeController,
+  searchPromoCodeController,
   searchOrderController,
   getWalletAndLoyaltyController,
   getCustomerCartController,
@@ -1366,4 +1334,5 @@ module.exports = {
   getAllScheduledOrdersOfCustomer,
   getScheduledOrderDetailController,
   getMerchantAppBannerController,
+  fetchPromoCodesController,
 };

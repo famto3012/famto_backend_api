@@ -2452,6 +2452,8 @@ const createOrderByAdminController = async (req, res, next) => {
       newOrderCreated = await Order.create(orderOptions);
     }
 
+    console.log("One", newOrderCreated._id);
+
     const [, , , newOrder] = await Promise.all([
       ActivityLog.create({
         userId: req.userAuth,
@@ -2465,37 +2467,39 @@ const createOrderByAdminController = async (req, res, next) => {
       Order.findById(newOrderCreated._id).populate("merchantId"),
     ]);
 
+    console.log("newOrder", newOrder);
+
     const eventName = "newOrderCreated";
 
     const { rolesToNotify, data } = await findRolesToNotify(eventName);
 
     const socketData = {
-      orderId: newOrder._id,
-      orderDetail: newOrder.orderDetail,
-      billDetail: newOrder.billDetail,
+      orderId: newOrder?._id,
+      orderDetail: newOrder?.orderDetail,
+      billDetail: newOrder?.billDetail,
       orderDetailStepper: newOrder?.orderDetailStepper?.created,
-      _id: newOrder._id,
-      orderStatus: newOrder.status,
+      _id: newOrder?._id,
+      orderStatus: newOrder?.status,
       merchantName: newOrder?.merchantId?.merchantDetail?.merchantName || "-",
       customerName:
         newOrder?.orderDetail?.deliveryAddress?.fullName ||
         newOrder?.customerId?.fullName ||
         "-",
       deliveryMode: newOrder?.orderDetail?.deliveryMode,
-      orderDate: formatDate(newOrder.createdAt),
-      orderTime: formatTime(newOrder.createdAt),
+      orderDate: formatDate(newOrder?.createdAt),
+      orderTime: formatTime(newOrder?.createdAt),
       deliveryDate: newOrder?.orderDetail?.deliveryTime
-        ? formatDate(newOrder.orderDetail.deliveryTime)
+        ? formatDate(newOrder?.orderDetail?.deliveryTime)
         : "-",
       deliveryTime: newOrder?.orderDetail?.deliveryTime
-        ? formatTime(newOrder.orderDetail.deliveryTime)
+        ? formatTime(newOrder?.orderDetail?.deliveryTime)
         : "-",
-      paymentMethod: newOrder.paymentMode,
-      deliveryOption: newOrder.orderDetail.deliveryOption,
-      amount: newOrder.billDetail.grandTotal,
+      paymentMethod: newOrder?.paymentMode,
+      deliveryOption: newOrder?.orderDetail?.deliveryOption,
+      amount: newOrder?.billDetail?.grandTotal,
     };
 
-    sendSocketData(newOrder.customerId, eventName, socketData);
+    sendSocketData(newOrder?.customerId, eventName, socketData);
     sendSocketData(process.env.ADMIN_ID, eventName, socketData);
     if (newOrder?.merchantId?._id) {
       sendSocketData(newOrder?.merchantId?._id, eventName, socketData);
@@ -2519,8 +2523,8 @@ const createOrderByAdminController = async (req, res, next) => {
         const notificationData = {
           fcm: {
             ...data,
-            orderId: newOrder._id,
-            customerId: newOrder.customerId,
+            orderId: newOrder?._id,
+            customerId: newOrder?.customerId,
           },
         };
 

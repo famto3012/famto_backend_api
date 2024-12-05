@@ -63,7 +63,6 @@ const uploadToFirebase = async (file, folderName, locationImage = false) => {
     fileBuffer = file.buffer;
   } else {
     // For unsupported file types, log and throw an error
-    console.log("Unsupported file type:", file.mimetype);
     throw new Error("Unsupported file format");
   }
 
@@ -80,7 +79,7 @@ const deleteFromFirebase = async (fileUrl) => {
     await deleteObject(storageRef);
   } catch (error) {
     if (error.code === "storage/object-not-found") {
-      console.log("File not found in Firebase, no action needed.");
+      // console.log("File not found in Firebase, no action needed.");
       return;
     }
     throw error;

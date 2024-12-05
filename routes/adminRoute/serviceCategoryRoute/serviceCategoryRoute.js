@@ -16,7 +16,7 @@ const serviceCategoryRoute = express.Router();
 
 serviceCategoryRoute.post(
   "/add-service",
-  upload.single("bannerImage"),
+  upload.single("serviceImage"),
   [
     body("title").notEmpty().withMessage("Title is required"),
     body("geofenceId").notEmpty().withMessage("Geofence id is required"),
@@ -27,8 +27,12 @@ serviceCategoryRoute.post(
 );
 
 serviceCategoryRoute.put(
-  "/edit-service/:id",
-  upload.single("bannerImage"),
+  "/edit-service/:serviceId",
+  upload.single("serviceImage"),
+  [
+    body("title").notEmpty().withMessage("Title is required"),
+    body("geofenceId").notEmpty().withMessage("Geofence id is required"),
+  ],
   isAuthenticated,
   isAdmin,
   editServiceCategoryController

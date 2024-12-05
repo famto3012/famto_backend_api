@@ -23,10 +23,12 @@ const addServiceCategoryController = async (req, res, next) => {
     const lastCategory = await ServiceCategory.findOne().sort({
       order: -1,
     });
+
     const newOrder = lastCategory ? lastCategory.order + 1 : 1;
 
     let bannerImageURL = "";
     if (req.file) {
+      console.log(req.file);
       bannerImageURL = await uploadToFirebase(
         req.file,
         "ServiceCategoryImages"
@@ -40,9 +42,8 @@ const addServiceCategoryController = async (req, res, next) => {
       order: newOrder,
     });
 
-    if (!newServiceCategory) {
+    if (!newServiceCategory)
       return next(appError("Error in creating new Service category"));
-    }
 
     res.status(200).json({
       message: "Service category added successfully",
@@ -65,28 +66,29 @@ const editServiceCategoryController = async (req, res, next) => {
   }
 
   try {
-    const { id } = req.params;
+    const { serviceId } = req.params;
     const { title, geofenceId } = req.body;
 
-    const serviceCategory = await ServiceCategory.findById(id);
-    if (!serviceCategory) {
-      return next(appError("Service category not found"));
-    }
+    const service = await ServiceCategory.findById(serviceId);
+    if (!service) return next(appError("Service category not found", 404));
 
-    let bannerImageURL = serviceCategory.bannerImageURL;
+    let bannerImageURL = service?.bannerImageURL;
     if (req.file) {
-      await deleteFromFirebase(serviceCategory.bannerImageURL);
+      if (bannerImageURL) {
+        await deleteFromFirebase(service.bannerImageURL);
+      }
+
       bannerImageURL = await uploadToFirebase(
         req.file,
         "ServiceCategoryImages"
       );
     }
 
-    serviceCategory.title = title || serviceCategory.title;
-    serviceCategory.geofenceId = geofenceId || serviceCategory.geofenceId;
-    serviceCategory.bannerImageURL = bannerImageURL;
+    service.title = title || service.title;
+    service.geofenceId = geofenceId || service.geofenceId;
+    service.bannerImageURL = bannerImageURL;
 
-    const updatedServiceCategory = await serviceCategory.save();
+    const updatedServiceCategory = await service.save();
 
     if (!updatedServiceCategory) {
       return next(appError("Error in updating Service category"));
@@ -103,16 +105,15 @@ const editServiceCategoryController = async (req, res, next) => {
 
 const getAllServiceCategoriesController = async (req, res, next) => {
   try {
-    const serviceCategories = await ServiceCategory.find().sort({ order: 1 });
+    const services = await ServiceCategory.find({}).sort({ order: 1 });
 
-    if (!serviceCategories) {
-      return next(appError("No service categories found"));
-    }
+    const formattedResponse = services?.map((service) => ({
+      serviceId: service._id,
+      title: service.title,
+      bannerImage: service.bannerImageURL,
+    }));
 
-    res.status(200).json({
-      message: "Service categories retrieved successfully",
-      data: serviceCategories,
-    });
+    res.status(200).json(formattedResponse);
   } catch (err) {
     next(appError(err.message));
   }
@@ -122,16 +123,18 @@ const getServiceCategoryByIdController = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const serviceCategory = await ServiceCategory.findById(id);
+    const service = await ServiceCategory.findById(id);
 
-    if (!serviceCategory) {
-      return next(appError("Service category not found"));
-    }
+    if (!service) return next(appError("Service category not found", 404));
 
-    res.status(200).json({
-      message: "Service category retrieved successfully",
-      data: serviceCategory,
-    });
+    const formattedResponse = {
+      serviceId: service.serviceId || null,
+      title: service.title || null,
+      geofenceId: service.geofenceId || null,
+      bannerImage: service.bannerImageURL || null,
+    };
+
+    res.status(200).json(formattedResponse);
   } catch (err) {
     next(appError(err.message));
   }
@@ -159,11 +162,12 @@ const deleteServiceCategoryController = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const serviceFound = await ServiceCategory.findById(id);
+    const service = await ServiceCategory.findById(id);
 
-    if (!serviceFound) {
-      return next(appError("Service not found", 404));
-    }
+    if (!service) return next(appError("Service not found", 404));
+
+    if (service?.bannerImageURL)
+      await deleteFromFirebase(service.bannerImageURL);
 
     await ServiceCategory.findByIdAndDelete(id);
 

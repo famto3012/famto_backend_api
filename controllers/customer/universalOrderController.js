@@ -12,19 +12,21 @@ const PromoCode = require("../../models/PromoCode");
 const Order = require("../../models/Order");
 const ScheduledOrder = require("../../models/ScheduledOrder");
 const SubscriptionLog = require("../../models/SubscriptionLog");
-const TemperoryOrder = require("../../models/TemperoryOrders");
+const TemporaryOrder = require("../../models/TemporaryOrder");
 const NotificationSetting = require("../../models/NotificationSetting");
 
 const {
   sortMerchantsBySponsorship,
   getDistanceFromPickupToDelivery,
-
   calculateDiscountedPrice,
   filterProductIdAndQuantity,
-
-  fetchcustomerAndMerchantAndCart,
+  fetchCustomerAndMerchantAndCart,
   processVoiceInstructions,
   getDiscountAmountFromLoyalty,
+  calculateScheduledCartValue,
+  calculatePromoCodeDiscount,
+  applyPromoCodeDiscount,
+  populateCartDetails,
 } = require("../../utils/customerAppHelpers");
 const {
   createRazorpayOrderId,
@@ -40,31 +42,25 @@ const { sendNotification, sendSocketData } = require("../../socket/socket");
 const {
   validateDeliveryOption,
   processHomeDeliveryDetailInApp,
-
   calculateDeliveryChargesHelper,
   applyDiscounts,
   calculateBill,
   processScheduledDelivery,
 } = require("../../utils/createOrderHelpers");
 const Task = require("../../models/Task");
-const {
-  editNotificationSettingStatusController,
-} = require("../admin/notification/notificationSetting/notificationSettingController");
 
 // Get all available business categories according to the order
 const getAllBusinessCategoryController = async (req, res, next) => {
   try {
     const { latitude, longitude } = req.body;
 
-    if (!latitude || !longitude) {
+    if (!latitude || !longitude)
       return next(appError("Latitude & Longitude are required", 400));
-    }
 
     const geofence = await geoLocation(latitude, longitude);
 
-    if (!geofence) {
-      return next(appError("Customer is outside the listed geofences"));
-    }
+    if (!geofence)
+      return next(appError("Customer is outside the listed geofences", 500));
 
     const allBusinessCategories = await BusinessCategory.find({
       status: true,
@@ -107,7 +103,7 @@ const homeSearchController = async (req, res, next) => {
   try {
     // Search in BusinessCategory by title
     const businessCategories = await BusinessCategory.find({
-      title: { $regex: query, $options: "i" }, // Case-insensitive search
+      title: { $regex: query, $options: "i" },
     })
       .select("title bannerImageURL")
       .exec();
@@ -225,15 +221,13 @@ const getAllCategoriesOfMerchants = async (req, res, next) => {
     const customerLocation = customerFound.customerDetails.location;
 
     let distanceInKM;
-    // if (latitude && longitude) {
-    console.log("Finding distance");
+
     const distance = await getDistanceFromPickupToDelivery(
       merchantLocation,
       customerLocation
     );
 
     distanceInKM = distance.distanceInKM;
-    // }
 
     let distanceWarning = false;
     if (distanceInKM > 12) distanceWarning = true;
@@ -558,6 +552,154 @@ const filterAndSearchMerchantController = async (req, res, next) => {
   }
 };
 
+const searchProductsInMerchantToOrderController = async (req, res, next) => {
+  try {
+    const { merchantId, businessCategoryId } = req.params;
+    const { query } = req.query;
+
+    // if (!merchantId || !businessCategoryId)
+    //   return next(
+    //     appError("Merchant id or Business category id is missing", 400)
+    //   );
+
+    // if (!query) return next(appError("Query is required", 400));
+
+    // Find all categories belonging to the merchant with the given business category
+    const categories = await Category.find({ merchantId, businessCategoryId });
+
+    // if (!categories || categories.length === 0) {
+    //   return next(
+    //     appError(
+    //       "Categories not found for the given merchant and business category",
+    //       404
+    //     )
+    //   );
+    // }
+
+    // Extract all category ids to search products within all these categories
+    const categoryIds = categories.map((category) => category._id);
+
+    // Search products within the found categoryIds
+    const products = await Product.find({
+      categoryId: { $in: categoryIds },
+      $or: [
+        { productName: { $regex: query, $options: "i" } },
+        { searchTags: { $elemMatch: { $regex: query, $options: "i" } } },
+      ],
+    })
+      .populate(
+        "discountId",
+        "discountName maxAmount discountType discountValue validFrom validTo onAddOn status"
+      )
+      .select(
+        "_id productName price description discountId productImageURL inventory variants"
+      )
+      .sort({ order: 1 });
+
+    const currentDate = new Date();
+
+    const formattedResponse = products?.map((product) => {
+      const discount = product?.discountId;
+      const validFrom = new Date(discount?.validFrom);
+      const validTo = new Date(discount?.validTo);
+      validTo?.setHours(23, 59, 59, 999); // Adjust validTo to the end of the day
+
+      let discountPrice = null;
+
+      // Check if discount is applicable
+      if (
+        discount &&
+        validFrom <= currentDate &&
+        validTo >= currentDate &&
+        discount.status
+      ) {
+        if (discount.onAddOn) {
+          // Apply discount to each variant type price if onAddOn is true
+          return {
+            id: product._id,
+            productName: product.productName,
+            price: product.price,
+            discountPrice: null, // Main product discount price is null if discount is on variants
+            description: product.description,
+            productImageUrl: product?.productImageURL || null,
+            variants: product.variants.map((variant) => ({
+              id: variant._id,
+              variantName: variant.variantName,
+              variantTypes: variant.variantTypes.map((variantType) => {
+                let variantDiscountPrice = null;
+
+                if (discount.discountType === "Percentage-discount") {
+                  let discountAmount =
+                    (variantType.price * discount.discountValue) / 100;
+                  if (discountAmount > discount.maxAmount)
+                    discountAmount = discount.maxAmount;
+                  variantDiscountPrice = Math.round(
+                    Math.max(0, variantType.price - discountAmount)
+                  );
+                } else if (discount.discountType === "Flat-discount") {
+                  variantDiscountPrice = Math.round(
+                    Math.max(0, variantType.price - discount.discountValue)
+                  );
+                }
+
+                return {
+                  id: variantType._id,
+                  typeName: variantType.typeName,
+                  price: variantType.price,
+                  discountPrice: variantDiscountPrice,
+                };
+              }),
+            })),
+          };
+        } else {
+          // Apply discount to the main product price if onAddOn is false
+          if (discount.discountType === "Percentage-discount") {
+            let discountAmount = (product.price * discount.discountValue) / 100;
+            if (discountAmount > discount.maxAmount)
+              discountAmount = discount.maxAmount;
+            discountPrice = Math.round(
+              Math.max(0, product.price - discountAmount)
+            );
+          } else if (discount.discountType === "Flat-discount") {
+            discountPrice = Math.round(
+              Math.max(0, product.price - discount.discountValue)
+            );
+          }
+        }
+      }
+
+      // Return a unified format regardless of discount type or application
+      return {
+        id: product._id,
+        productName: product.productName,
+        price: product.price,
+        discountPrice, // Null if no discount or discount is applied to variants
+        description: product.description,
+        productImageUrl: product?.productImageURL || null,
+        variants: product.variants.map((variant) => ({
+          id: variant._id,
+          variantName: variant.variantName,
+          variantTypes: variant.variantTypes.map((variantType) => ({
+            id: variantType._id,
+            typeName: variantType.typeName,
+            price: variantType.price,
+            discountPrice: discount?.onAddOn
+              ? variantType.discountPrice || null
+              : null,
+          })),
+        })),
+      };
+    });
+
+    res.status(200).json({
+      message: "Products found in merchant",
+      data: formattedResponse,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 // Filter and sort products
 const filterAndSortAndSearchProductsController = async (req, res, next) => {
   try {
@@ -837,6 +979,8 @@ const addOrUpdateCartItemController = async (req, res, next) => {
   try {
     const { productId, quantity, variantTypeId } = req.body;
 
+    console.log("Updating Cart: ", req.body);
+
     const customerId = req.userAuth;
 
     if (!customerId) {
@@ -999,7 +1143,7 @@ const addOrUpdateCartItemController = async (req, res, next) => {
 };
 
 // Get delivery option of merchant
-const getdeliveryOptionOfMerchantController = async (req, res, next) => {
+const getDeliveryOptionOfMerchantController = async (req, res, next) => {
   try {
     const { merchantId } = req.params;
 
@@ -1035,7 +1179,7 @@ const confirmOrderDetailController = async (req, res, next) => {
       ifScheduled,
     } = req.body;
 
-    const { customer, cart, merchant } = await fetchcustomerAndMerchantAndCart(
+    const { customer, cart, merchant } = await fetchCustomerAndMerchantAndCart(
       req.userAuth,
       next
     );
@@ -1217,31 +1361,25 @@ const applyTipController = async (req, res, next) => {
 };
 
 // Apply Promo code
-const applyPromocodeController = async (req, res, next) => {
+const applyPromoCodeController = async (req, res, next) => {
   try {
-    const { promoCode, addedTip = 0 } = req.body;
+    const { promoCode } = req.body;
     const customerId = req.userAuth;
 
-    // Ensure customer is authenticated
-    if (!customerId) {
-      return next(appError("Customer is not authenticated", 401));
-    }
-
-    const customerFound = await Customer.findById(customerId);
+    const [customerFound, cart] = await Promise.all([
+      Customer.findById(customerId),
+      CustomerCart.findOne({ customerId }),
+    ]);
 
     if (!customerFound) return next(appError("Customer not found", 404));
-
-    // Find the customer's cart
-    const cart = await CustomerCart.findOne({ customerId });
-    if (!cart) {
-      return next(appError("Cart not found", 404));
-    }
+    if (!cart) return next(appError("Cart not found", 404));
 
     // Find the promo code
     const promoCodeFound = await PromoCode.findOne({
       promoCode,
       geofenceId: customerFound.customerDetails.geofenceId,
       status: true,
+      deliveryMode: cart.cartDetail.deliveryMode,
     });
 
     if (!promoCodeFound) {
@@ -1255,8 +1393,12 @@ const applyPromocodeController = async (req, res, next) => {
       );
     }
 
-    // Check if total cart price meets minimum order amount
-    let totalCartPrice = cart.billDetail.itemTotal;
+    const { itemTotal } = cart.billDetail;
+    const totalCartPrice =
+      cart.cartDetail.deliveryOption === "Scheduled"
+        ? calculateScheduledCartValue(cart, promoCodeFound)
+        : itemTotal;
+
     if (totalCartPrice < promoCodeFound.minOrderAmount) {
       return next(
         appError(
@@ -1266,178 +1408,34 @@ const applyPromocodeController = async (req, res, next) => {
       );
     }
 
-    // Check promo code validity dates
     const now = new Date();
     if (now < promoCodeFound.fromDate || now > promoCodeFound.toDate) {
       return next(appError("Promo code is not valid at this time", 400));
     }
 
-    // Check user limit for promo code
     if (promoCodeFound.noOfUserUsed >= promoCodeFound.maxAllowedUsers) {
       return next(appError("Promo code usage limit reached", 400));
     }
 
-    let perDayAmount = 0;
-    let eligibleDates;
+    const promoCodeDiscount = calculatePromoCodeDiscount(
+      promoCodeFound,
+      totalCartPrice
+    );
 
-    if (cart.cartDetail.deliveryOption === "Scheduled") {
-      const { itemTotal, originalDeliveryCharge } = cart?.billDetail;
-      const { startDate, endDate, numOfDays } = cart?.cartDetail;
+    // Apply discount
+    const updatedCart = applyPromoCodeDiscount(
+      cart,
+      promoCodeFound,
+      promoCodeDiscount
+    );
 
-      const promoStartDate = new Date(promoCodeFound.fromDate); // Promo start date
-      const promoEndDate = new Date(promoCodeFound.toDate); // Promo end date
-      const now = new Date(); // Current date
-      const deliveryStartDate = new Date(startDate); // Convert startDate to Date object
-      const deliveryEndDate = new Date(endDate); // Convert endDate to Date object
+    await updatedCart.save();
 
-      // Check if promo start date is in the future
-      const effectiveStartDate =
-        deliveryStartDate > promoStartDate ? deliveryStartDate : promoStartDate;
-      const effectiveEndDate =
-        deliveryEndDate < promoEndDate ? deliveryEndDate : promoEndDate;
-
-      // Only apply promo if current date is past promo start date
-      if (now <= promoEndDate && promoStartDate <= deliveryEndDate) {
-        // Calculate the number of eligible days within the promo period
-        eligibleDates =
-          Math.ceil(
-            (effectiveEndDate - effectiveStartDate) / (1000 * 60 * 60 * 24)
-          ) + 1;
-
-        // Apply promo based on eligibility
-        if (promoCodeFound.appliedOn === "Cart-value") {
-          const amount = itemTotal / numOfDays;
-          perDayAmount = amount * eligibleDates;
-        } else if (promoCodeFound.appliedOn === "Delivery-charge") {
-          const amount = originalDeliveryCharge / numOfDays;
-          perDayAmount = amount * eligibleDates;
-        }
-      }
-
-      totalCartPrice = perDayAmount;
-    }
-
-    // Calculate discount amount
-    let promoCodeDiscount = 0;
-    if (promoCodeFound.promoType === "Flat-discount") {
-      promoCodeDiscount =
-        discount +
-        Math.min(promoCodeFound?.discount, promoCodeFound?.maxDiscountValue);
-    } else if (promoCodeFound.promoType === "Percentage-discount") {
-      // Calculate discount, keep it as a number
-      let calculatedDiscount = (totalCartPrice * promoCodeFound.discount) / 100;
-
-      // Apply the max discount value if calculatedDiscount exceeds it
-      if (calculatedDiscount > promoCodeFound.maxDiscountValue) {
-        promoCodeDiscount += promoCodeFound.maxDiscountValue;
-      } else {
-        promoCodeDiscount += calculatedDiscount;
-      }
-    }
-
-    // Apply discount based on where it should be applied
-    let updatedTotal = cart.billDetail.itemTotal; //totalCartPrice;
-    if (promoCodeFound.appliedOn === "Cart-value") {
-      updatedTotal -= promoCodeDiscount;
-    } else if (promoCodeFound.appliedOn === "Delivery-charge") {
-      if (cart.billDetail.originalDeliveryCharge) {
-        const discountedDeliveryCharge =
-          cart.billDetail.originalDeliveryCharge - promoCodeDiscount;
-
-        cart.billDetail.discountedDeliveryCharge =
-          discountedDeliveryCharge < 0 ? 0 : discountedDeliveryCharge;
-      }
-    }
-
-    // Ensure updated total is not negative
-    if (updatedTotal < 0) {
-      updatedTotal = 0;
-    }
-
-    let discountedDeliveryCharge;
-    let discountedGrandTotal;
-
-    if (promoCodeFound.appliedOn === "Cart-value") {
-      discountedGrandTotal =
-        cart.billDetail.originalGrandTotal - promoCodeDiscount;
-    } else if (promoCodeFound.appliedOn === "Delivery-charge") {
-      discountedDeliveryCharge =
-        parseFloat(cart.billDetail.originalDeliveryCharge) -
-        parseFloat(promoCodeDiscount);
-    }
-
-    // Update cart and save
-    const discountedAmount = cart?.billDetail?.merchantDiscount;
-
-    const subTotal =
-      updatedTotal -
-      discountedAmount +
-      (cart.billDetail.addedTip || 0) +
-      (discountedDeliveryCharge || cart?.billDetail?.originalDeliveryCharge);
-
-    cart.billDetail.discountedDeliveryCharge = discountedDeliveryCharge
-      ? discountedDeliveryCharge.toFixed(2)
-      : null;
-    cart.billDetail.discountedGrandTotal = discountedGrandTotal
-      ? Math.round(discountedGrandTotal)
-      : null;
-    cart.billDetail.promoCodeDiscount = promoCodeDiscount;
-    cart.billDetail.discountedAmount = discountedAmount;
-    cart.billDetail.subTotal = Math.round(subTotal);
-
-    promoCodeFound.noOfUserUsed += 1;
-
-    await promoCodeFound.save();
-    await cart.save();
-
-    // Populate the cart with product and variant details
-    const populatedCart = await CustomerCart.findOne({ customerId })
-      .populate({
-        path: "items.productId",
-        select: "productName productImageURL description variants",
-      })
-      .exec();
-
-    const populatedCartWithVariantNames = populatedCart.toObject();
-    populatedCartWithVariantNames.items =
-      populatedCartWithVariantNames.items.map((item) => {
-        const product = item.productId;
-        let variantTypeName = null;
-        let variantTypeData = null;
-        if (item.variantTypeId && product.variants) {
-          const variantType = product.variants
-            .flatMap((variant) => variant.variantTypes)
-            .find((type) => type._id.equals(item.variantTypeId));
-          if (variantType) {
-            variantTypeName = variantType.typeName;
-            variantTypeData = {
-              id: variantType._id,
-              variantTypeName: variantTypeName,
-            };
-          }
-        }
-        return {
-          ...item,
-          productId: {
-            id: product._id,
-            productName: product.productName,
-            description: product.description,
-            productImageURL: product.productImageURL,
-          },
-          variantTypeId: variantTypeData,
-        };
-      });
+    const populatedCart = await populateCartDetails(customerId);
 
     res.status(200).json({
       success: "Promo code applied successfully",
-      data: {
-        cartId: populatedCartWithVariantNames._id,
-        customerId: populatedCartWithVariantNames.customerId,
-        merchantId: populatedCartWithVariantNames.merchantId,
-        billDetail: populatedCartWithVariantNames.billDetail,
-        cartDetail: populatedCartWithVariantNames.cartDetail,
-        items: populatedCartWithVariantNames.items,
-      },
+      data: populatedCart,
     });
   } catch (err) {
     next(appError(err.message));
@@ -1565,7 +1563,7 @@ const orderPaymentController = async (req, res, next) => {
       type: "Debit",
     };
 
-    let customerTransation = {
+    let customerTransaction = {
       madeOn: new Date(),
       transactionType: "Bill",
       transactionAmount: orderAmount,
@@ -1607,9 +1605,13 @@ const orderPaymentController = async (req, res, next) => {
 
         walletTransaction.orderId = newOrder._id;
         customer.walletTransactionDetail.push(walletTransaction);
-        customer.transactionDetail.push(customerTransation);
+        customer.transactionDetail.push(customerTransaction);
 
         await Promise.all([
+          PromoCode.findOneAndUpdate(
+            { promoCode: newOrder.billDetail.promoCodeUsed },
+            { $inc: { noOfUserUsed: 1 } }
+          ),
           customer.save(),
           CustomerCart.deleteOne({ customerId }),
         ]);
@@ -1624,7 +1626,7 @@ const orderPaymentController = async (req, res, next) => {
         const orderId = new mongoose.Types.ObjectId();
 
         // Store order details temporarily in the database
-        const tempOrder = await TemperoryOrder.create({
+        const tempOrder = await TemporaryOrder.create({
           orderId,
           customerId,
           merchantId: cart.merchantId,
@@ -1645,7 +1647,7 @@ const orderPaymentController = async (req, res, next) => {
         await CustomerCart.deleteOne({ customerId });
 
         if (!tempOrder) {
-          return next(appError("Error in creating temperory order"));
+          return next(appError("Error in creating temporary order"));
         }
 
         // Return countdown timer to client
@@ -1657,7 +1659,7 @@ const orderPaymentController = async (req, res, next) => {
 
         // After 60 seconds, create the order if not canceled
         setTimeout(async () => {
-          const storedOrderData = await TemperoryOrder.findOne({ orderId });
+          const storedOrderData = await TemporaryOrder.findOne({ orderId });
 
           if (storedOrderData) {
             let newOrderCreated = await Order.create({
@@ -1695,11 +1697,11 @@ const orderPaymentController = async (req, res, next) => {
 
             walletTransaction.orderId = newOrder._id;
             customer.walletTransactionDetail.push(walletTransaction);
-            customer.transactionDetail.push(customerTransation);
+            customer.transactionDetail.push(customerTransaction);
 
             await Promise.all([
               customer.save(),
-              TemperoryOrder.deleteOne({ orderId }),
+              TemporaryOrder.deleteOne({ orderId }),
             ]);
 
             const eventName = "newOrderCreated";
@@ -1796,7 +1798,7 @@ const orderPaymentController = async (req, res, next) => {
       const orderId = new mongoose.Types.ObjectId();
 
       // Store order details temporarily in the database
-      const tempOrder = await TemperoryOrder.create({
+      const tempOrder = await TemporaryOrder.create({
         orderId,
         customerId,
         merchantId: cart.merchantId,
@@ -1813,11 +1815,11 @@ const orderPaymentController = async (req, res, next) => {
         purchasedItems,
       });
 
-      customer.transactionDetail.push(customerTransation);
+      customer.transactionDetail.push(customerTransaction);
       await customer.save();
 
       if (!tempOrder) {
-        return next(appError("Error in creating temperory order"));
+        return next(appError("Error in creating temporary order"));
       }
 
       // Clear the cart
@@ -1832,7 +1834,7 @@ const orderPaymentController = async (req, res, next) => {
 
       // After 60 seconds, create the order if not canceled
       setTimeout(async () => {
-        const storedOrderData = await TemperoryOrder.findOne({ orderId });
+        const storedOrderData = await TemporaryOrder.findOne({ orderId });
 
         if (storedOrderData) {
           let newOrderCreated = await Order.create({
@@ -1869,7 +1871,7 @@ const orderPaymentController = async (req, res, next) => {
           }
 
           // Remove the temporary order data from the database
-          await TemperoryOrder.deleteOne({ orderId });
+          await TemporaryOrder.deleteOne({ orderId });
 
           const eventName = "newOrderCreated";
 
@@ -2084,7 +2086,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
       subTotal: cart.billDetail.subTotal,
     };
 
-    let customerTransation = {
+    let customerTransaction = {
       madeOn: new Date(),
       transactionType: "Bill",
       transactionAmount: orderAmount,
@@ -2123,7 +2125,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
       // Clear the cart
       await CustomerCart.deleteOne({ customerId });
 
-      customer.transactionDetail.push(customerTransation);
+      customer.transactionDetail.push(customerTransaction);
       await customer.save();
 
       res.status(200).json({
@@ -2136,7 +2138,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
       const orderId = new mongoose.Types.ObjectId();
 
       // Store order details temporarily in the database
-      const tempOrder = await TemperoryOrder.create({
+      const tempOrder = await TemporaryOrder.create({
         orderId,
         customerId,
         merchantId: cart.merchantId,
@@ -2154,11 +2156,11 @@ const verifyOnlinePaymentController = async (req, res, next) => {
         purchasedItems,
       });
 
-      customer.transactionDetail.push(customerTransation);
+      customer.transactionDetail.push(customerTransaction);
       await customer.save();
 
       if (!tempOrder) {
-        return next(appError("Error in creating temperory order"));
+        return next(appError("Error in creating temporary order"));
       }
 
       await CustomerCart.deleteOne({ customerId });
@@ -2172,7 +2174,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
 
       // After 60 seconds, create the order if not canceled
       setTimeout(async () => {
-        const storedOrderData = await TemperoryOrder.findOne({ orderId });
+        const storedOrderData = await TemporaryOrder.findOne({ orderId });
 
         if (storedOrderData) {
           let newOrderCreated = await Order.create({
@@ -2208,7 +2210,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
           }
 
           // Remove the temporary order data from the database
-          await TemperoryOrder.deleteOne({ orderId });
+          await TemporaryOrder.deleteOne({ orderId });
 
           const eventName = "newOrderCreated";
 
@@ -2303,13 +2305,13 @@ const cancelOrderBeforeCreationController = async (req, res, next) => {
   try {
     const { orderId } = req.params;
 
-    const orderFound = await TemperoryOrder.findOne({ orderId });
+    const orderFound = await TemporaryOrder.findOne({ orderId });
 
     const customerFound = await Customer.findById(orderFound.customerId);
 
     let updatedTransactionDetail = {
       transactionType: "Refund",
-      madeon: new Date(),
+      madeOn: new Date(),
       type: "Credit",
     };
 
@@ -2322,7 +2324,7 @@ const cancelOrderBeforeCreationController = async (req, res, next) => {
         }
 
         // Remove the temporary order data from the database
-        await TemperoryOrder.deleteOne({ orderId });
+        await TemporaryOrder.deleteOne({ orderId });
 
         customerFound.transactionDetail.push(updatedTransactionDetail);
 
@@ -2334,7 +2336,7 @@ const cancelOrderBeforeCreationController = async (req, res, next) => {
         return;
       } else if (orderFound.paymentMode === "Cash-on-delivery") {
         // Remove the temporary order data from the database
-        await TemperoryOrder.deleteOne({ orderId });
+        await TemporaryOrder.deleteOne({ orderId });
 
         res.status(200).json({ message: "Order cancelled" });
         return;
@@ -2405,13 +2407,16 @@ const getOrderTrackingDetail = async (req, res, next) => {
       Task.findOne({ orderId }).populate("agentId"),
     ]);
 
+    const lastUpdatedShop = order?.detailAddedByAgent?.shopUpdate.splice(-1);
+
     const formattedResponse = {
-      pickupLocation: order.orderDetail.pickupLocation,
+      pickupLocation:
+        lastUpdatedShop?.location || order?.orderDetail?.pickupLocation || [],
       deliveryLocation: order.orderDetail.deliveryLocation,
       deliveryMode: order.orderDetail.deliveryMode,
-      agentId: task.agentId._id,
-      agentName: task.agentId._id,
-      agentImage: task.agentId.agentImageURL,
+      agentId: task?.agentId?._id || null,
+      agentName: task?.agentId?.fullName || null,
+      agentImage: task?.agentId?.agentImageURL || null,
       merchantId: order?.merchantId?._id || null,
       merchantName: order?.merchantId?.merchantDetail?.merchantName || null,
       merchantPhone: order?.merchantId?.phoneNumber || null,
@@ -2455,16 +2460,16 @@ const getOrderTrackingStepper = async (req, res, next) => {
         task.pickupDetail.pickupStatus === "Completed" ? true : false,
       reachedPickupLocationAt: formatTime(task?.pickupDetail?.completedTime),
       pickedByAgent:
-        task.deliveryDetail.deliveryStatus === "Started" ? true : false,
+        task.deliveryDetail.deliveryStatus !== "Accepted" ? true : false,
       pickedByAgentAt: formatTime(task?.deliveryDetail?.startTime),
       noteStatus: order?.detailAddedByAgent?.notes ? true : false,
-      note: order.detailAddedByAgent.notes,
+      note: order?.detailAddedByAgent?.notes || null,
       signatureStatus: order?.detailAddedByAgent?.signatureImageURL
         ? true
         : false,
-      signature: order.detailAddedByAgent.signatureImageURL,
+      signature: order?.detailAddedByAgent?.signatureImageURL || null,
       imageURLStatus: order?.detailAddedByAgent?.imageURL ? true : false,
-      imageURL: order.detailAddedByAgent.imageURL,
+      imageURL: order?.detailAddedByAgent?.imageURL || null,
       billStatus: true,
       billDetail: order?.billDetail,
       orderCompletedStatus: order.status === "Completed" ? true : false,
@@ -2490,8 +2495,8 @@ module.exports = {
   addRatingToMerchantController,
   getTotalRatingOfMerchantController,
   addOrUpdateCartItemController,
-  getdeliveryOptionOfMerchantController,
-  applyPromocodeController,
+  getDeliveryOptionOfMerchantController,
+  applyPromoCodeController,
   orderPaymentController,
   verifyOnlinePaymentController,
   cancelOrderBeforeCreationController,
@@ -2503,4 +2508,5 @@ module.exports = {
   getCartBillController,
   getOrderTrackingDetail,
   getOrderTrackingStepper,
+  searchProductsInMerchantToOrderController,
 };

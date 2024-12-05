@@ -178,6 +178,10 @@ const billSchema = mongoose.Schema(
       type: Number,
       default: null,
     },
+    taxAmount: {
+      type: Number,
+      default: null,
+    },
   },
   {
     _id: false,

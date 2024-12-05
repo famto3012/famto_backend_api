@@ -48,7 +48,7 @@ accountLogRoute.get(
 );
 
 accountLogRoute.put(
-  "/unblock-user/:userId",
+  "/unblock-user/:logId",
   isAuthenticated,
   isAdmin,
   unBlockUserController

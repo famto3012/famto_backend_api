@@ -52,7 +52,6 @@ const promoCodeSchema = new mongoose.Schema(
       {
         type: String,
         ref: "Merchant",
-        required: true,
       },
     ],
     geofenceId: {
@@ -71,6 +70,11 @@ const promoCodeSchema = new mongoose.Schema(
     noOfUserUsed: {
       type: Number,
       default: 0,
+    },
+    deliveryMode: {
+      type: String,
+      required: true,
+      enum: ["Home Delivery", "Take Away", "Pick and Drop", "Custom Order"],
     },
   },
   {

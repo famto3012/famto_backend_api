@@ -24,8 +24,6 @@ businessCategoryRoute.post(
 
 businessCategoryRoute.get(
   "/get-all-business-category",
-  // isAuthenticated,
-  // isAdminOrMerchant,
   getAllBusinessCategoryController
 );
 
@@ -51,7 +49,7 @@ businessCategoryRoute.delete(
   deleteBusinessCategoryController
 );
 
-businessCategoryRoute.post(
+businessCategoryRoute.patch(
   "/change-status/:businessCategoryId",
   isAuthenticated,
   isAdmin,

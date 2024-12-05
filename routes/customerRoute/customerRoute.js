@@ -19,12 +19,12 @@ const {
   rateDeliveryAgentController,
   getFavoriteMerchantsController,
   getCustomerOrdersController,
-  getsingleOrderDetailController,
+  getSingleOrderDetailController,
   searchOrderController,
   getTransactionOfCustomerController,
   getCustomerSubscriptionDetailController,
   getPromocodesOfCustomerController,
-  searchPromocodeController,
+  searchPromoCodeController,
   getWalletAndLoyaltyController,
   getCustomerCartController,
   getCustomerAppBannerController,
@@ -43,6 +43,7 @@ const {
   getFavoriteProductsController,
   getVisibilityOfReferralAndLoyaltyPoint,
   getMerchantAppBannerController,
+  fetchPromoCodesController,
 } = require("../../controllers/customer/customerController");
 const {
   getAllBusinessCategoryController,
@@ -53,7 +54,7 @@ const {
   addRatingToMerchantController,
   getTotalRatingOfMerchantController,
   addOrUpdateCartItemController,
-  applyPromocodeController,
+  applyPromoCodeController,
   orderPaymentController,
   verifyOnlinePaymentController,
   listRestaurantsController,
@@ -62,7 +63,7 @@ const {
   getAllProductsOfMerchantController,
   searchMerchantsOrProducts,
   getProductVariantsByProductIdController,
-  getdeliveryOptionOfMerchantController,
+  getDeliveryOptionOfMerchantController,
   clearCartController,
   applyTipController,
   confirmOrderDetailController,
@@ -70,11 +71,12 @@ const {
   getOrderTrackingDetail,
   getOrderTrackingStepper,
   filterAndSortAndSearchProductsController,
+  searchProductsInMerchantToOrderController,
 } = require("../../controllers/customer/universalOrderController");
 const {
   addPickUpAddressController,
-  addPickandDropItemsController,
-  addTipAndApplyPromocodeInPickAndDropController,
+  addPickAndDropItemsController,
+  addTipAndApplyPromoCodeInPickAndDropController,
   confirmPickAndDropController,
   verifyPickAndDropPaymentController,
   cancelPickBeforeOrderCreationController,
@@ -86,7 +88,7 @@ const {
   editItemInCartController,
   deleteItemInCartController,
   addDeliveryAddressController,
-  addTipAndApplyPromocodeInCustomOrderController,
+  addTipAndApplyPromoCodeInCustomOrderController,
   confirmCustomOrderController,
   cancelCustomBeforeOrderCreationController,
   getSingleItemController,
@@ -189,6 +191,12 @@ customerRoute.get(
 );
 
 customerRoute.get(
+  "/search-products/:merchantId/:businessCategoryId",
+  isAuthenticated,
+  searchProductsInMerchantToOrderController
+);
+
+customerRoute.get(
   "/products/filter-and-sort/:merchantId",
   isAuthenticated,
   filterAndSortAndSearchProductsController
@@ -235,7 +243,7 @@ customerRoute.put(
 customerRoute.get(
   "/merchant/:merchantId/delivery-option",
   isAuthenticated,
-  getdeliveryOptionOfMerchantController
+  getDeliveryOptionOfMerchantController
 );
 
 // Update cart address details
@@ -249,7 +257,7 @@ customerRoute.post(
 customerRoute.post(
   "/apply-promocode",
   isAuthenticated,
-  applyPromocodeController
+  applyPromoCodeController
 );
 
 customerRoute.post("/add-tip", isAuthenticated, applyTipController);
@@ -315,7 +323,7 @@ customerRoute.get(
 customerRoute.get(
   "/orders/:orderId",
   isAuthenticated,
-  getsingleOrderDetailController
+  getSingleOrderDetailController
 );
 
 customerRoute.get(
@@ -347,7 +355,13 @@ customerRoute.get(
 customerRoute.get(
   "/search-promocodes",
   isAuthenticated,
-  searchPromocodeController
+  searchPromoCodeController
+);
+
+customerRoute.get(
+  "/get-promocodes",
+  isAuthenticated,
+  fetchPromoCodesController
 );
 
 customerRoute.get(
@@ -383,13 +397,13 @@ customerRoute.get(
 customerRoute.post(
   "/add-pick-and-drop-items",
   isAuthenticated,
-  addPickandDropItemsController
+  addPickAndDropItemsController
 );
 
 customerRoute.post(
   "/add-tip-and-promocode",
   isAuthenticated,
-  addTipAndApplyPromocodeInPickAndDropController
+  addTipAndApplyPromoCodeInPickAndDropController
 );
 
 customerRoute.post(
@@ -452,7 +466,7 @@ customerRoute.post(
 customerRoute.post(
   "/add-custom-tip-and-promocode",
   isAuthenticated,
-  addTipAndApplyPromocodeInCustomOrderController
+  addTipAndApplyPromoCodeInCustomOrderController
 );
 
 customerRoute.post(
