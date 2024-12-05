@@ -1312,6 +1312,7 @@ const getCurrentOngoingOrders = async (req, res, next) => {
   }
 };
 
+//
 const removeAppliedPromoCode = async (req, res, next) => {
   try {
     const { cartId, deliveryMode } = req.body;
