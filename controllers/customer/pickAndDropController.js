@@ -456,8 +456,6 @@ const addTipAndApplyPromoCodeInPickAndDropController = async (
       await promoCodeFound.save();
     }
 
-    console.log("promoCodeUsed", promoCodeUsed);
-
     // Ensure proper type conversion for discountAmount
     discountAmount = parseFloat(discountAmount) || 0;
 
