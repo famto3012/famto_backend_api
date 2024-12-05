@@ -659,7 +659,6 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
       const products = await Product.find({ categoryId: category._id }).lean();
 
       products.forEach((product) => {
-        console.log("Products", product);
         const variants =
           product.variants.length > 0
             ? product.variants
@@ -677,7 +676,6 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
               : [{ typeName: null, price: null }];
 
           variantTypes.forEach((type) => {
-            console.log("product.costPrice", product.costPrice);
             formattedResponse.push({
               businessCategory: category.businessCategoryId?.title || null,
               categoryName: category.categoryName || null,
@@ -746,8 +744,6 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
     });
 
     await writer.writeRecords(formattedResponse);
-
-    // console.log("formattedResponse", formattedResponse);
 
     // Add UTF-8 BOM to the CSV file
     const bom = "\uFEFF"; // BOM character

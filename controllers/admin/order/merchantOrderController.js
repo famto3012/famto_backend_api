@@ -386,7 +386,7 @@ const rejectOrderController = async (req, res, next) => {
 
     let updatedTransactionDetail = {
       transactionType: "Refund",
-      madeon: new Date(),
+      madeOn: new Date(),
       type: "Credit",
       transactionAmount: null,
     };
@@ -1161,7 +1161,7 @@ const createOrderController = async (req, res, next) => {
       subTotal: cartFound.billDetail.subTotal,
     };
 
-    let customerTransation = {
+    let customerTransaction = {
       madeOn: new Date(),
       transactionType: "Bill",
       transactionAmount: orderBill.grandTotal,
@@ -1281,7 +1281,7 @@ const createOrderController = async (req, res, next) => {
         // Clear the cart
         await CustomerCart.deleteOne({ customerId: customerFound._id });
 
-        customerFound.transactionDetail.push(customerTransation);
+        customerFound.transactionDetail.push(customerTransaction);
 
         newOrder.status = "On-going";
 
@@ -1418,7 +1418,7 @@ const createOrderController = async (req, res, next) => {
       }
     }
 
-    customerFound.transactionDetail.push(customerTransation);
+    customerFound.transactionDetail.push(customerTransaction);
 
     await customerFound.save();
 
@@ -1758,7 +1758,7 @@ const getAvailableMerchantBusinessCategoriesController = async (
       }));
 
     res.status(200).json({
-      message: "Businesss categories",
+      message: "Business categories",
       data: formattedResponse,
     });
   } catch (err) {
@@ -1769,8 +1769,7 @@ const getAvailableMerchantBusinessCategoriesController = async (
 const markScheduledOrderViewedController = async (req, res, next) => {
   try {
     const { orderId, merchantId } = req.params;
-    console.log("orderId", orderId);
-    console.log("merchantId", merchantId);
+
     const scheduledOrder = await ScheduledOrder.findOneAndUpdate(
       { _id: orderId, merchantId },
       {

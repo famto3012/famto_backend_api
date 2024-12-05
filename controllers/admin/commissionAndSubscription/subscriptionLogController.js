@@ -279,7 +279,6 @@ const createSubscriptionLogUser = async (req, res, next) => {
       razorpayOrderId = razorpayOrderResponse.orderId;
       paymentStatus = "Pending";
     } else {
-      console.log("Inside Cash");
       function addDays(date, days) {
         let result = new Date(date);
         result.setDate(result.getDate() + days);

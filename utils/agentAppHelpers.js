@@ -20,8 +20,6 @@ const formatToHours = (milliseconds) => {
 
 const moveAppDetailToHistoryAndResetForAllAgents = async () => {
   try {
-    console.log("Started moving App details to history for all agents");
-
     const Agent = require("../models/Agent");
     const AgentPricing = require("../models/AgentPricing");
     const mongoose = require("mongoose");
@@ -138,8 +136,6 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
     if (bulkOperations.length > 0) {
       await Agent.bulkWrite(bulkOperations);
     }
-
-    console.log("Finished moving App details to history for all agents");
   } catch (err) {
     console.log(
       `Error moving appDetail to history for all agents: ${err.message}`
@@ -288,16 +284,9 @@ const calculateAgentEarnings = async (agent, order) => {
       const normalizedHours =
         durationInHours < 1 ? 1 : Math.floor(durationInHours);
 
-      console.log("durationInHours:", durationInHours);
-      console.log("normalizedHours:", normalizedHours);
-      console.log("purchaseFare:", agentPricing.purchaseFarePerHour);
-
       totalPurchaseFare = normalizedHours * agentPricing.purchaseFarePerHour;
     }
   }
-
-  console.log("orderSalary:", orderSalary);
-  console.log("totalPurchaseFare:", totalPurchaseFare);
 
   const totalEarnings = orderSalary + totalPurchaseFare;
 

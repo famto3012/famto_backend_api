@@ -110,8 +110,6 @@ const getSingleBusinessCategoryController = async (req, res, next) => {
 const editBusinessCategoryController = async (req, res, next) => {
   const { title, geofenceId } = req.body;
 
-  console.log(req.body);
-
   const errors = validationResult(req);
 
   let formattedErrors = {};

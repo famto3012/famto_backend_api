@@ -181,7 +181,6 @@ cron.schedule("0 6,12,18,0 * * *", async () => {
 
 // Mid night cron jobs
 cron.schedule("30 18 * * *", async () => {
-  console.log("Running Mid night cron jobs");
   const now = new Date();
 
   await Promise.all([
@@ -202,7 +201,6 @@ cron.schedule("* * * * *", async () => {
   deleteExpiredConversationsAndMessages();
   populateUserSocketMap();
 
-  console.log("Running scheduled order job...");
   const now = new Date();
 
   const fiveMinutesBefore = new Date(now.getTime() - 5 * 60 * 1000);
@@ -218,7 +216,6 @@ cron.schedule("* * * * *", async () => {
 
   if (universalScheduledOrders.length) {
     for (const scheduledOrder of universalScheduledOrders) {
-      console.log("Processing Scheduled Order ID:", scheduledOrder._id);
       await createOrdersFromScheduled(scheduledOrder);
     }
   }
@@ -233,10 +230,6 @@ cron.schedule("* * * * *", async () => {
 
   if (pickAndDropScheduledOrders.length) {
     for (const scheduledOrder of pickAndDropScheduledOrders) {
-      console.log(
-        "Processing Pick and Drop Scheduled Order ID:",
-        scheduledOrder._id
-      );
       await createOrdersFromScheduledPickAndDrop(scheduledOrder);
     }
   }

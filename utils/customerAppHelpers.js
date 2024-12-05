@@ -393,14 +393,11 @@ const createOrdersFromScheduledPickAndDrop = async (scheduledOrder) => {
 };
 
 const updateOneDayLoyaltyPointEarning = async () => {
-  console.log("Running Update Loyalty point updation");
   try {
     await Customer.updateMany(
       {},
       { "customerDetails.loyaltyPointEarnedToday": 0 }
     );
-
-    console.log("Loyalty points reset successfully");
   } catch (err) {
     console.log(`Error in updating loyalty point: ${err}`);
   }
@@ -589,10 +586,6 @@ const filterProductIdAndQuantity = async (items) => {
     const filteredArray = await Promise.all(
       items.map(async (item) => {
         if (!item.productId) return null;
-
-        console.log("Item Id: ", item.productId);
-
-        // const productId = item?.productId ||
 
         const product = await Product.findById(item?.productId).lean();
         if (!product) return null;
@@ -859,10 +852,7 @@ const deleteOldLoyaltyPoints = async () => {
           await customer.save();
         }
       }
-
-      console.log("Old loyalty points removed successfully.");
     }
-    console.log("Loyalty Point is not active");
   } catch (error) {
     console.error("Error deleting old loyalty points:", error);
   }
@@ -991,6 +981,24 @@ const applyPromoCodeDiscount = (cart, promoCode, discount) => {
   return cart;
 };
 
+const deductPromoCodeDiscount = (cart, discount) => {
+  const subtractOrNull = (currentValue, discount) => {
+    const newValue = currentValue - discount;
+    return newValue <= 0 ? null : newValue;
+  };
+
+  cart.billDetail.discountedAmount = subtractOrNull(
+    cart.billDetail.discountedAmount,
+    discount
+  );
+  cart.billDetail.discountedGrandTotal += discount;
+  cart.billDetail.discountedDeliveryCharge += discount;
+
+  cart.billDetail.promoCodeUsed = null;
+
+  return cart;
+};
+
 const populateCartDetails = async (customerId) => {
   const cart = await CustomerCart.findOne({ customerId })
     .populate({
@@ -1044,11 +1052,11 @@ module.exports = {
   reduceProductAvailableQuantity,
   calculateMerchantDiscount,
   deleteOldLoyaltyPoints,
-  //
   fetchCustomerAndMerchantAndCart,
   processVoiceInstructions,
   calculateScheduledCartValue,
   calculatePromoCodeDiscount,
   applyPromoCodeDiscount,
   populateCartDetails,
+  deductPromoCodeDiscount,
 };

@@ -62,8 +62,7 @@ const addPromoCodeController = async (req, res, next) => {
 
     // Send a success response
     res.status(201).json({
-      success: true,
-      data: savedPromoCode,
+      message: "Promo code added successfully",
     });
   } catch (err) {
     next(appError(err.message));

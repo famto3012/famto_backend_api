@@ -69,9 +69,6 @@ const preparePayoutForMerchant = async () => {
         date: startTime,
       };
 
-      console.log("MerchantId: ", merchant._id);
-      console.log("payoutData: ", payoutData);
-
       await Merchant.findByIdAndUpdate(
         merchant._id,
         { $push: { payoutDetail: payoutData } },

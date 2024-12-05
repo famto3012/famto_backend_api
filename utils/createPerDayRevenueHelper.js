@@ -1,162 +1,3 @@
-// const CommissionLogs = require("../models/CommissionLog");
-// const HomeScreenRevenueData = require("../models/HomeScreenRevenueData");
-// const Merchant = require("../models/Merchant");
-// const Order = require("../models/Order");
-// const SubscriptionLog = require("../models/SubscriptionLog");
-
-// async function fetchPerDayRevenue(date) {
-//   try {
-//     // Start and end of the day
-//     const startOfDay = new Date(date.setHours(0, 0, 0, 0));
-//     const endOfDay = new Date(date.setHours(23, 59, 59, 999));
-//     console.log("startOfDay", startOfDay)
-//     console.log("endOfDay", endOfDay)
-//     // Fetch total sales from Orders
-//     const totalSales = await Order.aggregate([
-//       {
-//         $match: {
-//           createdAt: { $gte: startOfDay, $lte: endOfDay },
-//           status: { $ne: "Cancelled" }, // Exclude cancelled orders
-//         },
-//       },
-//       {
-//         $group: {
-//           _id: null,
-//           totalSales: { $sum: "$billDetail.grandTotal" },
-//         },
-//       },
-//     ]);
-//     const sales = totalSales[0]?.totalSales || 0;
-//     const merchants = await Merchant.find({ openedToday: true });
-
-//     for (const merchant of merchants) {
-//       merchant.openedToday = false;
-//       await merchant.save();
-//     }
-
-//     // Fetch total commission from CommissionLogs
-//     const totalCommission = await CommissionLogs.aggregate([
-//       {
-//         $match: {
-//           createdAt: { $gte: startOfDay, $lte: endOfDay },
-//         },
-//       },
-//       {
-//         $group: {
-//           _id: null,
-//           totalCommission: { $sum: "$payableAmountToFamto" },
-//         },
-//       },
-//     ]);
-
-//     const commission = totalCommission[0]?.totalCommission || 0;
-
-//     // Fetch total subscription amount from SubscriptionLog
-//     const totalSubscription = await SubscriptionLog.aggregate([
-//       {
-//         $match: {
-//           createdAt: { $gte: startOfDay, $lte: endOfDay },
-//           paymentStatus: "Paid", // Only consider paid subscriptions
-//         },
-//       },
-//       {
-//         $group: {
-//           _id: null,
-//           totalSubscription: { $sum: "$amount" },
-//         },
-//       },
-//     ]);
-
-//     const subscription = totalSubscription[0]?.totalSubscription || 0;
-
-//     // Save the result to HomeScreenRevenueData
-//     const revenueData = new HomeScreenRevenueData({
-//       sales,
-//       merchants: merchants.length,
-//       commission,
-//       subscription,
-//     });
-
-//     await revenueData.save();
-
-//     console.log("revenueData", revenueData)
-//     return revenueData;
-//   } catch (error) {
-//     console.error("Error fetching per day revenue:", error);
-//     throw error;
-//   }
-// }
-
-// async function fetchMerchantDailyRevenue(date) {
-//   try {
-//     // Start and end of the day
-//     const startOfDay = new Date(date.setHours(0, 0, 0, 0));
-//     const endOfDay = new Date(date.setHours(23, 59, 59, 999));
-//     console.log("startOfDay", startOfDay)
-//     console.log("endOfDay", endOfDay)
-//     // Fetch merchants who opened today
-//     const merchants = await Merchant.find({});
-
-//     for (const merchant of merchants) {
-//       // Fetch total sales for the merchant
-//       const totalSales = await Order.aggregate([
-//         {
-//           $match: {
-//             createdAt: { $gte: startOfDay, $lte: endOfDay },
-//             merchantId: merchant._id,
-//             status: { $ne: "Cancelled" }, // Exclude cancelled orders
-//           },
-//         },
-//         {
-//           $group: {
-//             _id: null,
-//             totalSales: { $sum: "$billDetail.itemTotal" },
-//           },
-//         },
-//       ]);
-
-//       const sales = totalSales[0]?.totalSales || 0;
-
-//       // Fetch total commission for the merchant
-//       const totalCommission = await CommissionLogs.aggregate([
-//         {
-//           $match: {
-//             createdAt: { $gte: startOfDay, $lte: endOfDay },
-//             merchantId: merchant._id,
-//           },
-//         },
-//         {
-//           $group: {
-//             _id: null,
-//             totalCommission: { $sum: "$payableAmountToFamto" },
-//           },
-//         },
-//       ]);
-
-//       const commission = totalCommission[0]?.totalCommission || 0;
-
-//       // Collect revenue data for each merchant
-//       const revenueData = new HomeScreenRevenueData({
-//         sales,
-//         commission,
-//         userId: merchant._id,
-//       });
-
-//       await revenueData.save();
-//       console.log("revenueData", revenueData)
-//       // Reset openedToday to false
-//       // merchant.openedToday = false;
-//       // await merchant.save();
-//     }
-
-//     //   return merchantRevenues;
-//   } catch (error) {
-//     throw new Error(err.message);
-//   }
-// }
-
-// module.exports = { fetchPerDayRevenue, fetchMerchantDailyRevenue };
-
 const CommissionLogs = require("../models/CommissionLog");
 const HomeScreenRevenueData = require("../models/HomeScreenRevenueData");
 const Merchant = require("../models/Merchant");
@@ -172,8 +13,6 @@ async function fetchPerDayRevenue(date) {
     // Start and end of the previous day in IST
     const startOfDay = previousDay.startOf("day").toDate();
     const endOfDay = previousDay.endOf("day").toDate();
-    console.log("startOfDay", startOfDay);
-    console.log("endOfDay", endOfDay);
 
     // Fetch total sales from Orders
     let totalSales = [];
@@ -286,7 +125,6 @@ async function fetchPerDayRevenue(date) {
         subscription,
       });
       await revenueData.save();
-      console.log("Revenue data saved:", revenueData);
       return revenueData;
     } catch (error) {
       console.error("Error saving HomeScreenRevenueData:", error);
@@ -306,8 +144,6 @@ async function fetchMerchantDailyRevenue(date) {
     // Start and end of the previous day in IST
     const startOfDay = previousDay.startOf("day").toDate();
     const endOfDay = previousDay.endOf("day").toDate();
-    console.log("startOfDay", startOfDay);
-    console.log("endOfDay", endOfDay);
 
     // Fetch all merchants
     let merchants = [];
@@ -401,10 +237,6 @@ async function fetchMerchantDailyRevenue(date) {
           userId: merchant._id,
         });
         await revenueData.save();
-        console.log(
-          `Revenue data saved for merchant ${merchant._id}:`,
-          revenueData
-        );
       } catch (error) {
         console.error(
           `Error saving revenue data for merchant ${merchant._id}:`,

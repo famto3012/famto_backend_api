@@ -53,10 +53,6 @@ const deleteExpiredSubscriptionPlans = async () => {
         now < subscriptionLog.endDate &&
         !notificationExists
       ) {
-        console.log(
-          `Subscription plan for ${subscriptionLog.typeOfUser} with ID ${subscriptionLog.userId} will expire in ${daysUntilExpiration} days.`
-        );
-
         const data = {
           socket: {
             title: `Subscription plan`,
@@ -162,16 +158,9 @@ const deleteExpiredSubscriptionPlans = async () => {
 
           // Remove expired subscription log
           await SubscriptionLog.deleteOne({ _id: subscriptionLog.id });
-
-          // Log when the plan is removed
-          console.log(
-            `Subscription plan for ${subscriptionLog.typeOfUser} with ID ${subscriptionLog.userId} has been removed.`
-          );
         }
       }
     }
-
-    console.log("Expired subscription plans processed successfully");
   } catch (err) {
     console.error("Error processing expired subscription plans:", err);
   }

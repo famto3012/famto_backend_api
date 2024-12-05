@@ -41,9 +41,6 @@ const uploadToFirebase = async (file, folderName, locationImage = false) => {
 
   let fileBuffer;
 
-  // Check and log the file MIME type for debugging
-  console.log("File MIME type:", file.mimetype);
-
   if (file.mimetype.startsWith("image/")) {
     // If it's an image, process it with sharp
     try {
@@ -78,10 +75,7 @@ const deleteFromFirebase = async (fileUrl) => {
   try {
     await deleteObject(storageRef);
   } catch (error) {
-    if (error.code === "storage/object-not-found") {
-      // console.log("File not found in Firebase, no action needed.");
-      return;
-    }
+    if (error.code === "storage/object-not-found") return;
     throw error;
   }
 };
@@ -97,7 +91,6 @@ const changeBufferToImage = async (buffer, outputPath, newFormat) => {
     image.mimetype = `image/${newFormat}`;
     image.buffer = buffer;
 
-    // console.log(`File saved to ${outputPath} with MIME type: ${mimeType}`);
     return image;
   } catch (error) {
     console.error("Error converting image format:", error);

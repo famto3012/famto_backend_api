@@ -974,9 +974,6 @@ const getTaskPreviewController = async (req, res, next) => {
       // }
     });
 
-    // console.log(currentTasks);
-    // console.log(nextTasks);
-
     res.status(200).json({
       message: "Task preview",
       data: {
@@ -1728,15 +1725,11 @@ const generateRazorpayQRController = async (req, res, next) => {
   try {
     const { orderId } = req.body;
 
-    if (!orderId) {
-      return next(appError("Order ID is required", 400));
-    }
+    if (!orderId) return next(appError("Order ID is required", 400));
 
     const orderFound = await Order.findById(orderId);
 
-    if (!orderFound) {
-      return next(appError("Order not found", 404));
-    }
+    if (!orderFound) return next(appError("Order not found", 404));
 
     const amount = orderFound.billDetail.grandTotal;
 
@@ -1760,9 +1753,7 @@ const verifyQrPaymentController = async (req, res, next) => {
 
     const orderFound = await Order.findById(orderId);
 
-    if (!orderFound) {
-      return next(appError("Order not found", 404));
-    }
+    if (!orderFound) return next(appError("Order not found", 404));
 
     if (orderFound.paymentStatus === "Completed") {
       return res.status(200).json({ message: "Payment already processed" });
@@ -1778,8 +1769,6 @@ const verifyQrPaymentController = async (req, res, next) => {
       .digest("hex");
 
     if (receivedSignature === generatedSignature) {
-      console.log("Webhook verified successfully");
-
       const paymentData = req.body.payload.payment.entity;
 
       orderFound.paymentStatus = "Completed";
@@ -1789,7 +1778,6 @@ const verifyQrPaymentController = async (req, res, next) => {
 
       return res.status(200).json({ message: "QR Code payment verified" });
     } else {
-      console.log("Webhook verification failed for order:", orderId);
       return res.status(400).json({
         message: "QR Code payment verification  failed",
       });

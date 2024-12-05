@@ -330,7 +330,6 @@ const getAgentByNameController = async (req, res, next) => {
 const getTaskByDateRangeController = async (req, res, next) => {
   try {
     const { startDate, endDate } = req.query;
-    console.log(req.query);
 
     // Convert to ISO strings for querying
     const start = new Date(startDate);

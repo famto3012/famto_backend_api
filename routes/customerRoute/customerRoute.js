@@ -23,8 +23,6 @@ const {
   searchOrderController,
   getTransactionOfCustomerController,
   getCustomerSubscriptionDetailController,
-  getPromocodesOfCustomerController,
-  searchPromoCodeController,
   getWalletAndLoyaltyController,
   getCustomerCartController,
   getCustomerAppBannerController,
@@ -44,6 +42,7 @@ const {
   getVisibilityOfReferralAndLoyaltyPoint,
   getMerchantAppBannerController,
   fetchPromoCodesController,
+  removeAppliedPromoCode,
 } = require("../../controllers/customer/customerController");
 const {
   getAllBusinessCategoryController,
@@ -61,7 +60,6 @@ const {
   cancelOrderBeforeCreationController,
   getAllCategoriesOfMerchants,
   getAllProductsOfMerchantController,
-  searchMerchantsOrProducts,
   getProductVariantsByProductIdController,
   getDeliveryOptionOfMerchantController,
   clearCartController,
@@ -81,6 +79,7 @@ const {
   verifyPickAndDropPaymentController,
   cancelPickBeforeOrderCreationController,
   getVehiclePricingDetailsController,
+  initializePickAndDrop,
 } = require("../../controllers/customer/pickAndDropController");
 const {
   addShopController,
@@ -366,6 +365,12 @@ customerRoute.get("/get-cart-bill", isAuthenticated, getCartBillController);
 // PICK AND DROP
 // -------------------------------------
 
+customerRoute.delete(
+  "/initialize-cart",
+  isAuthenticated,
+  initializePickAndDrop
+);
+
 customerRoute.post(
   "/add-pick-and-drop-address",
   upload.fields([
@@ -529,6 +534,12 @@ customerRoute.get(
   "/order-tracking/:orderId/stepper",
   isAuthenticated,
   getOrderTrackingStepper
+);
+
+customerRoute.put(
+  "/remove-promo-code",
+  isAuthenticated,
+  removeAppliedPromoCode
 );
 
 module.exports = customerRoute;
