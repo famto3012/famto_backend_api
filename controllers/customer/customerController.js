@@ -1316,8 +1316,6 @@ module.exports = {
   getSingleOrderDetailController,
   getTransactionOfCustomerController,
   getCustomerSubscriptionDetailController,
-  getPromocodesOfCustomerController,
-  searchPromoCodeController,
   searchOrderController,
   getWalletAndLoyaltyController,
   getCustomerCartController,
