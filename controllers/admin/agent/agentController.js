@@ -154,13 +154,10 @@ const editAgentByAdminController = async (req, res, next) => {
     email,
     phoneNumber,
     geofenceId,
-    vehicleDetail,
     governmentCertificateDetail,
     bankDetail,
     workStructure,
   } = req.body;
-
-  console.log(req.body);
 
   const errors = validationResult(req);
 
@@ -175,13 +172,9 @@ const editAgentByAdminController = async (req, res, next) => {
   try {
     const agentFound = await Agent.findById(req.params.agentId);
 
-    if (!agentFound) {
-      return next(appError("Agent not found", 404));
-    }
+    if (!agentFound) return next(appError("Agent not found", 404));
 
     let {
-      rcFrontImageURL = agentFound?.vehicleDetail[0]?.rcFrontImageURL,
-      rcBackImageURL = agentFound?.vehicleDetail[0]?.rcBackImageURL,
       aadharFrontImageURL = agentFound?.governmentCertificateDetail
         ?.aadharFrontImageURL,
       aadharBackImageURL = agentFound?.governmentCertificateDetail
@@ -195,8 +188,6 @@ const editAgentByAdminController = async (req, res, next) => {
 
     if (req.files) {
       const {
-        rcFrontImage,
-        rcBackImage,
         aadharFrontImage,
         aadharBackImage,
         drivingLicenseFrontImage,
@@ -205,18 +196,6 @@ const editAgentByAdminController = async (req, res, next) => {
       } = req.files;
 
       const fileOperations = [
-        {
-          file: rcFrontImage,
-          url: rcFrontImageURL,
-          type: "RCImages",
-          setUrl: (url) => (rcFrontImageURL = url),
-        },
-        {
-          file: rcBackImage,
-          url: rcBackImageURL,
-          type: "RCImages",
-          setUrl: (url) => (rcBackImageURL = url),
-        },
         {
           file: aadharFrontImage,
           url: aadharFrontImageURL,
@@ -259,23 +238,6 @@ const editAgentByAdminController = async (req, res, next) => {
       }
     }
 
-    // Handle updating or adding to vehicleDetail
-    let updatedVehicleDetail = agentFound.vehicleDetail;
-    if (updatedVehicleDetail.length > 0) {
-      updatedVehicleDetail[0] = {
-        ...updatedVehicleDetail[0],
-        ...vehicleDetail[0],
-        rcFrontImageURL,
-        rcBackImageURL,
-      };
-    } else {
-      updatedVehicleDetail.push({
-        ...vehicleDetail[0],
-        rcFrontImageURL,
-        rcBackImageURL,
-      });
-    }
-
     const updatedAgent = await Agent.findByIdAndUpdate(
       req.params.agentId,
       {
@@ -297,24 +259,19 @@ const editAgentByAdminController = async (req, res, next) => {
           drivingLicenseFrontImageURL,
           drivingLicenseBackImageURL,
         },
-        vehicleDetail: updatedVehicleDetail,
       },
       { new: true }
     );
 
-    if (!updatedAgent) {
-      return next(appError("Error in editing agent"));
-    }
+    if (!updatedAgent) return next(appError("Error in editing agent"));
 
-    res.status(200).json({
-      message: "Updated agent by admin",
-      data: updatedAgent,
-    });
+    res.status(200).json(updatedAgent);
   } catch (err) {
     next(appError(err.message));
   }
 };
 
+// TODO: Remove after panel V2
 const getSingleAgentController = async (req, res, next) => {
   try {
     const { agentId } = req.params;
@@ -352,6 +309,74 @@ const getSingleAgentController = async (req, res, next) => {
   }
 };
 
+const fetchSingleAgentController = async (req, res, next) => {
+  try {
+    const { agentId } = req.params;
+
+    const agent = await Agent.findById(agentId)
+      .populate("geofenceId", "name")
+      .populate("workStructure.managerId", "name")
+      .populate("workStructure.salaryStructureId", "ruleName")
+      .select(
+        "-ratingsByCustomers -appDetail -appDetailHistory -agentTransaction -location -role -taskCompleted -reasonForBlockingOrDeleting -blockedDate -loginStartTime -loginEndTime"
+      )
+      .lean();
+
+    if (!agent) return next(appError("Agent not found", 404));
+
+    const formattedResponse = {
+      agentId: agent._id,
+      fullName: agent.fullName,
+      phoneNumber: agent.phoneNumber,
+      email: agent.email,
+      registrationStatus: agent.isApproved,
+      agentImage: agent.agentImageURL,
+      isBlocked: agent.isBlocked,
+      status: agent.status === "Inactive" ? false : true,
+      approvalStatus: agent.isApproved,
+      geofenceId: agent?.geofenceId?._id || null,
+      geofence: agent?.geofenceId?.name || null,
+      vehicleDetail: agent?.vehicleDetail?.map((data) => ({
+        vehicleId: data?._id || null,
+        model: data?.model || null,
+        type: data?.type || null,
+        licensePlate: data?.licensePlate || null,
+        rcFrontImage: data?.rcFrontImageURL || null,
+        rcBackImage: data?.rcBackImageURL || null,
+      })),
+      governmentCertificateDetail: {
+        aadharNumber: agent?.governmentCertificateDetail?.aadharNumber || null,
+        aadharFrontImage:
+          agent?.governmentCertificateDetail?.aadharFrontImageURL || null,
+        aadharBackImage:
+          agent?.governmentCertificateDetail?.aadharBackImageURL || null,
+        drivingLicenseNumber:
+          agent?.governmentCertificateDetail?.drivingLicenseNumber || null,
+        drivingLicenseFrontImage:
+          agent?.governmentCertificateDetail?.drivingLicenseFrontImageURL ||
+          null,
+        drivingLicenseBackImage:
+          agent?.governmentCertificateDetail?.drivingLicenseBackImageURL ||
+          null,
+      },
+      bankDetail: agent?.bankDetail,
+      workStructure: {
+        managerId: agent?.workStructure?.managerId?._id || null,
+        manager: agent?.workStructure?.managerId?.name || null,
+        salaryStructureId: agent?.workStructure?.salaryStructureId?._id || null,
+        salaryStructure:
+          agent?.workStructure?.salaryStructureId?.ruleName || null,
+        tag: agent?.workStructure?.tag || null,
+      },
+    };
+
+    res.status(200).json(formattedResponse);
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// TODO: Remove after panel V2
 const getAllAgentsController = async (req, res, next) => {
   try {
     // Get page and limit from query parameters with default values
@@ -411,6 +436,7 @@ const getAllAgentsController = async (req, res, next) => {
   }
 };
 
+// TODO: Remove after panel V2
 const searchAgentByNameController = async (req, res, next) => {
   try {
     const { query } = req.query;
@@ -555,7 +581,7 @@ const getRatingsByCustomerController = async (req, res, next) => {
     const agentFound = await Agent.findById(req.params.agentId).populate({
       path: "ratingsByCustomers",
       populate: {
-        path: "customerId", 
+        path: "customerId",
         model: "Customer",
         select: "fullName _id", // Selecting the fields of fullName and _id from Customer
       },
@@ -585,22 +611,9 @@ const getRatingsByCustomerController = async (req, res, next) => {
 
 const filterAgentsController = async (req, res, next) => {
   try {
-    const { vehicleType, geofence, status } = req.query;
+    const { vehicleType, geofence, status, name } = req.query;
 
-    // if (!vehicleType && !geofence) {
-    //   return res
-    //     .status(400)
-    //     .json({ message: "Vehicle type or geofence is required" });
-    // }
-    console.log(
-      "vehicleType",
-      vehicleType,
-      "geofence",
-      geofence,
-      "status",
-      status
-    );
-    const filterCriteria = {};
+    const filterCriteria = { isBlocked: false };
 
     if (status && status.trim().toLowerCase() !== "all") {
       filterCriteria.status = status;
@@ -614,22 +627,23 @@ const filterAgentsController = async (req, res, next) => {
     }
 
     if (geofence && geofence.trim().toLowerCase() !== "all") {
-      try {
-        const geofenceObjectId = new mongoose.Types.ObjectId(geofence.trim());
-        filterCriteria.geofenceId = geofenceObjectId;
-      } catch (err) {
-        return res.status(400).json({ message: "Invalid geofence ID" });
-      }
+      filterCriteria.geofenceId = mongoose.Types.ObjectId.createFromHexString(
+        geofence.trim()
+      );
     }
 
-    console.log("filterCriteria", filterCriteria);
-    const searchResults = await Agent.find(
+    if (name) {
+      filterCriteria.fullName = { $regex: name.trim(), $options: "i" };
+    }
+
+    const results = await Agent.find(
       filterCriteria,
       "_id fullName email phoneNumber workStructure geofenceId status isApproved"
     )
       .populate("workStructure.managerId", "name")
       .populate("geofenceId", "name");
-    const formattedResponse = searchResults.map((agent) => {
+
+    const formattedResponse = results.map((agent) => {
       return {
         _id: agent._id,
         fullName: agent.fullName,
@@ -641,11 +655,8 @@ const filterAgentsController = async (req, res, next) => {
         isApproved: agent.isApproved,
       };
     });
-    // console.log("formattedResponse", formattedResponse)
-    res.status(200).json({
-      message: "Getting agents",
-      data: formattedResponse,
-    });
+
+    res.status(200).json(formattedResponse);
   } catch (err) {
     next(appError(err.message));
   }
@@ -1327,8 +1338,59 @@ const downloadAgentPaymentCSVController = async (req, res, next) => {
   }
 };
 
+const updateVehicleDetailController = async (req, res, next) => {
+  try {
+    const { agentId, vehicleId } = req.params;
+    const { licensePlate, model, type } = req.body;
+
+    const agent = await Agent.findById(agentId).select("vehicleDetail");
+
+    if (!agent) return next(appError("Agent not found", 404));
+
+    let vehicleFound = agent.vehicleDetail?.find(
+      (vehicle) => vehicle._id.toString() === vehicleId
+    );
+
+    if (!vehicleFound) return next(appError("Vehicle not found", 404));
+
+    let { rcFrontImageURL, rcBackImageURL } = vehicleFound;
+
+    const rcFrontImage = req.files.rcFrontImage?.[0];
+    const rcBackImage = req.files.rcBackImage?.[0];
+
+    console.log("rcFrontImage", rcFrontImage);
+    console.log("rcBackImage", rcBackImage);
+
+    if (rcFrontImage) {
+      if (rcFrontImageURL) await deleteFromFirebase(rcFrontImageURL);
+      rcFrontImageURL = await uploadToFirebase(rcFrontImage, "RCImages");
+    }
+
+    if (rcBackImage) {
+      if (rcBackImageURL) await deleteFromFirebase(rcBackImageURL);
+      rcBackImageURL = await uploadToFirebase(rcBackImage, "RCImages");
+    }
+
+    vehicleFound.licensePlate = licensePlate;
+    vehicleFound.model = model;
+    vehicleFound.type = type;
+    vehicleFound.rcFrontImageURL = rcFrontImageURL;
+    vehicleFound.rcBackImageURL = rcBackImageURL;
+
+    await agent.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Vehicle detail updated successfully",
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   addAgentByAdminController,
+  fetchSingleAgentController,
   editAgentByAdminController,
   getSingleAgentController,
   approveAgentRegistrationController,
@@ -1345,4 +1407,5 @@ module.exports = {
   changeAgentStatusController,
   downloadAgentCSVController,
   downloadAgentPaymentCSVController,
+  updateVehicleDetailController,
 };

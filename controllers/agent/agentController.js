@@ -1507,7 +1507,7 @@ const getCashInHandController = async (req, res, next) => {
     const agentFound = await Agent.findById(agentId);
 
     if (!agentFound) {
-      return next(appError("agnet not found", 404));
+      return next(appError("agent not found", 404));
     }
 
     const cashInHand = agentFound.workStructure.cashInHand;
@@ -1544,7 +1544,7 @@ const verifyDepositController = async (req, res, next) => {
     const agentFound = await Agent.findById(agentId);
 
     if (!agentFound) {
-      return next(appError("agnet not found", 404));
+      return next(appError("agent not found", 404));
     }
 
     const isPaymentValid = await verifyPayment(paymentDetails);
@@ -1563,7 +1563,7 @@ const verifyDepositController = async (req, res, next) => {
 
     await agentFound.save();
 
-    res.status(200).josn({ message: "Deposite verified successfully" });
+    res.status(200).json({ message: "Deposit verified successfully" });
   } catch (err) {
     next(appError(err.message));
   }

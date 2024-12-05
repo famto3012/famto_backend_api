@@ -47,8 +47,8 @@ const getDistanceFromPickupToDelivery = async (
     data.results.distances &&
     data.results.distances.length > 0
   ) {
-    const distance = (data.results.distances[0][1] / 1000).toFixed(2); // Distance in kilometers
-    const durationInMinutes = Math.ceil(data.results.durations[0][1] / 60); // Duration in minutes
+    const distance = (data.results.distances[0][1] / 1000).toFixed(2);
+    const durationInMinutes = Math.ceil(data.results.durations[0][1] / 60);
 
     const distanceInKM = parseFloat(distance);
 
@@ -62,11 +62,6 @@ const calculateDeliveryCharges = (
   baseDistance,
   fareAfterBaseDistance
 ) => {
-  console.log("distance", distance);
-  console.log("baseFare", baseFare);
-  console.log("baseDistance", baseDistance);
-  console.log("fareAfterBaseDistance", fareAfterBaseDistance);
-
   if (fareAfterBaseDistance) {
     if (distance <= baseDistance) {
       return Number(parseFloat(baseFare).toFixed(2) || 0);
@@ -874,8 +869,7 @@ const deleteOldLoyaltyPoints = async () => {
 };
 
 // Universal
-
-const fetchcustomerAndMerchantAndCart = async (customerId, next) => {
+const fetchCustomerAndMerchantAndCart = async (customerId, next) => {
   const [customer, cart] = await Promise.all([
     Customer.findById(customerId),
     CustomerCart.findOne({ customerId }),
@@ -927,6 +921,113 @@ const processVoiceInstructions = async (req, cart, next) => {
   }
 };
 
+// Promo code helpers
+const calculateScheduledCartValue = (cart, promoCodeFound) => {
+  const { itemTotal, originalDeliveryCharge } = cart.billDetail;
+  const { startDate, endDate, numOfDays } = cart.cartDetail;
+
+  const effectiveStartDate = new Date(
+    Math.max(new Date(startDate), promoCodeFound.fromDate)
+  );
+  const effectiveEndDate = new Date(
+    Math.min(new Date(endDate), promoCodeFound.toDate)
+  );
+
+  const eligibleDays =
+    Math.ceil((effectiveEndDate - effectiveStartDate) / (1000 * 60 * 60 * 24)) +
+    1;
+
+  if (
+    cart.cartDetail.deliveryMode === "Take Away" ||
+    cart.cartDetail.deliveryMode === "Home Delivery"
+  ) {
+    return promoCodeFound.appliedOn === "Cart-value"
+      ? (itemTotal / numOfDays) * eligibleDays
+      : (originalDeliveryCharge / numOfDays) * eligibleDays;
+  } else {
+    const calculatedValue = (originalDeliveryCharge / numOfDays) * eligibleDays;
+    return calculatedValue;
+    s;
+  }
+};
+
+const calculatePromoCodeDiscount = (promoCode, total) => {
+  if (promoCode.promoType === "Flat-discount") {
+    return Math.min(promoCode.discount, promoCode.maxDiscountValue);
+  }
+
+  const percentageDiscount = (total * promoCode.discount) / 100;
+  return Math.min(percentageDiscount, promoCode.maxDiscountValue);
+};
+
+const applyPromoCodeDiscount = (cart, promoCode, discount) => {
+  const {
+    itemTotal,
+    originalDeliveryCharge,
+    originalGrandTotal,
+    addedTip = 0,
+  } = cart.billDetail;
+  let discountedTotal = itemTotal;
+
+  if (promoCode.appliedOn === "Cart-value") {
+    discountedTotal -= discount;
+  } else if (promoCode.appliedOn === "Delivery-charge") {
+    const deliveryDiscount = Math.max(originalDeliveryCharge - discount, 0);
+    cart.billDetail.discountedDeliveryCharge = deliveryDiscount;
+  }
+
+  cart.billDetail.discountedGrandTotal = Math.max(
+    Math.round(originalGrandTotal - discount),
+    0
+  );
+  cart.billDetail.promoCodeUsed = promoCode.promoCode;
+  cart.billDetail.discountedAmount = discount;
+  cart.billDetail.subTotal = Math.round(
+    discountedTotal +
+      (cart.billDetail.discountedDeliveryCharge || originalDeliveryCharge) +
+      addedTip
+  );
+
+  return cart;
+};
+
+const populateCartDetails = async (customerId) => {
+  const cart = await CustomerCart.findOne({ customerId })
+    .populate({
+      path: "items.productId",
+      select: "productName productImageURL description variants",
+    })
+    .exec();
+
+  // return {
+  //   ...cart.toObject(),
+  //   items: cart.items.map((item) => ({
+  //     ...item,
+  //     productId: {
+  //       id: item.productId._id,
+  //       productName: item.productId.productName,
+  //       description: item.productId.description,
+  //       productImageURL: item.productId.productImageURL,
+  //     },
+  //     variantTypeId: item.variantTypeId
+  //       ? getVariantDetails(item.productId.variants, item.variantTypeId)
+  //       : null,
+  //   })),
+  // };
+
+  return cart.billDetail;
+};
+
+const getVariantDetails = (variants, variantTypeId) => {
+  const variantType = variants
+    .flatMap((variant) => variant.variantTypes)
+    .find((type) => type._id.equals(variantTypeId));
+
+  return variantType
+    ? { id: variantType._id, variantTypeName: variantType.typeName }
+    : null;
+};
+
 module.exports = {
   sortMerchantsBySponsorship,
   getDistanceFromPickupToDelivery,
@@ -944,6 +1045,10 @@ module.exports = {
   calculateMerchantDiscount,
   deleteOldLoyaltyPoints,
   //
-  fetchcustomerAndMerchantAndCart,
+  fetchCustomerAndMerchantAndCart,
   processVoiceInstructions,
+  calculateScheduledCartValue,
+  calculatePromoCodeDiscount,
+  applyPromoCodeDiscount,
+  populateCartDetails,
 };

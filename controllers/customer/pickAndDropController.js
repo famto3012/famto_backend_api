@@ -8,13 +8,14 @@ const Agent = require("../../models/Agent");
 const PickAndCustomCart = require("../../models/PickAndCustomCart");
 const ScheduledPickAndCustom = require("../../models/ScheduledPickAndCustom");
 const CustomerSurge = require("../../models/CustomerSurge");
-const TemperoryOrder = require("../../models/TemperoryOrders");
+const TemporaryOrder = require("../../models/TemporaryOrder");
 const NotificationSetting = require("../../models/NotificationSetting");
 
 const appError = require("../../utils/appError");
 const {
   getDistanceFromPickupToDelivery,
   calculateDeliveryCharges,
+  calculatePromoCodeDiscount,
 } = require("../../utils/customerAppHelpers");
 const {
   createRazorpayOrderId,
@@ -155,12 +156,14 @@ const addPickUpAddressController = async (req, res, next) => {
         cartFound._id,
         {
           cartDetail: updatedCartDetail,
+          items: cartFound.items,
         },
         {
           new: true,
         }
       );
     } else {
+      console.log("Don't have cart");
       cartFound = await PickAndCustomCart.create({
         customerId,
         cartDetail: updatedCartDetail,
@@ -252,9 +255,20 @@ const getVehiclePricingDetailsController = async (req, res, next) => {
             fareAfterBaseDistance
           );
 
+          let calculatedDeliveryCharges = deliveryCharges;
+
+          if (cartFound?.cartDetail?.numOfDays === null) {
+            calculatedDeliveryCharges += surgeCharges || 0;
+          }
+
+          if (cartFound?.cartDetail?.numOfDays > 0) {
+            calculatedDeliveryCharges =
+              deliveryCharges * cartFound.cartDetail.numOfDays;
+          }
+
           return {
             vehicleType,
-            deliveryCharges: parseFloat(deliveryCharges) + (surgeCharges || 0),
+            deliveryCharges: Math.round(calculatedDeliveryCharges),
           };
         } else {
           return null;
@@ -262,14 +276,19 @@ const getVehiclePricingDetailsController = async (req, res, next) => {
       })
       .filter(Boolean);
 
-    res.status(200).json({ distance, duration, vehicleCharges });
+    res.status(200).json({
+      distance,
+      duration,
+      vehicleCharges,
+      items: cartFound.items,
+    });
   } catch (err) {
     next(appError(err.message));
   }
 };
 
 // Add Items
-const addPickandDropItemsController = async (req, res, next) => {
+const addPickAndDropItemsController = async (req, res, next) => {
   try {
     const { items, vehicleType, deliveryCharges } = req.body;
     const customerId = req.userAuth;
@@ -307,14 +326,16 @@ const addPickandDropItemsController = async (req, res, next) => {
 
     let taxAmount = 0;
     if (taxFound) {
-      taxAmount = (deliveryCharges * taxFound.tax) / 100;
+      const calculatedTax = (deliveryCharges * taxFound.tax) / 100;
+      taxAmount = parseFloat(calculatedTax.toFixed(2));
     }
 
     let updatedBill = {
       taxAmount,
-      originalDeliveryCharge: Math.round(deliveryCharges + taxAmount),
+      originalDeliveryCharge: Math.round(deliveryCharges),
       vehicleType,
       originalGrandTotal: Math.round(deliveryCharges + taxAmount),
+      taxAmount,
     };
 
     cart.billDetail = updatedBill;
@@ -336,7 +357,7 @@ const addPickandDropItemsController = async (req, res, next) => {
 };
 
 // Add tip and promo code
-const addTipAndApplyPromocodeInPickAndDropController = async (
+const addTipAndApplyPromoCodeInPickAndDropController = async (
   req,
   res,
   next
@@ -345,29 +366,27 @@ const addTipAndApplyPromocodeInPickAndDropController = async (
     const customerId = req.userAuth;
     const { addedTip, promoCode } = req.body;
 
-    // Ensure customer is authenticated
-    if (!customerId) {
-      return next(appError("Customer is not authenticated", 401));
-    }
+    const [customerFound, cart] = await Promise.all([
+      Customer.findById(customerId),
+      PickAndCustomCart.findOne({
+        customerId,
+        "cartDetail.deliveryMode": "Pick and Drop",
+      }),
+    ]);
 
-    const customerFound = await Customer.findById(customerId);
-    if (!customerFound) {
-      return next(appError("Customer not found", 404));
-    }
-
-    // Find the customer's cart
-    const cart = await PickAndCustomCart.findOne({ customerId });
-    if (!cart) {
-      return next(appError("Cart not found", 404));
-    }
+    if (!customerFound) return next(appError("Customer not found", 404));
+    if (!cart) return next(appError("Cart not found", 404));
 
     // Ensure the original delivery charge exists
-    const originalDeliveryCharge =
-      parseFloat(cart.billDetail.originalDeliveryCharge) || 0;
+    const {
+      originalGrandTotal,
+      originalDeliveryCharge,
+      addedTip: oldTip = 0,
+    } = cart.billDetail;
 
     // Add the tip
     const tip = parseInt(addedTip) || 0;
-    const originalGrandTotalWithTip = originalDeliveryCharge + tip;
+    const originalGrandTotalWithTip = originalGrandTotal + tip - oldTip;
 
     cart.billDetail.addedTip = tip;
     cart.billDetail.originalGrandTotal = originalGrandTotalWithTip;
@@ -381,14 +400,20 @@ const addTipAndApplyPromocodeInPickAndDropController = async (
         geofenceId: customerFound.customerDetails.geofenceId,
         appliedOn: "Delivery-charge",
         status: true,
+        deliveryMode: "Pick and Drop",
       });
 
       if (!promoCodeFound) {
         return next(appError("Promo code not found or inactive", 404));
       }
 
+      const totalDeliveryPrice =
+        cart.cartDetail.deliveryOption === "Scheduled"
+          ? calculateScheduledCartValue(cart, promoCodeFound)
+          : originalDeliveryCharge;
+
       // Check if total cart price meets minimum order amount
-      if (originalGrandTotalWithTip < promoCodeFound.minOrderAmount) {
+      if (totalDeliveryPrice < promoCodeFound.minOrderAmount) {
         return next(
           appError(
             `Minimum order amount is ${promoCodeFound.minOrderAmount}`,
@@ -409,15 +434,10 @@ const addTipAndApplyPromocodeInPickAndDropController = async (
       }
 
       // Calculate discount amount
-      if (promoCodeFound.promoType === "Flat-discount") {
-        discountAmount = promoCodeFound.discount;
-      } else if (promoCodeFound.promoType === "Percentage-discount") {
-        discountAmount =
-          (originalGrandTotalWithTip * promoCodeFound.discount) / 100;
-        if (discountAmount > promoCodeFound.maxDiscountValue) {
-          discountAmount = promoCodeFound.maxDiscountValue;
-        }
-      }
+      discountAmount = calculatePromoCodeDiscount(
+        promoCodeFound,
+        totalDeliveryPrice
+      );
 
       promoCodeFound.noOfUserUsed += 1;
       await promoCodeFound.save();
@@ -427,7 +447,7 @@ const addTipAndApplyPromocodeInPickAndDropController = async (
     discountAmount = parseFloat(discountAmount) || 0;
 
     const discountedDeliveryCharge = originalDeliveryCharge - discountAmount;
-    const discountedGrandTotal = originalGrandTotalWithTip - discountAmount;
+    const discountedGrandTotal = originalGrandTotal - discountAmount;
 
     cart.billDetail.discountedDeliveryCharge =
       discountedDeliveryCharge < 0 ? 0 : Math.round(discountedDeliveryCharge);
@@ -443,7 +463,7 @@ const addTipAndApplyPromocodeInPickAndDropController = async (
         customerId: cart.customerId,
         cartDetail: cart.cartDetail,
         items: cart.items,
-        billDetail: { ...cart.billDetail.toObject(), taxAmount: 0 },
+        billDetail: cart.billDetail,
       },
     });
   } catch (err) {
@@ -547,7 +567,7 @@ const confirmPickAndDropController = async (req, res, next) => {
       const orderId = new mongoose.Types.ObjectId();
 
       // Store order details temporarily in the database
-      const tempOrder = await TemperoryOrder.create({
+      const tempOrder = await TemporaryOrder.create({
         orderId,
         customerId,
         items: cart.items,
@@ -577,7 +597,7 @@ const confirmPickAndDropController = async (req, res, next) => {
       });
 
       setTimeout(async () => {
-        const storedOrderData = await TemperoryOrder.findOne({ orderId });
+        const storedOrderData = await TemporaryOrder.findOne({ orderId });
 
         if (storedOrderData) {
           const newOrder = await Order.create({
@@ -601,7 +621,7 @@ const confirmPickAndDropController = async (req, res, next) => {
           }
 
           // Remove the temporary order data from the database
-          await TemperoryOrder.deleteOne({ orderId });
+          await TemporaryOrder.deleteOne({ orderId });
 
           //? Notify the USER and ADMIN about successful order creation
           const customerData = {
@@ -767,7 +787,7 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
     const orderId = new mongoose.Types.ObjectId();
 
     // Store order details temporarily in the database
-    const tempOrder = await TemperoryOrder.create({
+    const tempOrder = await TemporaryOrder.create({
       orderId,
       customerId,
       items: cart.items,
@@ -787,7 +807,7 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
     await PickAndCustomCart.deleteOne({ customerId });
 
     if (!tempOrder) {
-      return next(appError("Error in creating temperory order"));
+      return next(appError("Error in creating temporary order"));
     }
 
     // Return countdown timer to client
@@ -798,7 +818,7 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
     });
 
     setTimeout(async () => {
-      const storedOrderData = await TemperoryOrder.findOne({ orderId });
+      const storedOrderData = await TemporaryOrder.findOne({ orderId });
 
       if (storedOrderData) {
         const newOrder = await Order.create({
@@ -823,7 +843,7 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
         }
 
         // Remove the temporary order data from the database
-        await TemperoryOrder.deleteOne({ orderId });
+        await TemporaryOrder.deleteOne({ orderId });
 
         const eventName = "newOrderCreated";
 
@@ -879,7 +899,7 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
           billDetail: newOrder.billDetail,
           orderDetailStepper: newOrder.orderDetailStepper.created,
 
-          //? Data for displayinf detail in all orders table
+          //? Data for displaying detail in all orders table
           _id: newOrder._id,
           orderStatus: newOrder.status,
           merchantName: "-",
@@ -915,7 +935,7 @@ const cancelPickBeforeOrderCreationController = async (req, res, next) => {
   try {
     const { orderId } = req.params;
 
-    const orderFound = await TemperoryOrder.findOne({ orderId });
+    const orderFound = await TemporaryOrder.findOne({ orderId });
 
     console.log(orderFound);
 
@@ -938,7 +958,7 @@ const cancelPickBeforeOrderCreationController = async (req, res, next) => {
         }
 
         // Remove the temporary order data from the database
-        await TemperoryOrder.deleteOne({ orderId });
+        await TemporaryOrder.deleteOne({ orderId });
 
         customerFound.transactionDetail.push(updatedTransactionDetail);
 
@@ -951,7 +971,7 @@ const cancelPickBeforeOrderCreationController = async (req, res, next) => {
         return;
       } else if (orderFound.paymentMode === "Cash-on-delivery") {
         // Remove the temporary order data from the database
-        await TemperoryOrder.deleteOne({ orderId });
+        await TemporaryOrder.deleteOne({ orderId });
 
         res.status(200).json({ message: "Order cancelled" });
 
@@ -1003,8 +1023,8 @@ const cancelPickBeforeOrderCreationController = async (req, res, next) => {
 module.exports = {
   addPickUpAddressController,
   getVehiclePricingDetailsController,
-  addPickandDropItemsController,
-  addTipAndApplyPromocodeInPickAndDropController,
+  addPickAndDropItemsController,
+  addTipAndApplyPromoCodeInPickAndDropController,
   confirmPickAndDropController,
   verifyPickAndDropPaymentController,
   cancelPickBeforeOrderCreationController,

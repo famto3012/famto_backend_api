@@ -16,7 +16,7 @@ const addLoyaltyPointController = async (req, res, next) => {
     redemptionCriteriaRupee,
     minOrderAmountForRedemption,
     minLoyaltyPointForRedemption,
-    minRedemptionAmountPercentage,
+    maxRedemptionAmountPercentage,
   } = req.body;
 
   const errors = validationResult(req);
@@ -41,7 +41,7 @@ const addLoyaltyPointController = async (req, res, next) => {
       newCriteria.redemptionCriteriaRupee = redemptionCriteriaRupee;
       newCriteria.minOrderAmountForRedemption = minOrderAmountForRedemption;
       newCriteria.minLoyaltyPointForRedemption = minLoyaltyPointForRedemption;
-      newCriteria.minRedemptionAmountPercentage = minRedemptionAmountPercentage;
+      newCriteria.maxRedemptionAmountPercentage = maxRedemptionAmountPercentage;
 
       await newCriteria.save();
       res.status(201).json({ message: "Loyalty point criteria updated" });
@@ -56,7 +56,7 @@ const addLoyaltyPointController = async (req, res, next) => {
         redemptionCriteriaRupee,
         minOrderAmountForRedemption,
         minLoyaltyPointForRedemption,
-        minRedemptionAmountPercentage,
+        maxRedemptionAmountPercentage,
       });
 
       if (!newLoyaltyPointCriteria) {
@@ -75,15 +75,32 @@ const getLoyaltyPointController = async (req, res, next) => {
   try {
     const loyaltyPointCriteriaFound = await LoyaltyPoint.findOne({});
 
-    if (!loyaltyPointCriteriaFound) {
-      return res.status(200).json({
-        message: "Loyalty point criteria is not added",
-      });
-    }
+    const formattedResponse = {
+      status: loyaltyPointCriteriaFound?.status || false,
+      earningCriteriaRupee:
+        loyaltyPointCriteriaFound?.earningCriteriaRupee || null,
+      earningCriteriaPoint:
+        loyaltyPointCriteriaFound?.earningCriteriaPoint || null,
+      minOrderAmountForEarning:
+        loyaltyPointCriteriaFound?.minOrderAmountForEarning || null,
+      maxEarningPointPerOrder:
+        loyaltyPointCriteriaFound?.maxEarningPointPerOrder || null,
+      expiryDuration: loyaltyPointCriteriaFound?.expiryDuration || null,
+      redemptionCriteriaPoint:
+        loyaltyPointCriteriaFound?.redemptionCriteriaPoint || null,
+      redemptionCriteriaRupee:
+        loyaltyPointCriteriaFound?.redemptionCriteriaRupee || null,
+      minOrderAmountForRedemption:
+        loyaltyPointCriteriaFound?.minOrderAmountForRedemption || null,
+      minLoyaltyPointForRedemption:
+        loyaltyPointCriteriaFound?.minLoyaltyPointForRedemption || null,
+      maxRedemptionAmountPercentage:
+        loyaltyPointCriteriaFound?.maxRedemptionAmountPercentage || null,
+    };
 
     res.status(200).json({
       message: "Loyalty point criteria",
-      data: loyaltyPointCriteriaFound,
+      data: formattedResponse,
     });
   } catch (err) {
     next(appError(err.message));
@@ -101,7 +118,7 @@ const updateStatusController = async (req, res, next) => {
       await existingCriteria.save();
 
       return res.status(200).json({
-        mesage: "Loyalty point criteria status updated successfully",
+        message: "Loyalty point criteria status updated successfully",
         data: existingCriteria.status,
       });
     }

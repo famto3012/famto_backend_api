@@ -174,6 +174,10 @@ const billSchema = mongoose.Schema(
       type: Number,
       default: null,
     },
+    promoCodeUsed: {
+      type: String,
+      default: null,
+    },
     grandTotal: {
       type: Number,
       required: true,

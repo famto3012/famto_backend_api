@@ -17,6 +17,8 @@ const {
   searchAgentInPayoutController,
   downloadAgentCSVController,
   downloadAgentPaymentCSVController,
+  fetchSingleAgentController,
+  updateVehicleDetailController,
 } = require("../../../controllers/admin/agent/agentController");
 const { upload } = require("../../../utils/imageOperation");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
@@ -97,8 +99,8 @@ adminAgentRoute.post(
 adminAgentRoute.put(
   "/edit-agent/:agentId",
   upload.fields([
-    { name: "rcFrontImage", maxCount: 1 },
-    { name: "rcBackImage", maxCount: 1 },
+    // { name: "rcFrontImage", maxCount: 1 },
+    // { name: "rcBackImage", maxCount: 1 },
     { name: "aadharFrontImage", maxCount: 1 },
     { name: "aadharBackImage", maxCount: 1 },
     { name: "drivingLicenseFrontImage", maxCount: 1 },
@@ -109,6 +111,18 @@ adminAgentRoute.put(
   isAuthenticated,
   isAdmin,
   editAgentByAdminController
+);
+
+// Edit agent vehicle details by admin
+adminAgentRoute.put(
+  "/edit-agent-vehicle/:agentId/:vehicleId",
+  upload.fields([
+    { name: "rcFrontImage", maxCount: 1 },
+    { name: "rcBackImage", maxCount: 1 },
+  ]),
+  isAuthenticated,
+  isAdmin,
+  updateVehicleDetailController
 );
 
 // Get Agent by vehicle type
@@ -167,12 +181,14 @@ adminAgentRoute.get(
   getRatingsByCustomerController
 );
 
+// TODO: Change controller before pushing to production
 // Get single agent
 adminAgentRoute.get(
   "/:agentId",
   isAuthenticated,
   isAdmin,
-  getSingleAgentController
+  // getSingleAgentController
+  fetchSingleAgentController
 );
 
 // Block agent

@@ -110,6 +110,8 @@ const getSingleBusinessCategoryController = async (req, res, next) => {
 const editBusinessCategoryController = async (req, res, next) => {
   const { title, geofenceId } = req.body;
 
+  console.log(req.body);
+
   const errors = validationResult(req);
 
   let formattedErrors = {};
@@ -125,9 +127,8 @@ const editBusinessCategoryController = async (req, res, next) => {
       req.params.businessCategoryId
     );
 
-    if (!businessCategoryFound) {
+    if (!businessCategoryFound)
       return next(appError("Business category not found", 404));
-    }
 
     let bannerImageURL = businessCategoryFound?.bannerImageURL;
     let order = businessCategoryFound.order;
@@ -150,6 +151,7 @@ const editBusinessCategoryController = async (req, res, next) => {
         geofenceId,
         bannerImageURL,
         order,
+        status: businessCategoryFound.status,
       },
       { new: true }
     );
@@ -190,9 +192,8 @@ const enableOrDisableBusinessCategoryController = async (req, res, next) => {
       req.params.businessCategoryId
     );
 
-    if (!businessCategoryFound) {
+    if (!businessCategoryFound)
       return next(appError("Business category not found", 404));
-    }
 
     // Toggle the status
     businessCategoryFound.status = !businessCategoryFound.status;

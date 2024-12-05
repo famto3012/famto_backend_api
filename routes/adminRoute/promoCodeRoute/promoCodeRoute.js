@@ -9,11 +9,24 @@ const {
   getAllPromoCodesController,
   deletePromoCodeController,
   editPromoCodeStatusController,
-  updateAllPromoCodesStatusController,
-  getSinglePromocodeController,
+  getSinglePromoCodeController,
 } = require("../../../controllers/admin/promocode/promoCodeController");
 
 const promoCodeRoute = express.Router();
+
+promoCodeRoute.get(
+  "/get-promocode",
+  isAuthenticated,
+  isAdmin,
+  getAllPromoCodesController
+);
+
+promoCodeRoute.get(
+  "/:promoCodeId",
+  isAuthenticated,
+  isAdmin,
+  getSinglePromoCodeController
+);
 
 promoCodeRoute.post(
   "/add-promocode",
@@ -22,7 +35,6 @@ promoCodeRoute.post(
     body("promoCode").notEmpty().withMessage("Promo code is required"),
     body("promoType").notEmpty().withMessage("Promo type is required"),
     body("discount").notEmpty().withMessage("Discount is required"),
-    // body("description").notEmpty().withMessage("Description is required"),
     body("fromDate").notEmpty().withMessage("From date is required"),
     body("toDate").notEmpty().withMessage("To date is required"),
     body("maxDiscountValue")
@@ -44,46 +56,25 @@ promoCodeRoute.post(
 );
 
 promoCodeRoute.put(
-  "/edit-promocode/:id",
+  "/edit-promocode/:promoCodeId",
   upload.single("promoImage"),
   isAuthenticated,
   isAdmin,
   editPromoCodeController
 );
 
-promoCodeRoute.get(
-  "/get-promocode",
-  isAuthenticated,
-  isAdmin,
-  getAllPromoCodesController
-);
-
-promoCodeRoute.get(
-  "/:promocodeId",
-  isAuthenticated,
-  isAdmin,
-  getSinglePromocodeController
-);
-
-promoCodeRoute.delete(
-  "/delete-promocode/:id",
-  isAuthenticated,
-  isAdmin,
-  deletePromoCodeController
-);
-
 promoCodeRoute.put(
-  "/edit-promocode-status/:id",
+  "/edit-promocode-status/:promoCodeId",
   isAuthenticated,
   isAdmin,
   editPromoCodeStatusController
 );
 
-promoCodeRoute.put(
-  "/edit-all-promocode",
+promoCodeRoute.delete(
+  "/delete-promocode/:promoCodeId",
   isAuthenticated,
   isAdmin,
-  updateAllPromoCodesStatusController
+  deletePromoCodeController
 );
 
 module.exports = promoCodeRoute;

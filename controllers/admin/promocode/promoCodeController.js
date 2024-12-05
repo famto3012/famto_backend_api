@@ -5,6 +5,7 @@ const {
   uploadToFirebase,
   deleteFromFirebase,
 } = require("../../../utils/imageOperation");
+const { formatDate } = require("../../../utils/formatters");
 
 const addPromoCodeController = async (req, res, next) => {
   // Validate request body
@@ -32,18 +33,17 @@ const addPromoCodeController = async (req, res, next) => {
       applicationMode,
       merchantId,
       geofenceId,
+      deliveryMode,
     } = req.body;
-
-    console.log(req.file);
 
     let imageUrl = "";
     if (req.file) {
       imageUrl = await uploadToFirebase(req.file, "PromoCodeImages");
     }
 
-    // Create a new promocode object
-    const newPromoCode = new PromoCode({
-      promoCode,
+    // Create a new promo code object
+    await PromoCode.create({
+      promoCode: promoCode.toUpperCase(),
       promoType,
       discount,
       description,
@@ -57,13 +57,12 @@ const addPromoCodeController = async (req, res, next) => {
       merchantId,
       geofenceId,
       imageUrl,
+      deliveryMode,
     });
-
-    const savedPromoCode = await newPromoCode.save();
 
     // Send a success response
     res.status(201).json({
-      success: "Promocode created successfully",
+      success: true,
       data: savedPromoCode,
     });
   } catch (err) {
@@ -83,57 +82,58 @@ const editPromoCodeController = async (req, res, next) => {
   }
 
   try {
-    // Get the promo code ID from the request parameters
-    const { id } = req.params;
+    const { promoCodeId } = req.params;
 
-    // Find the existing promo code by ID
-    let existingPromoCode = await PromoCode.findById(id);
-    if (!existingPromoCode) {
-      return res.status(404).json({ error: "Promocode not found" });
-    }
+    let existingPromoCode = await PromoCode.findById(promoCodeId);
+    if (!existingPromoCode) return next(appError("Promo code not found", 404));
 
-    // Update image if a new file is provided
-    let imageUrl = existingPromoCode.imageUrl;
+    const {
+      promoCode,
+      promoType,
+      discount,
+      description,
+      fromDate,
+      toDate,
+      maxDiscountValue,
+      minOrderAmount,
+      maxAllowedUsers,
+      appliedOn,
+      applicationMode,
+      merchantId,
+      geofenceId,
+      deliveryMode,
+    } = req.body;
+
+    let imageUrl = existingPromoCode?.imageUrl;
     if (req.file) {
-      await deleteFromFirebase(imageUrl);
+      if (imageUrl) await deleteFromFirebase(imageUrl);
       imageUrl = await uploadToFirebase(req.file, "PromoCodeImages");
     }
 
-    // Update only the fields provided by the user
-    const updateFields = [
-      "promoCode",
-      "promoType",
-      "discount",
-      "description",
-      "fromDate",
-      "toDate",
-      "maxDiscountValue",
-      "minOrderAmount",
-      "maxAllowedUsers",
-      "appliedOn",
-      "applicationMode",
-      "merchantId",
-      "geofenceId",
-    ];
+    await PromoCode.findByIdAndUpdate(
+      promoCodeId,
+      {
+        promoCode: promoCode.toUpperCase(),
+        promoType,
+        discount,
+        description,
+        fromDate,
+        toDate,
+        maxDiscountValue,
+        minOrderAmount,
+        maxAllowedUsers,
+        appliedOn,
+        applicationMode,
+        merchantId,
+        geofenceId,
+        deliveryMode,
+        imageUrl,
+      },
+      { new: true }
+    );
 
-    updateFields.forEach((field) => {
-      if (req.body[field] !== undefined) {
-        existingPromoCode[field] = req.body[field];
-      }
-    });
-
-    // If an image file was uploaded, update the imageUrl
-    if (req.file) {
-      existingPromoCode.imageUrl = imageUrl;
-    }
-
-    // Save the updated promo code
-    const updatedPromoCode = await existingPromoCode.save();
-
-    // Send a success response
     res.status(200).json({
-      success: "Promocode updated successfully",
-      data: updatedPromoCode,
+      message: "Promo code updated successfully",
     });
   } catch (err) {
     next(appError(err.message));
@@ -142,34 +142,62 @@ const editPromoCodeController = async (req, res, next) => {
 
 const getAllPromoCodesController = async (req, res, next) => {
   try {
-    // Fetch all promo codes from the database
-    const promoCodes = await PromoCode.find();
+    const promoCodes = await PromoCode.find({});
 
-    // Send a success response with the fetched promo codes
-    res.status(200).json({
-      success: "Promo codes retrieved successfully",
-      data: promoCodes,
-    });
+    const formattedResponse = promoCodes?.map((promoCode) => ({
+      promoCodeId: promoCode._id,
+      promoCode: promoCode.promoCode || null,
+      promoValue:
+        promoCode.promoType === "Flat-discount"
+          ? `₹ ${promoCode.discount}`
+          : `${promoCode.discount} %`,
+      maxDiscountValue: promoCode.maxDiscountValue || null,
+      minOrderAmount: promoCode.minOrderAmount || null,
+      fromDate: formatDate(promoCode.fromDate),
+      toDate: formatDate(promoCode.toDate),
+      description: promoCode.description || null,
+      applicationMode: promoCode.applicationMode || null,
+      appliedOn: promoCode.appliedOn || null,
+      noOfUserUsed: promoCode.noOfUserUsed || 0,
+      maxAllowedUsers: promoCode.maxAllowedUsers,
+      status: promoCode.status || null,
+    }));
+
+    res.status(200).json(formattedResponse);
   } catch (err) {
-    // Pass the error to the error-handling middleware
     next(appError(err.message));
   }
 };
 
-const getSinglePromocodeController = async (req, res, next) => {
+const getSinglePromoCodeController = async (req, res, next) => {
   try {
-    const { promocodeId } = req.params;
+    const { promoCodeId } = req.params;
 
-    const promocodeFound = await PromoCode.findById(promocodeId);
+    const promoCode = await PromoCode.findById(promoCodeId);
 
-    if (!promocodeFound) {
-      return next(appError("Promocode not found", 404));
-    }
+    if (!promoCode) return next(appError("Promo code not found", 404));
 
-    res.status(200).json({
-      message: "Single promocode",
-      data: promocodeFound,
-    });
+    const formattedResponse = {
+      promoCode: promoCode.promoCode || null,
+      promoType: promoCode.promoType || null,
+      discount: promoCode.discount || null,
+      description: promoCode.description || null,
+      fromDate: promoCode.fromDate || null,
+      toDate: promoCode.toDate || null,
+      maxDiscountValue: promoCode.maxDiscountValue || null,
+      minOrderAmount: promoCode.minOrderAmount || null,
+      maxAllowedUsers: promoCode.maxAllowedUsers || null,
+      appliedOn: promoCode.appliedOn || null,
+      applicationMode: promoCode.applicationMode || null,
+      merchantId: promoCode.merchantId || [],
+      geofenceId: promoCode.geofenceId || null,
+      imageUrl: promoCode.imageUrl || null,
+      status: promoCode.status || null,
+      noOfUserUsed: promoCode.noOfUserUsed || null,
+      deliveryMode: promoCode.deliveryMode || null,
+    };
+
+    res.status(200).json(formattedResponse);
   } catch (err) {
     next(appError(err.message));
   }
@@ -177,74 +205,33 @@ const getSinglePromocodeController = async (req, res, next) => {
 
 const deletePromoCodeController = async (req, res, next) => {
   try {
-    // Get the promo code ID from the request parameters
-    const { id } = req.params;
+    const { promoCodeId } = req.params;
 
-    // Find the promo code by ID and delete it
-    const deletedPromoCode = await PromoCode.findByIdAndDelete(id);
+    const deletedPromoCode = await PromoCode.findByIdAndDelete(promoCodeId);
 
-    // If no promo code is found, send a 404 response
-    if (!deletedPromoCode) {
-      return res.status(404).json({ error: "Promo code not found" });
-    }
+    if (!deletedPromoCode) next(appError("Promo code not found", 404));
 
-    // Send a success response
     res.status(200).json({
-      success: "Promo code deleted successfully",
+      message: "Promo code deleted successfully",
     });
   } catch (err) {
-    // Pass the error to the error-handling middleware
     next(appError(err.message));
   }
 };
 
 const editPromoCodeStatusController = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const promoCode = await PromoCode.findById(id);
-    if (!promoCode) {
-      return res.status(400).json({
-        error: "PromoCode not found",
-      });
-    }
+    const { promoCodeId } = req.params;
+    const promoCode = await PromoCode.findById(promoCodeId);
 
-    if (promoCode.status) {
-      promoCode.status = false;
-    } else {
-      promoCode.status = true;
-    }
+    if (!promoCode) return next(appError("Promo code not found", 404));
+
+    promoCode.status = !promoCode.status;
 
     await promoCode.save();
 
     return res.status(200).json({
-      success: "PromoCode status updated successfully",
-      data: promoCode,
-    });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
-const updateAllPromoCodesStatusController = async (req, res, next) => {
-  try {
-    // Fetch all promo codes
-    const promoCodes = await PromoCode.find();
-
-    // Iterate through each promo code and update the status if it's true
-    const updatedPromoCodes = await Promise.all(
-      promoCodes.map(async (promoCode) => {
-        if (promoCode.status === true) {
-          promoCode.status = false;
-          await promoCode.save();
-        }
-        return promoCode;
-      })
-    );
-
-    // Send a success response with the updated promo codes
-    return res.status(200).json({
-      success: "PromoCodes status updated successfully",
-      data: updatedPromoCodes,
+      message: "PromoCode status updated successfully",
     });
   } catch (err) {
     next(appError(err.message));
@@ -256,7 +243,6 @@ module.exports = {
   editPromoCodeController,
   deletePromoCodeController,
   getAllPromoCodesController,
-  getSinglePromocodeController,
+  getSinglePromoCodeController,
   editPromoCodeStatusController,
-  updateAllPromoCodesStatusController,
 };
