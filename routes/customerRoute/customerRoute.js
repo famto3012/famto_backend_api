@@ -347,18 +347,6 @@ customerRoute.get(
 );
 
 customerRoute.get(
-  "/all-promocodes",
-  isAuthenticated,
-  getPromocodesOfCustomerController
-);
-
-customerRoute.get(
-  "/search-promocodes",
-  isAuthenticated,
-  searchPromoCodeController
-);
-
-customerRoute.get(
   "/get-promocodes",
   isAuthenticated,
   fetchPromoCodesController
