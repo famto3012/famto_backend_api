@@ -526,7 +526,6 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
           await fs.unlink(fileName);
         }
       } catch (err) {
-        console.log(`Error in location image:`, err);
         res.status(500).json({ error: "Failed to fetch data from Mappls API" });
         return;
       }
@@ -1292,8 +1291,6 @@ const updateMerchantDetailsController = async (req, res, next) => {
   try {
     const { merchantId } = req.params;
 
-    // console.log(merchantDetail);
-
     const merchantFound = await Merchant.findById(merchantId);
     if (!merchantFound) {
       return next(appError("Merchant not found", 404));
@@ -1389,7 +1386,6 @@ const updateMerchantDetailsController = async (req, res, next) => {
 
     if (!arraysAreEqual(newLocation, merchantFound?.merchantDetail?.location)) {
       if (merchantFound?.merchantDetail?.locationImage) {
-        console.log("Here");
         await deleteFromFirebase(merchantFound?.merchantDetail?.locationImage);
       }
 

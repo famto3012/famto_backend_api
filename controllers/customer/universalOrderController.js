@@ -187,7 +187,9 @@ const listRestaurantsController = async (req, res, next) => {
           averageRating: merchant?.merchantDetail?.averageRating,
           status: merchant?.status,
           restaurantType: merchant?.merchantDetail?.merchantFoodType || null,
-          merchantImageURL: merchant?.merchantDetail?.merchantImageURL || null,
+          merchantImageURL:
+            merchant?.merchantDetail?.merchantImageURL ||
+            "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/DefaultImages%2FMerchantDefaultImage.png?alt=media&token=a7a11e18-047c-43d9-89e3-8e35d0a4e231",
           displayAddress: merchant?.merchantDetail?.displayAddress || null,
           preOrderStatus: merchant?.merchantDetail?.preOrderStatus,
           isFavorite,
@@ -246,7 +248,9 @@ const getAllCategoriesOfMerchants = async (req, res, next) => {
       merchantName: merchantFound.merchantDetail.merchantName,
       distanceInKM: distanceInKM || null,
       deliveryTime: merchantFound.merchantDetail.deliveryTime,
-      merchantImageURL: merchantFound.merchantDetail.merchantImageURL,
+      merchantImageURL:
+        merchantFound?.merchantDetail?.merchantImageURL ||
+        "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/DefaultImages%2FMerchantDefaultImage.png?alt=media&token=a7a11e18-047c-43d9-89e3-8e35d0a4e231",
       description: merchantFound.merchantDetail.description,
       displayAddress: merchantFound.merchantDetail.displayAddress,
       preOrderStatus: merchantFound.merchantDetail.preOrderStatus,
@@ -351,7 +355,9 @@ const getAllProductsOfMerchantController = async (req, res, next) => {
         description: product.description || null,
         longDescription: product.longDescription || null,
         type: product.type || null,
-        productImageURL: product.productImageURL || null,
+        productImageURL:
+          product.productImageURL ||
+          "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/DefaultImages%2FProductDefaultImage.png?alt=media&token=044503ee-84c8-487b-9df7-793ad0f70e1c",
         inventory: product.inventory || null,
         variantAvailable: product.variants && product.variants.length > 0, // Check if variants are available
       };
@@ -557,24 +563,8 @@ const searchProductsInMerchantToOrderController = async (req, res, next) => {
     const { merchantId, businessCategoryId } = req.params;
     const { query } = req.query;
 
-    // if (!merchantId || !businessCategoryId)
-    //   return next(
-    //     appError("Merchant id or Business category id is missing", 400)
-    //   );
-
-    // if (!query) return next(appError("Query is required", 400));
-
     // Find all categories belonging to the merchant with the given business category
     const categories = await Category.find({ merchantId, businessCategoryId });
-
-    // if (!categories || categories.length === 0) {
-    //   return next(
-    //     appError(
-    //       "Categories not found for the given merchant and business category",
-    //       404
-    //     )
-    //   );
-    // }
 
     // Extract all category ids to search products within all these categories
     const categoryIds = categories.map((category) => category._id);
@@ -619,9 +609,11 @@ const searchProductsInMerchantToOrderController = async (req, res, next) => {
             id: product._id,
             productName: product.productName,
             price: product.price,
-            discountPrice: null, // Main product discount price is null if discount is on variants
+            discountPrice: null,
             description: product.description,
-            productImageUrl: product?.productImageURL || null,
+            productImageUrl:
+              product?.productImageURL ||
+              "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/DefaultImages%2FProductDefaultImage.png?alt=media&token=044503ee-84c8-487b-9df7-793ad0f70e1c",
             variants: product.variants.map((variant) => ({
               id: variant._id,
               variantName: variant.variantName,
@@ -675,7 +667,9 @@ const searchProductsInMerchantToOrderController = async (req, res, next) => {
         price: product.price,
         discountPrice, // Null if no discount or discount is applied to variants
         description: product.description,
-        productImageUrl: product?.productImageURL || null,
+        productImageUrl:
+          product?.productImageURL ||
+          "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/DefaultImages%2FProductDefaultImage.png?alt=media&token=044503ee-84c8-487b-9df7-793ad0f70e1c",
         variants: product.variants.map((variant) => ({
           id: variant._id,
           variantName: variant.variantName,
@@ -801,7 +795,9 @@ const filterAndSortAndSearchProductsController = async (req, res, next) => {
         description: product?.description || null,
         longDescription: product?.longDescription || null,
         type: product.type || null,
-        productImageURL: product?.productImageURL || null,
+        productImageURL:
+          product?.productImageURL ||
+          "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/DefaultImages%2FProductDefaultImage.png?alt=media&token=044503ee-84c8-487b-9df7-793ad0f70e1c",
         inventory: product.inventory || null,
         variantAvailable: product?.variants && product?.variants?.length > 0,
       };
@@ -979,8 +975,6 @@ const addOrUpdateCartItemController = async (req, res, next) => {
   try {
     const { productId, quantity, variantTypeId } = req.body;
 
-    console.log("Updating Cart: ", req.body);
-
     const customerId = req.userAuth;
 
     if (!customerId) {
@@ -1047,7 +1041,6 @@ const addOrUpdateCartItemController = async (req, res, next) => {
     );
 
     if (existingItemIndex >= 0) {
-      console.log("Item exists");
       cart.items[existingItemIndex].quantity = quantity;
       cart.items[existingItemIndex].price = finalPrice;
       cart.items[existingItemIndex].totalPrice = quantity * finalPrice;
@@ -1056,7 +1049,6 @@ const addOrUpdateCartItemController = async (req, res, next) => {
         cart.items.splice(existingItemIndex, 1);
       }
     } else {
-      console.log("No item exists");
       if (quantity > 0) {
         const newItem = {
           productId,
@@ -1319,9 +1311,6 @@ const getCartBillController = async (req, res, next) => {
     const { cartId } = req.query;
 
     const cartFound = await CustomerCart.findById(cartId).select("billDetail");
-    // .lean();
-
-    console.log(cartFound.billDetail);
 
     res.status(200).json({ billDetail: cartFound.billDetail });
   } catch (err) {
@@ -2500,10 +2489,8 @@ module.exports = {
   orderPaymentController,
   verifyOnlinePaymentController,
   cancelOrderBeforeCreationController,
-  // searchMerchantsOrProducts,
   clearCartController,
   applyTipController,
-  //
   confirmOrderDetailController,
   getCartBillController,
   getOrderTrackingDetail,

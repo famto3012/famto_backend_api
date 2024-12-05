@@ -28,7 +28,6 @@ const addServiceCategoryController = async (req, res, next) => {
 
     let bannerImageURL = "";
     if (req.file) {
-      console.log(req.file);
       bannerImageURL = await uploadToFirebase(
         req.file,
         "ServiceCategoryImages"

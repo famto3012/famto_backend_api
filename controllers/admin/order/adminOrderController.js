@@ -250,7 +250,6 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
       };
       orderFound.commissionDetail = updatedCommission;
     }
-    console.log("Here 2");
 
     if (orderFound?.orderDetail?.deliveryMode !== "Take Away") {
       const task = await orderCreateTaskHelper(orderId);
@@ -276,7 +275,7 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
     const eventName = "orderAccepted";
 
     const { rolesToNotify, data } = await findRolesToNotify(eventName);
-    console.log("2");
+
     // Send notifications to each role dynamically
     for (const role of rolesToNotify) {
       let roleId;
@@ -308,7 +307,7 @@ const confirmOrderByAdminContrroller = async (req, res, next) => {
         );
       }
     }
-    console.log("Here 3");
+
     const socketData = {
       ...data,
 
@@ -1192,8 +1191,6 @@ const downloadOrdersCSVByAdminController = async (req, res, next) => {
 const downloadInvoiceBillController = async (req, res, next) => {
   try {
     const { cartId, deliveryMode } = req.body;
-
-    console.log(req.body);
 
     const isStandardDelivery = ["Take Away", "Home Delivery"].includes(
       deliveryMode
@@ -2155,7 +2152,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
     });
     if (!customer) return res.status(409).json({ errors: formattedErrors });
 
-    console.log("2");
     const {
       pickupLocation,
       pickupAddress,
@@ -2179,10 +2175,8 @@ const createInvoiceByAdminController = async (req, res, next) => {
       customPickupLocation
     );
 
-    console.log("3");
     const scheduledDetails = processScheduledDelivery(deliveryOption, req);
 
-    console.log("4");
     const {
       oneTimeDeliveryCharge,
       surgeCharges,
@@ -2201,7 +2195,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
       selectedBusinessCategory
     );
 
-    console.log("5");
     let merchantDiscountAmount;
     if (merchantFound) {
       merchantDiscountAmount = await applyDiscounts({
@@ -2211,7 +2204,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
       });
     }
 
-    console.log("6");
     const billDetail = calculateBill(
       itemTotal || 0,
       deliveryChargeForScheduledOrder || oneTimeDeliveryCharge || 0,
@@ -2452,8 +2444,6 @@ const createOrderByAdminController = async (req, res, next) => {
       newOrderCreated = await Order.create(orderOptions);
     }
 
-    console.log("One", newOrderCreated._id);
-
     const [, , , newOrder] = await Promise.all([
       ActivityLog.create({
         userId: req.userAuth,
@@ -2466,8 +2456,6 @@ const createOrderByAdminController = async (req, res, next) => {
       updateCustomerTransaction(customer, orderDetails.billDetail),
       Order.findById(newOrderCreated._id).populate("merchantId"),
     ]);
-
-    console.log("newOrder", newOrder);
 
     const eventName = "newOrderCreated";
 

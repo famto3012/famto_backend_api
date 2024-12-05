@@ -1358,9 +1358,6 @@ const updateVehicleDetailController = async (req, res, next) => {
     const rcFrontImage = req.files.rcFrontImage?.[0];
     const rcBackImage = req.files.rcBackImage?.[0];
 
-    console.log("rcFrontImage", rcFrontImage);
-    console.log("rcBackImage", rcBackImage);
-
     if (rcFrontImage) {
       if (rcFrontImageURL) await deleteFromFirebase(rcFrontImageURL);
       rcFrontImageURL = await uploadToFirebase(rcFrontImage, "RCImages");

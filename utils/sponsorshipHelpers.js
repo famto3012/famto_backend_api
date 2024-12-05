@@ -87,8 +87,6 @@ const deleteExpiredSponsorshipPlans = async () => {
         }
       }
     }
-
-    console.log("Expired sponsorship plans processed successfully");
   } catch (err) {
     console.error(`Error deleting expired sponsorship plans: ${err}`);
   }

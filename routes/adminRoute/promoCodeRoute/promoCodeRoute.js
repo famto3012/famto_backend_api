@@ -47,7 +47,6 @@ promoCodeRoute.post(
       .notEmpty()
       .withMessage("Max allowed users is required"),
     body("appliedOn").notEmpty().withMessage("applied on is required"),
-    body("merchantId").notEmpty().withMessage("Merchant Id is required"),
     body("geofenceId").notEmpty().withMessage("Geofence id is required"),
   ],
   isAuthenticated,

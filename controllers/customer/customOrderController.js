@@ -42,7 +42,7 @@ const addShopController = async (req, res, next) => {
     let distance;
     let duration;
 
-    // If buyFromAnyWhere is true, set pickupLocation to null and set deliveryLocation to customer's location
+    //? If buyFromAnyWhere is true, set pickupLocation to null
     if (buyFromAnyWhere) {
       pickupLocation = [];
       deliveryLocation = customer.customerDetails.location;
@@ -143,8 +143,6 @@ const addItemsToCartController = async (req, res, next) => {
     cart.items.push(updatedItems);
 
     await cart.save();
-
-    // console.log("Customer cart items", cart.items);
 
     res.status(200).json({
       message: "Item added successfully",
@@ -808,11 +806,9 @@ const confirmCustomOrderController = async (req, res, next) => {
   }
 };
 
-// Cancel Order Controller
 const cancelCustomBeforeOrderCreationController = async (req, res, next) => {
   try {
     const { orderId } = req.params;
-    console.log("Order Id for cancel: ", orderId);
 
     const orderFound = await TemporaryOrder.findOne({ orderId });
     if (!orderFound) return next(appError("Order not found", 404));

@@ -16,18 +16,14 @@ const {
   getDistanceFromPickupToDelivery,
   calculateDeliveryCharges,
   calculatePromoCodeDiscount,
+  calculateScheduledCartValue,
 } = require("../../utils/customerAppHelpers");
 const {
   createRazorpayOrderId,
   verifyPayment,
   razorpayRefund,
 } = require("../../utils/razorpayPayment");
-const {
-  convertStartDateToUTC,
-  convertEndDateToUTC,
-  formatDate,
-  formatTime,
-} = require("../../utils/formatters");
+const { formatDate, formatTime } = require("../../utils/formatters");
 const {
   deleteFromFirebase,
   uploadToFirebase,
@@ -40,6 +36,22 @@ const {
 } = require("../../utils/createOrderHelpers");
 const CustomerAppCustomization = require("../../models/CustomerAppCustomization");
 const Tax = require("../../models/Tax");
+
+// Initialize cart
+const initializePickAndDrop = async (req, res, next) => {
+  try {
+    const customerId = req.userAuth;
+
+    await PickAndCustomCart.findOneAndDelete({
+      customerId,
+      "cartDetail.deliveryMode": "Pick and Drop",
+    });
+
+    res.status(200).json({ message: "Cart is cleared" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
 
 // Add pick and drop address
 const addPickUpAddressController = async (req, res, next) => {
@@ -163,7 +175,6 @@ const addPickUpAddressController = async (req, res, next) => {
         }
       );
     } else {
-      console.log("Don't have cart");
       cartFound = await PickAndCustomCart.create({
         customerId,
         cartDetail: updatedCartDetail,
@@ -392,6 +403,7 @@ const addTipAndApplyPromoCodeInPickAndDropController = async (
     cart.billDetail.originalGrandTotal = originalGrandTotalWithTip;
 
     let discountAmount = 0;
+    let promoCodeUsed = null;
 
     // Apply the promo code if provided
     if (promoCode) {
@@ -406,6 +418,8 @@ const addTipAndApplyPromoCodeInPickAndDropController = async (
       if (!promoCodeFound) {
         return next(appError("Promo code not found or inactive", 404));
       }
+
+      promoCodeUsed = promoCodeFound.promoCode;
 
       const totalDeliveryPrice =
         cart.cartDetail.deliveryOption === "Scheduled"
@@ -439,9 +453,10 @@ const addTipAndApplyPromoCodeInPickAndDropController = async (
         totalDeliveryPrice
       );
 
-      promoCodeFound.noOfUserUsed += 1;
       await promoCodeFound.save();
     }
+
+    console.log("promoCodeUsed", promoCodeUsed);
 
     // Ensure proper type conversion for discountAmount
     discountAmount = parseFloat(discountAmount) || 0;
@@ -453,6 +468,7 @@ const addTipAndApplyPromoCodeInPickAndDropController = async (
       discountedDeliveryCharge < 0 ? 0 : Math.round(discountedDeliveryCharge);
     cart.billDetail.discountedGrandTotal = Math.round(discountedGrandTotal);
     cart.billDetail.discountedAmount = discountAmount.toFixed(2);
+    cart.billDetail.promoCodeUsed = promoCodeUsed;
 
     await cart.save();
 
@@ -507,6 +523,7 @@ const confirmPickAndDropController = async (req, res, next) => {
           cart.billDetail.discountedGrandTotal ||
           cart.billDetail.originalGrandTotal,
         addedTip: cart.billDetail.addedTip,
+        vehicleType: cart.billDetail.vehicleType,
       };
 
       let walletTransaction = {
@@ -523,18 +540,8 @@ const confirmPickAndDropController = async (req, res, next) => {
         type: "Debit",
       };
 
-      let startDate, endDate, newOrder;
+      let newOrder;
       if (cart.cartDetail.deliveryOption === "Scheduled") {
-        // startDate = convertStartDateToUTC(
-        //   cart.cartDetail.startDate,
-        //   cart.cartDetail.time
-        // );
-
-        // endDate = convertEndDateToUTC(
-        //   cart.cartDetail.endDate,
-        //   cart.cartDetail.time
-        // );
-
         // Create scheduled Pick and Drop
         newOrder = await ScheduledPickAndCustom.create({
           customerId,
@@ -937,11 +944,8 @@ const cancelPickBeforeOrderCreationController = async (req, res, next) => {
 
     const orderFound = await TemporaryOrder.findOne({ orderId });
 
-    console.log(orderFound);
-
     const customerFound = await Customer.findById(orderFound.customerId);
 
-    console.log("customer and order found");
     let updatedTransactionDetail = {
       transactionType: "Refund",
       madeOn: new Date(),
@@ -977,7 +981,6 @@ const cancelPickBeforeOrderCreationController = async (req, res, next) => {
 
         return;
       } else if (orderFound.paymentMode === "Online-payment") {
-        console.log("Inside online payment");
         const paymentId = orderFound.paymentId;
 
         let refundAmount;
@@ -985,8 +988,6 @@ const cancelPickBeforeOrderCreationController = async (req, res, next) => {
         if (orderFound.orderDetail.deliveryOption === "On-demand") {
           refundAmount = orderFound.billDetail.grandTotal;
           updatedTransactionDetail.transactionAmount = refundAmount;
-
-          console.log("refundAmount", refundAmount);
         } else if (orderFound.orderDetail.deliveryOption === "Scheduled") {
           refundAmount =
             orderFound.billDetail.grandTotal / orderFound.orderDetail.numOfDays;
@@ -995,7 +996,6 @@ const cancelPickBeforeOrderCreationController = async (req, res, next) => {
 
         const refundResponse = await razorpayRefund(paymentId, refundAmount);
 
-        console.log("refund processed");
         if (!refundResponse.success) {
           return next(appError("Refund failed: " + refundResponse.error, 500));
         }
@@ -1028,4 +1028,5 @@ module.exports = {
   confirmPickAndDropController,
   verifyPickAndDropPaymentController,
   cancelPickBeforeOrderCreationController,
+  initializePickAndDrop,
 };

@@ -29,19 +29,12 @@ const findOrCreateCustomer = async ({
   customerAddress,
   deliveryMode,
 }) => {
-  console.log("customerId", customerId);
-  console.log("newCustomer", newCustomer);
-  console.log("customerAddress", customerAddress);
-  console.log("deliveryMode", deliveryMode);
-
-  console.log("1.1");
   if (customerId) {
     const customer = await Customer.findById(customerId);
     if (!customer) throw new Error("Customer not found");
     return customer;
   }
 
-  console.log("1.2");
   const existingCustomer = await Customer.findOne({
     $or: [
       { phoneNumber: newCustomer.phoneNumber },
@@ -49,10 +42,8 @@ const findOrCreateCustomer = async ({
     ],
   });
 
-  console.log("1.3");
   if (existingCustomer) return existingCustomer;
 
-  console.log("1.4");
   if (newCustomer && deliveryMode === "Take Away") {
     return await Customer.create({
       fullName: newCustomer.fullName,
@@ -61,7 +52,6 @@ const findOrCreateCustomer = async ({
     });
   }
 
-  console.log("1.5");
   if (customerAddress) {
     const location = [customerAddress.latitude, customerAddress.longitude];
     const updatedAddress = {
@@ -271,9 +261,6 @@ const updateCustomerAddress = async (
   const location = [newAddress.latitude, newAddress.longitude];
   newAddress.coordinates = location;
 
-  console.log("addressType: ", addressType);
-  console.log("newAddress: ", newAddress);
-
   switch (addressType) {
     case "home":
       customer.customerDetails.homeAddress = newAddress;
@@ -387,8 +374,6 @@ const handleAddressDetails = async (
         customerAddressType,
         customerAddressOtherAddressId
       );
-
-      console.log("address", address);
 
       if (!address) throw new Error("Address not found");
       deliveryLocation = address.coordinates;
@@ -692,8 +677,6 @@ const calculateBill = (
   taxAmount,
   addedTip = 0
 ) => {
-  console.log("surgeCharges", surgeCharges);
-
   // Calculate total discount amount once
   const totalDiscountAmount =
     parseFloat(flatDiscount || 0) + parseFloat(merchantDiscountAmount || 0);
@@ -828,10 +811,6 @@ const handleDeliveryModeForAdmin = async (
     customPickupLocation
   );
 
-  console.log("Here");
-  console.log("Pick", addressDetails.pickupLocation);
-  console.log("Delivery", addressDetails.deliveryLocation);
-
   let distance = 0;
 
   const customOrderWithPick = addressDetails.pickupLocation.length === 2;
@@ -845,8 +824,6 @@ const handleDeliveryModeForAdmin = async (
 
     distance = distanceInKM;
   }
-
-  console.log("distance", distance);
 
   return {
     ...addressDetails,

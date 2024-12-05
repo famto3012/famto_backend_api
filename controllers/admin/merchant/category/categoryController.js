@@ -79,8 +79,6 @@ const addCategoryByAdminController = async (req, res, next) => {
   const { businessCategoryId, merchantId, categoryName, description, type } =
     req.body;
 
-  console.log(req.body);
-
   const errors = validationResult(req);
 
   let formattedErrors = {};
@@ -147,8 +145,6 @@ const addCategoryByAdminController = async (req, res, next) => {
 const editCategoryByAdminController = async (req, res, next) => {
   const { businessCategoryId, merchantId, categoryName, description, type } =
     req.body;
-
-  console.log(req.body);
 
   const errors = validationResult(req);
 

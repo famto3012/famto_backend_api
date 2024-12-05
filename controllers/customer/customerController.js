@@ -29,7 +29,12 @@ const {
   deleteFromFirebase,
   uploadToFirebase,
 } = require("../../utils/imageOperation");
-const { completeReferralDetail } = require("../../utils/customerAppHelpers");
+const {
+  completeReferralDetail,
+  calculateScheduledCartValue,
+  calculatePromoCodeDiscount,
+  deductPromoCodeDiscount,
+} = require("../../utils/customerAppHelpers");
 const {
   createRazorpayOrderId,
   verifyPayment,
@@ -39,6 +44,7 @@ const { formatDate, formatTime } = require("../../utils/formatters");
 const { sendNotification, sendSocketData } = require("../../socket/socket");
 const LoyaltyPoint = require("../../models/LoyaltyPoint");
 const Banner = require("../../models/Banner");
+const PickAndCustomCart = require("../../models/PickAndCustomCart");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -488,7 +494,9 @@ const getFavoriteMerchantsController = async (req, res, next) => {
         averageRating: merchant?.merchantDetail?.averageRating,
         status: merchant?.status,
         restaurantType: merchant?.merchantDetail?.merchantFoodType || null,
-        merchantImageURL: merchant?.merchantDetail?.merchantImageURL || null,
+        merchantImageURL:
+          merchant?.merchantDetail?.merchantImageURL ||
+          "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/DefaultImages%2FMerchantDefaultImage.png?alt=media&token=a7a11e18-047c-43d9-89e3-8e35d0a4e231",
         displayAddress: merchant?.merchantDetail?.displayAddress || null,
         preOrderStatus: merchant?.merchantDetail?.preOrderStatus,
         isFavorite: true,
@@ -888,27 +896,32 @@ const fetchPromoCodesController = async (req, res, next) => {
       fromDate: { $lte: currentDate },
       toDate: { $gte: currentDate },
       $expr: { $lt: ["$noOfUserUsed", "$maxAllowedUsers"] },
-      deliveryMode,
     };
 
-    if (query) filter.promoCode = query;
+    if (deliveryMode) {
+      filter.deliveryMode = deliveryMode;
+    }
+
+    if (query) {
+      filter.$or = [{ promoCode: query.trim() }, { applicationMode: "Hidden" }];
+    } else {
+      filter.applicationMode = "Public";
+    }
 
     const promocodesFound = await PromoCode.find(filter);
 
-    const formattedResponse = promocodesFound.map((promo) => {
-      return {
-        id: promo._id,
-        imageURL: promo.imageUrl,
-        promoCode: promo.promoCode,
-        discount: promo.discount,
-        description: promo.description,
-        promoType: promo.promoType,
-        validUpTo: formatDate(promo.toDate),
-        maxDiscountValue: promo.maxDiscountValue,
-        minOrderAmount: promo.minOrderAmount,
-        status: promo.status,
-      };
-    });
+    const formattedResponse = promocodesFound.map((promo) => ({
+      id: promo._id,
+      imageURL: promo.imageUrl,
+      promoCode: promo.promoCode,
+      discount: promo.discount,
+      description: promo.description,
+      promoType: promo.promoType,
+      validUpTo: formatDate(promo.toDate),
+      maxDiscountValue: promo.maxDiscountValue,
+      minOrderAmount: promo.minOrderAmount,
+      status: promo.status,
+    }));
 
     res.status(200).json({
       status: "Available promocodes",
@@ -1299,6 +1312,53 @@ const getCurrentOngoingOrders = async (req, res, next) => {
   }
 };
 
+const removeAppliedPromoCode = async (req, res, next) => {
+  try {
+    const { cartId, deliveryMode } = req.body;
+
+    const modal =
+      deliveryMode === "Take Away" || deliveryMode === "Home Delivery"
+        ? CustomerCart
+        : PickAndCustomCart;
+
+    const cart = await modal.findById(cartId);
+
+    if (!cart) return next(appError("Cart not found", 404));
+
+    const { billDetail } = cart;
+    const promoCodeFound = await PromoCode.findOne({
+      promoCode: billDetail.promoCodeUsed,
+    });
+
+    if (!promoCodeFound) {
+      return next(appError("Promo code not found", 404));
+    }
+
+    const { itemTotal, originalDeliveryCharge } = billDetail;
+
+    const totalCartPrice =
+      cart.cartDetail.deliveryOption === "Scheduled"
+        ? calculateScheduledCartValue(cart, promoCodeFound)
+        : deliveryMode === "Take Away" || deliveryMode === "Home Delivery"
+        ? itemTotal
+        : originalDeliveryCharge;
+
+    const promoCodeDiscount = calculatePromoCodeDiscount(
+      promoCodeFound,
+      totalCartPrice
+    );
+
+    const updatedCart = deductPromoCodeDiscount(cart, promoCodeDiscount);
+
+    res.status(200).json({
+      success: "Promo code applied successfully",
+      data: updatedCart.billDetail,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   registerAndLoginController,
   getAvailableGeofences,
@@ -1333,4 +1393,5 @@ module.exports = {
   getScheduledOrderDetailController,
   getMerchantAppBannerController,
   fetchPromoCodesController,
+  removeAppliedPromoCode,
 };

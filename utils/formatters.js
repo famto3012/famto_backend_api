@@ -94,40 +94,29 @@ const convertISTToUTC = (startDate, time12hr) => {
 
 const convertStartDateToUTC = (date, time) => {
   // Combine date and time using 12-hour format
-  console.log(`Input date: ${date}, time: ${time}`);
+
   const localDateTime = momentTimezone.tz(
     `${date} ${time}`,
     "YYYY-MM-DD hh:mm A",
     momentTimezone.tz.guess()
   );
 
-  // Log local date and time
-  console.log("Local date and time: ", localDateTime.format());
-
   // Convert to UTC
-  const orderStartDateinUTC = localDateTime.clone().utc();
+  const orderStartDateInUTC = localDateTime.clone().utc();
 
-  console.log("Start date in function (UTC): ", orderStartDateinUTC.format());
   // Return the UTC time in desired format
-  return orderStartDateinUTC.format();
+  return orderStartDateInUTC.format();
 };
 
 const convertEndDateToUTC = (date, time) => {
-  // Combine date and time using 12-hour format
-  console.log(`Input date: ${date}, time: ${time}`);
   const localDateTime = momentTimezone.tz(
     `${date} ${time}`,
     "YYYY-MM-DD hh:mm A",
     momentTimezone.tz.guess()
   );
 
-  // Log local date and time
-  console.log("Local date and time: ", localDateTime.format());
-
   // Convert to UTC
   const orderEndDateInUTC = localDateTime.clone().utc();
-
-  console.log("End date in function (UTC): ", orderEndDateInUTC.format());
 
   // Return the UTC time in desired format
   return orderEndDateInUTC.format();

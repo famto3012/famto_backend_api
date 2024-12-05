@@ -8,15 +8,14 @@ const razorpay = new Razorpay({
 
 const createRazorpayOrderId = async (amount) => {
   try {
-    console.log("Amount", amount * 100)
     const options = {
-      amount: amount * 100 ,
+      amount: amount * 100,
       currency: "INR",
       receipt: crypto.randomBytes(10).toString("hex"),
     };
-    console.log(options)
+
     const order = await razorpay.orders.create(options);
-    console.log("order", order)
+
     return { success: true, orderId: order.id };
   } catch (err) {
     console.error("Error in processing payment:", err);
@@ -75,18 +74,12 @@ const createRazorpayQrCode = async (amount) => {
 
 const createSettlement = async () => {
   try {
-    console.log("Running Razorpay settlement...");
-
     const settlement = await razorpay.settlements.createOndemandSettlement({
       settle_full_balance: true,
       description: "Settling full payments",
     });
 
-    console.log("Settlement created:", settlement);
-
-    console.log("Finished running Razorpay settlement.");
-
-    return settlement; // Optional: return the settlement if needed
+    return settlement;
   } catch (err) {
     console.error(
       "Error creating Razorpay settlement:",
