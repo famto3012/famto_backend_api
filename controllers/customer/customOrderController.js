@@ -500,7 +500,7 @@ const addTipAndApplyPromoCodeInCustomOrderController = async (
     if (!cart) return next(appError("Cart not found", 404));
 
     // Ensure the original delivery charge exists
-    const { originalGrandTotal, originalDeliveryCharge } =
+    const { originalGrandTotal = 0, originalDeliveryCharge = 0 } =
       cart.billDetail.originalGrandTotal;
 
     // Add the tip

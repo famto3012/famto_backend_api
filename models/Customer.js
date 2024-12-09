@@ -131,8 +131,16 @@ const customerDetailSchema = new mongoose.Schema(
     ],
     favoriteMerchants: [
       {
-        type: String,
-        ref: "Merchant",
+        merchantId: {
+          type: String,
+          ref: "Merchant", 
+          required: true,
+        },
+        businessCategoryId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "BusinessCategory",
+          required: true,
+        },
       },
     ],
   },
