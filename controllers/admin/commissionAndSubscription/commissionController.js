@@ -7,6 +7,7 @@ const Merchant = require("../../../models/Merchant");
 const appError = require("../../../utils/appError");
 const ActivityLog = require("../../../models/ActivityLog");
 const SubscriptionLog = require("../../../models/SubscriptionLog");
+const { formatDate } = require("../../../utils/formatters");
 
 const addAndEditCommissionController = async (req, res, next) => {
   const errors = validationResult(req);
@@ -93,6 +94,7 @@ const addAndEditCommissionController = async (req, res, next) => {
   }
 };
 
+// TODO: Remove this controller after Panel V2
 const getAllCommissionLogController = async (req, res, next) => {
   try {
     const commissionLogs = await CommissionLogs.find({});
@@ -108,6 +110,7 @@ const getAllCommissionLogController = async (req, res, next) => {
   }
 };
 
+// TODO: Remove this controller after Panel V2
 const getCommissionLogsByMerchantName = async (req, res) => {
   try {
     const { merchantName } = req.query;
@@ -134,6 +137,7 @@ const getCommissionLogsByMerchantName = async (req, res) => {
   }
 };
 
+// TODO: Remove this controller after Panel V2
 const getCommissionLogsByCreatedDate = async (req, res, next) => {
   try {
     const { date, merchantId } = req.query;
@@ -174,6 +178,7 @@ const getCommissionLogsByCreatedDate = async (req, res, next) => {
   }
 };
 
+// TODO: Remove this controller after Panel V2
 const getCommissionLogsByMerchantId = async (req, res) => {
   try {
     const merchantId = req.params.merchantId;
@@ -187,6 +192,79 @@ const getCommissionLogsByMerchantId = async (req, res) => {
       data: {
         commissionLogs,
       },
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const fetchCommissionLogs = async (req, res, next) => {
+  try {
+    const { date, merchantId, merchantName, page = 1, limit = 50 } = req.query;
+
+    const pageNumber = parseInt(page, 10);
+    const pageSize = parseInt(limit, 10);
+
+    const filterCriteria = {};
+
+    // Merchant name filter
+    if (merchantName) {
+      filterCriteria.merchantName = {
+        $regex: merchantName.trim(),
+        $options: "i",
+      };
+    }
+
+    // Merchant ID filter
+    if (merchantId && merchantId.toLowerCase() !== "all") {
+      filterCriteria.merchantId = merchantId;
+    }
+
+    // Date filter
+    if (date) {
+      const startDate = new Date(date);
+      startDate.setHours(0, 0, 0, 0);
+
+      const endDate = new Date(date);
+      endDate.setHours(23, 59, 59, 999);
+
+      filterCriteria.createdAt = {
+        $gte: startDate,
+        $lte: endDate,
+      };
+    }
+
+    // Fetch logs with pagination
+    const commissionLogs = await CommissionLogs.find(filterCriteria)
+      .sort({ createdAt: -1 })
+      .skip((pageNumber - 1) * pageSize)
+      .limit(pageSize);
+
+    // Count total logs for pagination metadata
+    const totalLogs = await CommissionLogs.countDocuments(filterCriteria);
+
+    // Format the response
+    const formattedResponse = commissionLogs.map((log) => ({
+      logId: log._id,
+      orderId: log.orderId,
+      merchantName: log.merchantName,
+      paymentMode: log.paymentMode,
+      totalAmount: log.totalAmount,
+      payableAmountToMerchant: log.payableAmountToMerchant,
+      payableAmountToFamto: log.payableAmountToFamto,
+      status: log.status,
+      logDate: formatDate(log.createdAt),
+    }));
+
+    const pagination = {
+      total: totalLogs,
+      page: pageNumber,
+      limit: pageSize,
+    };
+
+    res.status(200).json({
+      data: formattedResponse,
+      pagination,
     });
   } catch (err) {
     next(appError(err.message));
@@ -254,4 +332,5 @@ module.exports = {
   getCommissionLogsByMerchantId,
   updateCommissionLogStatus,
   getCommissionDetailOfMerchant,
+  fetchCommissionLogs,
 };

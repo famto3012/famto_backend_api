@@ -118,7 +118,7 @@ const registerAndLoginController = async (req, res, next) => {
       }
     }
 
-    res.status(isNewCustomer ? 201 : 200).json({
+    res.status(200).json({
       success: `User ${isNewCustomer ? "created" : "logged in"} successfully`,
       id: customer.id,
       token: generateToken(customer.id, customer.role),
@@ -524,7 +524,8 @@ const getFavoriteProductsController = async (req, res, next) => {
     const customer = await Customer.findById(req.userAuth)
       .populate({
         path: "customerDetails.favoriteProducts",
-        select: "productName price productImageURL categoryId inventory",
+        select:
+          "productName price productImageURL description categoryId inventory",
         populate: {
           path: "categoryId",
           select: "businessCategoryId merchantId",
@@ -1049,9 +1050,16 @@ const getSplashScreenImageController = async (req, res, next) => {
 //
 const getCustomerAppBannerController = async (req, res, next) => {
   try {
-    const allBanners = await AppBanner.find({ status: true }).select(
-      "name imageUrl"
+    const customerId = req.userAuth;
+
+    const customer = await Customer.findById(customerId).select(
+      "customerDetails.geofenceId"
     );
+
+    const allBanners = await AppBanner.find({
+      status: true,
+      geofenceId: customer?.customerDetails?.geofenceId,
+    }).select("name imageUrl");
 
     const formattedResponse = allBanners?.map((banner) => {
       return {
@@ -1113,7 +1121,9 @@ const getMerchantAppBannerController = async (req, res, next) => {
   try {
     const { merchantId } = req.params;
 
-    const banners = await Banner.find({ merchantId }).select("imageUrl");
+    const banners = await Banner.find({ merchantId })
+      .select("imageUrl")
+      .sort({ createdAt: -1 });
 
     const formattedResponse = banners?.map((banner) => ({
       imageURL: banner.imageUrl,
@@ -1158,9 +1168,7 @@ const generateReferralCode = async (req, res, next) => {
       .select("fullName email customerDetails.referralCode")
       .populate("customerDetails.referralCode");
 
-    if (!customer) {
-      return next(appError("Customer not found", 404));
-    }
+    if (!customer) return next(appError("Customer not found", 404));
 
     // If a referral code already exists, return it
     if (customer.customerDetails.referralCode) {
@@ -1179,8 +1187,8 @@ const generateReferralCode = async (req, res, next) => {
 
     await ReferralCode.create({
       customerId,
-      name: customer.fullName,
-      email: customer.email,
+      name: customer.fullName || null,
+      email: customer.email || null,
       referralCode: newReferralCode,
     });
 
@@ -1285,9 +1293,14 @@ const getVisibilityOfReferralAndLoyaltyPoint = async (req, res, next) => {
       itemFound = await LoyaltyPoint.find({ status: true });
     } else if (query === "referral") {
       itemFound = await Referral.find({ status: true });
+    } else if (query === "order") {
+      itemFound = await Order.find({
+        customerId: req.userAuth,
+        $or: [{ status: "Pending" }, { status: "On-going" }],
+      });
     }
 
-    let status = itemFound.length >= 1 ? true : false;
+    let status = itemFound?.length >= 1 ? true : false;
 
     res.status(200).json({ status });
   } catch (err) {
@@ -1300,15 +1313,18 @@ const getCurrentOngoingOrders = async (req, res, next) => {
   try {
     const customerId = req.userAuth;
 
-    const ordersFound = await Order.find({
+    const orders = await Order.find({
       customerId,
       $or: [{ status: "Pending" }, { status: "On-going" }],
     })
-      .select("orderDetail.deliveryTime")
+      .populate("merchantId", "merchantDetail.merchantName")
+      .select("merchantId orderDetail.deliveryTime orderDetail.deliveryMode")
       .sort({ createdAt: -1 });
 
-    const formattedResponse = ordersFound?.map((order) => ({
+    const formattedResponse = orders?.map((order) => ({
       orderId: order._id,
+      merchantName: order?.merchantId?.merchantDetail?.merchantName || null,
+      deliveryMode: order?.orderDetail?.deliveryMode || null,
       deliveryTime: formatTime(order?.orderDetail?.deliveryTime) || null,
     }));
 

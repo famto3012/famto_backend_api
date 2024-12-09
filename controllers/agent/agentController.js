@@ -1206,13 +1206,15 @@ const addOrderDetailsController = async (req, res, next) => {
         : "",
     ]);
 
-    // Set updated order details
-    orderFound.detailAddedByAgent = {
-      ...(orderFound.detailAddedByAgent || {}),
-      notes,
-      signatureImageURL,
-      imageURL,
-    };
+    // Update only the provided fields in detailAddedByAgent
+    if (!orderFound.detailAddedByAgent) {
+      orderFound.detailAddedByAgent = {};
+    }
+
+    if (notes) orderFound.detailAddedByAgent.notes = notes;
+    if (signatureImageURL)
+      orderFound.detailAddedByAgent.signatureImageURL = signatureImageURL;
+    if (imageURL) orderFound.detailAddedByAgent.imageURL = imageURL;
 
     await orderFound.save();
 

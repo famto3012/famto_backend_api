@@ -338,8 +338,8 @@ const addDeliveryAddressController = async (req, res, next) => {
       }
     }
 
-    let distance,
-      duration = 0;
+    let distance = 0;
+    let duration = 0;
 
     const havePickupLocation =
       cartFound?.cartDetail?.pickupLocation?.length === 2;
@@ -382,7 +382,7 @@ const addDeliveryAddressController = async (req, res, next) => {
       deliveryOption: "On-demand",
     };
 
-    cartFound.cartDetail = updatedCartDetail;
+    // cartFound.cartDetail = updatedCartDetail;
 
     let updatedDeliveryCharges = 0;
     let updatedSurgeCharges = 0;
@@ -428,46 +428,55 @@ const addDeliveryAddressController = async (req, res, next) => {
       surgePrice: Math.round(updatedSurgeCharges) || null,
     };
 
-    cartFound.billDetail = updatedBillDetail;
+    // cartFound.billDetail = updatedBillDetail;
 
-    await cartFound.save();
+    await PickAndCustomCart.findByIdAndUpdate(
+      cartFound._id,
+      {
+        cartDetail: updatedCartDetail,
+        items: cartFound.items,
+        billDetail: updatedBillDetail,
+      },
+      { new: true }
+    );
 
     const formattedItems = cartFound.items.map((item) => ({
       itemId: item.itemId,
       itemName: item.itemName,
-      quantity: item?.quantity ? `${item.quantity}${item.unit}` : null,
+      quantity: item?.quantity ? `${item.quantity} ${item.unit}` : null,
       numOfUnits: item.numOfUnits,
       itemImage: item.itemImageURL,
     }));
 
     const billDetail = {
-      deliveryChargePerDay: cartFound.billDetail.deliveryChargePerDay || null,
+      deliveryChargePerDay: cartFound?.billDetail?.deliveryChargePerDay || null,
       originalDeliveryCharge: havePickupLocation
-        ? cartFound.billDetail.originalDeliveryCharge
+        ? cartFound?.billDetail?.originalDeliveryCharge
         : null,
       discountedDeliveryCharge: havePickupLocation
-        ? cartFound.billDetail.discountedDeliveryCharge
+        ? cartFound?.billDetail?.discountedDeliveryCharge
         : null,
       discountedAmount: havePickupLocation
-        ? cartFound.billDetail.discountedAmount
+        ? cartFound?.billDetail?.discountedAmount
         : null,
       originalGrandTotal: havePickupLocation
-        ? cartFound.billDetail.originalGrandTotal
+        ? cartFound?.billDetail?.originalGrandTotal
         : null,
       discountedGrandTotal: havePickupLocation
-        ? cartFound.billDetail.discountedGrandTotal
+        ? cartFound?.billDetail?.discountedGrandTotal
         : null,
-      taxAmount: havePickupLocation ? cartFound.billDetail.taxAmount : null,
-      itemTotal: cartFound.billDetail.itemTotal || null,
-      addedTip: cartFound.billDetail.addedTip || null,
-      subTotal: havePickupLocation ? cartFound.billDetail.subTotal : null,
-      vehicleType: cartFound.billDetail.vehicleType || null,
-      surgePrice: cartFound.billDetail.surgePrice || null,
+      taxAmount: havePickupLocation ? cartFound?.billDetail?.taxAmount : null,
+      itemTotal: cartFound?.billDetail?.itemTotal || null,
+      addedTip: cartFound?.billDetail?.addedTip || null,
+      subTotal: havePickupLocation ? cartFound?.billDetail?.subTotal : null,
+      vehicleType: cartFound?.billDetail?.vehicleType || null,
+      surgePrice: cartFound?.billDetail?.surgePrice || null,
     };
 
     const formattedResponse = {
       items: formattedItems,
       billDetail,
+      buyFromAnyWhere: !havePickupLocation,
     };
 
     res.status(200).json({

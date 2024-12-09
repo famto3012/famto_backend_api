@@ -1189,6 +1189,12 @@ const confirmOrderDetailController = async (req, res, next) => {
       ifScheduled,
     } = req.body;
 
+    console.log("Ins mer:", instructionToMerchant);
+    console.log("Ins del:", instructionToDeliveryAgent);
+    console.log("Body:", req.body);
+    console.log("File:", req.files);
+    console.log("File:", req.file);
+
     const { customer, cart, merchant } = await fetchCustomerAndMerchantAndCart(
       req.userAuth,
       next
@@ -1204,7 +1210,10 @@ const confirmOrderDetailController = async (req, res, next) => {
     const scheduledDetails = processScheduledDelivery(deliveryOption, req);
 
     const { voiceInstructionToMerchantURL, voiceInstructionToAgentURL } =
-      processVoiceInstructions(req, cart, next);
+      await processVoiceInstructions(req, cart, next);
+
+    console.log("mer url", voiceInstructionToMerchantURL);
+    console.log("age url", voiceInstructionToAgentURL);
 
     const {
       pickupLocation,
@@ -1298,12 +1307,12 @@ const confirmOrderDetailController = async (req, res, next) => {
           pickupAddress,
           deliveryLocation,
           deliveryAddress,
-          instructionToDeliveryAgent,
-          instructionToMerchant,
-          voiceInstructionToMerchantURL,
-          voiceInstructionToAgentURL,
-          distance,
           deliveryOption,
+          instructionToMerchant,
+          instructionToDeliveryAgent,
+          voiceInstructionToMerchant: voiceInstructionToMerchantURL,
+          voiceInstructionToDeliveryAgent: voiceInstructionToAgentURL,
+          distance,
           startDate: scheduledDetails?.startDate || null,
           endDate: scheduledDetails?.endDate || null,
           time: scheduledDetails?.time || null,
@@ -1455,25 +1464,18 @@ const orderPaymentController = async (req, res, next) => {
     const { paymentMode } = req.body;
     const customerId = req.userAuth;
 
-    if (!customerId) {
-      return next(appError("Customer is not authenticated", 401));
-    }
+    const [customer, cart] = await Promise.all([
+      Customer.findById(customerId),
+      CustomerCart.findOne({ customerId })
+        .populate({
+          path: "items.productId",
+          select: "productName productImageURL description variants",
+        })
+        .exec(),
+    ]);
 
-    const customer = await Customer.findById(customerId);
-    if (!customer) {
-      return next(appError("Customer not found", 404));
-    }
-
-    const cart = await CustomerCart.findOne({ customerId })
-      .populate({
-        path: "items.productId",
-        select: "productName productImageURL description variants",
-      })
-      .exec();
-
-    if (!cart) {
-      return next(appError("Cart not found", 404));
-    }
+    if (!customer) return next(appError("Customer not found", 404));
+    if (!cart) return next(appError("Cart not found", 404));
 
     const orderAmount =
       cart.billDetail.discountedGrandTotal ||
@@ -1481,9 +1483,7 @@ const orderPaymentController = async (req, res, next) => {
 
     const merchant = await Merchant.findById(cart.merchantId);
 
-    if (!merchant) {
-      return next(appError("Merchant not found", 404));
-    }
+    if (!merchant) return next(appError("Merchant not found", 404));
 
     const deliveryTimeMinutes = parseInt(
       merchant.merchantDetail.deliveryTime,
@@ -1687,9 +1687,7 @@ const orderPaymentController = async (req, res, next) => {
               },
             });
 
-            if (!newOrder) {
-              return next(appError("Error in creating order"));
-            }
+            if (!newOrder) return next(appError("Error in creating order"));
 
             const newOrder = await Order.findById(newOrderCreated._id).populate(
               "merchantId"
@@ -1845,19 +1843,19 @@ const orderPaymentController = async (req, res, next) => {
 
         if (storedOrderData) {
           let newOrderCreated = await Order.create({
-            customerId: storedOrderData.customerId,
-            merchantId: storedOrderData.merchantId,
-            items: storedOrderData.items,
-            orderDetail: storedOrderData.orderDetail,
-            billDetail: storedOrderData.billDetail,
-            totalAmount: storedOrderData.totalAmount,
-            status: storedOrderData.status,
-            paymentMode: storedOrderData.paymentMode,
-            paymentStatus: storedOrderData.paymentStatus,
-            purchasedItems: storedOrderData.purchasedItems,
+            customerId: storedOrderData?.customerId,
+            merchantId: storedOrderData?.merchantId,
+            items: storedOrderData?.items,
+            orderDetail: storedOrderData?.orderDetail,
+            billDetail: storedOrderData?.billDetail,
+            totalAmount: storedOrderData?.totalAmount,
+            status: storedOrderData?.status,
+            paymentMode: storedOrderData?.paymentMode,
+            paymentStatus: storedOrderData?.paymentStatus,
+            purchasedItems: storedOrderData?.purchasedItems,
             "orderDetailStepper.created": {
-              by: storedOrderData.orderDetail.deliveryAddress.fullName,
-              userId: storedOrderData.customerId,
+              by: storedOrderData?.orderDetail?.deliveryAddress?.fullName,
+              userId: storedOrderData?.customerId,
               date: new Date(),
             },
           });
@@ -2414,16 +2412,17 @@ const getOrderTrackingDetail = async (req, res, next) => {
       Task.findOne({ orderId }).populate("agentId"),
     ]);
 
-    const lastUpdatedShop = order?.detailAddedByAgent?.shopUpdate.splice(-1);
+    const lastUpdatedShop = order?.detailAddedByAgent?.shopUpdate?.splice(-1);
 
     const formattedResponse = {
       pickupLocation:
         lastUpdatedShop?.location || order?.orderDetail?.pickupLocation || [],
-      deliveryLocation: order.orderDetail.deliveryLocation,
-      deliveryMode: order.orderDetail.deliveryMode,
+      deliveryLocation: order?.orderDetail?.deliveryLocation,
+      deliveryMode: order?.orderDetail?.deliveryMode,
       agentId: task?.agentId?._id || null,
       agentName: task?.agentId?.fullName || null,
       agentImage: task?.agentId?.agentImageURL || null,
+      agentPhone: task?.agentId?.phoneNumber || null,
       merchantId: order?.merchantId?._id || null,
       merchantName: order?.merchantId?.merchantDetail?.merchantName || null,
       merchantPhone: order?.merchantId?.phoneNumber || null,

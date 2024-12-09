@@ -78,7 +78,8 @@ const getAllTaxController = async (req, res, next) => {
         path: "geofences",
         select: "name",
       })
-      .populate("assignToBusinessCategory", "title");
+      .populate("assignToBusinessCategory", "title")
+      .sort({ taxName: 1 });
 
     const formattedResponse = allTaxes.map((tax) => {
       return {
@@ -104,7 +105,7 @@ const getAllTaxController = async (req, res, next) => {
 };
 
 //Get single Tax
-const getSinglTaxController = async (req, res, next) => {
+const getSingleTaxController = async (req, res, next) => {
   try {
     const taxFound = await Tax.findById(req.params.taxId);
 
@@ -248,7 +249,7 @@ const disableOrEnableStatusController = async (req, res, next) => {
 module.exports = {
   addTaxController,
   getAllTaxController,
-  getSinglTaxController,
+  getSingleTaxController,
   editTaxController,
   deleteTaxController,
   disableOrEnableStatusController,

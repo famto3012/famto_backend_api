@@ -248,8 +248,11 @@ customerRoute.get(
 // Update cart address details
 customerRoute.post(
   "/cart/add-details",
+  upload.fields([
+    { name: "voiceInstructionToMerchant", maxCount: 1 },
+    { name: "voiceInstructionToAgent", maxCount: 1 },
+  ]),
   isAuthenticated,
-  // addCartDetailsController
   confirmOrderDetailController
 );
 
@@ -492,7 +495,11 @@ customerRoute.get(
 // App Banners
 // ============================================
 
-customerRoute.get("/app-banners", getCustomerAppBannerController);
+customerRoute.get(
+  "/app-banners",
+  isAuthenticated,
+  getCustomerAppBannerController
+);
 
 customerRoute.get("/app-splash-screen", getSplashScreenImageController);
 
@@ -510,7 +517,11 @@ customerRoute.get("/available-services", getAvailableServiceController);
 
 customerRoute.get("/generate-referral", isAuthenticated, generateReferralCode);
 
-customerRoute.get("/visibility-status", getVisibilityOfReferralAndLoyaltyPoint);
+customerRoute.get(
+  "/visibility-status",
+  isAuthenticated,
+  getVisibilityOfReferralAndLoyaltyPoint
+);
 
 customerRoute.get(
   "/all-notifications",

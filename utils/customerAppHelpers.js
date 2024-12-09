@@ -889,7 +889,7 @@ const processVoiceInstructions = async (req, cart, next) => {
           await deleteFromFirebase(voiceInstructionToMerchantURL);
         }
         voiceInstructionToMerchantURL = await uploadToFirebase(
-          voiceInstructionToMerchant,
+          voiceInstructionToMerchant[0],
           "VoiceInstructions"
         );
       }
@@ -899,7 +899,7 @@ const processVoiceInstructions = async (req, cart, next) => {
           await deleteFromFirebase(voiceInstructionToAgentURL);
         }
         voiceInstructionToAgentURL = await uploadToFirebase(
-          voiceInstructionToAgent,
+          voiceInstructionToAgent[0],
           "VoiceInstructions"
         );
       }

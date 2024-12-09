@@ -2,11 +2,13 @@ const { validationResult } = require("express-validator");
 
 const MerchantSubscription = require("../../../models/MerchantSubscription");
 const CustomerSubscription = require("../../../models/CustomerSubscription");
+const ActivityLog = require("../../../models/ActivityLog");
 const Tax = require("../../../models/Tax");
 
 const appError = require("../../../utils/appError");
-const ActivityLog = require("../../../models/ActivityLog");
 
+// Merchant Subscription Plan
+// ===========================
 const addMerchantSubscriptionPlanController = async (req, res, next) => {
   const errors = validationResult(req);
 
@@ -57,15 +59,21 @@ const addMerchantSubscriptionPlanController = async (req, res, next) => {
 
 const getAllMerchantSubscriptionPlansController = async (req, res, next) => {
   try {
-    const subscriptionPlans = await MerchantSubscription.find().populate(
+    const plans = await MerchantSubscription.find().populate(
       "taxId",
       "taxName"
     );
 
-    res.status(200).json({
-      message: "Subscription plans retrieved successfully",
-      data: subscriptionPlans,
-    });
+    const formattedResponse = plans?.map((plan) => ({
+      planId: plan._id,
+      name: plan.name || null,
+      amount: plan.amount || null,
+      duration: plan.duration || null,
+      taxName: plan.taxId.taxName || null,
+      renewalReminder: plan.renewalReminder || null,
+    }));
+
+    res.status(200).json(formattedResponse);
   } catch (err) {
     next(appError(err.message));
   }
@@ -73,12 +81,11 @@ const getAllMerchantSubscriptionPlansController = async (req, res, next) => {
 
 const editMerchantSubscriptionPlanController = async (req, res, next) => {
   const errors = validationResult(req);
-
   if (!errors.isEmpty()) {
-    let formattedErrors = {};
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
+    const formattedErrors = errors.array().reduce((acc, error) => {
+      acc[error.path] = error.msg;
+      return acc;
+    }, {});
     return res.status(400).json({ errors: formattedErrors });
   }
 
@@ -92,38 +99,44 @@ const editMerchantSubscriptionPlanController = async (req, res, next) => {
       return res.status(404).json({ message: "Subscription plan not found" });
     }
 
+    // TODO:Need to recheck the amount calculation when updating only the price
+    // Calculate the new total amount only if the taxId changes
     let totalAmount = amount;
-    if (taxId?.toString() !== subscriptionPlan?.taxId.toString()) {
-      const oldTax = await Tax.findById(subscriptionPlan?.taxId);
-      const baseAmount = amount / (1 + oldTax.tax / 100);
-      const tax = await Tax.findById(taxId);
-      const taxAmount = baseAmount * (tax.tax / 100);
-      totalAmount = parseFloat(baseAmount) + taxAmount;
+    if (
+      amount !== subscriptionPlan.amount ||
+      taxId.toString() !== subscriptionPlan.taxId?.toString()
+    ) {
+      const oldTax = await Tax.findById(subscriptionPlan.taxId);
+      const baseAmount = amount / (1 + oldTax?.tax / 100);
+
+      const newTax = await Tax.findById(taxId);
+      const taxAmount = baseAmount * (newTax?.tax / 100);
+      totalAmount = Math.round(baseAmount + taxAmount);
     }
 
-    subscriptionPlan.name = name !== undefined ? name : subscriptionPlan.name;
-    subscriptionPlan.amount =
-      Math.round(totalAmount) !== undefined
-        ? Math.round(totalAmount)
-        : subscriptionPlan.amount;
-    subscriptionPlan.duration =
-      duration !== undefined ? duration : subscriptionPlan.duration;
-    subscriptionPlan.taxId =
-      taxId !== undefined ? taxId : subscriptionPlan.taxId;
-    subscriptionPlan.renewalReminder =
-      renewalReminder !== undefined
-        ? renewalReminder
-        : subscriptionPlan.renewalReminder;
-    subscriptionPlan.description =
-      description !== undefined ? description : subscriptionPlan.description;
+    console.log("AMOUNT", totalAmount);
 
-    // Save the updated subscription plan
-    const updatedSubscriptionPlan = await subscriptionPlan.save();
+    // Update subscription plan fields if provided
+    const updatedFields = {
+      ...(name && { name }),
+      ...(amount && { amount: totalAmount }),
+      ...(duration && { duration }),
+      ...(taxId && { taxId }),
+      ...(renewalReminder && { renewalReminder }),
+      ...(description && { description }),
+    };
+
+    const updatedSubscriptionPlan =
+      await MerchantSubscription.findByIdAndUpdate(
+        id,
+        { $set: updatedFields },
+        { new: true, runValidators: true }
+      );
 
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Merchant subscription plan (${name}) is updated by Admin (${req.userAuth})`,
+      description: `Merchant subscription plan (${updatedSubscriptionPlan.name}) updated by Admin (${req.userAuth})`,
     });
 
     res.status(200).json({
@@ -139,16 +152,20 @@ const getSingleMerchantSubscriptionPlanController = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const subscriptionPlan = await MerchantSubscription.findById(id);
+    const plan = await MerchantSubscription.findById(id);
 
-    if (!subscriptionPlan) {
-      return res.status(404).json({ message: "Subscription plan not found" });
-    }
+    if (!plan) return next(appError("Subscription plan not found", 404));
 
-    res.status(200).json({
-      message: "Subscription plan retrieved successfully",
-      data: subscriptionPlan,
-    });
+    const formattedResponse = {
+      planId: plan._id,
+      name: plan.name || null,
+      amount: plan.amount || null,
+      duration: plan.duration || null,
+      taxId: plan.taxId || null,
+      renewalReminder: plan.renewalReminder || null,
+    };
+
+    res.status(200).json(formattedResponse);
   } catch (err) {
     next(appError(err.message));
   }
@@ -158,16 +175,16 @@ const deleteMerchantSubscriptionPlanController = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const subscriptionPlan = await MerchantSubscription.findByIdAndDelete(id);
+    const plan = await MerchantSubscription.findByIdAndDelete(id);
 
-    if (!subscriptionPlan) {
+    if (!plan) {
       return next(appError("Subscription plan not found", 404));
     }
 
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Merchant subscription plan (${subscriptionPlan.name}) is deleted by Admin (${req.userAuth})`,
+      description: `Merchant subscription plan (${plan.name}) is deleted by Admin (${req.userAuth})`,
     });
 
     res.status(200).json({
@@ -178,6 +195,8 @@ const deleteMerchantSubscriptionPlanController = async (req, res, next) => {
   }
 };
 
+// Customer Subscription Plan
+// ===========================
 const addCustomerSubscriptionPlanController = async (req, res, next) => {
   const errors = validationResult(req);
 
@@ -207,27 +226,26 @@ const addCustomerSubscriptionPlanController = async (req, res, next) => {
       totalAmount = parseFloat(amount) + taxAmount;
     }
 
-    const subscriptionPlan = new CustomerSubscription({
-      name,
-      amount: Math.Round(totalAmount),
-      duration,
-      taxId: taxId || null,
-      renewalReminder,
-      noOfOrder,
-      description,
-    });
-
-    const savedSubscriptionPlan = await subscriptionPlan.save();
-
-    await ActivityLog.create({
-      userId: req.userAuth,
-      userType: req.userRole,
-      description: `New Customer subscription plan (${name}) is created by Admin (${req.userAuth})`,
-    });
+    const [newPlan, _] = await Promise.all([
+      await CustomerSubscription.create({
+        name,
+        amount: Math.round(totalAmount),
+        duration,
+        taxId: taxId || null,
+        renewalReminder,
+        noOfOrder,
+        description,
+      }),
+      await ActivityLog.create({
+        userId: req.userAuth,
+        userType: req.userRole,
+        description: `New Customer subscription plan (${name}) is created by Admin (${req.userAuth})`,
+      }),
+    ]);
 
     res.status(201).json({
       message: "Subscription plan added successfully",
-      data: savedSubscriptionPlan,
+      data: newPlan,
     });
   } catch (err) {
     next(appError(err.message));
@@ -236,15 +254,23 @@ const addCustomerSubscriptionPlanController = async (req, res, next) => {
 
 const getAllCustomerSubscriptionPlansController = async (req, res, next) => {
   try {
-    const subscriptionPlans = await CustomerSubscription.find().populate(
+    const plans = await CustomerSubscription.find().populate(
       "taxId",
       "taxName"
     );
 
-    res.status(200).json({
-      message: "Subscription plans retrieved successfully",
-      data: subscriptionPlans,
-    });
+    const formattedResponse = plans?.map((plan) => ({
+      planId: plan._id,
+      title: plan.title || null,
+      name: plan.name || null,
+      amount: plan.amount || null,
+      duration: plan.duration || null,
+      taxName: plan?.taxId?.taxName || null,
+      renewalReminder: plan.renewalReminder || null,
+      noOfOrder: plan.noOfOrder || null,
+    }));
+
+    res.status(200).json(formattedResponse);
   } catch (err) {
     next(appError(err.message));
   }
@@ -304,31 +330,32 @@ const editCustomerSubscriptionPlanController = async (req, res, next) => {
       totalAmount = parseFloat(baseAmount); // No new tax is applied, use base amount only
     }
 
-    let updatedSubPlan = await CustomerSubscription.findByIdAndUpdate(
-      id,
-      {
-        name,
-        amount: Math.round(totalAmount),
-        duration,
-        taxId: taxId || null,
-        renewalReminder,
-        noOfOrder,
-        description,
-      },
-      { new: true }
-    );
+    let [updatedPlan, _] = await Promise.all([
+      await CustomerSubscription.findByIdAndUpdate(
+        id,
+        {
+          name,
+          amount: Math.round(totalAmount),
+          duration,
+          taxId: taxId || null,
+          renewalReminder,
+          noOfOrder,
+          description,
+        },
+        { new: true }
+      ),
+      await ActivityLog.create({
+        userId: req.userAuth,
+        userType: req.userRole,
+        description: `Customer subscription plan (${name}) is updated by Admin (${req.userAuth})`,
+      }),
+    ]);
 
-    await ActivityLog.create({
-      userId: req.userAuth,
-      userType: req.userRole,
-      description: `Customer subscription plan (${name}) is updated by Admin (${req.userAuth})`,
-    });
-
-    updatedSubPlan = await updatedSubPlan.populate("taxId", "taxName");
+    updatedPlan = await updatedPlan.populate("taxId", "taxName");
 
     res.status(200).json({
       message: "Subscription plan updated successfully",
-      data: updatedSubPlan,
+      data: updatedPlan,
     });
   } catch (err) {
     next(appError(err.message));
@@ -339,16 +366,20 @@ const getSingleCustomerSubscriptionPlanController = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const subscriptionPlan = await CustomerSubscription.findById(id);
+    const plan = await CustomerSubscription.findById(id);
 
-    if (!subscriptionPlan) {
-      return res.status(404).json({ message: "Subscription plan not found" });
-    }
+    if (!plan) return next(appError("Subscription plan not found", 404));
 
-    res.status(200).json({
-      message: "Subscription plan retrieved successfully",
-      data: subscriptionPlan,
-    });
+    const formattedResponse = {
+      planId: plan._id,
+      name: plan.name || null,
+      amount: plan.amount || null,
+      duration: plan.duration || null,
+      taxId: plan.taxId || null,
+      renewalReminder: plan.renewalReminder || null,
+    };
+
+    res.status(200).json(formattedResponse);
   } catch (err) {
     next(appError(err.message));
   }
@@ -358,16 +389,14 @@ const deleteCustomerSubscriptionPlanController = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const subscriptionPlan = await CustomerSubscription.findByIdAndDelete(id);
+    const plan = await CustomerSubscription.findByIdAndDelete(id);
 
-    if (!subscriptionPlan) {
-      return next(appError("Subscription plan not found", 404));
-    }
+    if (!plan) return next(appError("Subscription plan not found", 404));
 
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Customer subscription plan (${subscriptionPlan.name}) is deleted by Admin (${req.userAuth})`,
+      description: `Customer subscription plan (${plan.name}) is deleted by Admin (${req.userAuth})`,
     });
 
     res.status(200).json({
