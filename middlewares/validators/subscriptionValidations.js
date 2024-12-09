@@ -12,10 +12,6 @@ const subscriptionValidationRules = [
     .optional()
     .isNumeric()
     .withMessage("Renewal Reminder must be a number"),
-  body("description")
-    .optional()
-    .notEmpty()
-    .withMessage("Description is required"),
 ];
 
 module.exports = subscriptionValidationRules;

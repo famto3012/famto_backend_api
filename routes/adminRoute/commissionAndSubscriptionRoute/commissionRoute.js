@@ -9,6 +9,7 @@ const {
   getCommissionLogsByMerchantId,
   updateCommissionLogStatus,
   getCommissionDetailOfMerchant,
+  fetchCommissionLogs,
 } = require("../../../controllers/admin/commissionAndSubscription/commissionController");
 const { body } = require("express-validator");
 const isAdminOrMerchant = require("../../../middlewares/isAdminOrMerchant");
@@ -34,31 +35,17 @@ commissionRoute.post(
 );
 
 commissionRoute.get(
-  "/all-commission-log",
-  isAuthenticated,
-  isAdmin,
-  getAllCommissionLogController
-);
-
-commissionRoute.get(
-  "/commission-log-name",
-  isAuthenticated,
-  isAdmin,
-  getCommissionLogsByMerchantName
-);
-
-commissionRoute.get(
-  "/commission-log-date",
+  "/get-commission-log",
   isAuthenticated,
   isAdminOrMerchant,
-  getCommissionLogsByCreatedDate
+  fetchCommissionLogs
 );
 
 commissionRoute.get(
-  "/commission-log/:merchantId",
+  "/commission-detail",
   isAuthenticated,
   isAdminOrMerchant,
-  getCommissionLogsByMerchantId
+  getCommissionDetailOfMerchant
 );
 
 commissionRoute.put(
@@ -68,11 +55,36 @@ commissionRoute.put(
   updateCommissionLogStatus
 );
 
+// TODO: Remove after V2
 commissionRoute.get(
-  "/commission-detail",
+  "/all-commission-log",
+  isAuthenticated,
+  isAdmin,
+  getAllCommissionLogController
+);
+
+// TODO: Remove after V2
+commissionRoute.get(
+  "/commission-log-name",
+  isAuthenticated,
+  isAdmin,
+  getCommissionLogsByMerchantName
+);
+
+// TODO: Remove after V2
+commissionRoute.get(
+  "/commission-log-date",
   isAuthenticated,
   isAdminOrMerchant,
-  getCommissionDetailOfMerchant
+  getCommissionLogsByCreatedDate
+);
+
+// TODO: Remove after V2
+commissionRoute.get(
+  "/commission-log/:merchantId",
+  isAuthenticated,
+  isAdminOrMerchant,
+  getCommissionLogsByMerchantId
 );
 
 module.exports = commissionRoute;

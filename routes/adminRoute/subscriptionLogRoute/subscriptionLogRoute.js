@@ -12,14 +12,24 @@ const {
   getMerchantSubscriptionLogsByStartDate,
   getCustomerSubscriptionLogsByName,
   getCustomerSubscriptionLogsByStartDate,
+  fetchAllMerchantSubscriptionLogs,
+  fetchAllCustomerSubscriptionLogs,
 } = require("../../../controllers/admin/commissionAndSubscription/subscriptionLogController");
 const isAdmin = require("../../../middlewares/isAdmin");
 const isAdminOrMerchant = require("../../../middlewares/isAdminOrMerchant");
+const { body } = require("express-validator");
 
 const subscriptionLogRoute = express.Router();
 
 subscriptionLogRoute.post(
   "/merchant-subscription-payment",
+  [
+    body("planId").isMongoId().withMessage("Please select a plan"),
+    body("userId").notEmpty().withMessage("Please select a merchant"),
+    body("paymentMode")
+      .notEmpty()
+      .withMessage("Please select a payment method"),
+  ],
   isAuthenticated,
   isAdmin,
   createSubscriptionLog
@@ -71,13 +81,6 @@ subscriptionLogRoute.get(
 );
 
 subscriptionLogRoute.get(
-  "/customer-subscription-log",
-  isAuthenticated,
-  isAdmin,
-  getAllCustomerSubscriptionLogController
-);
-
-subscriptionLogRoute.get(
   "/merchant-subscription-log/:merchantId",
   isAuthenticated,
   isAdminOrMerchant,
@@ -99,6 +102,20 @@ subscriptionLogRoute.get(
 );
 
 subscriptionLogRoute.get(
+  "/all-merchant-subscription-log",
+  isAuthenticated,
+  isAdminOrMerchant,
+  fetchAllMerchantSubscriptionLogs
+);
+
+subscriptionLogRoute.get(
+  "/customer-subscription-log",
+  isAuthenticated,
+  isAdmin,
+  getAllCustomerSubscriptionLogController
+);
+
+subscriptionLogRoute.get(
   "/customer-subscription-log-search",
   isAuthenticated,
   isAdmin,
@@ -110,6 +127,13 @@ subscriptionLogRoute.get(
   isAuthenticated,
   isAdmin,
   getCustomerSubscriptionLogsByStartDate
+);
+
+subscriptionLogRoute.get(
+  "/all-customer-subscription-log",
+  isAuthenticated,
+  isAdmin,
+  fetchAllCustomerSubscriptionLogs
 );
 
 module.exports = subscriptionLogRoute;

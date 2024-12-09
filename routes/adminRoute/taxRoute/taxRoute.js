@@ -2,7 +2,7 @@ const express = require("express");
 const {
   addTaxController,
   getAllTaxController,
-  getSinglTaxController,
+  getSingleTaxController,
   editTaxController,
   deleteTaxController,
   disableOrEnableStatusController,
@@ -29,7 +29,7 @@ taxRoute.get(
   getAllTaxController
 );
 
-taxRoute.get("/:taxId", isAuthenticated, isAdmin, getSinglTaxController);
+taxRoute.get("/:taxId", isAuthenticated, isAdmin, getSingleTaxController);
 
 taxRoute.put(
   "/edit-tax/:taxId",
