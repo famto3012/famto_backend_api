@@ -27,6 +27,14 @@ const addNotificationSettingController = async (req, res, next) => {
       email,
     } = req.body;
 
+    const notificationFound = await NotificationSetting.findOne({ event });
+
+    if (notificationFound) {
+      return res
+        .status(400)
+        .json({ message: "Notification with this event already exists" });
+    }
+
     const newNotificationSetting = new NotificationSetting({
       event,
       title,
@@ -146,7 +154,7 @@ const deleteNotificationSettingController = async (req, res, next) => {
   }
 };
 
-const getAllNotificationSettingController = async (req, res) => {
+const getAllNotificationSettingController = async (req, res, next) => {
   try {
     const notificationSettings = await NotificationSetting.find();
     res.status(200).json({
@@ -158,7 +166,7 @@ const getAllNotificationSettingController = async (req, res) => {
   }
 };
 
-const getNotificationSettingController = async (req, res) => {
+const getNotificationSettingController = async (req, res, next) => {
   try {
     const notificationSettingId = req.params.notificationSettingId;
     const notificationSettings = await NotificationSetting.findOne({
@@ -173,6 +181,7 @@ const getNotificationSettingController = async (req, res) => {
   }
 };
 
+//TODO: Remove when panel v2 is complete
 const searchNotificationSettingController = async (req, res, next) => {
   try {
     const { query } = req.query;

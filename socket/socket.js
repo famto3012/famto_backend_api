@@ -92,7 +92,8 @@ const userSocketMap = {};
 
 const sendPushNotificationToUser = async (fcmToken, message, eventName) => {
   const notificationSettings = await NotificationSetting.findOne({
-    event: eventName,
+    event: eventName || "",
+    status: true,
   });
 
   const mes = {
@@ -246,6 +247,7 @@ const sendNotification = async (userId, eventName, data, role) => {
 
   const notificationSettings = await NotificationSetting.findOne({
     event: eventName || "",
+    status: true,
   });
 
   if (fcmToken && !notificationSent) {
