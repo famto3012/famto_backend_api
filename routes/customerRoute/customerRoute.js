@@ -210,7 +210,7 @@ customerRoute.patch(
 
 // Toggle Merchant favorite
 customerRoute.patch(
-  "/toggle-merchant-favorite/:merchantId",
+  "/toggle-merchant-favorite/:merchantId/:businessCategoryId",
   isAuthenticated,
   toggleMerchantFavoriteController
 );

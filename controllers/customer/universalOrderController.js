@@ -176,8 +176,9 @@ const listRestaurantsController = async (req, res, next) => {
     const simplifiedMerchants = await Promise.all(
       sortedMerchants.map(async (merchant) => {
         const isFavorite =
-          currentCustomer?.customerDetails?.favoriteMerchants?.includes(
-            merchant._id
+          currentCustomer?.customerDetails?.favoriteMerchants?.some(
+            (favorite) =>
+              favorite.merchantId.toString() === merchant._id.toString()
           ) ?? false;
 
         return {
@@ -237,8 +238,8 @@ const getAllCategoriesOfMerchants = async (req, res, next) => {
     let isFavourite = false;
 
     if (
-      customerFound.customerDetails.favoriteMerchants.includes(
-        merchantFound._id
+      customerFound.customerDetails.favoriteMerchants.some(
+        (favorite) => favorite.merchantId === merchantFound._id
       )
     ) {
       isFavourite = true;
@@ -859,40 +860,57 @@ const toggleProductFavoriteController = async (req, res, next) => {
 // Add or remove Merchants from favorite
 const toggleMerchantFavoriteController = async (req, res, next) => {
   try {
+    // Find the current customer
     const currentCustomer = await Customer.findById(req.userAuth);
 
     if (!currentCustomer) {
       return next(appError("Customer is not authenticated", 403));
     }
 
-    const { merchantId } = req.params;
+    const { merchantId, businessCategoryId } = req.params;
 
+    // Check if the merchant exists
     const merchantFound = await Merchant.findById(merchantId);
 
     if (!merchantFound) {
       return next(appError("Merchant not found", 404));
     }
 
-    const isFavorite =
-      currentCustomer.customerDetails.favoriteMerchants.includes(merchantId);
+    // Check if the merchant is already in the favorite list
+    const isFavorite = currentCustomer.customerDetails.favoriteMerchants.some(
+      (favorite) =>
+        favorite.merchantId.toString() === merchantId.toString() &&
+        favorite.businessCategoryId.toString() === businessCategoryId.toString()
+    );
 
     if (isFavorite) {
+      // Remove the merchant from the favorite list
       currentCustomer.customerDetails.favoriteMerchants =
         currentCustomer.customerDetails.favoriteMerchants.filter(
-          (favorite) => favorite.toString() !== merchantId.toString()
+          (favorite) =>
+            !(
+              favorite.merchantId.toString() === merchantId.toString() &&
+              favorite.businessCategoryId.toString() ===
+                businessCategoryId.toString()
+            )
         );
 
       await currentCustomer.save();
 
       res.status(200).json({
-        message: "successfully removed merchant from favorite list",
+        message: "Successfully removed merchant from favorite list",
       });
     } else {
-      currentCustomer.customerDetails.favoriteMerchants.push(merchantId);
+      // Add the merchant and business category to the favorite list
+      currentCustomer.customerDetails.favoriteMerchants.push({
+        merchantId,
+        businessCategoryId,
+      });
+
       await currentCustomer.save();
 
       res.status(200).json({
-        message: "successfully added merchant to favorite list",
+        message: "Successfully added merchant to favorite list",
       });
     }
   } catch (err) {

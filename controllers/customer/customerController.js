@@ -471,14 +471,15 @@ const rateDeliveryAgentController = async (req, res, next) => {
 const getFavoriteMerchantsController = async (req, res, next) => {
   try {
     const currentCustomer = req.userAuth;
-
     // Retrieving only necessary fields for customer and their favorite merchants
     const customer = await Customer.findById(currentCustomer)
       .select("customerDetails.favoriteMerchants")
       .populate({
-        path: "customerDetails.favoriteMerchants",
-        select:
-          "merchantDetail.merchantName merchantDetail.deliveryTime merchantDetail.description merchantDetail.displayAddress merchantDetail.averageRating status merchantDetail.merchantFoodType merchantDetail.merchantImageURL merchantDetail.preOrderStatus",
+        path: "customerDetails.favoriteMerchants.merchantId",
+      })
+      .populate({
+        path: "customerDetails.favoriteMerchants.businessCategoryId",
+        select: "title",
       });
 
     if (!customer || !customer.customerDetails) {
@@ -488,18 +489,23 @@ const getFavoriteMerchantsController = async (req, res, next) => {
     // Map the favorite merchants into the desired format
     const formattedMerchants = customer.customerDetails.favoriteMerchants.map(
       (merchant) => ({
-        id: merchant._id,
-        merchantName: merchant?.merchantDetail?.merchantName || null,
-        description: merchant?.merchantDetail?.description || null,
-        averageRating: merchant?.merchantDetail?.averageRating,
-        status: merchant?.status,
-        restaurantType: merchant?.merchantDetail?.merchantFoodType || null,
+        id: merchant?.merchantId?._id,
+        merchantName:
+          merchant?.merchantId?.merchantDetail?.merchantName || null,
+        description: merchant?.merchantId?.merchantDetail?.description || null,
+        averageRating: merchant?.merchantId?.merchantDetail?.averageRating,
+        status: merchant?.merchantId?.status,
+        restaurantType:
+          merchant?.merchantId?.merchantDetail?.merchantFoodType || null,
         merchantImageURL:
-          merchant?.merchantDetail?.merchantImageURL ||
+          merchant?.merchantId?.merchantDetail?.merchantImageURL ||
           "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/DefaultImages%2FMerchantDefaultImage.png?alt=media&token=a7a11e18-047c-43d9-89e3-8e35d0a4e231",
-        displayAddress: merchant?.merchantDetail?.displayAddress || null,
-        preOrderStatus: merchant?.merchantDetail?.preOrderStatus,
+        displayAddress:
+          merchant?.merchantId?.merchantDetail?.displayAddress || null,
+        preOrderStatus: merchant?.merchantId?.merchantDetail?.preOrderStatus,
         isFavorite: true,
+        businessCategoryId: merchant?.businessCategoryId?.id,
+        businessCategoryName: merchant?.businessCategoryId?.title,
       })
     );
 
