@@ -133,13 +133,11 @@ const customerDetailSchema = new mongoose.Schema(
       {
         merchantId: {
           type: String,
-          ref: "Merchant", 
-          required: true,
+          ref: "Merchant",
         },
         businessCategoryId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "BusinessCategory",
-          required: true,
         },
       },
     ],

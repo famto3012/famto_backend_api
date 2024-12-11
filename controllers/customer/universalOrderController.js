@@ -177,8 +177,7 @@ const listRestaurantsController = async (req, res, next) => {
       sortedMerchants.map(async (merchant) => {
         const isFavorite =
           currentCustomer?.customerDetails?.favoriteMerchants?.some(
-            (favorite) =>
-              favorite.merchantId.toString() === merchant._id.toString()
+            (favorite) => favorite?.merchantId === merchant?._id
           ) ?? false;
 
         return {
@@ -872,9 +871,7 @@ const toggleMerchantFavoriteController = async (req, res, next) => {
     // Check if the merchant exists
     const merchantFound = await Merchant.findById(merchantId);
 
-    if (!merchantFound) {
-      return next(appError("Merchant not found", 404));
-    }
+    if (!merchantFound) return next(appError("Merchant not found", 404));
 
     // Check if the merchant is already in the favorite list
     const isFavorite = currentCustomer.customerDetails.favoriteMerchants.some(
@@ -1189,12 +1186,6 @@ const confirmOrderDetailController = async (req, res, next) => {
       ifScheduled,
     } = req.body;
 
-    console.log("Ins mer:", instructionToMerchant);
-    console.log("Ins del:", instructionToDeliveryAgent);
-    console.log("Body:", req.body);
-    console.log("File:", req.files);
-    console.log("File:", req.file);
-
     const { customer, cart, merchant } = await fetchCustomerAndMerchantAndCart(
       req.userAuth,
       next
@@ -1211,9 +1202,6 @@ const confirmOrderDetailController = async (req, res, next) => {
 
     const { voiceInstructionToMerchantURL, voiceInstructionToAgentURL } =
       await processVoiceInstructions(req, cart, next);
-
-    console.log("mer url", voiceInstructionToMerchantURL);
-    console.log("age url", voiceInstructionToAgentURL);
 
     const {
       pickupLocation,
@@ -1289,7 +1277,7 @@ const confirmOrderDetailController = async (req, res, next) => {
       itemTotal,
       deliveryChargeForScheduledOrder || actualDeliveryCharge || 0,
       surgeCharges || 0,
-      0, // Place holder for flat discount (don't change)
+      0,
       discountTotal,
       taxAmount || 0,
       cart?.billDetail?.addedTip || 0
@@ -1687,7 +1675,8 @@ const orderPaymentController = async (req, res, next) => {
               },
             });
 
-            if (!newOrder) return next(appError("Error in creating order"));
+            if (!newOrderCreated)
+              return next(appError("Error in creating order"));
 
             const newOrder = await Order.findById(newOrderCreated._id).populate(
               "merchantId"

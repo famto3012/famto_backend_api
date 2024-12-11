@@ -205,7 +205,7 @@ const getMerchantProfileController = async (req, res, next) => {
       merchantImage: merchantFound.merchantDetail.merchantImageURL,
       pancardImage: merchantFound.merchantDetail.pancardImageURL,
       gstinImage: merchantFound.merchantDetail.GSTINImageURL,
-      faasiImage: merchantFound.merchantDetail.FSSAIImageURL,
+      fssaiImage: merchantFound.merchantDetail.FSSAIImageURL,
       aadharImage: merchantFound.merchantDetail.aadharImageURL,
       pricing: merchantPricing,
       geofenceId: merchantFound.merchantDetail.geofenceId?._id || "",
@@ -443,8 +443,8 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
       const {
         merchantImage,
         pancardImage,
-        GSTINImage,
-        FSSAIImage,
+        gstinImage,
+        fssaiImage,
         aadharImage,
       } = req.files;
 
@@ -466,17 +466,17 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
           "PancardImages"
         );
       }
-      if (GSTINImage) {
+      if (gstinImage) {
         if (GSTINImageURL) {
-          await deleteFromFirebase(GSTINImageURL);
+          await deleteFromFirebase(gstinImageURL);
         }
-        GSTINImageURL = await uploadToFirebase(GSTINImage[0], "GSTINImages");
+        GSTINImageURL = await uploadToFirebase(gstinImage[0], "GSTINImages");
       }
-      if (FSSAIImage) {
+      if (fssaiImage) {
         if (FSSAIImageURL) {
           await deleteFromFirebase(FSSAIImageURL);
         }
-        FSSAIImageURL = await uploadToFirebase(FSSAIImage[0], "FSSAIImages");
+        FSSAIImageURL = await uploadToFirebase(fssaiImage[0], "FSSAIImages");
       }
       if (aadharImage) {
         if (aadharImageURL) {
@@ -562,7 +562,9 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
       ActivityLog.create({
         userId: req.userAuth,
         userType: req.userRole,
-        description: `Details are updated by Merchant (${req.userAuth})`,
+        description: `Details are updated by Merchant (${req.userAuth} - ${
+          merchantFound?.merchantDetail?.merchantName || merchantFound.fullName
+        })`,
       }),
     ]);
 
@@ -667,6 +669,86 @@ const verifyPaymentByMerchantController = async (req, res, next) => {
 // ------For Admin Panel------
 //----------------------------
 
+const fetchAllMerchantsController = async (req, res, next) => {
+  try {
+    // Extract query parameters
+    let {
+      page = 1,
+      limit = 50,
+      name,
+      serviceable,
+      businessCategory,
+      geofence,
+    } = req.query;
+
+    // Ensure correct data types
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    const skip = (page - 1) * limit;
+
+    // Build match criteria
+    const matchCriteria = { isBlocked: false };
+
+    if (name) {
+      matchCriteria["merchantDetail.merchantName"] = {
+        $regex: name.trim(),
+        $options: "i",
+      };
+    }
+
+    if (serviceable && serviceable.toLowerCase() !== "all") {
+      matchCriteria.status = serviceable.toLowerCase();
+    }
+
+    if (businessCategory && businessCategory.toLowerCase() !== "all") {
+      matchCriteria["merchantDetail.businessCategoryId"] =
+        mongoose.Types.ObjectId.createFromHexString(businessCategory.trim());
+    }
+
+    if (geofence && geofence.toLowerCase() !== "all") {
+      matchCriteria["merchantDetail.geofenceId"] =
+        mongoose.Types.ObjectId.createFromHexString(geofence.trim());
+    }
+
+    // Fetch merchants
+    const merchants = await Merchant.find(matchCriteria)
+      .select("fullName phoneNumber isApproved status merchantDetail")
+      .populate("merchantDetail.geofenceId", "name")
+      .sort({
+        "merchantDetail.merchantName": 1,
+        phoneNumber: 1,
+      })
+      .skip(skip)
+      .limit(limit);
+
+    // Count total documents
+    const totalDocuments = await Merchant.countDocuments(matchCriteria);
+
+    // Map merchants to response format
+    const merchantsWithDetails = merchants.map((merchant) => ({
+      merchantId: merchant._id,
+      merchantName: merchant?.merchantDetail?.merchantName || "-",
+      phoneNumber: merchant.phoneNumber,
+      isApproved: merchant.isApproved,
+      subscriptionStatus:
+        merchant?.merchantDetail?.pricing?.length === 0 ? "Inactive" : "Active",
+      status: merchant.status,
+      geofence: merchant?.merchantDetail?.geofenceId?.name || "-",
+      averageRating: merchant?.merchantDetail?.averageRating || "-",
+      isServiceableToday: merchant.status ? "Open" : "Closed",
+    }));
+
+    res.status(200).json({
+      total: totalDocuments,
+      data: merchantsWithDetails,
+    });
+  } catch (err) {
+    next(appError(`Error fetching merchants: ${err.message}`));
+  }
+};
+
+// TODO: Remove after Panel V2
 // Search merchant controller
 const searchMerchantController = async (req, res, next) => {
   try {
@@ -743,6 +825,7 @@ const searchMerchantController = async (req, res, next) => {
   }
 };
 
+// TODO: Remove after Panel V2
 // Filter merchant
 const filterMerchantsController = async (req, res, next) => {
   try {
@@ -975,6 +1058,7 @@ const getAllMerchantsForDropDownController = async (req, res, next) => {
   }
 };
 
+// TODO: Remove after Panel V2
 // Get all merchants for panel
 const getAllMerchantsController = async (req, res, next) => {
   try {
@@ -1091,7 +1175,7 @@ const getSingleMerchantController = async (req, res, next) => {
       merchantImage: merchantFound?.merchantDetail?.merchantImageURL,
       pancardImage: merchantFound?.merchantDetail?.pancardImageURL,
       gstinImage: merchantFound?.merchantDetail?.GSTINImageURL,
-      faasiImage: merchantFound?.merchantDetail?.FSSAIImageURL,
+      fssaiImage: merchantFound?.merchantDetail?.FSSAIImageURL,
       aadharImage: merchantFound?.merchantDetail?.aadharImageURL,
       pricing: merchantPricing,
       geofenceId: merchantFound?.merchantDetail?.geofenceId?._id || "",
@@ -1319,15 +1403,13 @@ const updateMerchantDetailsController = async (req, res, next) => {
       const {
         merchantImage,
         pancardImage,
-        GSTINImage,
-        FSSAIImage,
+        gstinImage,
+        fssaiImage,
         aadharImage,
       } = req.files;
 
       if (merchantImage && merchantImage[0]) {
-        if (merchantImageURL) {
-          await deleteFromFirebase(merchantImageURL);
-        }
+        if (merchantImageURL) await deleteFromFirebase(merchantImageURL);
         merchantImageURL = await uploadToFirebase(
           merchantImage[0],
           "MerchantImages"
@@ -1335,33 +1417,25 @@ const updateMerchantDetailsController = async (req, res, next) => {
       }
 
       if (pancardImage && pancardImage[0]) {
-        if (pancardImageURL) {
-          await deleteFromFirebase(pancardImageURL);
-        }
+        if (pancardImageURL) await deleteFromFirebase(pancardImageURL);
         pancardImageURL = await uploadToFirebase(
           pancardImage[0],
           "PancardImages"
         );
       }
 
-      if (GSTINImage && GSTINImage[0]) {
-        if (GSTINImageURL) {
-          await deleteFromFirebase(GSTINImageURL);
-        }
-        GSTINImageURL = await uploadToFirebase(GSTINImage[0], "GSTINImages");
+      if (gstinImage && gstinImage[0]) {
+        if (GSTINImageURL) await deleteFromFirebase(GSTINImageURL);
+        GSTINImageURL = await uploadToFirebase(gstinImage[0], "GSTINImages");
       }
 
-      if (FSSAIImage && FSSAIImage[0]) {
-        if (FSSAIImageURL) {
-          await deleteFromFirebase(FSSAIImageURL);
-        }
-        FSSAIImageURL = await uploadToFirebase(FSSAIImage[0], "FSSAIImages");
+      if (fssaiImage && fssaiImage[0]) {
+        if (FSSAIImageURL) await deleteFromFirebase(FSSAIImageURL);
+        FSSAIImageURL = await uploadToFirebase(fssaiImage[0], "FSSAIImages");
       }
 
       if (aadharImage && aadharImage[0]) {
-        if (aadharImageURL) {
-          await deleteFromFirebase(aadharImageURL);
-        }
+        if (aadharImageURL) await deleteFromFirebase(aadharImageURL);
         aadharImageURL = await uploadToFirebase(aadharImage[0], "AadharImages");
       }
     }
@@ -1411,7 +1485,6 @@ const updateMerchantDetailsController = async (req, res, next) => {
         }
       } catch (err) {
         console.error("Failed to fetch data from Mappls API:", err);
-        // res.status(500).json({ error: "Failed to fetch data from Mappls API" });
       }
     }
 
@@ -1441,13 +1514,14 @@ const updateMerchantDetailsController = async (req, res, next) => {
     merchantFound.phoneNumber = phoneNumber;
     merchantFound.merchantDetail = details;
 
-    await merchantFound.save();
-
-    await ActivityLog.create({
-      userId: req.userAuth,
-      userType: req.userRole,
-      description: `Details of ${merchantFound.merchantDetail.merchantName} is updated by Admin (${req.userAuth})`,
-    });
+    await Promise.all([
+      merchantFound.save(),
+      ActivityLog.create({
+        userId: req.userAuth,
+        userType: req.userRole,
+        description: `Details of ${merchantFound.merchantDetail.merchantName} is updated by Admin (${req.userAuth})`,
+      }),
+    ]);
 
     res.status(200).json({ message: "Merchant details updated successfully" });
   } catch (err) {
@@ -2176,7 +2250,7 @@ const getMerchantPayoutDetail = async (req, res, next) => {
 };
 
 // Confirm merchant payment
-const comfirmMerchantPayout = async (req, res, next) => {
+const confirmMerchantPayout = async (req, res, next) => {
   try {
     const { payoutId, merchantId } = req.params;
 
@@ -2395,6 +2469,8 @@ module.exports = {
   changeMerchantStatusByMerchantControllerForToggle,
   getMerchantPayoutController,
   getMerchantPayoutDetail,
-  comfirmMerchantPayout,
+  confirmMerchantPayout,
   downloadPayoutCSVController,
+  //
+  fetchAllMerchantsController,
 };

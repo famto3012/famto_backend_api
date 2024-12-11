@@ -116,7 +116,10 @@ const addItemsToCartController = async (req, res, next) => {
 
     const customerId = req.userAuth;
 
-    const cart = await PickAndCustomCart.findOne({ customerId });
+    const cart = await PickAndCustomCart.findOne({
+      customerId,
+      "cartDetail.deliveryMode": "Custom Order",
+    });
 
     if (!cart) {
       return next(appError("Cart not found", 404));
@@ -169,7 +172,10 @@ const getSingleItemController = async (req, res, next) => {
   try {
     const { itemId } = req.params;
 
-    const cart = await PickAndCustomCart.findOne({ customerId: req.userAuth });
+    const cart = await PickAndCustomCart.findOne({
+      customerId: req.userAuth,
+      "cartDetail.deliveryMode": "Custom Order",
+    });
 
     if (!cart) return next(appError("Cart not found", 404));
 
@@ -197,7 +203,10 @@ const editItemInCartController = async (req, res, next) => {
     const { itemId } = req.params;
     const customerId = req.userAuth;
 
-    const cart = await PickAndCustomCart.findOne({ customerId });
+    const cart = await PickAndCustomCart.findOne({
+      customerId,
+      "cartDetail.deliveryMode": "Custom Order",
+    });
 
     if (!cart) return next(appError("Cart not found", 404));
 
@@ -244,7 +253,10 @@ const deleteItemInCartController = async (req, res, next) => {
     const { itemId } = req.params;
     const customerId = req.userAuth;
 
-    const cart = await PickAndCustomCart.findOne({ customerId });
+    const cart = await PickAndCustomCart.findOne({
+      customerId,
+      "cartDetail.deliveryMode": "Custom Order",
+    });
 
     if (!cart) return next(appError("Cart not found", 404));
 
@@ -289,6 +301,8 @@ const addDeliveryAddressController = async (req, res, next) => {
         "cartDetail.deliveryMode": "Custom Order",
       }),
     ]);
+
+    console.log("Items", cartFound.items);
 
     if (!customer) return next(appError("Customer not found", 404));
     if (!cartFound) return next(appError("Cart not found", 404));
@@ -382,8 +396,6 @@ const addDeliveryAddressController = async (req, res, next) => {
       deliveryOption: "On-demand",
     };
 
-    // cartFound.cartDetail = updatedCartDetail;
-
     let updatedDeliveryCharges = 0;
     let updatedSurgeCharges = 0;
     let taxFound;
@@ -428,7 +440,7 @@ const addDeliveryAddressController = async (req, res, next) => {
       surgePrice: Math.round(updatedSurgeCharges) || null,
     };
 
-    // cartFound.billDetail = updatedBillDetail;
+    console.log("Before", cartFound.items);
 
     await PickAndCustomCart.findByIdAndUpdate(
       cartFound._id,
@@ -439,6 +451,8 @@ const addDeliveryAddressController = async (req, res, next) => {
       },
       { new: true }
     );
+
+    console.log("After", cartFound.items);
 
     const formattedItems = cartFound.items.map((item) => ({
       itemId: item.itemId,
@@ -472,6 +486,8 @@ const addDeliveryAddressController = async (req, res, next) => {
       vehicleType: cartFound?.billDetail?.vehicleType || null,
       surgePrice: cartFound?.billDetail?.surgePrice || null,
     };
+
+    console.log("formattedItems", formattedItems);
 
     const formattedResponse = {
       items: formattedItems,

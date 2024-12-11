@@ -41,6 +41,8 @@ const uploadToFirebase = async (file, folderName, locationImage = false) => {
 
   let fileBuffer;
 
+  console.log(file);
+
   if (file?.mimetype?.startsWith("image/")) {
     // If it's an image, process it with sharp
     try {
@@ -51,9 +53,7 @@ const uploadToFirebase = async (file, folderName, locationImage = false) => {
     } catch (err) {
       throw new Error("Image processing failed");
     }
-  }
-
-  if (
+  } else if (
     file.mimetype === "text/csv" ||
     file.mimetype === "application/vnd.ms-excel" ||
     file.mimetype.startsWith("audio/")
