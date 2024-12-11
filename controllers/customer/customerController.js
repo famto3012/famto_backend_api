@@ -238,12 +238,8 @@ const updateCustomerProfileController = async (req, res, next) => {
       currentCustomer?.customerDetails?.customerImageURL || "";
 
     if (req.file) {
-      try {
-        if (customerImageURL) await deleteFromFirebase(customerImageURL);
-        customerImageURL = await uploadToFirebase(req.file, "CustomerImages");
-      } catch (err) {
-        return next(appError(err, 500));
-      }
+      if (customerImageURL) await deleteFromFirebase(customerImageURL);
+      customerImageURL = await uploadToFirebase(req.file, "CustomerImages");
     }
 
     // Update customer details

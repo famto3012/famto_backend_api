@@ -74,6 +74,30 @@ const ratingByCustomerSchema = new mongoose.Schema(
   }
 );
 
+const bankDetailSchema = mongoose.Schema(
+  {
+    accountHolderName: {
+      type: String,
+      default: null,
+    },
+    accountNumber: {
+      type: String,
+      default: null,
+    },
+    ifscCode: {
+      type: String,
+      default: null,
+    },
+    upiId: {
+      type: String,
+      default: null,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
 const sponsorshipSchema = mongoose.Schema(
   {
     sponsorshipStatus: {
@@ -123,7 +147,6 @@ const merchantDetailSchema = new mongoose.Schema(
     geofenceId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Geofence",
-      // default: null,
     },
     pricing: {
       type: [
@@ -179,7 +202,6 @@ const merchantDetailSchema = new mongoose.Schema(
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "BusinessCategory",
-        // default: null,
       },
     ],
     merchantFoodType: {
@@ -194,7 +216,6 @@ const merchantDetailSchema = new mongoose.Schema(
     },
     deliveryTime: {
       type: Number,
-      // default: null,
     },
     preOrderStatus: {
       type: Boolean,
@@ -216,11 +237,8 @@ const merchantDetailSchema = new mongoose.Schema(
         message: (props) => `${props.value} is not a valid number!`,
       },
     },
-    // availability: {
-    //   type: availabilitySchema,
-    //   required: true,
-    // },
     availability: availabilitySchema,
+    bankDetail: bankDetailSchema,
   },
   {
     _id: false,

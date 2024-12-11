@@ -22,44 +22,44 @@ bannerRoute.post(
     body("merchantId").notEmpty().withMessage("Merchant Id is required"),
     body("geofenceId").notEmpty().withMessage("Geofence is required"),
   ],
-  // isAuthenticated,
-  // isAdmin,
+  isAuthenticated,
+  isAdmin,
   addBannerController
 );
 
 bannerRoute.put(
   "/edit-banner/:id",
   upload.single("bannerImage"),
-  // isAuthenticated,
-  // isAdmin,
+  isAuthenticated,
+  isAdmin,
   editBannerController
 );
 
 bannerRoute.get(
-  "/get-banner",
-  // isAuthenticated,
-  // isAdmin,
+  "/get-banner/:merchantId",
+  isAuthenticated,
+  isAdmin,
   getAllBannersController
 );
 
 bannerRoute.get(
   "/get-banner/:id",
-  // isAuthenticated,
-  // isAdmin,
+  isAuthenticated,
+  isAdmin,
   getBannerByIdController
 );
 
 bannerRoute.delete(
   "/delete-banner/:id",
-  // isAuthenticated,
-  // isAdmin,
+  isAuthenticated,
+  isAdmin,
   deleteBannerController
 );
 
 bannerRoute.put(
   "/banner-status/:id",
-  // isAuthenticated,
-  // isAdmin,
+  isAuthenticated,
+  isAdmin,
   updateStatusBannerController
 );
 

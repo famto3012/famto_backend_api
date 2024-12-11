@@ -100,7 +100,12 @@ const editBannerController = async (req, res, next) => {
 
 const getAllBannersController = async (req, res, next) => {
   try {
-    const banners = await Banner.find({}).populate("geofenceId", "name");
+    const { merchantId } = req.params;
+
+    const banners = await Banner.find({ merchantId }).populate(
+      "geofenceId",
+      "name"
+    );
 
     const formattedResponse = banners?.map((banner) => {
       return {

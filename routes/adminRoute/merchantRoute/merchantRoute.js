@@ -26,8 +26,9 @@ const {
   changeMerchantStatusByMerchantControllerForToggle,
   getMerchantPayoutController,
   getMerchantPayoutDetail,
-  comfirmMerchantPayout,
+  confirmMerchantPayout,
   downloadPayoutCSVController,
+  fetchAllMerchantsController,
 } = require("../../../controllers/admin/merchant/merchantController");
 const { upload } = require("../../../utils/imageOperation");
 const isAdmin = require("../../../middlewares/isAdmin");
@@ -76,8 +77,8 @@ merchantRoute.put(
   upload.fields([
     { name: "merchantImage", maxCount: 1 },
     { name: "pancardImage", maxCount: 1 },
-    { name: "GSTINImage", maxCount: 1 },
-    { name: "FSSAIImage", maxCount: 1 },
+    { name: "gstinImage", maxCount: 1 },
+    { name: "fssaiImage", maxCount: 1 },
     { name: "aadharImage", maxCount: 1 },
   ]),
   isAuthenticated,
@@ -110,6 +111,40 @@ merchantRoute.get(
   getAllMerchantsForDropDownController
 );
 
+merchantRoute.get(
+  "/admin/fetch-merchant",
+  isAuthenticated,
+  isAdmin,
+  fetchAllMerchantsController
+);
+
+// TODO: Remove after panel V2
+//  Search merchant
+merchantRoute.get(
+  "/admin/search",
+  isAuthenticated,
+  isAdmin,
+  searchMerchantController
+);
+
+// TODO: Remove after panel V2
+//  Filter merchant
+merchantRoute.get(
+  "/admin/filter",
+  isAuthenticated,
+  isAdmin,
+  filterMerchantsController
+);
+
+// TODO: Remove after panel V2
+// Get all merchants
+merchantRoute.get(
+  "/admin/all-merchants",
+  isAuthenticated,
+  isAdmin,
+  getAllMerchantsController
+);
+
 // Download sample CSV
 merchantRoute.get(
   "/admin/download-sample-merchant-csv",
@@ -132,30 +167,6 @@ merchantRoute.patch(
   isAuthenticated,
   isAdmin,
   rejectRegistrationController
-);
-
-//  Search merchant
-merchantRoute.get(
-  "/admin/search",
-  isAuthenticated,
-  isAdmin,
-  searchMerchantController
-);
-
-//  Filter merchant
-merchantRoute.get(
-  "/admin/filter",
-  isAuthenticated,
-  isAdmin,
-  filterMerchantsController
-);
-
-// Get all merchants
-merchantRoute.get(
-  "/admin/all-merchants",
-  isAuthenticated,
-  isAdmin,
-  getAllMerchantsController
 );
 
 // Get all merchants payout
@@ -220,7 +231,7 @@ merchantRoute.patch(
   "/admin/payout/:merchantId/:payoutId",
   isAuthenticated,
   isAdmin,
-  comfirmMerchantPayout
+  confirmMerchantPayout
 );
 
 //Update Merchant details
@@ -229,8 +240,8 @@ merchantRoute.put(
   upload.fields([
     { name: "merchantImage", maxCount: 1 },
     { name: "pancardImage", maxCount: 1 },
-    { name: "GSTINImage", maxCount: 1 },
-    { name: "FSSAIImage", maxCount: 1 },
+    { name: "gstinImage", maxCount: 1 },
+    { name: "fssaiImage", maxCount: 1 },
     { name: "aadharImage", maxCount: 1 },
   ]),
   isAuthenticated,

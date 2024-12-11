@@ -89,7 +89,10 @@ const addPickUpAddressController = async (req, res, next) => {
         newDeliveryAddress
       );
 
-    let cartFound = await PickAndCustomCart.findOne({ customerId });
+    let cartFound = await PickAndCustomCart.findOne({
+      customerId,
+      "cartDetail.deliveryMode": "Pick and Drop",
+    });
 
     let voiceInstructionInPickupURL =
       cartFound?.cartDetail?.voiceInstructionInPickup || "";
@@ -204,6 +207,7 @@ const getVehiclePricingDetailsController = async (req, res, next) => {
     const cartFound = await PickAndCustomCart.findOne({
       _id: cartId,
       customerId,
+      "cartDetail.deliveryMode": "Pick and Drop",
     });
 
     if (!cartFound) return next(appError("Customer cart not found", 404));
@@ -307,7 +311,10 @@ const addPickAndDropItemsController = async (req, res, next) => {
     if (items.length === 0) return next(appError("Add at-least one item", 400));
 
     // Find the cart for the customer
-    const cart = await PickAndCustomCart.findOne({ customerId });
+    const cart = await PickAndCustomCart.findOne({
+      customerId,
+      "cartDetail.deliveryMode": "Pick and Drop",
+    });
 
     // If cart doesn't exist, return an error
     if (!cart) return next(appError("Cart not found", 400));
@@ -493,7 +500,10 @@ const confirmPickAndDropController = async (req, res, next) => {
 
     const [customer, cart] = await Promise.all([
       Customer.findById(customerId),
-      PickAndCustomCart.findOne({ customerId }),
+      PickAndCustomCart.findOne({
+        customerId,
+        "cartDetail.deliveryMode": "Pick and Drop",
+      }),
     ]);
 
     if (!customer) return next(appError("Customer not found", 404));
@@ -726,7 +736,10 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
       return next(appError("Customer not found", 404));
     }
 
-    const cart = await PickAndCustomCart.findOne({ customerId });
+    const cart = await PickAndCustomCart.findOne({
+      customerId,
+      "cartDetail.deliveryMode": "Pick and Drop",
+    });
     if (!cart) {
       return next(appError("Cart not found", 404));
     }
