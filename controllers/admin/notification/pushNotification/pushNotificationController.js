@@ -32,13 +32,12 @@ const addPushNotificationController = async (req, res, next) => {
   try {
     const { title, description, geofenceId, merchant, driver, customer } =
       req.body;
-   
+
     if (merchant === "false" && driver === "false" && customer === "false") {
       return res.status(400).json({
         message: "Please choose a value for merchant, driver, and customer.",
       });
     }
-
     let imageUrl = "";
     if (req.file) {
       imageUrl = await uploadToFirebase(req.file, "PushNotificationImages");
@@ -86,6 +85,7 @@ const deletePushNotificationController = async (req, res, next) => {
   }
 };
 
+//TODO: Remove after panel V2
 const searchPushNotificationController = async (req, res, next) => {
   try {
     const { query } = req.query;
@@ -105,6 +105,7 @@ const searchPushNotificationController = async (req, res, next) => {
   }
 };
 
+//TODO: Remove after panel V2
 const getAllPushNotificationController = async (req, res) => {
   try {
     const pushNotification = await PushNotification.find();
@@ -117,6 +118,7 @@ const getAllPushNotificationController = async (req, res) => {
   }
 };
 
+//TODO: Remove after panel V2
 const fetchPushNotificationController = async (req, res, next) => {
   try {
     const { type } = req.query;
@@ -233,6 +235,39 @@ const sendPushNotificationController = async (req, res, next) => {
   }
 };
 
+const filterPushNotificationController = async (req, res, next) => {
+  try {
+    const { query: searchQuery, type } = req.query;
+
+    // Initialize a base query object
+    let query = {};
+
+    // If `type` is provided, validate it and add to the query
+    if (type) {
+      if (!["merchant", "driver", "customer"].includes(type)) {
+        return res.status(400).json({ error: "Invalid type parameter" });
+      }
+      query[type] = true;
+    }
+
+    // If `searchQuery` is provided, add search condition to the query
+    if (searchQuery) {
+      const searchTerm = searchQuery.trim();
+      query.title = { $regex: searchTerm, $options: "i" };
+    }
+
+    // Fetch push notifications based on the constructed query
+    const pushNotifications = await PushNotification.find(query);
+
+    res.status(200).json({
+      success: "Push Notifications fetched successfully",
+      data: pushNotifications,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   addPushNotificationController,
   deletePushNotificationController,
@@ -240,4 +275,5 @@ module.exports = {
   getAllPushNotificationController,
   fetchPushNotificationController,
   sendPushNotificationController,
+  filterPushNotificationController,
 };
