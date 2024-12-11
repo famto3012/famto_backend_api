@@ -879,8 +879,8 @@ const toggleMerchantFavoriteController = async (req, res, next) => {
     // Check if the merchant is already in the favorite list
     const isFavorite = currentCustomer.customerDetails.favoriteMerchants.some(
       (favorite) =>
-        favorite.merchantId.toString() === merchantId.toString() &&
-        favorite.businessCategoryId.toString() === businessCategoryId.toString()
+        favorite?.merchantId?.toString() === merchantId?.toString() &&
+        favorite?.businessCategoryId?.toString() === businessCategoryId?.toString()
     );
 
     if (isFavorite) {
@@ -889,9 +889,9 @@ const toggleMerchantFavoriteController = async (req, res, next) => {
         currentCustomer.customerDetails.favoriteMerchants.filter(
           (favorite) =>
             !(
-              favorite.merchantId.toString() === merchantId.toString() &&
-              favorite.businessCategoryId.toString() ===
-                businessCategoryId.toString()
+              favorite?.merchantId?.toString() === merchantId?.toString() &&
+              favorite?.businessCategoryId?.toString() ===
+                businessCategoryId?.toString()
             )
         );
 

@@ -11,12 +11,16 @@ const {
   getAgentByNameController,
   getTaskByDateRangeController,
   getTaskByIdController,
+  getTasksController,
+  getAgentsController,
 } = require("../../../controllers/admin/deliveryManagement/taskController");
 
+//TODO: Remove after panel v2
 taskRoute.get("/task", isAdmin, isAuthenticated, getTaskFilterController);
 
 taskRoute.get("/task/:taskId", isAdmin, isAuthenticated, getTaskByIdController);
 
+//TODO: Remove after panel v2
 taskRoute.get("/agent", isAdmin, isAuthenticated, getAgentByStatusController);
 
 taskRoute.post(
@@ -33,6 +37,7 @@ taskRoute.post(
   getAgentsAccordingToGeofenceController
 );
 
+//TODO: Remove after panel v2
 taskRoute.post(
   "/get-order-id",
   isAdmin,
@@ -40,6 +45,7 @@ taskRoute.post(
   getOrderByOrderIdController
 );
 
+//TODO: Remove after panel v2
 taskRoute.get(
   "/agent-name",
   isAdmin,
@@ -47,11 +53,26 @@ taskRoute.get(
   getAgentByNameController
 );
 
+//TODO: Remove after panel v2
 taskRoute.get(
   "/task-date",
   isAdmin,
   isAuthenticated,
   getTaskByDateRangeController
+);
+
+taskRoute.get(
+  "/task-filter",
+  isAdmin,
+  isAuthenticated,
+  getTasksController
+);
+
+taskRoute.get(
+  "/agent-filter",
+  isAdmin,
+  isAuthenticated,
+  getAgentsController
 );
 
 module.exports = taskRoute;
