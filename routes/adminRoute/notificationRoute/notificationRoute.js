@@ -19,6 +19,7 @@ const {
   getAllPushNotificationController,
   fetchPushNotificationController,
   sendPushNotificationController,
+  filterPushNotificationController,
 } = require("../../../controllers/admin/notification/pushNotification/pushNotificationController");
 const {
   addAlertNotificationController,
@@ -115,26 +116,33 @@ adminNotificationRoute.delete(
   isAdmin,
   deletePushNotificationController
 );
-
+//TODO: Remove after panel V2
 adminNotificationRoute.get(
   "/push-notification-search",
   isAuthenticated,
   isAdmin,
   searchPushNotificationController
 );
-
+//TODO: Remove after panel V2
 adminNotificationRoute.get(
   "/push-notification",
   isAuthenticated,
   isAdmin,
   getAllPushNotificationController
 );
-
+//TODO: Remove after panel V2
 adminNotificationRoute.get(
   "/push-notification-type",
   isAuthenticated,
   isAdmin,
   fetchPushNotificationController
+);
+
+adminNotificationRoute.get(
+  "/filter-push-notification",
+  isAuthenticated,
+  isAdmin,
+  filterPushNotificationController
 );
 
 adminNotificationRoute.post(

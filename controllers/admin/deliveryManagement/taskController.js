@@ -17,6 +17,7 @@ const {
 } = require("../../../utils/customerAppHelpers");
 const { formatDate, formatTime } = require("../../../utils/formatters");
 
+//TODO: Remove after panel v2
 const getTaskFilterController = async (req, res, next) => {
   try {
     const { filter } = req.query;
@@ -51,6 +52,7 @@ const getTaskByIdController = async (req, res, next) => {
   }
 };
 
+//TODO: Remove after panel v2
 const getAgentByStatusController = async (req, res, next) => {
   try {
     const { filter } = req.query;
@@ -288,6 +290,7 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
   }
 };
 
+//TODO: Remove after panel v2
 const getOrderByOrderIdController = async (req, res, next) => {
   try {
     const { orderId } = req.body;
@@ -305,6 +308,7 @@ const getOrderByOrderIdController = async (req, res, next) => {
   }
 };
 
+//TODO: Remove after panel v2
 const getAgentByNameController = async (req, res, next) => {
   try {
     const { fullName } = req.query;
@@ -327,6 +331,7 @@ const getAgentByNameController = async (req, res, next) => {
   }
 };
 
+//TODO: Remove after panel v2
 const getTaskByDateRangeController = async (req, res, next) => {
   try {
     const { startDate, endDate } = req.query;
@@ -352,6 +357,87 @@ const getTaskByDateRangeController = async (req, res, next) => {
   }
 };
 
+const getTasksController = async (req, res, next) => {
+  try {
+    const { startDate, endDate, orderId, filter } = req.query;
+
+    // Build the query object dynamically
+    const query = {};
+
+    // Add date range filter if provided
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+
+      query.createdAt = {
+        $gte: start,
+        $lte: end,
+      };
+    }
+
+    // Add orderId filter if provided
+    if (orderId) {
+      query.orderId = { $regex: orderId, $options: "i" };
+    }
+
+    // Add taskStatus filter if provided
+    if (filter) {
+      query.taskStatus = filter;
+    }
+
+    // Execute the query with optional population
+    const tasks = await Task.find(query)
+      .populate("agentId") // Populate specific fields for efficiency
+      .populate("orderId");
+
+    // Send the response
+    res.status(201).json({
+      success: true,
+      message: "Tasks fetched successfully",
+      data: tasks,
+    });
+  } catch (err) {
+    next(appError(err.message || "Failed to fetch tasks"));
+  }
+};
+
+const getAgentsController = async (req, res, next) => {
+  try {
+    const { fullName, filter } = req.query;
+
+    // Define the base query with common conditions
+    const query = { isApproved: "Approved" };
+
+    // Add conditions based on query parameters
+    if (fullName) {
+      query.fullName = new RegExp(fullName, "i"); // Case-insensitive search for fullName
+    }
+
+    if (filter) {
+      if (filter === "Free") {
+        query.status = "Free";
+      } else if (filter === "Busy") {
+        query.status = "Busy";
+      } else {
+        query.status = "Inactive";
+      }
+    }
+
+    // Fetch agents based on the constructed query
+    const agents = await Agent.find(query);
+
+    // Respond with the fetched agents
+    res.status(200).json({
+      message: "Agents fetched successfully",
+      data: agents,
+    });
+  } catch (error) {
+    next(appError(error.message));
+  }
+};
+
 module.exports = {
   getTaskFilterController,
   getAgentByStatusController,
@@ -361,4 +447,6 @@ module.exports = {
   getAgentByNameController,
   getTaskByDateRangeController,
   getTaskByIdController,
+  getTasksController,
+  getAgentsController,
 };
