@@ -51,9 +51,7 @@ const uploadToFirebase = async (file, folderName, locationImage = false) => {
     } catch (err) {
       throw new Error("Image processing failed");
     }
-  }
-
-  if (
+  } else if (
     file.mimetype === "text/csv" ||
     file.mimetype === "application/vnd.ms-excel" ||
     file.mimetype.startsWith("audio/")

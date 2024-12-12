@@ -27,13 +27,15 @@ const addAlertNotificationController = async (req, res, next) => {
   }
 
   try {
+    console.log(req.body);
+    console.log(req.file);
     const { title, description, userType, id } = req.body;
 
     let imageUrl = "";
     if (req.file)
       imageUrl = await uploadToFirebase(req.file, "alertNotificationImage");
 
-    const formattedId = id.toUpperCase();
+    const formattedId = id?.toUpperCase();
 
     // Determine which ID field to set based on the boolean flags
     let alertNotificationData = {
@@ -176,6 +178,7 @@ const deleteAlertNotificationController = async (req, res, next) => {
   }
 };
 
+//TODO:Remove after panel V2
 const getAllAlertNotificationsController = async (req, res, next) => {
   try {
     // Fetch all alert notifications from the database
@@ -190,6 +193,7 @@ const getAllAlertNotificationsController = async (req, res, next) => {
   }
 };
 
+//TODO:Remove after panel V2
 const getAlertNotificationsByUserTypeController = async (req, res, next) => {
   try {
     const { userType } = req.params;
@@ -222,6 +226,7 @@ const getAlertNotificationsByUserTypeController = async (req, res, next) => {
   }
 };
 
+//TODO:Remove after panel V2
 const searchAlertNotificationsByTitleController = async (req, res, next) => {
   try {
     const { title } = req.query;
@@ -244,10 +249,67 @@ const searchAlertNotificationsByTitleController = async (req, res, next) => {
   }
 };
 
+const getAlertNotificationsController = async (req, res, next) => {
+  try {
+    const { userType, title } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    // Base query for fetching alert notifications
+    const query = {};
+
+    // Add userType conditions to the query if provided
+    if (userType) {
+      if (userType === "merchant") {
+        query.merchant = true;
+      } else if (userType === "agent") {
+        query.agent = true;
+      } else if (userType === "customer") {
+        query.customer = true;
+      } else {
+        return next(
+          appError(
+            "Invalid user type specified. Please specify either merchant, agent, or customer.",
+            400
+          )
+        );
+      }
+    }
+
+    // Add title search condition to the query if provided
+    if (title) {
+      query.title = { $regex: title, $options: "i" }; // Case-insensitive search
+    }
+
+    // Fetch alert notifications based on the constructed query
+    const alertNotifications = await AlertNotification.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalDocuments = await AlertNotification.countDocuments();
+    const totalPages = Math.ceil(totalDocuments / limit);
+
+    res.status(200).json({
+      message: "Alert notifications retrieved successfully!",
+      data: alertNotifications,
+      totalDocuments,
+      totalPages,
+      currentPage: page,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   addAlertNotificationController,
   deleteAlertNotificationController,
   getAllAlertNotificationsController,
   getAlertNotificationsByUserTypeController,
   searchAlertNotificationsByTitleController,
+  getAlertNotificationsController,
 };

@@ -27,6 +27,7 @@ const {
   getAllAlertNotificationsController,
   getAlertNotificationsByUserTypeController,
   searchAlertNotificationsByTitleController,
+  getAlertNotificationsController,
 } = require("../../../controllers/admin/notification/alertNotification/alertNotificationController");
 // const {
 //   sendNotificationController,
@@ -164,26 +165,33 @@ adminNotificationRoute.delete(
   isAdmin,
   deleteAlertNotificationController
 );
-
+//TODO:Remove after panel V2
 adminNotificationRoute.get(
   "/alert-notification",
   isAuthenticated,
   isAdmin,
   getAllAlertNotificationsController
 );
-
+//TODO:Remove after panel V2
 adminNotificationRoute.get(
   "/alert-notification/:userType",
   isAuthenticated,
   isAdmin,
   getAlertNotificationsByUserTypeController
 );
-
+//TODO:Remove after panel V2
 adminNotificationRoute.get(
   "/search-alert-notification",
   isAuthenticated,
   isAdmin,
   searchAlertNotificationsByTitleController
+);
+
+adminNotificationRoute.get(
+  "/filter-alert-notification",
+  isAuthenticated,
+  isAdmin,
+  getAlertNotificationsController
 );
 
 adminNotificationRoute.post(
