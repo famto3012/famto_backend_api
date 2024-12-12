@@ -1155,7 +1155,7 @@ const getSingleMerchantController = async (req, res, next) => {
       );
 
       const planFound = await MerchantSubscription.findById(
-        subscriptionLog.planId
+        subscriptionLog?.planId
       )
         .select("name")
         .lean();
@@ -1792,7 +1792,7 @@ const addMerchantsFromCSVController = async (req, res, next) => {
 const downloadMerchantSampleCSVController = async (req, res, next) => {
   try {
     // Define the path to your sample CSV file
-    const filePath = path.join(__dirname, "../../../sample_CSV/sample_CSV.csv");
+    const filePath = path.join(__dirname, "../../../Merchant_CSV.csv");
 
     // Define the headers and data for the CSV
     const csvHeaders = [
@@ -1836,6 +1836,10 @@ const downloadMerchantSampleCSVController = async (req, res, next) => {
     res.download(filePath, "Merchant_sample.csv", (err) => {
       if (err) {
         next(err);
+      } else {
+        fs.unlink(filePath, (unlinkErr) => {
+          if (unlinkErr) console.error("Error deleting CSV file: ", unlinkErr);
+        });
       }
     });
   } catch (error) {
@@ -1846,21 +1850,24 @@ const downloadMerchantSampleCSVController = async (req, res, next) => {
 // Download merchant CSV
 const downloadMerchantCSVController = async (req, res, next) => {
   try {
-    const { serviceable, geofence, businessCategory, searchFilter } = req.query;
+    const { serviceable, geofence, businessCategory, name } = req.query;
 
     // Build query object based on filters
     const filter = {};
-    if (serviceable && serviceable !== "All")
+
+    if (serviceable && serviceable.toLowerCase() !== "all")
       filter.isServiceableToday = serviceable?.trim();
-    if (geofence && geofence !== "All")
-      filter["merchantDetai.geofenceId"] = geofence?.trim();
-    if (businessCategory && businessCategory !== "All")
-      filter["merchantDetai.businessCategoryId"] = businessCategory?.trim();
-    if (searchFilter) {
+    if (geofence && geofence.toLowerCase() !== "all")
+      filter["merchantDetail.geofenceId"] =
+        mongoose.Types.ObjectId.createFromHexString(geofenceId);
+    if (businessCategory && businessCategory.toLowerCase() !== "all")
+      filter["merchantDetail.businessCategoryId"] =
+        mongoose.Types.ObjectId.createFromHexString(businessCategory);
+    if (name) {
       filter.$or = [
         {
           "merchantDetail.merchantName": {
-            $regex: searchFilter,
+            $regex: name,
             $options: "i",
           },
         },
@@ -1871,7 +1878,7 @@ const downloadMerchantCSVController = async (req, res, next) => {
     let allMerchants = await Merchant.find(filter)
       .populate("merchantDetail.geofenceId", "name")
       .populate("merchantDetail.businessCategoryId", "title")
-      .sort({ createdAt: -1 })
+      .sort({ "merchantDetail.merchantName": 1 })
       .exec();
 
     let formattedResponse = [];
@@ -1879,43 +1886,43 @@ const downloadMerchantCSVController = async (req, res, next) => {
     // Collect all agents in one array
     allMerchants?.forEach((merchant) => {
       formattedResponse.push({
-        merchantId: merchant?._id || "-",
-        merchantName: merchant?.merchantDetail?.merchantName || "-",
-        fullName: merchant?.fullName || "-",
-        merchantEmail: merchant?.email || "-",
-        phoneNumber: merchant?.phoneNumber || "-",
-        registrationStatus: merchant?.isApproved || "-",
+        merchantId: merchant._id,
+        merchantName: merchant?.merchantDetail?.merchantName || "",
+        fullName: merchant?.fullName || "",
+        merchantEmail: merchant?.email || "",
+        phoneNumber: merchant?.phoneNumber || "",
+        registrationStatus: merchant?.isApproved || "",
         currentStatus: merchant?.status ? "Open" : "Closed",
         isBlocked: merchant?.isBlocked ? "True" : "False",
         reasonForBlockingOrDeleting:
-          merchant?.reasonForBlockingOrDeleting || "-",
+          merchant?.reasonForBlockingOrDeleting || "",
         blockedDate: merchant?.blockedDate
           ? formatDate(merchant?.blockedDate)
-          : "-",
-        merchantImageURL: merchant?.merchantDetail?.merchantImageURL || "-",
-        displayAddress: merchant?.merchantDetail?.displayAddress || "-",
-        description: merchant?.merchantDetail?.description || "-",
-        geofence: merchant?.merchantDetail?.geofenceId?.name || "-",
+          : "",
+        merchantImageURL: merchant?.merchantDetail?.merchantImageURL || "",
+        displayAddress: merchant?.merchantDetail?.displayAddress || "",
+        description: merchant?.merchantDetail?.description || "",
+        geofence: merchant?.merchantDetail?.geofenceId?.name || "",
         businessCategory:
-          merchant?.merchantDetail?.businessCategoryId?.title || "-",
-        pancardNumber: merchant?.merchantDetail?.pancardNumber || "-",
-        pancardImageURL: merchant?.merchantDetail?.pancardImageURL || "-",
-        GSTINNumber: merchant?.merchantDetail?.GSTINNumber || "-",
-        GSTINImageURL: merchant?.merchantDetail?.GSTINImageURL || "-",
-        FSSAINumber: merchant?.merchantDetail?.FSSAINumber || "-",
-        FSSAIImageURL: merchant?.merchantDetail?.FSSAIImageURL || "-",
-        aadharNumber: merchant?.merchantDetail?.aadharNumber || "-",
-        aadharImageURL: merchant?.merchantDetail?.aadharImageURL || "-",
-        merchantFoodType: merchant?.merchantDetail?.merchantFoodType || "-",
-        deliveryOption: merchant?.merchantDetail?.deliveryOption || "-",
-        deliveryTime: merchant?.merchantDetail?.deliveryTime || "-",
-        preOrderStatus: merchant?.merchantDetail?.preOrderStatus || "-",
-        servingArea: merchant?.merchantDetail?.servingArea || "-",
-        servingRadius: merchant?.merchantDetail?.servingRadius || "-",
+          merchant?.merchantDetail?.businessCategoryId?.title || "",
+        pancardNumber: merchant?.merchantDetail?.pancardNumber || "",
+        pancardImageURL: merchant?.merchantDetail?.pancardImageURL || "",
+        GSTINNumber: merchant?.merchantDetail?.GSTINNumber || "",
+        GSTINImageURL: merchant?.merchantDetail?.GSTINImageURL || "",
+        FSSAINumber: merchant?.merchantDetail?.FSSAINumber || "",
+        FSSAIImageURL: merchant?.merchantDetail?.FSSAIImageURL || "",
+        aadharNumber: merchant?.merchantDetail?.aadharNumber || "",
+        aadharImageURL: merchant?.merchantDetail?.aadharImageURL || "",
+        merchantFoodType: merchant?.merchantDetail?.merchantFoodType || "",
+        deliveryOption: merchant?.merchantDetail?.deliveryOption || "",
+        deliveryTime: merchant?.merchantDetail?.deliveryTime || "",
+        preOrderStatus: merchant?.merchantDetail?.preOrderStatus || "",
+        servingArea: merchant?.merchantDetail?.servingArea || "",
+        servingRadius: merchant?.merchantDetail?.servingRadius || "",
       });
     });
 
-    const filePath = path.join(__dirname, "../../../sample_CSV/sample_CSV.csv");
+    const filePath = path.join(__dirname, "../../../Merchant_CSV.csv");
 
     const csvHeaders = [
       { id: "merchantId", title: "Merchant ID" },
@@ -2009,11 +2016,12 @@ const deleteMerchantProfileByAdminController = async (req, res, next) => {
     ]);
 
     // Step 4: Delete products and categories
-    await Product.deleteMany({ merchantId });
-    await Category.deleteMany({ merchantId });
 
-    // Step 5: Delete the merchant
-    await Merchant.findByIdAndDelete(merchantId);
+    await Promise.all([
+      Product.deleteMany({ merchantId }),
+      Category.deleteMany({ merchantId }),
+      Merchant.findByIdAndDelete(merchantId),
+    ]);
 
     res.status(200).json({
       message: "Merchant and associated data deleted successfully",
@@ -2028,19 +2036,17 @@ const getMerchantPayoutController = async (req, res, next) => {
   try {
     let {
       page = 1,
-      limit = 50,
+      limit = 3,
       paymentStatus,
       merchantId,
       geofenceId,
       startDate,
       endDate,
       query,
-      isPaginated = "true",
       timezoneOffset = 0,
     } = req.query;
 
     // Parse and normalize pagination inputs
-    isPaginated = isPaginated === "true";
     page = parseInt(page, 10);
     limit = parseInt(limit, 10);
     const skip = (page - 1) * limit;
@@ -2057,10 +2063,11 @@ const getMerchantPayoutController = async (req, res, next) => {
     }
 
     // Filter by merchantId if specified
-    if (merchantId && merchantId !== "all") filterCriteria["_id"] = merchantId;
+    if (merchantId && merchantId.toLowerCase() !== "all")
+      filterCriteria["_id"] = merchantId;
 
     // Filter by geofenceId if specified
-    if (geofenceId && geofenceId !== "all") {
+    if (geofenceId && geofenceId.toLowerCase() !== "all") {
       filterCriteria["merchantDetail.geofenceId"] =
         mongoose.Types.ObjectId.createFromHexString(geofenceId);
     }
@@ -2070,13 +2077,13 @@ const getMerchantPayoutController = async (req, res, next) => {
     if (startDate) {
       startDate = new Date(startDate);
       startDate.setHours(0, 0, 0, 0);
-      startDate.setMinutes(startDate.getMinutes() - timezoneOffset); // Apply timezone offset
+      startDate.setMinutes(startDate.getMinutes() - timezoneOffset);
       dateFilter.$gte = startDate;
     }
     if (endDate) {
       endDate = new Date(endDate);
       endDate.setHours(23, 59, 59, 999);
-      endDate.setMinutes(endDate.getMinutes() - timezoneOffset); // Apply timezone offset
+      endDate.setMinutes(endDate.getMinutes() - timezoneOffset);
       dateFilter.$lte = endDate;
     }
 
@@ -2091,7 +2098,6 @@ const getMerchantPayoutController = async (req, res, next) => {
               as: "payout",
               cond: {
                 $and: [
-                  // Payment status filter
                   ...(paymentStatus && paymentStatus !== "all"
                     ? [
                         {
@@ -2102,7 +2108,6 @@ const getMerchantPayoutController = async (req, res, next) => {
                         },
                       ]
                     : []),
-                  // Date range filter
                   ...(startDate || endDate
                     ? [
                         {
@@ -2117,11 +2122,22 @@ const getMerchantPayoutController = async (req, res, next) => {
                         },
                       ]
                     : []),
+                  {
+                    $not: {
+                      $and: [
+                        { $eq: ["$$payout.totalCostPrice", 0] },
+                        { $eq: ["$$payout.completedOrders", 0] },
+                      ],
+                    },
+                  },
                 ],
               },
             },
           },
         },
+      },
+      {
+        $unwind: "$payoutDetail",
       },
       {
         $project: {
@@ -2130,34 +2146,27 @@ const getMerchantPayoutController = async (req, res, next) => {
           "merchantDetail.merchantName": 1,
         },
       },
-      ...(isPaginated ? [{ $skip: skip }, { $limit: limit }] : []),
+      { $skip: skip },
+      { $limit: limit },
     ]);
 
     // Execute the query and transform data as required
     const merchants = await merchantPayoutQuery.exec();
-    const data = merchants.flatMap((merchant) =>
-      merchant.payoutDetail.map((payout) => ({
-        merchantId: merchant._id,
-        merchantName: merchant.merchantDetail.merchantName,
-        phoneNumber: merchant.phoneNumber,
-        date: formatDate(payout.date),
-        totalCostPrice: payout.totalCostPrice,
-        completedOrders: payout.completedOrders,
-        isSettled: payout.isSettled,
-        payoutId: payout.payoutId,
-      }))
-    );
+    const data = merchants.map((merchant) => ({
+      merchantId: merchant._id,
+      merchantName: merchant.merchantDetail.merchantName,
+      phoneNumber: merchant.phoneNumber,
+      date: formatDate(merchant.payoutDetail.date),
+      completedOrders: merchant.payoutDetail.completedOrders,
+      totalCostPrice: merchant.payoutDetail.totalCostPrice,
+      isSettled: merchant.payoutDetail.isSettled,
+      payoutId: merchant.payoutDetail.payoutId,
+    }));
 
-    // Respond with the data and pagination info if paginated
+    // Respond with the data and pagination info
     res.status(200).json({
+      total: data.length,
       data,
-      pagination: isPaginated
-        ? {
-            page,
-            limit,
-            total: data.length,
-          }
-        : null,
     });
   } catch (err) {
     next(appError(err.message));
@@ -2281,23 +2290,14 @@ const confirmMerchantPayout = async (req, res, next) => {
 const downloadPayoutCSVController = async (req, res, next) => {
   try {
     let {
-      page = 1,
-      limit = 50,
       paymentStatus,
       merchantId,
       geofenceId,
       startDate,
       endDate,
       query,
-      isPaginated = "true",
       timezoneOffset = 0,
     } = req.query;
-
-    // Parse and normalize pagination inputs
-    isPaginated = isPaginated === "true";
-    page = parseInt(page, 10);
-    limit = parseInt(limit, 10);
-    const skip = (page - 1) * limit;
 
     // Initial filter criteria setup
     const filterCriteria = { "payoutDetail.0": { $exists: true } };
@@ -2324,13 +2324,13 @@ const downloadPayoutCSVController = async (req, res, next) => {
     if (startDate) {
       startDate = new Date(startDate);
       startDate.setHours(0, 0, 0, 0);
-      startDate.setMinutes(startDate.getMinutes() - timezoneOffset); // Apply timezone offset
+      startDate.setMinutes(startDate.getMinutes() - timezoneOffset);
       dateFilter.$gte = startDate;
     }
     if (endDate) {
       endDate = new Date(endDate);
       endDate.setHours(23, 59, 59, 999);
-      endDate.setMinutes(endDate.getMinutes() - timezoneOffset); // Apply timezone offset
+      endDate.setMinutes(endDate.getMinutes() - timezoneOffset);
       dateFilter.$lte = endDate;
     }
 
@@ -2345,7 +2345,6 @@ const downloadPayoutCSVController = async (req, res, next) => {
               as: "payout",
               cond: {
                 $and: [
-                  // Payment status filter
                   ...(paymentStatus && paymentStatus !== "all"
                     ? [
                         {
@@ -2356,7 +2355,6 @@ const downloadPayoutCSVController = async (req, res, next) => {
                         },
                       ]
                     : []),
-                  // Date range filter
                   ...(startDate || endDate
                     ? [
                         {
@@ -2371,11 +2369,22 @@ const downloadPayoutCSVController = async (req, res, next) => {
                         },
                       ]
                     : []),
+                  {
+                    $not: {
+                      $and: [
+                        { $eq: ["$$payout.totalCostPrice", 0] },
+                        { $eq: ["$$payout.completedOrders", 0] },
+                      ],
+                    },
+                  },
                 ],
               },
             },
           },
         },
+      },
+      {
+        $unwind: "$payoutDetail",
       },
       {
         $project: {
@@ -2384,29 +2393,21 @@ const downloadPayoutCSVController = async (req, res, next) => {
           "merchantDetail.merchantName": 1,
         },
       },
-      ...(isPaginated ? [{ $skip: skip }, { $limit: limit }] : []),
     ]);
 
-    // Execute the query and transform data as required
     const merchants = await merchantPayoutQuery.exec();
-    const data = merchants.flatMap((merchant) =>
-      merchant.payoutDetail.map((payout) => ({
-        merchantId: merchant._id,
-        merchantName: merchant.merchantDetail.merchantName,
-        phoneNumber: merchant.phoneNumber,
-        date: formatDate(payout.date),
-        totalCostPrice: payout.totalCostPrice,
-        completedOrders: payout.completedOrders,
-        isSettled: payout.isSettled,
-        payoutId: payout.payoutId,
-      }))
-    );
+    const data = merchants.map((merchant) => ({
+      merchantId: merchant._id,
+      merchantName: merchant.merchantDetail.merchantName,
+      phoneNumber: merchant.phoneNumber,
+      date: formatDate(merchant.payoutDetail.date),
+      totalCostPrice: merchant.payoutDetail.totalCostPrice,
+      completedOrders: merchant.payoutDetail.completedOrders,
+      isSettled: merchant.payoutDetail.isSettled,
+      payoutId: merchant.payoutDetail.payoutId,
+    }));
 
-    // If CSV export is requested
-    const csvFilePath = path.join(
-      __dirname,
-      "../../../sample_CSV/sample_Payout_CSV.csv"
-    );
+    const csvFilePath = path.join(__dirname, "../../../Merchant_payout.csv");
     const writer = csvWriter({
       path: csvFilePath,
       header: [
@@ -2416,22 +2417,21 @@ const downloadPayoutCSVController = async (req, res, next) => {
         { id: "date", title: "Date" },
         { id: "totalCostPrice", title: "Total Cost Price" },
         { id: "completedOrders", title: "Completed Orders" },
-        { id: "isSettled", title: "Is Settled" },
+        { id: "isSettled", title: "Approved" },
         { id: "payoutId", title: "Payout ID" },
       ],
     });
 
-    // Write data to CSV file
     await writer.writeRecords(data);
 
-    // Send the file as a response
-    res.download(csvFilePath, "merchant_payouts.csv", (err) => {
+    res.download(csvFilePath, "Merchant_payouts.csv", (err) => {
       if (err) {
         console.error(err);
         next(appError("Error in downloading the CSV file."));
       } else {
-        // Optionally delete the file after download
-        fs.unlinkSync(csvFilePath);
+        fs.unlink(csvFilePath, (unlinkErr) => {
+          if (unlinkErr) console.error("Error deleting CSV file: ", unlinkErr);
+        });
       }
     });
   } catch (err) {
