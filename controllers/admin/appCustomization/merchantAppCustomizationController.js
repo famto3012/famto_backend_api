@@ -91,7 +91,7 @@ const createOrUpdateMerchantCustomizationController = async (
 
       await newMerchantAppCustomization.save();
 
-      res.status(201).json({
+      res.status(200).json({
         success: "Merchant App Customization created successfully",
         data: newMerchantAppCustomization,
       });
