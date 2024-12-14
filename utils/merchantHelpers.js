@@ -80,4 +80,22 @@ const preparePayoutForMerchant = async () => {
   }
 };
 
-module.exports = { preparePayoutForMerchant };
+const resetStatusManualToggleForAllMerchants = async () => {
+  try {
+    const result = await Merchant.updateMany(
+      { statusManualToggle: true }, // Match merchants with statusManualToggle set to true
+      { $set: { statusManualToggle: false } } // Update the statusManualToggle to false
+    );
+
+    console.log(
+      `Successfully updated ${result.modifiedCount} merchants to set statusManualToggle to false.`
+    );
+
+    return result;
+  } catch (error) {
+    console.error("Error while updating statusManualToggle for merchants:", error);
+    // throw error; // Propagate the error to handle it further if needed
+  }
+};
+
+module.exports = { preparePayoutForMerchant, resetStatusManualToggleForAllMerchants };

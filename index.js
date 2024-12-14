@@ -80,7 +80,7 @@ const {
   fetchMerchantDailyRevenue,
 } = require("./utils/createPerDayRevenueHelper.js");
 const activityLogRoute = require("./routes/adminRoute/activityLogRoute/activityLogRoute.js");
-const { preparePayoutForMerchant } = require("./utils/merchantHelpers.js");
+const { preparePayoutForMerchant, resetStatusManualToggleForAllMerchants } = require("./utils/merchantHelpers.js");
 const {
   deleteOldActivityLogs,
 } = require("./controllers/admin/activityLogs/activityLogController.js");
@@ -190,6 +190,7 @@ cron.schedule("30 18 * * *", async () => {
     fetchPerDayRevenue(now),
     fetchMerchantDailyRevenue(now),
     generateMapplsAuthToken(),
+    resetStatusManualToggleForAllMerchants(),
     resetAllAgentTaskHelper(),
     deleteOldLoyaltyPoints(),
     deleteOldActivityLogs(),
