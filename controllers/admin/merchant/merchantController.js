@@ -227,6 +227,7 @@ const getMerchantProfileController = async (req, res, next) => {
       isApproved: merchantFound.isApproved,
       status: merchantFound.status,
       isBlocked: merchantFound.isBlocked,
+      statusManualToggle: merchantFound.statusManualToggle,
       merchantDetail,
       sponsorshipDetail: merchantFound.sponsorshipDetail?.[0] || {},
     };
@@ -249,62 +250,71 @@ const changeMerchantStatusByMerchantController = async (req, res, next) => {
       return next(appError("Merchant not found", 404));
     }
 
-    const currentDate = new Date();
-    const currentDay = currentDate
-      .toLocaleString("en-us", { weekday: "long" })
-      .toLowerCase(); // get the current day in lowercase (e.g., 'monday')
-    const currentTime = currentDate.toLocaleTimeString("en-GB", {
-      hour12: false,
-      hour: "2-digit",
-      minute: "2-digit",
-    }); // 24-hour format time (e.g., '16:30')
+    // const currentDate = new Date();
+    // const currentDay = currentDate
+    //   .toLocaleString("en-us", { weekday: "long" })
+    //   .toLowerCase(); // get the current day in lowercase (e.g., 'monday')
+    // const currentTime = currentDate.toLocaleTimeString("en-GB", {
+    //   hour12: false,
+    //   hour: "2-digit",
+    //   minute: "2-digit",
+    // }); // 24-hour format time (e.g., '16:30')
 
-    // Get today's availability
-    const availability =
-      merchantFound.merchantDetail.availability?.specificDays?.[currentDay];
+    // // Get today's availability
+    // const availability =
+    //   merchantFound.merchantDetail.availability?.specificDays?.[currentDay];
 
-    if (!availability) {
-      return next(appError("Merchant availability not set for today", 400));
+    // if (!availability) {
+    //   return next(appError("Merchant availability not set for today", 400));
+    // }
+
+    // // Check if merchant is closed all day
+    // if (availability.closedAllDay) {
+    //   return next(appError("Merchant is closed all day.", 400));
+    // }
+
+    // // Check if merchant is open all day
+    // if (availability.openAllDay) {
+    //   merchantFound.status = !merchantFound.status;
+    //   merchantFound.openedToday = true;
+    //   await merchantFound.save();
+    //   return res
+    //     .status(200)
+    //     .json({ message: "Merchant status changed successfully." });
+    // }
+
+    // // Check specific time availability
+    // if (availability.specificTime) {
+    //   const { startTime, endTime } = availability;
+
+    //   if (currentTime >= startTime && currentTime <= endTime) {
+    //     // Toggle status as the current time falls within available hours
+    //     merchantFound.status = !merchantFound.status;
+    //     merchantFound.openedToday = true;
+    //     await merchantFound.save();
+    //     return res
+    //       .status(200)
+    //       .json({ message: "Merchant status changed successfully." });
+    //   } else {
+    //     return next(
+    //       appError("Merchant is not within the available hours.", 400)
+    //     );
+    //   }
+    // }
+
+    // // Default case: if no conditions match, assume not ready to open
+    // return next(
+    //   appError("Merchant is not ready to open at the current time.", 400)
+    // );
+    if (merchantFound.isApproved === "Pending") {
+      return next(appError("Please complete the registration", 400));
     }
 
-    // Check if merchant is closed all day
-    if (availability.closedAllDay) {
-      return next(appError("Merchant is closed all day.", 400));
-    }
+    merchantFound.status = !merchantFound.status;
+    merchantFound.statusManualToggle = true;
+    await merchantFound.save();
 
-    // Check if merchant is open all day
-    if (availability.openAllDay) {
-      merchantFound.status = !merchantFound.status;
-      merchantFound.openedToday = true;
-      await merchantFound.save();
-      return res
-        .status(200)
-        .json({ message: "Merchant status changed successfully." });
-    }
-
-    // Check specific time availability
-    if (availability.specificTime) {
-      const { startTime, endTime } = availability;
-
-      if (currentTime >= startTime && currentTime <= endTime) {
-        // Toggle status as the current time falls within available hours
-        merchantFound.status = !merchantFound.status;
-        merchantFound.openedToday = true;
-        await merchantFound.save();
-        return res
-          .status(200)
-          .json({ message: "Merchant status changed successfully." });
-      } else {
-        return next(
-          appError("Merchant is not within the available hours.", 400)
-        );
-      }
-    }
-
-    // Default case: if no conditions match, assume not ready to open
-    return next(
-      appError("Merchant is not ready to open at the current time.", 400)
-    );
+    res.status(200).json({ message: "Merchant status changed" });
   } catch (err) {
     next(appError(err.message));
   }
@@ -331,6 +341,7 @@ const changeMerchantStatusByMerchantControllerForToggle = async (
       merchantFound.status = false;
       // merchantFound.openedToday = true;
     }
+    merchantFound.statusManualToggle = false;
 
     await merchantFound.save();
 
@@ -498,13 +509,9 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
       );
     };
 
-    let locationImage;
+    let locationImage = merchantFound?.merchantDetail?.locationImage;
 
     if (!arraysAreEqual(newLocation, merchantFound?.merchantDetail?.location)) {
-      if (merchantFound?.merchantDetail?.locationImage) {
-        await deleteFromFirebase(merchantFound?.merchantDetail?.locationImage);
-      }
-
       const url = `https://apis.mapmyindia.com/advancedmaps/v1/9a632cda78b871b3a6eb69bddc470fef/still_image?center=${newLocation[0]}, ${newLocation[1]}&size=400x500&markers=${newLocation[0]}, ${newLocation[1]}&zoom=15`;
 
       try {
@@ -517,17 +524,22 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
         );
         const buffer = Buffer.from(response.data);
         const imageBuffer = await changeBufferToImage(buffer, fileName, format);
+        console.log("imageBuffer", imageBuffer);
 
         locationImage = await uploadToFirebase(
           imageBuffer,
           "MerchantLocationImage"
         );
+        if (merchantFound?.merchantDetail?.locationImage) {
+          await deleteFromFirebase(
+            merchantFound?.merchantDetail?.locationImage
+          );
+        }
         if (locationImage) {
           await fs.unlink(fileName);
         }
       } catch (err) {
-        res.status(500).json({ error: "Failed to fetch data from Mappls API" });
-        return;
+        console.error("Failed to fetch Mappls Location image", err);
       }
     }
 
@@ -1456,13 +1468,9 @@ const updateMerchantDetailsController = async (req, res, next) => {
       );
     };
 
-    let locationImage;
+    let locationImage = merchantFound?.merchantDetail?.locationImage;
 
     if (!arraysAreEqual(newLocation, merchantFound?.merchantDetail?.location)) {
-      if (merchantFound?.merchantDetail?.locationImage) {
-        await deleteFromFirebase(merchantFound?.merchantDetail?.locationImage);
-      }
-
       const url = `https://apis.mapmyindia.com/advancedmaps/v1/9a632cda78b871b3a6eb69bddc470fef/still_image?center=${newLocation[0]}, ${newLocation[1]}&size=400x500&markers=${newLocation[0]}, ${newLocation[1]}&zoom=15`;
 
       try {
@@ -1480,6 +1488,11 @@ const updateMerchantDetailsController = async (req, res, next) => {
           imageBuffer,
           "MerchantLocationImage"
         );
+        if (merchantFound?.merchantDetail?.locationImage) {
+          await deleteFromFirebase(
+            merchantFound?.merchantDetail?.locationImage
+          );
+        }
         if (locationImage) {
           await fs.unlink(fileName);
         }

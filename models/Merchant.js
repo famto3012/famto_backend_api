@@ -337,6 +337,10 @@ const merchantSchema = new mongoose.Schema(
       type: Date,
     },
     payoutDetail: [payoutSchema],
+    statusManualToggle: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
