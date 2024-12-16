@@ -19,11 +19,16 @@ const {
   filterCustomerByGeofenceForMerchantController,
   searchCustomerByNameForOrderController,
   searchCustomerByNameForMerchantToOrderController,
+  fetchAllCustomersByAdminController,
+  fetchCustomersOfMerchantController,
 } = require("../../../controllers/admin/customer/customerController");
 const isAdminOrMerchant = require("../../../middlewares/isAdminOrMerchant");
 const { upload } = require("../../../utils/imageOperation");
 const adminCustomerRoute = express.Router();
 
+// =========================
+// ===========CSV===========
+// =========================
 adminCustomerRoute.get(
   "/download-customer-csv",
   isAuthenticated,
@@ -38,6 +43,11 @@ adminCustomerRoute.get(
   downloadCustomerSampleCSVController
 );
 
+// ========================
+// ========Merchant========
+// ========================
+
+// TODO: Remove after panel V2
 adminCustomerRoute.get(
   "/customer-of-merchant",
   isAuthenticated,
@@ -45,11 +55,25 @@ adminCustomerRoute.get(
   getCustomersOfMerchant
 );
 
+// TODO: Remove after panel V2
 adminCustomerRoute.get(
   "/search-customer-of-merchant",
   isAuthenticated,
   isAdminOrMerchant,
   searchCustomerByNameForMerchantController
+);
+
+// TODO: Remove after panel V2
+adminCustomerRoute.get(
+  "/filter-customer-of-merchant",
+  isAuthenticated,
+  filterCustomerByGeofenceForMerchantController
+);
+
+adminCustomerRoute.get(
+  "/fetch-customer-of-merchant",
+  isAuthenticated,
+  fetchCustomersOfMerchantController
 );
 
 adminCustomerRoute.get(
@@ -59,6 +83,11 @@ adminCustomerRoute.get(
   searchCustomerByNameForMerchantToOrderController
 );
 
+// =========================
+// ==========Admin==========
+// =========================
+
+// TODO: Remover after- panel V2
 adminCustomerRoute.get(
   "/get-all",
   isAuthenticated,
@@ -66,11 +95,20 @@ adminCustomerRoute.get(
   getAllCustomersController
 );
 
+// TODO: Remover after- panel V2
 adminCustomerRoute.get(
   "/search",
   isAuthenticated,
   isAdmin,
   searchCustomerByNameController
+);
+
+// TODO: Remover after- panel V2
+adminCustomerRoute.get(
+  "/",
+  isAuthenticated,
+  isAdmin,
+  filterCustomerByGeofenceController
 );
 
 adminCustomerRoute.get(
@@ -81,16 +119,10 @@ adminCustomerRoute.get(
 );
 
 adminCustomerRoute.get(
-  "/",
+  "/fetch-customer",
   isAuthenticated,
   isAdmin,
-  filterCustomerByGeofenceController
-);
-
-adminCustomerRoute.get(
-  "/filter-customer-of-merchant",
-  isAuthenticated,
-  filterCustomerByGeofenceForMerchantController
+  fetchAllCustomersByAdminController
 );
 
 adminCustomerRoute.get(

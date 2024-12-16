@@ -238,6 +238,11 @@ const editAgentByAdminController = async (req, res, next) => {
       }
     }
 
+    const managerId =
+      workStructure?.managerId === "null" || !workStructure?.managerId
+        ? null
+        : mongoose.Types.ObjectId(workStructure?.managerId);
+
     const updatedAgent = await Agent.findByIdAndUpdate(
       req.params.agentId,
       {
@@ -248,10 +253,9 @@ const editAgentByAdminController = async (req, res, next) => {
         agentImageURL,
         workStructure: {
           ...workStructure,
+          managerId, // Correctly set managerId
         },
-        bankDetail: {
-          ...bankDetail,
-        },
+        bankDetail: { ...bankDetail },
         governmentCertificateDetail: {
           ...governmentCertificateDetail,
           aadharFrontImageURL,

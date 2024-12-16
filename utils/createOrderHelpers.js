@@ -37,8 +37,8 @@ const findOrCreateCustomer = async ({
 
   const existingCustomer = await Customer.findOne({
     $or: [
-      { phoneNumber: newCustomer.phoneNumber },
-      { email: newCustomer.email },
+      { phoneNumber: newCustomer?.phoneNumber },
+      { email: newCustomer?.email },
     ],
   });
 
@@ -46,27 +46,28 @@ const findOrCreateCustomer = async ({
 
   if (newCustomer && deliveryMode === "Take Away") {
     return await Customer.create({
-      fullName: newCustomer.fullName,
-      email: newCustomer.email,
-      phoneNumber: newCustomer.phoneNumber,
+      fullName: newCustomer?.fullName,
+      email: newCustomer?.email,
+      phoneNumber: newCustomer?.phoneNumber,
     });
   }
 
   if (customerAddress) {
-    const location = [customerAddress.latitude, customerAddress.longitude];
+    const location = [customerAddress?.latitude, customerAddress?.longitude];
     const updatedAddress = {
-      fullName: customerAddress.fullName,
-      phoneNumber: customerAddress.phoneNumber,
-      flat: customerAddress.flat,
-      area: customerAddress.area,
-      landmark: customerAddress.landmark,
+      fullName: customerAddress?.fullName,
+      phoneNumber: customerAddress?.phoneNumber,
+      flat: customerAddress?.flat,
+      area: customerAddress?.area,
+      landmark: customerAddress?.landmark,
       coordinates: location,
     };
 
     const geofence = await geoLocation(
-      customerAddress.latitude,
-      customerAddress.longitude
+      customerAddress?.latitude,
+      customerAddress?.longitude
     );
+
     if (!geofence) {
       return { message: "User coordinates are outside defined geofences" };
     }
@@ -811,9 +812,11 @@ const handleDeliveryModeForAdmin = async (
     customPickupLocation
   );
 
+  console.log("Address: ", addressDetails);
+
   let distance = 0;
 
-  const customOrderWithPick = addressDetails.pickupLocation.length === 2;
+  const customOrderWithPick = addressDetails?.pickupLocation?.length === 2;
 
   // Calculate distance only if the delivery mode is not "Take Away" and pickupLocation is available
   if (deliveryMode !== "Take Away" && customOrderWithPick) {
@@ -842,6 +845,8 @@ const calculateDeliveryChargeHelperForAdmin = async (
   pickupLocation,
   selectedBusinessCategory
 ) => {
+  console.log("deliveryMode", deliveryMode);
+
   // Handle each delivery mode with a switch statement for clarity
   switch (deliveryMode) {
     case "Take Away":

@@ -498,7 +498,7 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
       );
     };
 
-    let locationImage;
+    let locationImage = null;
 
     if (!arraysAreEqual(newLocation, merchantFound?.merchantDetail?.location)) {
       if (merchantFound?.merchantDetail?.locationImage) {
@@ -513,7 +513,7 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
         const format = `jpeg`;
         const fileName = path.join(
           __dirname,
-          `../../../merchant_location/${uniqueName}-location.jpeg`
+          `../../../${uniqueName}-location.jpeg`
         );
         const buffer = Buffer.from(response.data);
         const imageBuffer = await changeBufferToImage(buffer, fileName, format);
@@ -522,12 +522,10 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
           imageBuffer,
           "MerchantLocationImage"
         );
-        if (locationImage) {
-          await fs.unlink(fileName);
-        }
+
+        if (locationImage) await fs.unlink(fileName);
       } catch (err) {
-        res.status(500).json({ error: "Failed to fetch data from Mappls API" });
-        return;
+        console.log(err);
       }
     }
 

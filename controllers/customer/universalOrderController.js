@@ -877,7 +877,8 @@ const toggleMerchantFavoriteController = async (req, res, next) => {
     const isFavorite = currentCustomer.customerDetails.favoriteMerchants.some(
       (favorite) =>
         favorite?.merchantId?.toString() === merchantId?.toString() &&
-        favorite?.businessCategoryId?.toString() === businessCategoryId?.toString()
+        favorite?.businessCategoryId?.toString() ===
+          businessCategoryId?.toString()
     );
 
     if (isFavorite) {
@@ -1158,14 +1159,8 @@ const getDeliveryOptionOfMerchantController = async (req, res, next) => {
 
     if (!merchantFound) return next(appError("Merchant not found", 404));
 
-    const isScheduled = ["Scheduled", "Both"].includes(
-      merchantFound.merchantDetail.deliveryOption
-    )
-      ? true
-      : false;
-
     res.status(200).json({
-      data: isScheduled,
+      data: merchantFound.merchantDetail.deliveryOption,
     });
   } catch (err) {
     next(appError(err.message));

@@ -162,10 +162,12 @@ const editProductController = async (req, res, next) => {
     description,
     longDescription,
     type,
-    vaiantStatus,
+    variantStatus,
     availableQuantity,
     alert,
   } = req.body;
+
+  console.log(req.body);
 
   const errors = validationResult(req);
 
@@ -208,7 +210,7 @@ const editProductController = async (req, res, next) => {
         maxQuantityPerOrder: maxQuantityPerOrder || null,
         costPrice: costPrice || null,
         sku: sku || null,
-        discountId: discountId || null,
+        discountId: discountId === "null" ? null : discountId,
         oftenBoughtTogetherId: oftenBoughtTogetherId || null,
         preparationTime: preparationTime || null,
         searchTags: searchTags || null,
@@ -216,7 +218,7 @@ const editProductController = async (req, res, next) => {
         longDescription: longDescription || null,
         type: type || null,
         productImageURL: productImageURL || null,
-        vaiantStatus: vaiantStatus || null,
+        variantStatus: variantStatus || null,
         availableQuantity: availableQuantity || null,
         alert: alert || null,
       },
@@ -448,6 +450,8 @@ const editVariantController = async (req, res, next) => {
   try {
     const { productId, variantId } = req.params;
     const { variantName, variantTypes } = req.body;
+
+    console.log(req.body);
 
     const product = await Product.findById(productId);
     if (!product) return next(appError("Product not found", 404));
