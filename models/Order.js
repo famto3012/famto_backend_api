@@ -296,6 +296,10 @@ const detailAddedByAgentSchema = mongoose.Schema(
       type: String,
       default: null,
     },
+    distanceCoveredByAgent: {
+      type: Number,
+      default: 0,
+    },
     shopUpdates: [shopUpdatesSchema],
   },
   {

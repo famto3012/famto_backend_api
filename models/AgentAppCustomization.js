@@ -1,5 +1,16 @@
 const mongoose = require("mongoose");
 
+const workingTimeSchema = new mongoose.Schema({
+  startTime: {
+    type: String,
+    required: true,
+  },
+  endTime: {
+    type: String,
+    required: true,
+  },
+});
+
 const agentAppCustomizationSchema = new mongoose.Schema(
   {
     splashScreenUrl: {
@@ -38,6 +49,7 @@ const agentAppCustomizationSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    workingTime: [workingTimeSchema],
   },
   {
     timestamps: true,

@@ -1294,7 +1294,7 @@ io.on("connection", async (socket) => {
   });
 
   // Started Delivery
-  socket.on("agentDeliveryStarted", async ({ taskId, agentId }) => {
+  socket.on("agentDeliveryStarted", async ({ taskId, agentId, location }) => {
     try {
       // console.log("Agent attempting to start delivery");
 
@@ -1327,6 +1327,17 @@ io.on("connection", async (socket) => {
           message: "Order not found",
           success: false,
         });
+      }
+
+      let distanceCoveredByAgent = 0;
+      if (taskFound.deliveryMode !== "Custom Order") {
+        const distanceFromStartingToPickup =
+          await getDistanceFromPickupToDelivery(
+            location,
+            taskFound.pickupDetail.pickupLocation
+          );
+        distanceCoveredByAgent =
+          distanceFromStartingToPickup + orderFound.orderDetail.distance;
       }
 
       taskFound.pickupDetail.pickupStatus = "Completed";
@@ -1376,9 +1387,10 @@ io.on("connection", async (socket) => {
         by: agentFound.fullName,
         userId: agentId,
         date: new Date(),
-        location: agentFound.location,
+        location,
       };
-
+      orderFound.detailAddedByAgent.distanceCoveredByAgent =
+        distanceCoveredByAgent;
       orderFound.orderDetailStepper.deliveryStarted = stepperDetail;
       await orderFound.save();
 
