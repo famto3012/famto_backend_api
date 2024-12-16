@@ -16,6 +16,7 @@ const {
   deleteFromFirebase,
 } = require("../../../utils/imageOperation");
 
+// TODO: Remove after panel V2
 const getAllCustomersController = async (req, res, next) => {
   try {
     // Get page and limit from query parameters with default values
@@ -68,6 +69,7 @@ const getAllCustomersController = async (req, res, next) => {
   }
 };
 
+// TODO: Remove after panel V2
 const searchCustomerByNameController = async (req, res, next) => {
   try {
     let { query, page = 1, limit = 25 } = req.query;
@@ -142,56 +144,7 @@ const searchCustomerByNameController = async (req, res, next) => {
   }
 };
 
-const searchCustomerByNameForOrderController = async (req, res, next) => {
-  try {
-    let { query } = req.query;
-
-    if (!query || query.trim() === "") {
-      return res.status(400).json({
-        message: "Search query cannot be empty",
-      });
-    }
-
-    const searchResults = await Customer.find({
-      fullName: { $regex: query.trim(), $options: "i" },
-      "customerDetails.isBlocked": false,
-    })
-      .select(
-        "fullName email phoneNumber lastPlatformUsed createdAt customerDetails"
-      )
-      .lean({ virtuals: true });
-
-    // Calculate averageRating and format registrationDate for each customer
-    const formattedCustomers = searchResults.map((customer) => {
-      const homeAddress = customer?.customerDetails?.homeAddress || {};
-      const workAddress = customer?.customerDetails?.workAddress || {};
-      const otherAddress = customer?.customerDetails?.otherAddress || [];
-
-      return {
-        _id: customer._id,
-        fullName: customer.fullName || "-",
-        email: customer.email || "-",
-        phoneNumber: customer.phoneNumber,
-        lastPlatformUsed: customer.lastPlatformUsed,
-        registrationDate: formatDate(customer.createdAt),
-        averageRating: customer.customerDetails?.averageRating || 0,
-        address: [
-          { type: "home", homeAddress },
-          { type: "work", workAddress },
-          { type: "other", otherAddress },
-        ],
-      };
-    });
-
-    res.status(200).json({
-      message: "Searched customers",
-      data: formattedCustomers,
-    });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
+// TODO: Remove after panel V2
 const filterCustomerByGeofenceController = async (req, res, next) => {
   try {
     let { filter, page = 1, limit = 25 } = req.query;
@@ -254,6 +207,111 @@ const filterCustomerByGeofenceController = async (req, res, next) => {
       data: formattedCustomers,
       pagination,
     });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const fetchAllCustomersByAdminController = async (req, res, next) => {
+  try {
+    let { geofence, query, page = 1, limit = 50 } = req.query;
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
+    // Base query
+    let matchCriteria = { "customerDetails.isBlocked": false };
+
+    // If filter is not "all", filter by geofenceId
+    if (geofence && geofence.trim().toLowerCase() !== "all") {
+      matchCriteria["customerDetails.geofenceId"] =
+        mongoose.Types.ObjectId.createFromHexString(geofence.trim());
+    }
+
+    if (query && query.trim !== "") {
+      matchCriteria.fullName = {
+        $regex: query.trim(),
+        $options: "i",
+      };
+    }
+
+    const [result, totalCount] = await Promise.all([
+      Customer.find(matchCriteria)
+        .select(
+          "fullName email phoneNumber lastPlatformUsed createdAt customerDetails"
+        )
+        .skip(skip)
+        .limit(limit)
+        .lean({ virtuals: true }),
+      Customer.countDocuments(matchCriteria),
+    ]);
+
+    // Format the customers
+    const formattedCustomers = result.map((customer) => {
+      return {
+        customerId: customer._id,
+        fullName: customer.fullName || "-",
+        email: customer.email || "-",
+        phoneNumber: customer.phoneNumber,
+        lastPlatformUsed: customer?.lastPlatformUsed || "-",
+        registrationDate: formatDate(customer.createdAt),
+        averageRating: customer.customerDetails?.averageRating || 0,
+      };
+    });
+
+    res.status(200).json({
+      total: totalCount,
+      data: formattedCustomers,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const searchCustomerByNameForOrderController = async (req, res, next) => {
+  try {
+    let { query } = req.query;
+
+    if (!query || query.trim() === "") {
+      return res.status(400).json({
+        message: "Search query cannot be empty",
+      });
+    }
+
+    const searchResults = await Customer.find({
+      fullName: { $regex: query.trim(), $options: "i" },
+      "customerDetails.isBlocked": false,
+    })
+      .select(
+        "fullName email phoneNumber lastPlatformUsed createdAt customerDetails"
+      )
+      .lean({ virtuals: true });
+
+    // Calculate averageRating and format registrationDate for each customer
+    const formattedCustomers = searchResults.map((customer) => {
+      const homeAddress = customer?.customerDetails?.homeAddress || {};
+      const workAddress = customer?.customerDetails?.workAddress || {};
+      const otherAddress = customer?.customerDetails?.otherAddress || [];
+
+      // ? INFO: Changed _id to customerId
+      return {
+        customerId: customer._id,
+        fullName: customer.fullName || "-",
+        email: customer.email || "-",
+        phoneNumber: customer.phoneNumber,
+        address: [
+          { type: "home", homeAddress },
+          { type: "work", workAddress },
+          { type: "other", otherAddress },
+        ],
+      };
+    });
+
+    res.status(200).json(formattedCustomers);
   } catch (err) {
     next(appError(err.message));
   }
@@ -818,6 +876,7 @@ const downloadCustomerCSVController = async (req, res, next) => {
 // For Merchant
 // ---------------------------------
 
+// TODO: Remove After panel V2
 const getCustomersOfMerchant = async (req, res, next) => {
   try {
     let { page = 1, limit = 25 } = req.query;
@@ -881,6 +940,7 @@ const getCustomersOfMerchant = async (req, res, next) => {
   }
 };
 
+// TODO: Remove After panel V2
 const searchCustomerByNameForMerchantController = async (req, res, next) => {
   try {
     const merchantId = req.userAuth;
@@ -970,74 +1030,7 @@ const searchCustomerByNameForMerchantController = async (req, res, next) => {
   }
 };
 
-const searchCustomerByNameForMerchantToOrderController = async (
-  req,
-  res,
-  next
-) => {
-  try {
-    const merchantId = req.userAuth;
-
-    let { query } = req.query;
-
-    if (!query || query.trim() === "") {
-      return res.status(400).json({
-        message: "Search query cannot be empty",
-      });
-    }
-
-    // Find orders placed with this merchant to get customer IDs
-    const ordersOfMerchant = await Order.find({ merchantId }).select(
-      "customerId"
-    );
-
-    // Extract unique customer IDs from the orders
-    const uniqueCustomerIds = [
-      ...new Set(ordersOfMerchant.map((order) => order.customerId.toString())),
-    ];
-
-    // Find customers by name who belong to this merchant
-    const searchResults = await Customer.find({
-      _id: { $in: uniqueCustomerIds },
-      fullName: { $regex: query.trim(), $options: "i" },
-    })
-      .select(
-        "fullName email phoneNumber lastPlatformUsed createdAt customerDetails"
-      )
-      .lean({ virtuals: true });
-
-    // Format customers with necessary fields
-    const formattedCustomers = searchResults.map((customer) => {
-      const homeAddress = customer?.customerDetails?.homeAddress || {};
-      const workAddress = customer?.customerDetails?.workAddress || {};
-      const otherAddress = customer?.customerDetails?.otherAddress || [];
-
-      return {
-        _id: customer._id,
-        fullName: customer.fullName || "-",
-        email: customer.email || "-",
-        customerImageURL: customer?.customerDetails?.customerImageURL || null,
-        phoneNumber: customer.phoneNumber,
-        lastPlatformUsed: customer.lastPlatformUsed || "-",
-        registrationDate: formatDate(customer.createdAt),
-        averageRating: customer.customerDetails?.averageRating || 0,
-        address: [
-          { type: "home", homeAddress },
-          { type: "work", workAddress },
-          { type: "other", otherAddress },
-        ],
-      };
-    });
-
-    res.status(200).json({
-      message: "Searched customers",
-      data: formattedCustomers,
-    });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
+// TODO: Remove After panel V2
 const filterCustomerByGeofenceForMerchantController = async (
   req,
   res,
@@ -1121,6 +1114,143 @@ const filterCustomerByGeofenceForMerchantController = async (
   }
 };
 
+const fetchCustomersOfMerchantController = async (req, res, next) => {
+  try {
+    let { geofence, query, page = 1, limit = 50 } = req.query;
+    const merchantId = req.userAuth;
+
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    const skip = (page - 1) * limit;
+
+    // Fetch all orders of the merchant
+    const ordersOfMerchant = await Order.find({ merchantId }).select(
+      "customerId"
+    );
+
+    // Extract unique customer IDs
+    const uniqueCustomerIds = [
+      ...new Set(ordersOfMerchant.map((order) => order.customerId.toString())),
+    ];
+
+    const matchCriteria = {
+      _id: { $in: uniqueCustomerIds },
+    };
+
+    if (geofence && geofence.trim().toLowerCase() !== "all") {
+      matchCriteria["customerDetails.geofenceId"] =
+        mongoose.Types.ObjectId.createFromHexString(geofence.trim());
+    }
+
+    if (query && query.trim !== "") {
+      matchCriteria.fullName = {
+        $regex: query.trim(),
+        $options: "i",
+      };
+    }
+
+    const [result, totalCount] = await Promise.all([
+      Customer.find(matchCriteria)
+        .select(
+          "fullName email phoneNumber lastPlatformUsed createdAt customerDetails"
+        )
+        .skip(skip)
+        .limit(limit)
+        .lean({ virtuals: true }),
+      Customer.countDocuments(matchCriteria),
+    ]);
+
+    // Format the customers
+    const formattedCustomers = result.map((customer) => {
+      return {
+        customerId: customer._id,
+        fullName: customer.fullName || "-",
+        email: customer.email || "-",
+        phoneNumber: customer.phoneNumber,
+        lastPlatformUsed: customer?.lastPlatformUsed || "-",
+        registrationDate: formatDate(customer.createdAt),
+        averageRating: customer.customerDetails?.averageRating || 0,
+      };
+    });
+
+    res.status(200).json({
+      total: totalCount,
+      data: formattedCustomers,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const searchCustomerByNameForMerchantToOrderController = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const merchantId = req.userAuth;
+
+    let { query } = req.query;
+
+    if (!query || query.trim() === "") {
+      return res.status(400).json({
+        message: "Search query cannot be empty",
+      });
+    }
+
+    // Find orders placed with this merchant to get customer IDs
+    const ordersOfMerchant = await Order.find({ merchantId }).select(
+      "customerId"
+    );
+
+    // Extract unique customer IDs from the orders
+    const uniqueCustomerIds = [
+      ...new Set(ordersOfMerchant.map((order) => order.customerId.toString())),
+    ];
+
+    // Find customers by name who belong to this merchant
+    const searchResults = await Customer.find({
+      _id: { $in: uniqueCustomerIds },
+      fullName: { $regex: query.trim(), $options: "i" },
+    })
+      .select(
+        "fullName email phoneNumber lastPlatformUsed createdAt customerDetails"
+      )
+      .lean({ virtuals: true });
+
+    // Format customers with necessary fields
+    const formattedCustomers = searchResults.map((customer) => {
+      const homeAddress = customer?.customerDetails?.homeAddress || {};
+      const workAddress = customer?.customerDetails?.workAddress || {};
+      const otherAddress = customer?.customerDetails?.otherAddress || [];
+
+      return {
+        _id: customer._id,
+        fullName: customer.fullName || "-",
+        email: customer.email || "-",
+        customerImageURL: customer?.customerDetails?.customerImageURL || null,
+        phoneNumber: customer.phoneNumber,
+        lastPlatformUsed: customer.lastPlatformUsed || "-",
+        registrationDate: formatDate(customer.createdAt),
+        averageRating: customer.customerDetails?.averageRating || 0,
+        address: [
+          { type: "home", homeAddress },
+          { type: "work", workAddress },
+          { type: "other", otherAddress },
+        ],
+      };
+    });
+
+    res.status(200).json({
+      message: "Searched customers",
+      data: formattedCustomers,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getAllCustomersController,
   searchCustomerByNameController,
@@ -1139,4 +1269,8 @@ module.exports = {
   addCustomerFromCSVController,
   downloadCustomerSampleCSVController,
   downloadCustomerCSVController,
+
+  //
+  fetchAllCustomersByAdminController,
+  fetchCustomersOfMerchantController,
 };

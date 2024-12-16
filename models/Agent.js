@@ -85,8 +85,7 @@ const workStructureSchema = mongoose.Schema(
     managerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Manager",
-      // default: null,
-      // required: true,
+      default: null,
     },
     salaryStructureId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -308,6 +307,13 @@ agentSchema.pre("save", async function (next) {
   } catch (error) {
     next(error);
   }
+});
+
+workStructureSchema.pre("save", function (next) {
+  if (this.managerId === "null") {
+    this.managerId = null;
+  }
+  next();
 });
 
 // Virtual field for calculating the average rating

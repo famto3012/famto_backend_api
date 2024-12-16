@@ -166,7 +166,7 @@ const productVariantValidations = [
   body("variantName").notEmpty().withMessage("Variant name is required"),
   body("variantTypes")
     .isArray({ min: 1 })
-    .withMessage("Variant types must be an array with at least one element"),
+    .withMessage("Add at-least one variant type"),
   body("variantTypes.*.typeName")
     .notEmpty()
     .withMessage("Variant type name is required"),

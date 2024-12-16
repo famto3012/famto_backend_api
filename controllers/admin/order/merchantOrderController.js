@@ -1,4 +1,5 @@
 const { validationResult } = require("express-validator");
+const path = require("path");
 const Customer = require("../../../models/Customer");
 const Merchant = require("../../../models/Merchant");
 const Order = require("../../../models/Order");
@@ -36,6 +37,7 @@ const ActivityLog = require("../../../models/ActivityLog");
 
 const csvWriter = require("csv-writer").createObjectCsvWriter;
 
+// TODO: Remove after panel V2
 const getAllOrdersOfMerchantController = async (req, res, next) => {
   try {
     // Get page, limit, and pagination status from query parameters with default values
@@ -143,6 +145,298 @@ const getAllOrdersOfMerchantController = async (req, res, next) => {
   }
 };
 
+// TODO: Remove after panel V2
+const searchOrderByIdController = async (req, res, next) => {
+  try {
+    let { query, page = 1, limit = 15 } = req.query;
+
+    if (!query) return next(appError("Order ID is required", 400));
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
+    const searchCriteria = {
+      _id: { $regex: query, $options: "i" },
+      merchantId: req.userAuth,
+    };
+
+    const ordersFound = await Order.find(searchCriteria)
+      .populate({
+        path: "merchantId",
+        select: "merchantDetail.merchantName merchantDetail.deliveryTime",
+      })
+      .populate({
+        path: "customerId",
+        select: "fullName",
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    // Count total documents
+    const totalDocuments = (await Order.countDocuments(searchCriteria)) || 1;
+
+    const formattedOrders = ordersFound.map((order) => {
+      return {
+        _id: order._id,
+        orderStatus: order.status,
+        merchantName: order.merchantId.merchantDetail.merchantName,
+        customerName:
+          order.customerId.fullName ||
+          order.orderDetail.deliveryAddress.fullName,
+        deliveryMode: order.orderDetail.deliveryMode,
+        orderDate: formatDate(order?.orderDetail?.deliveryTime),
+        orderTime: formatTime(order.createdAt),
+        deliveryDate: formatDate(order?.orderDetail?.deliveryTime),
+        deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
+        paymentMethod:
+          order.paymentMode === "Cash-on-delivery"
+            ? "Pay-on-delivery"
+            : order.paymentMode,
+        deliveryOption: order.orderDetail.deliveryOption,
+        amount: order.billDetail.grandTotal,
+      };
+    });
+
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
+    res.status(200).json({
+      message: "Search result of order",
+      data: formattedOrders || [],
+      pagination,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// TODO: Remove after panel V2
+const filterOrdersController = async (req, res, next) => {
+  try {
+    let {
+      status,
+      paymentMode,
+      deliveryMode,
+      startDate,
+      endDate,
+      page = 1,
+      limit = 15,
+    } = req.query;
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
+    const filterCriteria = { merchantId: req.userAuth };
+
+    if (status && status.trim().toLowerCase() !== "all") {
+      filterCriteria.status = { $regex: status.trim(), $options: "i" };
+    }
+
+    if (paymentMode && paymentMode.trim().toLowerCase() !== "all") {
+      filterCriteria.paymentMode = {
+        $regex: paymentMode.trim(),
+        $options: "i",
+      };
+    }
+
+    if (deliveryMode && deliveryMode.trim().toLowerCase() !== "all") {
+      filterCriteria["orderDetail.deliveryMode"] = {
+        $regex: deliveryMode.trim(),
+        $options: "i",
+      };
+    }
+
+    if (startDate && endDate) {
+      startDate = new Date(startDate);
+      startDate.setHours(0, 0, 0, 0);
+
+      endDate = new Date(endDate);
+      endDate.setHours(23, 59, 59, 999);
+
+      filterCriteria.createdAt = { $gte: startDate, $lte: endDate };
+    }
+
+    const filteredOrderResults = await Order.find(filterCriteria)
+      .populate({
+        path: "merchantId",
+        select: "merchantDetail.merchantName merchantDetail.deliveryTime",
+      })
+      .populate({
+        path: "customerId",
+        select: "fullName",
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    // Count total documents
+    const totalDocuments = (await Order.countDocuments(filterCriteria)) || 1;
+
+    const formattedOrders = filteredOrderResults.map((order) => {
+      return {
+        _id: order._id,
+        orderStatus: order.status,
+        merchantName: order.merchantId.merchantDetail.merchantName,
+        customerName:
+          order.customerId.fullName ||
+          order.orderDetail.deliveryAddress.fullName,
+        deliveryMode: order.orderDetail.deliveryMode,
+        orderDate: formatDate(order?.orderDetail?.deliveryTime),
+        orderTime: formatTime(order.createdAt),
+        deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
+        deliveryDate: formatDate(order?.orderDetail?.deliveryTime),
+        paymentMethod:
+          order.paymentMode === "Cash-on-delivery"
+            ? "Pay-on-delivery"
+            : order.paymentMode,
+        deliveryOption: order.orderDetail.deliveryOption,
+        amount: order.billDetail.grandTotal,
+      };
+    });
+
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
+    res.status(200).json({
+      message: "Filtered orders",
+      data: formattedOrders,
+      pagination,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const fetchAllOrderOfMerchant = async (req, res, next) => {
+  try {
+    let {
+      status,
+      paymentMode,
+      deliveryMode,
+      startDate,
+      endDate,
+      orderId,
+      page = 1,
+      limit = 50,
+    } = req.query;
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
+    const filterCriteria = { merchantId: req.userAuth };
+
+    if (status && status.trim().toLowerCase() !== "all") {
+      filterCriteria.status = { $regex: status.trim(), $options: "i" };
+    }
+
+    if (paymentMode && paymentMode.trim().toLowerCase() !== "all") {
+      filterCriteria.paymentMode = {
+        $regex: paymentMode.trim(),
+        $options: "i",
+      };
+    }
+
+    if (deliveryMode && deliveryMode.trim().toLowerCase() !== "all") {
+      filterCriteria["orderDetail.deliveryMode"] = {
+        $regex: deliveryMode.trim(),
+        $options: "i",
+      };
+    }
+
+    if (orderId && orderId !== "") {
+      filterCriteria._id = { $regex: orderId.trim(), $options: "i" };
+    }
+
+    if (startDate && endDate) {
+      startDate = new Date(startDate);
+      startDate.setHours(0, 0, 0, 0);
+
+      endDate = new Date(endDate);
+      endDate.setHours(23, 59, 59, 999);
+
+      filterCriteria.createdAt = { $gte: startDate, $lte: endDate };
+    }
+
+    const [orders, totalCount] = await Promise.all([
+      await Order.find(filterCriteria)
+        .populate({
+          path: "merchantId",
+          select: "merchantDetail.merchantName merchantDetail.deliveryTime",
+        })
+        .populate({
+          path: "customerId",
+          select: "fullName",
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Order.countDocuments(filterCriteria),
+    ]);
+
+    const formattedOrders = orders?.map((order) => {
+      return {
+        orderId: order._id,
+        orderStatus: order?.status,
+        merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
+        customerName:
+          order?.customerId?.fullName ||
+          order?.orderDetail?.deliveryAddress?.fullName ||
+          null,
+        deliveryMode: order?.orderDetail?.deliveryMode || null,
+        orderDate: formatDate(order?.createdAt) || null,
+        orderTime: formatTime(order?.createdAt) || null,
+        deliveryDate: order?.orderDetail?.deliveryTime
+          ? formatDate(order.orderDetail.deliveryTime)
+          : "-",
+        deliveryTime: order?.orderDetail?.deliveryTime
+          ? formatTime(order.orderDetail.deliveryTime)
+          : "-",
+        paymentMethod:
+          order?.paymentMode === "Cash-on-delivery"
+            ? "Pay-on-delivery"
+            : order?.paymentMode,
+        deliveryOption: order?.orderDetail?.deliveryOption || null,
+        amount: order.billDetail.grandTotal,
+      };
+    });
+
+    res.status(200).json({
+      totalCount,
+      data: formattedOrders,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// TODO: Remove After panel V2
 const getAllScheduledOrdersOfMerchantController = async (req, res, next) => {
   try {
     // Get page, limit, and pagination status from query parameters with default values
@@ -238,6 +532,313 @@ const getAllScheduledOrdersOfMerchantController = async (req, res, next) => {
       data: formattedOrders,
       ...(isPaginated && { pagination }),
       ...(isPaginated && { notSeen: totalUnSeenDocuments }),
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// TODO: Remove After panel V2
+const searchScheduledOrderByIdController = async (req, res, next) => {
+  try {
+    let { query, page = 1, limit = 15 } = req.query;
+
+    if (!query) {
+      return next(appError("Order ID is required", 400));
+    }
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
+    const searchCriteria = {
+      _id: { $regex: query, $options: "i" },
+      merchantId: req.userAuth,
+    };
+
+    const ordersFound = await ScheduledOrder.find(searchCriteria)
+      .populate({
+        path: "merchantId",
+        select: "merchantDetail.merchantName merchantDetail.deliveryTime",
+      })
+      .populate({
+        path: "customerId",
+        select: "fullName",
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    // Count total documents
+    const totalDocuments =
+      (await ScheduledOrder.countDocuments(searchCriteria)) || 1;
+
+    const unSeenOrdersCount = ordersFound.filter(
+      (order) => !order.isViewed
+    ).length;
+
+    const formattedOrders = ordersFound.map((order) => {
+      return {
+        _id: order._id,
+        orderStatus: order.status,
+        merchantName: order.merchantId.merchantDetail.merchantName,
+        customerName:
+          order.customerId.fullName ||
+          order.orderDetail.deliveryAddress.fullName,
+        deliveryMode: order.orderDetail.deliveryMode,
+        orderDate: formatDate(order.createdAt),
+        orderTime: formatTime(order.createdAt),
+        deliveryDate: "-",
+        deliveryTime: "-",
+        paymentMethod:
+          order.paymentMode === "Cash-on-delivery"
+            ? "Pay-on-delivery"
+            : order.paymentMode,
+        deliveryOption: order.orderDetail.deliveryOption,
+        amount: order.billDetail.grandTotal,
+        isViewed: order?.isViewed || false,
+      };
+    });
+
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
+    res.status(200).json({
+      message: "Search result of order",
+      data: formattedOrders || [],
+      pagination,
+      unSeenOrdersCount,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// TODO: Remove After panel V2
+const filterScheduledOrdersController = async (req, res, next) => {
+  try {
+    let {
+      status,
+      paymentMode,
+      deliveryMode,
+      startDate,
+      endDate,
+      page = 1,
+      limit = 15,
+    } = req.query;
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
+    const filterCriteria = { merchantId: req.userAuth };
+
+    if (status && status.trim().toLowerCase() !== "all") {
+      filterCriteria.status = { $regex: status.trim(), $options: "i" };
+    }
+
+    if (paymentMode && paymentMode.trim().toLowerCase() !== "all") {
+      filterCriteria.paymentMode = {
+        $regex: paymentMode.trim(),
+        $options: "i",
+      };
+    }
+
+    if (deliveryMode && deliveryMode.trim().toLowerCase() !== "all") {
+      filterCriteria["orderDetail.deliveryMode"] = {
+        $regex: deliveryMode.trim(),
+        $options: "i",
+      };
+    }
+
+    if (startDate && endDate) {
+      startDate = new Date(startDate);
+      startDate.setHours(0, 0, 0, 0);
+
+      endDate = new Date(endDate);
+      endDate.setHours(23, 59, 59, 999);
+
+      filterCriteria.createdAt = { $gte: startDate, $lte: endDate };
+    }
+
+    const filteredOrderResults = await ScheduledOrder.find(filterCriteria)
+      .populate({
+        path: "merchantId",
+        select: "merchantDetail.merchantName merchantDetail.deliveryTime",
+      })
+      .populate({
+        path: "customerId",
+        select: "fullName",
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    // Count total documents
+    const totalDocuments =
+      (await ScheduledOrder.countDocuments(filterCriteria)) || 1;
+
+    const unSeenOrdersCount = filteredOrderResults.filter(
+      (order) => !order.isViewed
+    ).length;
+
+    const formattedOrders = filteredOrderResults.map((order) => {
+      return {
+        _id: order._id,
+        orderStatus: order.status,
+        merchantName: order.merchantId.merchantDetail.merchantName,
+        customerName:
+          order.customerId.fullName ||
+          order.orderDetail.deliveryAddress.fullName,
+        deliveryMode: order.orderDetail.deliveryMode,
+        orderDate: formatDate(order.createdAt),
+        orderTime: formatTime(order.createdAt),
+        deliveryDate: order?.time ? formatDate(order?.time) : "-",
+        deliveryTime: order?.time ? formatTime(order?.time) : "-",
+        paymentMethod:
+          order.paymentMode === "Cash-on-delivery"
+            ? "Pay-on-delivery"
+            : order.paymentMode,
+        deliveryOption: order.orderDetail.deliveryOption,
+        amount: order.billDetail.grandTotal,
+        isViewed: order?.isViewed || false,
+      };
+    });
+
+    let pagination = {
+      totalDocuments: totalDocuments || 0,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page || 1,
+      pageSize: limit,
+      hasNextPage: page < Math.ceil(totalDocuments / limit),
+      hasPrevPage: page > 1,
+    };
+
+    res.status(200).json({
+      message: "Filtered orders",
+      data: formattedOrders,
+      pagination,
+      unSeenOrdersCount,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const fetchAllScheduledOrdersOfMerchant = async (req, res, next) => {
+  try {
+    let {
+      status,
+      paymentMode,
+      deliveryMode,
+      startDate,
+      endDate,
+      orderId,
+      page = 1,
+      limit = 50,
+    } = req.query;
+
+    // Convert to integers
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
+    const filterCriteria = { merchantId: req.userAuth };
+
+    if (status && status.trim().toLowerCase() !== "all") {
+      filterCriteria.status = { $regex: status.trim(), $options: "i" };
+    }
+
+    if (paymentMode && paymentMode.trim().toLowerCase() !== "all") {
+      filterCriteria.paymentMode = {
+        $regex: paymentMode.trim(),
+        $options: "i",
+      };
+    }
+
+    if (orderId && orderId !== "") {
+      filterCriteria._id = { $regex: orderId.trim(), $options: "i" };
+    }
+
+    if (deliveryMode && deliveryMode.trim().toLowerCase() !== "all") {
+      filterCriteria["orderDetail.deliveryMode"] = {
+        $regex: deliveryMode.trim(),
+        $options: "i",
+      };
+    }
+
+    if (startDate && endDate) {
+      startDate = new Date(startDate);
+      startDate.setHours(0, 0, 0, 0);
+
+      endDate = new Date(endDate);
+      endDate.setHours(23, 59, 59, 999);
+
+      filterCriteria.createdAt = { $gte: startDate, $lte: endDate };
+    }
+
+    const [result, totalCOunt] = await Promise.all([
+      ScheduledOrder.find(filterCriteria)
+        .populate({
+          path: "merchantId",
+          select: "merchantDetail.merchantName merchantDetail.deliveryTime",
+        })
+        .populate({
+          path: "customerId",
+          select: "fullName",
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      ScheduledOrder.countDocuments(filterCriteria),
+    ]);
+
+    const unSeenOrdersCount = result?.filter((order) => !order.isViewed).length;
+
+    const formattedOrders = result?.map((order) => {
+      return {
+        orderId: order._id,
+        orderStatus: order.status,
+        merchantName: order.merchantId.merchantDetail.merchantName,
+        customerName:
+          order.customerId.fullName ||
+          order.orderDetail.deliveryAddress.fullName,
+        deliveryMode: order.orderDetail.deliveryMode,
+        orderDate: formatDate(order.createdAt),
+        orderTime: formatTime(order.createdAt),
+        deliveryDate: order?.time ? formatDate(order?.time) : "-",
+        deliveryTime: order?.time ? formatTime(order?.time) : "-",
+        paymentMethod:
+          order.paymentMode === "Cash-on-delivery"
+            ? "Pay-on-delivery"
+            : order.paymentMode,
+        deliveryOption: order.orderDetail.deliveryOption,
+        amount: order.billDetail.grandTotal,
+        isViewed: order?.isViewed || false,
+      };
+    });
+
+    res.status(200).json({
+      notViewed: unSeenOrdersCount,
+      total: totalCOunt,
+      data: formattedOrders,
     });
   } catch (err) {
     next(appError(err.message));
@@ -512,388 +1113,6 @@ const rejectOrderController = async (req, res, next) => {
     sendSocketData(process.env.ADMIN_ID, eventName, socketData);
 
     res.status(200).json({ message: "Order cancelled" });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
-const searchOrderByIdController = async (req, res, next) => {
-  try {
-    let { query, page = 1, limit = 15 } = req.query;
-
-    if (!query) return next(appError("Order ID is required", 400));
-
-    // Convert to integers
-    page = parseInt(page, 10);
-    limit = parseInt(limit, 10);
-
-    // Calculate the number of documents to skip
-    const skip = (page - 1) * limit;
-
-    const searchCriteria = {
-      _id: { $regex: query, $options: "i" },
-      merchantId: req.userAuth,
-    };
-
-    const ordersFound = await Order.find(searchCriteria)
-      .populate({
-        path: "merchantId",
-        select: "merchantDetail.merchantName merchantDetail.deliveryTime",
-      })
-      .populate({
-        path: "customerId",
-        select: "fullName",
-      })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
-
-    // Count total documents
-    const totalDocuments = (await Order.countDocuments(searchCriteria)) || 1;
-
-    const formattedOrders = ordersFound.map((order) => {
-      return {
-        _id: order._id,
-        orderStatus: order.status,
-        merchantName: order.merchantId.merchantDetail.merchantName,
-        customerName:
-          order.customerId.fullName ||
-          order.orderDetail.deliveryAddress.fullName,
-        deliveryMode: order.orderDetail.deliveryMode,
-        orderDate: formatDate(order?.orderDetail?.deliveryTime),
-        orderTime: formatTime(order.createdAt),
-        deliveryDate: formatDate(order?.orderDetail?.deliveryTime),
-        deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
-        paymentMethod:
-          order.paymentMode === "Cash-on-delivery"
-            ? "Pay-on-delivery"
-            : order.paymentMode,
-        deliveryOption: order.orderDetail.deliveryOption,
-        amount: order.billDetail.grandTotal,
-      };
-    });
-
-    let pagination = {
-      totalDocuments: totalDocuments || 0,
-      totalPages: Math.ceil(totalDocuments / limit),
-      currentPage: page || 1,
-      pageSize: limit,
-      hasNextPage: page < Math.ceil(totalDocuments / limit),
-      hasPrevPage: page > 1,
-    };
-
-    res.status(200).json({
-      message: "Search result of order",
-      data: formattedOrders || [],
-      pagination,
-    });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
-const searchScheduledOrderByIdController = async (req, res, next) => {
-  try {
-    let { query, page = 1, limit = 15 } = req.query;
-
-    if (!query) {
-      return next(appError("Order ID is required", 400));
-    }
-
-    // Convert to integers
-    page = parseInt(page, 10);
-    limit = parseInt(limit, 10);
-
-    // Calculate the number of documents to skip
-    const skip = (page - 1) * limit;
-
-    const searchCriteria = {
-      _id: { $regex: query, $options: "i" },
-      merchantId: req.userAuth,
-    };
-
-    const ordersFound = await ScheduledOrder.find(searchCriteria)
-      .populate({
-        path: "merchantId",
-        select: "merchantDetail.merchantName merchantDetail.deliveryTime",
-      })
-      .populate({
-        path: "customerId",
-        select: "fullName",
-      })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
-
-    // Count total documents
-    const totalDocuments =
-      (await ScheduledOrder.countDocuments(searchCriteria)) || 1;
-
-    const unSeenOrdersCount = ordersFound.filter(
-      (order) => !order.isViewed
-    ).length;
-
-    const formattedOrders = ordersFound.map((order) => {
-      return {
-        _id: order._id,
-        orderStatus: order.status,
-        merchantName: order.merchantId.merchantDetail.merchantName,
-        customerName:
-          order.customerId.fullName ||
-          order.orderDetail.deliveryAddress.fullName,
-        deliveryMode: order.orderDetail.deliveryMode,
-        orderDate: formatDate(order.createdAt),
-        orderTime: formatTime(order.createdAt),
-        deliveryDate: "-",
-        deliveryTime: "-",
-        paymentMethod:
-          order.paymentMode === "Cash-on-delivery"
-            ? "Pay-on-delivery"
-            : order.paymentMode,
-        deliveryOption: order.orderDetail.deliveryOption,
-        amount: order.billDetail.grandTotal,
-        isViewed: order?.isViewed || false,
-      };
-    });
-
-    let pagination = {
-      totalDocuments: totalDocuments || 0,
-      totalPages: Math.ceil(totalDocuments / limit),
-      currentPage: page || 1,
-      pageSize: limit,
-      hasNextPage: page < Math.ceil(totalDocuments / limit),
-      hasPrevPage: page > 1,
-    };
-
-    res.status(200).json({
-      message: "Search result of order",
-      data: formattedOrders || [],
-      pagination,
-      unSeenOrdersCount,
-    });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
-const filterOrdersController = async (req, res, next) => {
-  try {
-    let {
-      status,
-      paymentMode,
-      deliveryMode,
-      startDate,
-      endDate,
-      page = 1,
-      limit = 15,
-    } = req.query;
-
-    // Convert to integers
-    page = parseInt(page, 10);
-    limit = parseInt(limit, 10);
-
-    // Calculate the number of documents to skip
-    const skip = (page - 1) * limit;
-
-    const filterCriteria = { merchantId: req.userAuth };
-
-    if (status && status.trim().toLowerCase() !== "all") {
-      filterCriteria.status = { $regex: status.trim(), $options: "i" };
-    }
-
-    if (paymentMode && paymentMode.trim().toLowerCase() !== "all") {
-      filterCriteria.paymentMode = {
-        $regex: paymentMode.trim(),
-        $options: "i",
-      };
-    }
-
-    if (deliveryMode && deliveryMode.trim().toLowerCase() !== "all") {
-      filterCriteria["orderDetail.deliveryMode"] = {
-        $regex: deliveryMode.trim(),
-        $options: "i",
-      };
-    }
-
-    if (startDate && endDate) {
-      startDate = new Date(startDate);
-      startDate.setHours(0, 0, 0, 0);
-
-      endDate = new Date(endDate);
-      endDate.setHours(23, 59, 59, 999);
-
-      filterCriteria.createdAt = { $gte: startDate, $lte: endDate };
-    }
-
-    const filteredOrderResults = await Order.find(filterCriteria)
-      .populate({
-        path: "merchantId",
-        select: "merchantDetail.merchantName merchantDetail.deliveryTime",
-      })
-      .populate({
-        path: "customerId",
-        select: "fullName",
-      })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
-
-    // Count total documents
-    const totalDocuments = (await Order.countDocuments(filterCriteria)) || 1;
-
-    const formattedOrders = filteredOrderResults.map((order) => {
-      return {
-        _id: order._id,
-        orderStatus: order.status,
-        merchantName: order.merchantId.merchantDetail.merchantName,
-        customerName:
-          order.customerId.fullName ||
-          order.orderDetail.deliveryAddress.fullName,
-        deliveryMode: order.orderDetail.deliveryMode,
-        orderDate: formatDate(order?.orderDetail?.deliveryTime),
-        orderTime: formatTime(order.createdAt),
-        deliveryTime: formatTime(order?.orderDetail?.deliveryTime),
-        deliveryDate: formatDate(order?.orderDetail?.deliveryTime),
-        paymentMethod:
-          order.paymentMode === "Cash-on-delivery"
-            ? "Pay-on-delivery"
-            : order.paymentMode,
-        deliveryOption: order.orderDetail.deliveryOption,
-        amount: order.billDetail.grandTotal,
-      };
-    });
-
-    let pagination = {
-      totalDocuments: totalDocuments || 0,
-      totalPages: Math.ceil(totalDocuments / limit),
-      currentPage: page || 1,
-      pageSize: limit,
-      hasNextPage: page < Math.ceil(totalDocuments / limit),
-      hasPrevPage: page > 1,
-    };
-
-    res.status(200).json({
-      message: "Filtered orders",
-      data: formattedOrders,
-      pagination,
-    });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
-const filterScheduledOrdersController = async (req, res, next) => {
-  try {
-    let {
-      status,
-      paymentMode,
-      deliveryMode,
-      startDate,
-      endDate,
-      page = 1,
-      limit = 15,
-    } = req.query;
-
-    // Convert to integers
-    page = parseInt(page, 10);
-    limit = parseInt(limit, 10);
-
-    // Calculate the number of documents to skip
-    const skip = (page - 1) * limit;
-
-    const filterCriteria = { merchantId: req.userAuth };
-
-    if (status && status.trim().toLowerCase() !== "all") {
-      filterCriteria.status = { $regex: status.trim(), $options: "i" };
-    }
-
-    if (paymentMode && paymentMode.trim().toLowerCase() !== "all") {
-      filterCriteria.paymentMode = {
-        $regex: paymentMode.trim(),
-        $options: "i",
-      };
-    }
-
-    if (deliveryMode && deliveryMode.trim().toLowerCase() !== "all") {
-      filterCriteria["orderDetail.deliveryMode"] = {
-        $regex: deliveryMode.trim(),
-        $options: "i",
-      };
-    }
-
-    if (startDate && endDate) {
-      startDate = new Date(startDate);
-      startDate.setHours(0, 0, 0, 0);
-
-      endDate = new Date(endDate);
-      endDate.setHours(23, 59, 59, 999);
-
-      filterCriteria.createdAt = { $gte: startDate, $lte: endDate };
-    }
-
-    const filteredOrderResults = await ScheduledOrder.find(filterCriteria)
-      .populate({
-        path: "merchantId",
-        select: "merchantDetail.merchantName merchantDetail.deliveryTime",
-      })
-      .populate({
-        path: "customerId",
-        select: "fullName",
-      })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
-
-    // Count total documents
-    const totalDocuments =
-      (await ScheduledOrder.countDocuments(filterCriteria)) || 1;
-
-    const unSeenOrdersCount = filteredOrderResults.filter(
-      (order) => !order.isViewed
-    ).length;
-
-    const formattedOrders = filteredOrderResults.map((order) => {
-      return {
-        _id: order._id,
-        orderStatus: order.status,
-        merchantName: order.merchantId.merchantDetail.merchantName,
-        customerName:
-          order.customerId.fullName ||
-          order.orderDetail.deliveryAddress.fullName,
-        deliveryMode: order.orderDetail.deliveryMode,
-        orderDate: formatDate(order.createdAt),
-        orderTime: formatTime(order.createdAt),
-        deliveryDate: order?.time ? formatDate(order?.time) : "-",
-        deliveryTime: order?.time ? formatTime(order?.time) : "-",
-        paymentMethod:
-          order.paymentMode === "Cash-on-delivery"
-            ? "Pay-on-delivery"
-            : order.paymentMode,
-        deliveryOption: order.orderDetail.deliveryOption,
-        amount: order.billDetail.grandTotal,
-        isViewed: order?.isViewed || false,
-      };
-    });
-
-    let pagination = {
-      totalDocuments: totalDocuments || 0,
-      totalPages: Math.ceil(totalDocuments / limit),
-      currentPage: page || 1,
-      pageSize: limit,
-      hasNextPage: page < Math.ceil(totalDocuments / limit),
-      hasPrevPage: page > 1,
-    };
-
-    res.status(200).json({
-      message: "Filtered orders",
-      data: formattedOrders,
-      pagination,
-      unSeenOrdersCount,
-    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -1590,6 +1809,152 @@ const downloadOrdersCSVByMerchantController = async (req, res, next) => {
   }
 };
 
+const downloadCSVByMerchantController = async (req, res, next) => {
+  try {
+    const {
+      type,
+      status,
+      paymentMode,
+      deliveryMode,
+      startDate,
+      endDate,
+      orderId,
+    } = req.query;
+
+    // Build query object based on filters
+    const filter = {
+      merchantId: req.userAuth,
+    };
+    if (status && status !== "All") filter.status = status;
+    if (paymentMode && paymentMode !== "All") filter.paymentMode = paymentMode;
+    if (deliveryMode && deliveryMode !== "All")
+      filter["orderDetail.deliveryMode"] = deliveryMode;
+    if (orderId) {
+      filter.$or = [{ _id: { $regex: orderId, $options: "i" } }];
+    }
+
+    if (startDate && endDate) {
+      const formattedStartDate = new Date(startDate);
+      formattedStartDate.setHours(0, 0, 0, 0);
+
+      const formattedEndDate = new Date(endDate);
+      formattedEndDate.setHours(23, 59, 59, 999);
+
+      filter.createdAt = { $gte: formattedStartDate, $lte: formattedEndDate };
+    }
+
+    // Fetch the data based on filter
+    let allOrders = await Order.find(filter)
+      .populate("merchantId", "merchantDetail.merchantName")
+      .populate("customerId", "fullName")
+      .populate("agentId", "fullName")
+      .sort({ createdAt: -1 })
+      .exec();
+
+    let formattedResponse = [];
+
+    allOrders?.forEach((order) => {
+      order.items.forEach((item) => {
+        formattedResponse.push({
+          orderId: order._id,
+          status: order?.status || "-",
+          merchantId: order?.merchantId?._id || "-",
+          merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
+          customerName: order?.customerId?.fullName || "-",
+          customerPhoneNumber:
+            order?.orderDetail?.deliveryAddress?.phoneNumber || "-",
+          customerEmail: order?.customerId?.email || "-",
+          deliveryMode: order?.orderDetail?.deliveryMode || "-",
+          orderTime:
+            `${formatDate(order?.createdAt)} | ${formatTime(
+              order?.createdAt
+            )}` || "-",
+          deliveryTime:
+            `${formatDate(order?.orderDetail?.deliveryTime)} | ${formatTime(
+              order?.orderDetail?.deliveryTime
+            )}` || "-",
+          paymentMode: order?.paymentMode || "-",
+          deliveryOption: order?.orderDetail?.deliveryOption || "-",
+          totalAmount: order?.billDetail?.grandTotal || "-",
+          deliveryAddress:
+            `${order?.orderDetail?.deliveryAddress?.fullName}, ${order?.orderDetail?.deliveryAddress?.flat}, ${order?.orderDetail?.deliveryAddress?.area}, ${order?.orderDetail?.deliveryAddress?.landmark}` ||
+            "-",
+          distanceInKM: order?.orderDetail?.distance || "-",
+          cancellationReason: order?.cancellationReason || "-",
+          cancellationDescription: order?.cancellationDescription || "-",
+          merchantEarnings: order?.merchantEarnings || "-",
+          famtoEarnings: order?.famtoEarnings || "-",
+          deliveryCharge: order?.billDetail?.deliveryCharge || "-",
+          taxAmount: order?.billDetail?.taxAmount || "-",
+          discountedAmount: order?.billDetail?.discountedAmount || "-",
+          itemTotal: order?.billDetail?.itemTotal || "-",
+          addedTip: order?.billDetail?.addedTip || "-",
+          subTotal: order?.billDetail?.subTotal || "-",
+          surgePrice: order?.billDetail?.surgePrice || "-",
+          transactionId: order?.paymentId || "-",
+          itemName: item.itemName || "-",
+          quantity: item.quantity || "-",
+          length: item.length || "-",
+          width: item.width || "-",
+          height: item.height || "-",
+        });
+      });
+    });
+
+    const filePath = path.join(__dirname, "../../../Order.csv");
+
+    const csvHeaders = [
+      { id: "orderId", title: "Order ID" },
+      { id: "status", title: "Status" },
+      { id: "merchantId", title: "Merchant ID" },
+      { id: "merchantName", title: "Merchant Name" },
+      { id: "customerName", title: "Customer Name" },
+      { id: "customerPhoneNumber", title: "Customer Phone Number" },
+      { id: "customerEmail", title: "Customer Email" },
+      { id: "deliveryMode", title: "Delivery Mode" },
+      { id: "orderTime", title: "Order Time" },
+      { id: "deliveryTime", title: "Delivery Time" },
+      { id: "paymentMode", title: "Payment Mode" },
+      { id: "deliveryOption", title: "Delivery Option" },
+      { id: "totalAmount", title: "Total Amount" },
+      { id: "deliveryAddress", title: "Delivery Address" },
+      { id: "distanceInKM", title: "Distance (KM)" },
+      { id: "cancellationReason", title: "Cancellation Reason" },
+      { id: "cancellationDescription", title: "Cancellation Description" },
+      { id: "merchantEarnings", title: "Merchant Earnings" },
+      { id: "famtoEarnings", title: "Famto Earnings" },
+      { id: "deliveryCharge", title: "Delivery Charge" },
+      { id: "taxAmount", title: "Tax Amount" },
+      { id: "discountedAmount", title: "Discounted Amount" },
+      { id: "itemTotal", title: "Item Total" },
+      { id: "addedTip", title: "Added Tip" },
+      { id: "subTotal", title: "Sub Total" },
+      { id: "surgePrice", title: "Surge Price" },
+      { id: "transactionId", title: "Transaction ID" },
+      { id: "itemName", title: "Item name" },
+      { id: "quantity", title: "Quantity" },
+      { id: "length", title: "Length" },
+      { id: "width", title: "Width" },
+      { id: "height", title: "height" },
+    ];
+
+    const writer = csvWriter({
+      path: filePath,
+      header: csvHeaders,
+    });
+
+    await writer.writeRecords(formattedResponse);
+
+    res.status(200).download(filePath, "Order_Data.csv", (err) => {
+      if (err) {
+        next(err);
+      }
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 const createInvoiceController = async (req, res, next) => {
   const errors = validationResult(req);
 
@@ -1830,4 +2195,8 @@ module.exports = {
   getScheduledOrderByIdForMerchant,
   markScheduledOrderViewedController,
   numberOfScheduledOrderNotViewedController,
+  //
+  fetchAllOrderOfMerchant,
+  fetchAllScheduledOrdersOfMerchant,
+  downloadCSVByMerchantController,
 };

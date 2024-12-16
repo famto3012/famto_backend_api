@@ -16,10 +16,13 @@ const {
   getScheduledOrderDetailController,
   getAvailableMerchantBusinessCategoriesController,
   markScheduledOrderViewedController,
+  fetchAllOrderOfMerchant,
+  fetchAllScheduledOrdersOfMerchant,
+  downloadCSVByMerchantController,
 } = require("../../../controllers/admin/order/merchantOrderController");
 const {
   getAllOrdersForAdminController,
-  confirmOrderByAdminContrroller,
+  confirmOrderByAdminController,
   rejectOrderByAdminController,
   searchOrderByIdByAdminController,
   filterOrdersByAdminController,
@@ -35,6 +38,8 @@ const {
   orderMarkAsReadyController,
   markTakeAwayOrderCompletedController,
   getScheduledOrderDetailByAdminController,
+  fetchAllOrdersByAdminController,
+  fetchAllScheduledOrdersByAdminController,
 } = require("../../../controllers/admin/order/adminOrderController");
 const isAdmin = require("../../../middlewares/isAdmin");
 const { upload } = require("../../../utils/imageOperation");
@@ -51,39 +56,61 @@ orderRoute.get(
   getAvailableMerchantBusinessCategoriesController
 );
 
+orderRoute.get("/get-orders", isAuthenticated, fetchAllOrderOfMerchant);
+
+orderRoute.get(
+  "/get-scheduled-orders",
+  isAuthenticated,
+  fetchAllScheduledOrdersOfMerchant
+);
+
+// TODO: Remove after panel V2
 orderRoute.get(
   "/all-orders",
   isAuthenticated,
   getAllOrdersOfMerchantController
 );
 
+// TODO: Remove after panel V2
 orderRoute.get(
   "/all-scheduled-orders",
   isAuthenticated,
   getAllScheduledOrdersOfMerchantController
 );
 
+// TODO: Remove after panel V2
 orderRoute.get("/search-order", isAuthenticated, searchOrderByIdController);
 
+// TODO: Remove after panel V2
 orderRoute.get(
   "/search-scheduled-order",
   isAuthenticated,
   searchScheduledOrderByIdController
 );
 
+// TODO: Remove after panel V2
 orderRoute.get("/filter", isAuthenticated, filterOrdersController);
 
+// TODO: Remove after panel V2
 orderRoute.get(
   "/filter-scheduled",
   isAuthenticated,
   filterScheduledOrdersController
 );
 
+// TODO: Remove after panel V2
 orderRoute.get(
   "/download-csv",
   isAuthenticated,
   isAdminOrMerchant,
   downloadOrdersCSVByMerchantController
+);
+
+orderRoute.get(
+  "/download-order-csv",
+  isAuthenticated,
+  isAdminOrMerchant,
+  downloadCSVByMerchantController
 );
 
 orderRoute.get(
@@ -151,6 +178,20 @@ orderRoute.patch(
 // -------------------------------------------------
 // For Admin
 // -------------------------------------------------
+
+orderRoute.get(
+  "/admin/get-orders",
+  isAuthenticated,
+  isAdmin,
+  fetchAllOrdersByAdminController
+);
+
+orderRoute.get(
+  "/admin/get-scheduled-orders",
+  isAuthenticated,
+  isAdmin,
+  fetchAllScheduledOrdersByAdminController
+);
 
 orderRoute.get(
   "/admin/search-order",
@@ -242,7 +283,7 @@ orderRoute.patch(
   "/admin/confirm-order/:orderId",
   isAuthenticated,
   isAdmin,
-  confirmOrderByAdminContrroller
+  confirmOrderByAdminController
 );
 
 module.exports = orderRoute;

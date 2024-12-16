@@ -156,6 +156,8 @@ const editCategoryByAdminController = async (req, res, next) => {
     return res.status(500).json({ errors: formattedErrors });
   }
 
+  console.log(req.body);
+
   try {
     const categoryToUpdate = await Category.findOne({
       _id: req.params.categoryId,
