@@ -696,8 +696,6 @@ io.on("connection", async (socket) => {
   // Order accepted by agent socket
   socket.on("agentOrderAccepted", async ({ orderId, agentId }) => {
     try {
-      // console.log("Trying to accept order");
-
       const [agent, task, order, agentNotification, sameCancelledOrders] =
         await Promise.all([
           Agent.findById(agentId),
@@ -736,8 +734,6 @@ io.on("connection", async (socket) => {
         });
       }
 
-      // console.log("No Not found errors");
-
       // Update agentNotification status
       agentNotification.status = "Accepted";
       await agentNotification.save();
@@ -756,18 +752,13 @@ io.on("connection", async (socket) => {
           "orderDetail.agentAcceptedAt": new Date(),
           "orderDetailStepper.assigned": stepperDetail,
         }),
-        task &&
-          task.taskStatus === "Unassigned" &&
-          agent.status === "Free" &&
-          Task.findByIdAndUpdate(task._id, {
-            agentId,
-            taskStatus: "Assigned",
-            "pickupDetail.pickupStatus": "Accepted",
-            "deliveryDetail.deliveryStatus": "Accepted",
-          }),
+        Task.findByIdAndUpdate(task._id, {
+          agentId,
+          taskStatus: "Assigned",
+          "pickupDetail.pickupStatus": "Accepted",
+          "deliveryDetail.deliveryStatus": "Accepted",
+        }),
       ]);
-
-      // console.log("sameCancelledOrders", sameCancelledOrders);
 
       // Update agent status
       agent.status = "Busy";

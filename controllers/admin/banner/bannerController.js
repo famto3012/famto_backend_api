@@ -130,15 +130,15 @@ const getAllBannersController = async (req, res, next) => {
 const getBannerByIdController = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const banners = await Banner.findOne({ _id: id });
+    const banner = await Banner.findById(id);
 
-    if (!banners) {
-      return next(appError("No banner found", 404));
-    }
+    console.log(banner);
+
+    if (!banner) return next(appError("No banner found", 404));
 
     res.status(200).json({
       success: true,
-      data: banners,
+      data: banner,
     });
   } catch (err) {
     next(appError(err.message));

@@ -1,0 +1,193 @@
+﻿Business Category Name*,Category Name*,Category Type*,Category Status*,Product Price*,Product Name*,Product Cost Price*,Product Type*,Min Quantity To Order,Max quantity Per Order,SKU,Preparation Time,Description,Long Description,Product Image,Inventory,Available quantity,Alert,Variant Name,Variant Type Name,Variant Type Cost Price,Variant Type Price
+Food,Burger,Veg,,219,CC Spl King Burger,209,Non-veg,,,,,,,,,,,,,,
+Food,Burger,Veg,,158,Beef Burger,150,Non-veg,,,,,,,https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/ProductImages%2F1d6048b7-5f05-478a-bec8-86aa9c386ac3-79564-croppedImage.png?alt=media&token=5788d8dc-7326-4953-93d9-13bff17529a6,,,,Portion,Medium,200,250
+Food,Burger,Veg,,158,Beef Burger,150,Non-veg,,,,,,,https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/ProductImages%2F1d6048b7-5f05-478a-bec8-86aa9c386ac3-79564-croppedImage.png?alt=media&token=5788d8dc-7326-4953-93d9-13bff17529a6,,,,Portion,Large,300,350
+Food,Burger,Veg,,84,Veg burger,80,Veg,,,,,,,,,,,,,,
+Food,Burger,Veg,,251,CC Spl King Sandwich,239,Other,,,,,,,,,,,New,df,23,32
+Food,Burger,Veg,,251,CC Spl King Sandwich,239,Other,,,,,,,,,,,New,Test,266,250
+Food,Burger,Veg,,251,CC Spl King Sandwich,239,Other,,,,,,,,,,,Port,afd,234,3
+Food,Burger,Veg,,105,Chicken Burger,100,Non-veg,,,,,,,,,,,,,,
+Food,Burger,Veg,,210,Jumbo Beef Burger,200,Non-veg,,,,,,,,,,,,,,
+Food,Burger,Veg,,120,Test,100,Non-veg,,,,,,,https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/ProductImages%2Fcda042d5-b114-4472-a32d-806701408fd8-ProductDefaultImage.png?alt=media&token=23e45ffc-7181-4702-bd46-42baf1a82e1d,,,,,,,
+Food,Sandwich Edited,Both,,147,Jumbo Chicken Burger,140,Non-veg,,,,,,,,,,,,,,
+Food,Sandwich Edited,Both,,84,Veg Sandwich,80,Veg,,,,,,,https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/ProductImages%2Ffe2a3f6e-fd82-491a-b2b3-ac1f1b865a74-110349-IRon-man-wallpaper.jpg.png?alt=media&token=f94bef30-dd02-492f-a9b7-88d0363a1f1a,,,,,,,
+Food,Sandwich Edited,Both,,105,Chicken Sandwich,100,Other,,,,,,,,,,,,,,
+Food,Sandwich Edited,Both,,120,Test Product,100,Non-veg,,,,,,,https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/ProductImages%2F049266aa-7adb-4c60-aff8-f76c2f353da3-16601-ProductDefaultImage.png.png?alt=media&token=7e56f23d-d3f1-4862-95d0-8967a71e38d8,true,,,,,,
+Food,Combos,Veg,true,158,Beef Sandwich,150,Non-veg,,,,,,,,,,,,,,
+Food,Combos,Veg,true,104,Veg Sandwich Combo,99,Non-veg,,,,,,,,true,,,,,,
+Food,Combos,Veg,true,104,Veg Burger Combo,99,Veg,,,,,,,,true,,,,,,
+Food,Combos,Veg,true,261,Mini platter,249,Non-veg,,,,,,,,true,,,,,,
+Food,Combos,Veg,true,134,Chicken Sandwich Combo,128,Non-veg,,,,,,,,true,,,,,,
+Food,Combos,Veg,true,134,Chicken Burger Combo,128,Non-veg,,,,,,,,true,,,,,,
+Food,Mojito,Veg,true,62,Cold Blue,59,Veg,,,,,,,,true,,,,,,
+Food,Mojito,Veg,true,62,Blueberry,59,Veg,,,,,,,,true,,,,,,
+Food,Mojito,Veg,true,62,Litchi 59,59,Veg,,,,,,,,true,,,,,,
+Food,Mojito,Veg,true,62,Passion Fruit,59,Veg,,,,,,,,true,,,,,,
+Food,Mojito,Veg,true,62,Mint,59,Veg,,,,,,,,true,,,,,,
+Food,Mojito,Veg,true,62,Guva,59,Veg,,,,,,,,true,,,,,,
+Food,Mojito,Veg,true,62,Triple Berry,59,Veg,,,,,,,,true,,,,,,
+Food,Lassidsf,Veg,true,52,Sweet lassi,50,Veg,,,,,,,,true,,,,,,
+Food,Lassidsf,Veg,true,63,Chocolate lassi,60,Veg,,,,,,,,true,,,,,,
+Food,Lassidsf,Veg,true,63,Mango lassi,60,Veg,,,,,,,,true,,,,,,
+Food,Lassidsf,Veg,true,63,Pineapple lassi,60,Veg,,,,,,,,true,,,,,,
+Food,Lassidsf,Veg,true,74,Berries lassi,70,Veg,,,,,,,,true,,,,,,
+Food,Fresh Juice,Veg,true,37,Mint lime,35,Veg,,,,,,,,true,,,,,,
+Food,Fresh Juice,Veg,true,52,Pineapple juice,50,Veg,,,,,,,,true,,,,,,
+Food,Fresh Juice,Veg,true,32,Fresh lime juice,30,Veg,,,,,,,,true,,,,,,
+Food,Fresh Juice,Veg,true,42,Water melon juice,40,Veg,,,,,,,,true,,,,,,
+Food,Fresh Juice,Veg,true,42,Musambi juice,40,Veg,,,,,,,,true,,,,,,
+Food,Fresh Juice,Veg,true,37,Pineapple lime,35,Veg,,,,,,,,true,,,,,,
+Food,Fresh Juice,Veg,true,37,Grape lime,35,Veg,,,,,,,,true,,,,,,
+Food,Fresh Juice,Veg,true,52,Rose milk,50,Veg,,,,,,,,true,,,,,,
+Food,Fresh Juice,Veg,true,63,Apple juice,60,Veg,,,,,,,,true,,,,,,
+Food,Fresh Juice,Veg,true,42,Orange,40,Veg,,,,,,Fresh orange juice,,true,,,Quantity,Small,20,21
+Food,Fresh Juice,Veg,true,42,Orange,40,Veg,,,,,,Fresh orange juice,,true,,,Quantity,Large,50,53
+Food,Fresh Juice,Veg,true,42,Papaya,40,Veg,,,,,,Fresh papaya juice,,true,,,Quantity,Small,20,21
+Food,Fresh Juice,Veg,true,42,Papaya,40,Veg,,,,,,Fresh papaya juice,,true,,,Quantity,Large,50,53
+Food,Fresh Juice,Veg,true,42,Musambi,40,Veg,,,,,,Fresh musambi juice,,true,,,Quantity,Small,20,21
+Food,Fresh Juice,Veg,true,42,Musambi,40,Veg,,,,,,Fresh musambi juice,,true,,,Quantity,Large,50,53
+Food,Fresh Juice,Veg,true,63,Pomegranate,60,Veg,,,,,,Fresh pomegranate juice,,true,,,Quantity,Small,40,42
+Food,Fresh Juice,Veg,true,63,Pomegranate,60,Veg,,,,,,Fresh pomegranate juice,,true,,,Quantity,Large,100,105
+Food,Fresh Juice,Veg,true,42,Shamam,40,Veg,,,,,,Fresh shaman juice,,true,,,Quantity,Small,20,21
+Food,Fresh Juice,Veg,true,42,Shamam,40,Veg,,,,,,Fresh shaman juice,,true,,,Quantity,Large,50,53
+Food,Fresh Juice,Veg,true,63,Apple,60,Veg,,,,,,Fresh apple juice,,true,,,Quantity,Small,40,42
+Food,Fresh Juice,Veg,true,63,Apple,60,Veg,,,,,,Fresh apple juice,,true,,,Quantity,Large,70,74
+Food,Fresh Juice,Veg,true,52,Mango,50,Veg,,,,,,Fresh mango juice,,true,,,Quantity,Small,30,32
+Food,Fresh Juice,Veg,true,52,Mango,50,Veg,,,,,,Fresh mango juice,,true,,,Quantity,Large,60,63
+Food,Fresh Juice,Veg,true,42,Pineapple,40,Veg,,,,,,Fresh pineapple juice,,true,,,Quantity,Small,20,21
+Food,Fresh Juice,Veg,true,42,Pineapple,40,Veg,,,,,,Fresh pineapple juice,,true,,,Quantity,Large,50,53
+Food,Fresh Juice,Veg,true,42,Grape,40,Veg,,,,,,Fresh grape juice,,true,,,Quantity,Small,20,21
+Food,Fresh Juice,Veg,true,42,Grape,40,Veg,,,,,,Fresh grape juice,,true,,,Quantity,Large,50,53
+Food,Al Faham,Non-veg,true,184,Peri Peri Al Faham,175,Non-veg,,,,,,,,true,,,Quantity,Quarter,175,184
+Food,Al Faham,Non-veg,true,184,Peri Peri Al Faham,175,Non-veg,,,,,,,,true,,,Quantity,Half,315,331
+Food,Al Faham,Non-veg,true,184,Peri Peri Al Faham,175,Non-veg,,,,,,,,true,,,Quantity,Full,600,630
+Food,Al Faham,Non-veg,true,184,Peri Peri Al Faham,175,Non-veg,,,,,,,,true,,,Quantity,Quarter,175,184
+Food,Al Faham,Non-veg,true,184,Peri Peri Al Faham,175,Non-veg,,,,,,,,true,,,Quantity,Half,315,331
+Food,Al Faham,Non-veg,true,184,Peri Peri Al Faham,175,Non-veg,,,,,,,,true,,,Quantity,Full,600,630
+Food,Al Faham,Non-veg,true,158,Classic Al Faham,150,Non-veg,,,,,,,,true,,,Quantity,Quarter,150,158
+Food,Al Faham,Non-veg,true,158,Classic Al Faham,150,Non-veg,,,,,,,,true,,,Quantity,Half,290,305
+Food,Al Faham,Non-veg,true,158,Classic Al Faham,150,Non-veg,,,,,,,,true,,,Quantity,Full,560,588
+Food,Al Faham,Non-veg,true,158,Classic Al Faham,150,Non-veg,,,,,,,,true,,,Quantity,Quarter,150,158
+Food,Al Faham,Non-veg,true,158,Classic Al Faham,150,Non-veg,,,,,,,,true,,,Quantity,Half,290,305
+Food,Al Faham,Non-veg,true,158,Classic Al Faham,150,Non-veg,,,,,,,,true,,,Quantity,Full,560,588
+Food,Al Faham,Non-veg,true,178,Mexican Al faham,170,Non-veg,,,,,,,,true,,,Quantity,Quarter,170,179
+Food,Al Faham,Non-veg,true,178,Mexican Al faham,170,Non-veg,,,,,,,,true,,,Quantity,Half,300,315
+Food,Al Faham,Non-veg,true,178,Mexican Al faham,170,Non-veg,,,,,,,,true,,,Quantity,Full,590,620
+Food,Al Faham,Non-veg,true,178,Mexican Al faham,170,Non-veg,,,,,,,,true,,,Quantity,Quarter,170,179
+Food,Al Faham,Non-veg,true,178,Mexican Al faham,170,Non-veg,,,,,,,,true,,,Quantity,Half,300,315
+Food,Al Faham,Non-veg,true,178,Mexican Al faham,170,Non-veg,,,,,,,,true,,,Quantity,Full,590,620
+Food,Al Faham,Non-veg,true,184,Schezwan Al Faham,175,Non-veg,,,,,,,,true,,,Quantity,Quarter,175,184
+Food,Al Faham,Non-veg,true,184,Schezwan Al Faham,175,Non-veg,,,,,,,,true,,,Quantity,Half,315,331
+Food,Al Faham,Non-veg,true,184,Schezwan Al Faham,175,Non-veg,,,,,,,,true,,,Quantity,Full,600,630
+Food,Al Faham,Non-veg,true,184,Barbeque Al Faham,175,Non-veg,,,,,,,,true,,,Quantity,Quarter,175,184
+Food,Al Faham,Non-veg,true,184,Barbeque Al Faham,175,Non-veg,,,,,,,,true,,,Quantity,Half,315,331
+Food,Al Faham,Non-veg,true,184,Barbeque Al Faham,175,Non-veg,,,,,,,,true,,,Quantity,Full,600,630
+Food,Al Faham,Non-veg,true,184,Barbeque Al Faham,175,Non-veg,,,,,,,,true,,,Quantity,Quarter,175,184
+Food,Al Faham,Non-veg,true,184,Barbeque Al Faham,175,Non-veg,,,,,,,,true,,,Quantity,Half,315,331
+Food,Al Faham,Non-veg,true,184,Barbeque Al Faham,175,Non-veg,,,,,,,,true,,,Quantity,Full,600,630
+Food,Al Faham,Non-veg,true,178,Kanthari Al Faham,170,Non-veg,,,,,,,,true,,,Quantity,Quarter,170,179
+Food,Al Faham,Non-veg,true,178,Kanthari Al Faham,170,Non-veg,,,,,,,,true,,,Quantity,Half,300,315
+Food,Al Faham,Non-veg,true,178,Kanthari Al Faham,170,Non-veg,,,,,,,,true,,,Quantity,Full,590,620
+Food,Al Faham,Non-veg,true,178,Kanthari Al Faham,170,Non-veg,,,,,,,,true,,,Quantity,Quarter,170,179
+Food,Al Faham,Non-veg,true,178,Kanthari Al Faham,170,Non-veg,,,,,,,,true,,,Quantity,Half,300,315
+Food,Al Faham,Non-veg,true,178,Kanthari Al Faham,170,Non-veg,,,,,,,,true,,,Quantity,Full,590,620
+Food,Breads,Veg,true,32,Roti,30,Veg,,,,,,,,true,,,Roti,Normal,30,32
+Food,Breads,Veg,true,32,Roti,30,Veg,,,,,,,,true,,,Roti,Butter,35,37
+Food,Breads,Veg,true,32,Roti,30,Veg,,,,,,,,true,,,Roti,Garlic,37,39
+Food,Breads,Veg,true,32,Roti,30,Veg,,,,,,,,true,,,Roti,Normal,30,32
+Food,Breads,Veg,true,32,Roti,30,Veg,,,,,,,,true,,,Roti,Butter,35,37
+Food,Breads,Veg,true,32,Roti,30,Veg,,,,,,,,true,,,Roti,Garlic,37,39
+Food,Breads,Veg,true,16,Orotti,15,Veg,,,,,,,,true,,,,,,
+Food,Breads,Veg,true,13,Idiyappam,12,Veg,,,,,,,,true,,,,,,
+Food,Breads,Veg,true,10,Pathiri,10,Veg,,,,,,,,true,,,,,,
+Food,Breads,Veg,true,13,Chappati,12,Veg,,,,,,,,true,,,,,,
+Food,Breads,Veg,true,16,Parotta,15,Veg,,,,,,,,true,,,,,,
+Food,Breads,Veg,true,32,Naan,30,Veg,,,,,,,,true,,,Naan,Normal,30,32
+Food,Breads,Veg,true,32,Naan,30,Veg,,,,,,,,true,,,Naan,Butter,35,37
+Food,Breads,Veg,true,32,Naan,30,Veg,,,,,,,,true,,,Naan,Garlic,37,39
+Food,Breads,Veg,true,32,Naan,30,Veg,,,,,,,,true,,,Naan,Normal,30,32
+Food,Breads,Veg,true,32,Naan,30,Veg,,,,,,,,true,,,Naan,Butter,35,37
+Food,Breads,Veg,true,32,Naan,30,Veg,,,,,,,,true,,,Naan,Garlic,37,39
+Food,Shawarma,Non-veg,true,21,Peri Peri,20,Non-veg,,,,,Extra,,,true,,,,,,
+Food,Shawarma,Non-veg,true,136,Parotta,130,Non-veg,,,,,,,,true,,,Quantity,Roll,130,137
+Food,Shawarma,Non-veg,true,136,Parotta,130,Non-veg,,,,,,,,true,,,Quantity,Plate,250,263
+Food,Shawarma,Non-veg,true,136,Parotta,130,Non-veg,,,,,,,,true,,,Quantity,Roll,130,137
+Food,Shawarma,Non-veg,true,136,Parotta,130,Non-veg,,,,,,,,true,,,Quantity,Plate,250,263
+Food,Shawarma,Non-veg,true,158,Romali,150,Non-veg,,,,,,,,true,,,Quantity,Roll,150,158
+Food,Shawarma,Non-veg,true,158,Romali,150,Non-veg,,,,,,,,true,,,Quantity,Plate,250,263
+Food,Shawarma,Non-veg,true,158,Romali,150,Non-veg,,,,,,,,true,,,Quantity,Special,190,200
+Food,Shawarma,Non-veg,true,158,Romali,150,Non-veg,,,,,,,,true,,,Quantity,Roll,150,158
+Food,Shawarma,Non-veg,true,158,Romali,150,Non-veg,,,,,,,,true,,,Quantity,Plate,250,263
+Food,Shawarma,Non-veg,true,158,Romali,150,Non-veg,,,,,,,,true,,,Quantity,Special,190,200
+Food,Shawarma,Non-veg,true,94,Kuboos,90,Non-veg,,,,,,,,true,,,Quantity,Roll,90,95
+Food,Shawarma,Non-veg,true,94,Kuboos,90,Non-veg,,,,,,,,true,,,Quantity,Plate,160,168
+Food,Shawarma,Non-veg,true,94,Kuboos,90,Non-veg,,,,,,,,true,,,Quantity,Special,140,147
+Food,Shawarma,Non-veg,true,94,Kuboos,90,Non-veg,,,,,,,,true,,,Quantity,Roll,90,95
+Food,Shawarma,Non-veg,true,94,Kuboos,90,Non-veg,,,,,,,,true,,,Quantity,Plate,160,168
+Food,Shawarma,Non-veg,true,94,Kuboos,90,Non-veg,,,,,,,,true,,,Quantity,Special,140,147
+Food,Mandi,Non-veg,true,262,Masala Shawayi Mandi,250,Non-veg,,,,,,,,true,,,Quantity,Quarter,250,263
+Food,Mandi,Non-veg,true,262,Masala Shawayi Mandi,250,Non-veg,,,,,,,,true,,,Quantity,Half,480,504
+Food,Mandi,Non-veg,true,262,Masala Shawayi Mandi,250,Non-veg,,,,,,,,true,,,Quantity,Full,900,945
+Food,Mandi,Non-veg,true,262,Masala Shawayi Mandi,250,Non-veg,,,,,,,,true,,,Quantity,Quarter,250,263
+Food,Mandi,Non-veg,true,262,Masala Shawayi Mandi,250,Non-veg,,,,,,,,true,,,Quantity,Half,480,504
+Food,Mandi,Non-veg,true,262,Masala Shawayi Mandi,250,Non-veg,,,,,,,,true,,,Quantity,Full,900,945
+Food,Mandi,Non-veg,true,236,Shawai Mandi,225,Non-veg,,,,,,,,true,,,Quantity,Quarter,225,236
+Food,Mandi,Non-veg,true,236,Shawai Mandi,225,Non-veg,,,,,,,,true,,,Quantity,Half,450,473
+Food,Mandi,Non-veg,true,236,Shawai Mandi,225,Non-veg,,,,,,,,true,,,Quantity,Full,850,893
+Food,Mandi,Non-veg,true,236,Shawai Mandi,225,Non-veg,,,,,,,,true,,,Quantity,Quarter,225,236
+Food,Mandi,Non-veg,true,236,Shawai Mandi,225,Non-veg,,,,,,,,true,,,Quantity,Half,450,473
+Food,Mandi,Non-veg,true,236,Shawai Mandi,225,Non-veg,,,,,,,,true,,,Quantity,Full,850,893
+Food,Mandi,Non-veg,true,630,Al Faham Mexican Mandi,600,Non-veg,,,,,,,,true,,,Quantity,Half,600,630
+Food,Mandi,Non-veg,true,630,Al Faham Mexican Mandi,600,Non-veg,,,,,,,,true,,,Quantity,Full,1200,1260
+Food,Mandi,Non-veg,true,630,Al Faham Mexican Mandi,600,Non-veg,,,,,,,,true,,,Quantity,Half,600,630
+Food,Mandi,Non-veg,true,630,Al Faham Mexican Mandi,600,Non-veg,,,,,,,,true,,,Quantity,Full,1200,1260
+Food,Mandi,Non-veg,true,262,Al Faham Schezwan  Mandi,250,Non-veg,,,,,,,,true,,,Quantity,Quarter,250,263
+Food,Mandi,Non-veg,true,262,Al Faham Schezwan  Mandi,250,Non-veg,,,,,,,,true,,,Quantity,Half,480,504
+Food,Mandi,Non-veg,true,262,Al Faham Schezwan  Mandi,250,Non-veg,,,,,,,,true,,,Quantity,Full,950,998
+Food,Mandi,Non-veg,true,262,Al Faham Schezwan  Mandi,250,Non-veg,,,,,,,,true,,,Quantity,Quarter,250,263
+Food,Mandi,Non-veg,true,262,Al Faham Schezwan  Mandi,250,Non-veg,,,,,,,,true,,,Quantity,Half,480,504
+Food,Mandi,Non-veg,true,262,Al Faham Schezwan  Mandi,250,Non-veg,,,,,,,,true,,,Quantity,Full,950,998
+Food,Mandi,Non-veg,true,262,Al Faham Peri Peri Mandi,250,Non-veg,,,,,,,,true,,,Quantity,Quarter,250,263
+Food,Mandi,Non-veg,true,262,Al Faham Peri Peri Mandi,250,Non-veg,,,,,,,,true,,,Quantity,Half,480,504
+Food,Mandi,Non-veg,true,262,Al Faham Peri Peri Mandi,250,Non-veg,,,,,,,,true,,,Quantity,Full,950,998
+Food,Mandi,Non-veg,true,262,Al Faham Peri Peri Mandi,250,Non-veg,,,,,,,,true,,,Quantity,Quarter,250,263
+Food,Mandi,Non-veg,true,262,Al Faham Peri Peri Mandi,250,Non-veg,,,,,,,,true,,,Quantity,Half,480,504
+Food,Mandi,Non-veg,true,262,Al Faham Peri Peri Mandi,250,Non-veg,,,,,,,,true,,,Quantity,Full,950,998
+Food,Mandi,Non-veg,true,242,Al Faham Classic Mandi,230,Non-veg,,,,,,,,true,,,Quantity,Quarter,230,242
+Food,Mandi,Non-veg,true,242,Al Faham Classic Mandi,230,Non-veg,,,,,,,,true,,,Quantity,Half,450,473
+Food,Mandi,Non-veg,true,242,Al Faham Classic Mandi,230,Non-veg,,,,,,,,true,,,Quantity,Full,900,945
+Food,Mandi,Non-veg,true,242,Al Faham Classic Mandi,230,Non-veg,,,,,,,,true,,,Quantity,Quarter,230,242
+Food,Mandi,Non-veg,true,242,Al Faham Classic Mandi,230,Non-veg,,,,,,,,true,,,Quantity,Half,450,473
+Food,Mandi,Non-veg,true,242,Al Faham Classic Mandi,230,Non-veg,,,,,,,,true,,,Quantity,Full,900,945
+Food,Main Course,Both,true,210,Butter Chicken,200,Non-veg,,,,,,,,true,,,Quantity,Half,200,210
+Food,Main Course,Both,true,210,Butter Chicken,200,Non-veg,,,,,,,,true,,,Quantity,Full,300,315
+Food,Main Course,Both,true,210,Butter Chicken,200,Non-veg,,,,,,,,true,,,Quantity,Half,200,210
+Food,Main Course,Both,true,210,Butter Chicken,200,Non-veg,,,,,,,,true,,,Quantity,Full,300,315
+Food,Main Course,Both,true,252,Chicken Chettinad,240,Non-veg,,,,,,,,true,,,,,,
+Food,Main Course,Both,true,252,Chicken Pepper Masala,240,Non-veg,,,,,,,,true,,,,,,
+Food,Main Course,Both,true,242,Chicken Kondatam,230,Non-veg,,,,,,,,true,,,,,,
+Food,Main Course,Both,true,262,Chicken Roast,250,Non-veg,,,,,,,,true,,,,,,
+Food,Main Course,Both,true,126,Varutharachathu,120,Non-veg,,,,,,,,true,,,Quantity,Half,120,126
+Food,Main Course,Both,true,126,Varutharachathu,120,Non-veg,,,,,,,,true,,,Quantity,Full,200,210
+Food,Main Course,Both,true,126,Varutharachathu,120,Non-veg,,,,,,,,true,,,Quantity,Half,120,126
+Food,Main Course,Both,true,126,Varutharachathu,120,Non-veg,,,,,,,,true,,,Quantity,Full,200,210
+Food,Main Course,Both,true,210,Chicken Curry,200,Non-veg,,,,,,,,true,,,,,,
+Food,Main Course,Both,true,242,Beef Idichathu,230,Non-veg,,,,,,,,true,,,,,,
+Food,Main Course,Both,true,262,Beef Roast,250,Non-veg,,,,,,,,true,,,,,,
+Food,Main Course,Both,true,242,Paneer Butter Masala,230,Veg,,,,,,,,true,,,,,,
+Food,Main Course,Both,true,189,Gobi Manchurian,180,Veg,,,,,,,,true,,,,,,
+Food,Main Course,Both,true,242,Chilly Paneer,230,Veg,,,,,,,,true,,,,,,
+Food,Main Course,Both,true,262,Chilly Chicken,250,Non-veg,,,,,,,,true,,,Favorites,Bone,250,263
+Food,Main Course,Both,true,262,Chilly Chicken,250,Non-veg,,,,,,,,true,,,Favorites,Boneless,300,315
+Food,Main Course,Both,true,262,Chilly Chicken,250,Non-veg,,,,,,,,true,,,Favorites,Bone,250,263
+Food,Main Course,Both,true,262,Chilly Chicken,250,Non-veg,,,,,,,,true,,,Favorites,Boneless,300,315
+Food,Main Course,Both,true,189,Beef Curry,180,Non-veg,,,,,,,,true,,,,,,
+Food,Fresh Lime,Veg,true,32,Orange Lime,30,Veg,,,,,,Orange flavored lime drink,,true,,,,,,
+Food,Fresh Lime,Veg,true,21,Soda Lime,20,Veg,,,,,,Refreshing soda lime drink,,true,,,,,,
+Food,Fresh Lime,Veg,true,32,Mango Lime,30,Veg,,,,,,Mango flavored lime drink,,true,,,,,,
+Food,Fresh Lime,Veg,true,26,Pineapple Lime,25,Veg,,,,,,Pineapple flavored lime drink,,true,,,,,,
+Food,Fresh Lime,Veg,true,26,Mint Lime,25,Veg,,,,,,Refreshing mint lime drink,,true,,,,,,
+Food,Fresh Lime,Veg,true,21,Lime,20,Veg,,,,,,Refreshing lime drink,,true,,,,,,
+Food,Fresh Lime,Veg,true,32,Ginger Lime,30,Veg,,,,,,Ginger flavored lime drink,,true,,,,,,
+Food,Fresh Lime,Veg,true,32,Magic Lime,30,Veg,,,,,,Special magic lime drink,,true,,,,,,
+Food,Fresh Lime,Veg,true,32,Grape Lime,30,Veg,,,,,,Grape flavored lime drink,,true,,,,,,
