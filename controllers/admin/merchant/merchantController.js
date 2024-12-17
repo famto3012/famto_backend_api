@@ -509,7 +509,6 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
       );
     };
 
-
     let locationImage = merchantFound?.merchantDetail?.locationImage;
 
     if (!arraysAreEqual(newLocation, merchantFound?.merchantDetail?.location)) {
@@ -1481,7 +1480,7 @@ const updateMerchantDetailsController = async (req, res, next) => {
         const format = `jpeg`;
         const fileName = path.join(
           __dirname,
-          `../../../merchant_location/${uniqueName}-location.jpeg`
+          `../../../${uniqueName}-location.jpeg`
         );
         const buffer = Buffer.from(response.data);
         const imageBuffer = await changeBufferToImage(buffer, fileName, format);

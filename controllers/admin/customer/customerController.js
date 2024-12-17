@@ -311,7 +311,7 @@ const searchCustomerByNameForOrderController = async (req, res, next) => {
       };
     });
 
-    res.status(200).json(formattedCustomers);
+    res.status(200).json({ data: formattedCustomers });
   } catch (err) {
     next(appError(err.message));
   }

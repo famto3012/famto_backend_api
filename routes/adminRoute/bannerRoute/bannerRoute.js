@@ -36,7 +36,7 @@ bannerRoute.put(
 );
 
 bannerRoute.get(
-  "/get-banner/:merchantId",
+  "/get-banner/merchant/:merchantId",
   isAuthenticated,
   isAdmin,
   getAllBannersController

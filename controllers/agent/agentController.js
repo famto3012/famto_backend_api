@@ -895,6 +895,8 @@ const getTaskPreviewController = async (req, res, next) => {
       .populate("orderId")
       .sort({ createdAt: 1 });
 
+    console.log(taskFound);
+
     let currentTasks = [];
     let nextTasks = [];
 
@@ -920,7 +922,7 @@ const getTaskPreviewController = async (req, res, next) => {
         type: "Pickup",
         taskId: task._id,
         taskStatus: task.pickupDetail.pickupStatus,
-        date: formatDate(task.orderId?.orderDetail?.deliveryTime),
+        date: formatDate(task?.orderId?.orderDetail?.deliveryTime),
         time: formatTime(task.createdAt),
         address: {
           fullName: task?.pickupDetail?.pickupAddress?.fullName || null,
@@ -938,7 +940,7 @@ const getTaskPreviewController = async (req, res, next) => {
         taskId: task._id,
         taskStatus: task.deliveryDetail.deliveryStatus,
         date: formatDate(task.createdAt),
-        time: formatTime(task.orderId.orderDetail.deliveryTime),
+        time: formatTime(task?.orderId?.orderDetail?.deliveryTime),
         name: task.deliveryDetail.deliveryAddress.fullName,
         address: {
           fullName: task.deliveryDetail.deliveryAddress.fullName,
@@ -955,24 +957,16 @@ const getTaskPreviewController = async (req, res, next) => {
       groupedTasks[orderId].tasks.delivery = deliveryTask;
     });
 
+    console.dir("currentTasks", currentTasks, { depth: null });
+    console.dir("nextTasks", nextTasks, { depth: null });
+
     // Separate tasks into currentTasks and nextTasks
     Object.values(groupedTasks).forEach((order) => {
-      // const { pickup, delivery } = order.tasks;
-      // Check if either task has "Started" status and add both to currentTasks
-      // if (
-      //   pickup.taskStatus === "Started" ||
-      //   delivery.taskStatus === "Started"
-      // ) {
       currentTasks.push(order);
-      // }
-      // // Check if both tasks are "Accepted" status and add both to nextTasks
-      // else if (
-      //   pickup.taskStatus === "Accepted" &&
-      //   delivery.taskStatus === "Accepted"
-      // ) {
-      //   nextTasks.push(order);
-      // }
     });
+
+    console.dir(currentTasks, { depth: null });
+    console.dir(currentTasks, { depth: null });
 
     res.status(200).json({
       message: "Task preview",
