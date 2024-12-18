@@ -50,6 +50,7 @@ const autoAllocationRoute = require("./routes/adminRoute/deliveryManagementRoute
 require("dotenv").config();
 require("./config/dbConnect");
 require("./DBSeeder/adminSeeder");
+// require("./test.js");
 
 const {
   createOrdersFromScheduled,
@@ -80,7 +81,10 @@ const {
   fetchMerchantDailyRevenue,
 } = require("./utils/createPerDayRevenueHelper.js");
 const activityLogRoute = require("./routes/adminRoute/activityLogRoute/activityLogRoute.js");
-const { preparePayoutForMerchant, resetStatusManualToggleForAllMerchants } = require("./utils/merchantHelpers.js");
+const {
+  preparePayoutForMerchant,
+  resetStatusManualToggleForAllMerchants,
+} = require("./utils/merchantHelpers.js");
 const {
   deleteOldActivityLogs,
 } = require("./controllers/admin/activityLogs/activityLogController.js");

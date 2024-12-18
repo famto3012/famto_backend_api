@@ -12,12 +12,15 @@ const {
   editCustomerSubscriptionPlanController,
   getSingleCustomerSubscriptionPlanController,
   deleteCustomerSubscriptionPlanController,
+  currentSubscriptionDetailOfMerchant,
 } = require("../../../controllers/admin/commissionAndSubscription/subscriptionController");
-const { body } = require("express-validator");
+
 const subscriptionValidationRules = require("../../../middlewares/validators/subscriptionValidations");
 const isAdminOrMerchant = require("../../../middlewares/isAdminOrMerchant");
 
 const subscriptionRoute = express.Router();
+
+// Merchant
 
 subscriptionRoute.post(
   "/add-merchant-subscription",
@@ -28,17 +31,17 @@ subscriptionRoute.post(
 );
 
 subscriptionRoute.get(
+  "/get-current-subscription",
+  isAuthenticated,
+  isAdminOrMerchant,
+  currentSubscriptionDetailOfMerchant
+);
+
+subscriptionRoute.get(
   "/get-merchant-subscription",
   isAuthenticated,
   isAdminOrMerchant,
   getAllMerchantSubscriptionPlansController
-);
-
-subscriptionRoute.put(
-  "/edit-merchant-subscription/:id",
-  isAuthenticated,
-  isAdmin,
-  editMerchantSubscriptionPlanController
 );
 
 subscriptionRoute.get(
@@ -48,12 +51,21 @@ subscriptionRoute.get(
   getSingleMerchantSubscriptionPlanController
 );
 
+subscriptionRoute.put(
+  "/edit-merchant-subscription/:id",
+  isAuthenticated,
+  isAdmin,
+  editMerchantSubscriptionPlanController
+);
+
 subscriptionRoute.delete(
   "/delete-merchant-subscription/:id",
   isAuthenticated,
   isAdmin,
   deleteMerchantSubscriptionPlanController
 );
+
+// Customer
 
 subscriptionRoute.post(
   "/add-customer-subscription",

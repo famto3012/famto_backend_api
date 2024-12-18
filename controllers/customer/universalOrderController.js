@@ -359,7 +359,7 @@ const getAllProductsOfMerchantController = async (req, res, next) => {
           product.productImageURL ||
           "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/DefaultImages%2FProductDefaultImage.png?alt=media&token=044503ee-84c8-487b-9df7-793ad0f70e1c",
         inventory: product.inventory || null,
-        variantAvailable: product.variants && product.variants.length > 0, // Check if variants are available
+        variantAvailable: product.variants && product.variants.length > 0,
       };
     });
 

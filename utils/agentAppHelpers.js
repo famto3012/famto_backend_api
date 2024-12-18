@@ -1,9 +1,14 @@
 const AgentNotificationLogs = require("../models/AgentNotificationLog");
 const AgentPricing = require("../models/AgentPricing");
 const Customer = require("../models/Customer");
+const CustomerPricing = require("../models/CustomerPricing");
 const Referral = require("../models/Referral");
 const SubscriptionLog = require("../models/SubscriptionLog");
 const Task = require("../models/Task");
+const {
+  getDistanceFromPickupToDelivery,
+  calculateDeliveryCharges,
+} = require("./customerAppHelpers");
 
 const formatToHours = (milliseconds) => {
   const totalMinutes = Math.floor(milliseconds / 60000);
@@ -269,7 +274,8 @@ const calculateAgentEarnings = async (agent, order) => {
   if (!agentPricing) throw new Error("Agent pricing not found");
 
   let orderSalary =
-    order.orderDetail.distance * agentPricing.baseDistanceFarePerKM;
+    order.orderDetail.detailAddedByAgent.distanceCoveredByAgent *
+    agentPricing.baseDistanceFarePerKM;
 
   let totalPurchaseFare = 0;
 
@@ -277,7 +283,7 @@ const calculateAgentEarnings = async (agent, order) => {
     const taskFound = await Task.findOne({ orderId: order._id });
     if (taskFound) {
       const durationInHours =
-        (new Date(taskFound?.endTime || new Date()) -
+        (new Date(taskFound?.deliveryDetail?.startTime) -
           new Date(taskFound.pickupDetail.startTime)) /
         (1000 * 60 * 60);
 
@@ -327,7 +333,9 @@ const updateAgentDetails = async (
   }
 
   agent.appDetail.totalEarning += parseFloat(calculatedSalary);
-  agent.appDetail.totalDistance += parseFloat(order.orderDetail.distance);
+  agent.appDetail.totalDistance += parseFloat(
+    order.orderDetail.distance.toFixed(2)
+  );
 
   agent.appDetail.orderDetail.push({
     orderId: order._id,
@@ -386,6 +394,80 @@ const updateCustomerSubscriptionCount = async (customerId) => {
   }
 };
 
+const updateBillOfCustomOrderInDelivery = async (order, task) => {
+  try {
+    const reachedPickupAt = task?.pickupDetail?.completedTime;
+    const deliveryStartAt = task?.deliveryDetail?.startTime;
+    const now = new Date();
+
+    let calculatedWaitingFare = 0;
+    let totalDistance = order?.orderDetail?.distance;
+
+    const customerPricing = await CustomerPricing.findOne({
+      deliveryMode: "Custom Order",
+      geofenceId: order?.customerId?.customerDetails?.geofenceId,
+      status: true,
+    });
+
+    if (!customerPricing) {
+      return socket.emit("error", {
+        message: `Customer pricing for custom order not found`,
+        success: false,
+      });
+    }
+
+    const {
+      baseFare,
+      baseDistance,
+      fareAfterBaseDistance,
+      waitingFare,
+      waitingTime,
+    } = customerPricing;
+
+    const deliveryCharge = calculateDeliveryCharges(
+      totalDistance,
+      baseFare,
+      baseDistance,
+      fareAfterBaseDistance
+    );
+
+    const minutesWaitedAtPickup = Math.floor(
+      (new Date(deliveryStartAt) - new Date(reachedPickupAt)) / 60000
+    );
+
+    if (minutesWaitedAtPickup > waitingTime) {
+      const additionalMinutes = Math.round(minutesWaitedAtPickup - waitingTime);
+      calculatedWaitingFare = parseFloat(waitingFare * additionalMinutes);
+    }
+
+    const totalTaskTime = new Date(now) - new Date(pickupStartAt);
+
+    // Convert the difference to minutes
+    const diffInHours = Math.ceil(totalTaskTime / 3600000);
+
+    let calculatedPurchaseFare = 0;
+
+    if (diffInHours > 0) {
+      calculatedPurchaseFare = parseFloat(
+        (diffInHours * customerPricing.purchaseFarePerHour).toFixed(2)
+      );
+    }
+
+    const calculatedDeliveryFare =
+      deliveryCharge + calculatedPurchaseFare + calculatedWaitingFare;
+
+    order.billDetail.waitingCharges = calculatedDeliveryFare;
+    order.billDetail.deliveryCharge = calculatedDeliveryFare;
+    order.billDetail.grandTotal += calculatedDeliveryFare;
+    order.billDetail.subTotal += calculatedDeliveryFare;
+  } catch (err) {
+    return socket.emit("error", {
+      message: `Error in updating bill ${err}`,
+      success: false,
+    });
+  }
+};
+
 module.exports = {
   formatToHours,
   moveAppDetailToHistoryAndResetForAllAgents,
@@ -396,4 +478,5 @@ module.exports = {
   updateAgentDetails,
   updateNotificationStatus,
   updateCustomerSubscriptionCount,
+  updateBillOfCustomOrderInDelivery,
 };
