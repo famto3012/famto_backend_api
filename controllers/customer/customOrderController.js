@@ -302,8 +302,6 @@ const addDeliveryAddressController = async (req, res, next) => {
       }),
     ]);
 
-    console.log("Items", cartFound.items);
-
     if (!customer) return next(appError("Customer not found", 404));
     if (!cartFound) return next(appError("Cart not found", 404));
 
@@ -440,8 +438,6 @@ const addDeliveryAddressController = async (req, res, next) => {
       surgePrice: Math.round(updatedSurgeCharges) || null,
     };
 
-    console.log("Before", cartFound.items);
-
     await PickAndCustomCart.findByIdAndUpdate(
       cartFound._id,
       {
@@ -451,8 +447,6 @@ const addDeliveryAddressController = async (req, res, next) => {
       },
       { new: true }
     );
-
-    console.log("After", cartFound.items);
 
     const formattedItems = cartFound.items.map((item) => ({
       itemId: item.itemId,
@@ -487,8 +481,6 @@ const addDeliveryAddressController = async (req, res, next) => {
       surgePrice: cartFound?.billDetail?.surgePrice || null,
     };
 
-    console.log("formattedItems", formattedItems);
-
     const formattedResponse = {
       items: formattedItems,
       billDetail,
@@ -503,6 +495,144 @@ const addDeliveryAddressController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
+
+// const addTipAndApplyPromoCodeInCustomOrderController = async (
+//   req,
+//   res,
+//   next
+// ) => {
+//   try {
+//     const customerId = req.userAuth;
+//     const { addedTip, promoCode } = req.body;
+
+//     const [customerFound, cart] = await Promise.all([
+//       Customer.findById(customerId),
+//       PickAndCustomCart.findOne({
+//         customerId,
+//         "cartDetail.deliveryMode": "Custom Order",
+//       }),
+//     ]);
+
+//     if (!customerFound) return next(appError("Customer not found", 404));
+//     if (!cart) return next(appError("Cart not found", 404));
+
+//     // Ensure the original delivery charge exists
+//     const { originalGrandTotal = 0, originalDeliveryCharge = 0 } =
+//       cart.billDetail.originalGrandTotal;
+
+//     // Add the tip
+//     const tip = parseInt(addedTip) || 0;
+//     const originalGrandTotalWithTip = originalGrandTotal + tip;
+
+//     cart.billDetail.addedTip = tip;
+//     cart.billDetail.originalGrandTotal = originalGrandTotalWithTip;
+
+//     let discountAmount = 0;
+
+//     // Apply the promo code if provided
+//     if (promoCode) {
+//       const promoCodeFound = await PromoCode.findOne({
+//         promoCode,
+//         geofenceId: customerFound.customerDetails.geofenceId,
+//         appliedOn: "Delivery-charge",
+//         status: true,
+//         deliveryMode: "Custom Order",
+//       });
+
+//       if (!promoCodeFound) {
+//         return next(appError("Promo code not found or inactive", 404));
+//       }
+
+//       const totalDeliveryPrice =
+//         cart.cartDetail.deliveryOption === "Scheduled"
+//           ? calculateScheduledCartValue(cart, promoCodeFound)
+//           : originalDeliveryCharge;
+
+//       // Check if total cart price meets minimum order amount
+//       if (totalDeliveryPrice < promoCodeFound.minOrderAmount) {
+//         return next(
+//           appError(
+//             `Minimum order amount is ${promoCodeFound.minOrderAmount}`,
+//             400
+//           )
+//         );
+//       }
+
+//       // Check promo code validity dates
+//       const now = new Date();
+//       if (now < promoCodeFound.fromDate || now > promoCodeFound.toDate) {
+//         return next(appError("Promo code is not valid at this time", 400));
+//       }
+
+//       // Check user limit for promo code
+//       if (promoCodeFound.noOfUserUsed >= promoCodeFound.maxAllowedUsers) {
+//         return next(appError("Promo code usage limit reached", 400));
+//       }
+
+//       // Calculate discount amount
+//       discountAmount = calculatePromoCodeDiscount(
+//         promoCodeFound,
+//         totalDeliveryPrice
+//       );
+
+//       promoCodeFound.noOfUserUsed += 1;
+//       await promoCodeFound.save();
+//     }
+
+//     // Ensure proper type conversion for discountAmount
+//     discountAmount = parseFloat(discountAmount) || 0;
+
+//     const discountedDeliveryCharge = originalDeliveryCharge - discountAmount;
+//     const discountedGrandTotal = originalGrandTotalWithTip - discountAmount;
+
+//     cart.billDetail.discountedDeliveryCharge =
+//       discountedDeliveryCharge < 0 ? 0 : Math.round(discountedDeliveryCharge);
+//     cart.billDetail.discountedGrandTotal = Math.round(discountedGrandTotal);
+//     cart.billDetail.discountedAmount = discountAmount.toFixed(2);
+
+//     await cart.save();
+
+//     const havePickupLocation = cart.cartDetail.pickupLocation.length === 2;
+
+//     const billDetail = {
+//       deliveryChargePerDay: cart.billDetail.deliveryChargePerDay || null,
+//       originalDeliveryCharge: havePickupLocation
+//         ? cart.billDetail.originalDeliveryCharge
+//         : null,
+//       discountedDeliveryCharge: havePickupLocation
+//         ? cart.billDetail.discountedDeliveryCharge
+//         : null,
+//       discountedAmount: havePickupLocation
+//         ? cart.billDetail.discountedAmount
+//         : null,
+//       originalGrandTotal: havePickupLocation
+//         ? cart.billDetail.originalGrandTotal
+//         : null,
+//       discountedGrandTotal: havePickupLocation
+//         ? cart.billDetail.discountedGrandTotal
+//         : null,
+//       taxAmount: havePickupLocation ? cart.billDetail.taxAmount : null,
+//       itemTotal: cart.billDetail.itemTotal || null,
+//       addedTip: cart.billDetail.addedTip || null,
+//       subTotal: havePickupLocation ? cart.billDetail.subTotal : null,
+//       vehicleType: cart.billDetail.vehicleType || null,
+//       surgePrice: cart.billDetail.surgePrice || null,
+//     };
+
+//     res.status(200).json({
+//       message: "Tip and promo code applied successfully",
+//       data: {
+//         cartId: cart._id,
+//         customerId: cart.customerId,
+//         cartDetail: cart.cartDetail,
+//         items: cart.items,
+//         billDetail,
+//       },
+//     });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
 
 const addTipAndApplyPromoCodeInCustomOrderController = async (
   req,
@@ -524,18 +654,17 @@ const addTipAndApplyPromoCodeInCustomOrderController = async (
     if (!customerFound) return next(appError("Customer not found", 404));
     if (!cart) return next(appError("Cart not found", 404));
 
-    // Ensure the original delivery charge exists
-    const { originalGrandTotal = 0, originalDeliveryCharge = 0 } =
-      cart.billDetail.originalGrandTotal;
+    // Ensure existing charges and totals
+    let {
+      originalGrandTotal = 0,
+      originalDeliveryCharge = 0,
+      addedTip: currentTip = 0,
+      discountedAmount = 0,
+    } = cart.billDetail;
 
-    // Add the tip
-    const tip = parseInt(addedTip) || 0;
-    const originalGrandTotalWithTip = originalGrandTotal + tip;
-
+    // Update the tip if provided
+    const tip = parseInt(addedTip) || currentTip;
     cart.billDetail.addedTip = tip;
-    cart.billDetail.originalGrandTotal = originalGrandTotalWithTip;
-
-    let discountAmount = 0;
 
     // Apply the promo code if provided
     if (promoCode) {
@@ -556,7 +685,6 @@ const addTipAndApplyPromoCodeInCustomOrderController = async (
           ? calculateScheduledCartValue(cart, promoCodeFound)
           : originalDeliveryCharge;
 
-      // Check if total cart price meets minimum order amount
       if (totalDeliveryPrice < promoCodeFound.minOrderAmount) {
         return next(
           appError(
@@ -566,37 +694,39 @@ const addTipAndApplyPromoCodeInCustomOrderController = async (
         );
       }
 
-      // Check promo code validity dates
       const now = new Date();
       if (now < promoCodeFound.fromDate || now > promoCodeFound.toDate) {
         return next(appError("Promo code is not valid at this time", 400));
       }
 
-      // Check user limit for promo code
       if (promoCodeFound.noOfUserUsed >= promoCodeFound.maxAllowedUsers) {
         return next(appError("Promo code usage limit reached", 400));
       }
 
       // Calculate discount amount
-      discountAmount = calculatePromoCodeDiscount(
+      discountedAmount = calculatePromoCodeDiscount(
         promoCodeFound,
         totalDeliveryPrice
       );
+
+      cart.billDetail.promoCodeUsed = promoCode;
 
       promoCodeFound.noOfUserUsed += 1;
       await promoCodeFound.save();
     }
 
-    // Ensure proper type conversion for discountAmount
-    discountAmount = parseFloat(discountAmount) || 0;
+    const discountedDeliveryCharge = Math.max(
+      originalDeliveryCharge - discountedAmount,
+      0
+    );
 
-    const discountedDeliveryCharge = originalDeliveryCharge - discountAmount;
-    const discountedGrandTotal = originalGrandTotalWithTip - discountAmount;
+    const discountedGrandTotal = originalGrandTotal + tip - discountedAmount;
 
-    cart.billDetail.discountedDeliveryCharge =
-      discountedDeliveryCharge < 0 ? 0 : Math.round(discountedDeliveryCharge);
+    cart.billDetail.discountedDeliveryCharge = Math.round(
+      discountedDeliveryCharge
+    );
     cart.billDetail.discountedGrandTotal = Math.round(discountedGrandTotal);
-    cart.billDetail.discountedAmount = discountAmount.toFixed(2);
+    cart.billDetail.discountedAmount = discountedAmount?.toFixed(2);
 
     await cart.save();
 

@@ -6,6 +6,8 @@ const ActivityLog = require("../../../models/ActivityLog");
 const Tax = require("../../../models/Tax");
 
 const appError = require("../../../utils/appError");
+const SubscriptionLog = require("../../../models/SubscriptionLog");
+const Merchant = require("../../../models/Merchant");
 
 // Merchant Subscription Plan
 // ===========================
@@ -192,6 +194,40 @@ const deleteMerchantSubscriptionPlanController = async (req, res, next) => {
     });
   } catch (err) {
     next(appError(err.message));
+  }
+};
+
+const currentSubscriptionDetailOfMerchant = async (req, res, next) => {
+  try {
+    const merchantId = req.userAuth;
+
+    const merchant = await Merchant.findById(merchantId)
+      .select("merchantDetail.pricing")
+      .lean();
+
+    if (!merchant) return next(appError("Merchant not found", 404));
+
+    let planLog;
+    if (merchant.merchantDetail?.pricing?.length > 0) {
+      const subscriptionPlans = merchant.merchantDetail?.pricing?.filter(
+        (plan) => plan.modelType === "Subscription"
+      );
+
+      if (subscriptionPlans?.length > 0) {
+        planLog = await SubscriptionLog.findById(
+          subscriptionPlans[0].modelId
+        ).populate("planId", "name");
+      }
+    }
+
+    const formattedResponse = {
+      planName: planLog.planId.name || null,
+      daysLeft: 30 || 1,
+    };
+
+    res.status(200).json(formattedResponse);
+  } catch (err) {
+    next(appError(err.messages));
   }
 };
 
@@ -413,6 +449,8 @@ module.exports = {
   editMerchantSubscriptionPlanController,
   getSingleMerchantSubscriptionPlanController,
   deleteMerchantSubscriptionPlanController,
+  currentSubscriptionDetailOfMerchant,
+  //
   addCustomerSubscriptionPlanController,
   getAllCustomerSubscriptionPlansController,
   editCustomerSubscriptionPlanController,

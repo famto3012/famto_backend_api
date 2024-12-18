@@ -479,7 +479,7 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
       }
       if (gstinImage) {
         if (GSTINImageURL) {
-          await deleteFromFirebase(gstinImageURL);
+          await deleteFromFirebase(GSTINImageURL);
         }
         GSTINImageURL = await uploadToFirebase(gstinImage[0], "GSTINImages");
       }
@@ -694,6 +694,8 @@ const fetchAllMerchantsController = async (req, res, next) => {
       geofence,
     } = req.query;
 
+    console.log(req.query);
+
     // Ensure correct data types
     page = parseInt(page, 10);
     limit = parseInt(limit, 10);
@@ -723,6 +725,8 @@ const fetchAllMerchantsController = async (req, res, next) => {
       matchCriteria["merchantDetail.geofenceId"] =
         mongoose.Types.ObjectId.createFromHexString(geofence.trim());
     }
+
+    console.log(matchCriteria);
 
     // Fetch merchants
     const merchants = await Merchant.find(matchCriteria)

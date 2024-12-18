@@ -22,6 +22,7 @@ const {
 const {
   calculateAgentEarnings,
   updateAgentDetails,
+  updateBillOfCustomOrderInDelivery,
 } = require("../utils/agentAppHelpers");
 const NotificationSetting = require("../models/NotificationSetting");
 const admin1 = require("firebase-admin");
@@ -837,8 +838,6 @@ io.on("connection", async (socket) => {
   // Order rejected socket
   socket.on("agentOrderRejected", async ({ orderId, agentId }) => {
     try {
-      // console.log("Trying reject");
-
       const [agentFound, orderFound, agentNotification] = await Promise.all([
         Agent.findById(agentId),
         Order.findById(orderId),
@@ -918,8 +917,6 @@ io.on("connection", async (socket) => {
       }
 
       sendSocketData(agentId, parameters.eventName, agentFound.appDetail);
-
-      // console.log("Successfully rejected order");
     } catch (err) {
       console.log("Failed to reject order :" + err);
 
@@ -955,14 +952,28 @@ io.on("connection", async (socket) => {
   });
 
   // Update started stepper in order detail
-  socket.on("agentPickupStarted", async ({ taskId, agentId }) => {
+  socket.on("agentPickupStarted", async ({ taskId, agentId, location }) => {
     try {
-      // console.log("Agent attempting to start pick up");
+      const [taskFound, agentFound] = await Promise.all([
+        Task.findById(taskId),
+        Agent.findById(agentId),
+      ]);
 
-      const taskFound = await Task.findById(taskId);
       if (!taskFound) {
         return socket.emit("error", {
           message: "Task not found",
+          success: false,
+        });
+      }
+      if (!agentFound) {
+        return socket.emit("error", {
+          message: "Agent not found",
+          success: false,
+        });
+      }
+      if (taskFound.pickupDetail.pickupStatus === "Completed") {
+        return socket.emit("error", {
+          message: "Pickup is already completed",
           success: false,
         });
       }
@@ -971,21 +982,6 @@ io.on("connection", async (socket) => {
       if (!orderFound) {
         return socket.emit("error", {
           message: "Order not found",
-          success: false,
-        });
-      }
-
-      const agentFound = await Agent.findById(agentId);
-      if (!agentFound) {
-        return socket.emit("error", {
-          message: "Agent not found",
-          success: false,
-        });
-      }
-
-      if (taskFound.pickupDetail.pickupStatus === "Completed") {
-        return socket.emit("error", {
-          message: "Pickup is already completed",
           success: false,
         });
       }
@@ -1005,6 +1001,24 @@ io.on("connection", async (socket) => {
       taskFound.pickupDetail.startTime = new Date();
 
       const pickupLocation = orderFound?.orderDetail?.pickupLocation;
+
+      if (
+        pickupLocation.length === 2 &&
+        !orderFound?.detailAddedByAgent?.distanceCoveredByAgent &&
+        orderFound?.detailAddedByAgent?.distanceCoveredByAgent !== 0
+      ) {
+        const agentLocation =
+          location.length === 2 ? location : agentFound.location;
+
+        const { distanceInKM } = getDistanceFromPickupToDelivery(
+          agentLocation,
+          pickupLocation
+        );
+
+        if (!orderFound.detailAddedByAgent) orderFound.detailAddedByAgent = {};
+
+        orderFound.detailAddedByAgent.distanceCoveredByAgent = distanceInKM;
+      }
 
       if (
         orderFound.orderDetail.deliveryMode === "Custom Order" &&
@@ -1040,8 +1054,6 @@ io.on("connection", async (socket) => {
       if (orderFound?.merchantId) {
         sendSocketData(orderFound.merchantId, eventName, data);
       }
-
-      // console.log("Agent successfully started pick up");
     } catch (err) {
       console.log("Agent failed to start pick up");
 
@@ -1055,9 +1067,6 @@ io.on("connection", async (socket) => {
   // Reached pickup location
   socket.on("reachedPickupLocation", async ({ taskId, agentId }) => {
     try {
-      // console.log("Agent attempting to reach pick up");
-
-      // Fetch agent and task data in parallel
       const [agentFound, taskFound] = await Promise.all([
         Agent.findById(agentId),
         Task.findOne({ _id: taskId, agentId }),
@@ -1249,11 +1258,7 @@ io.on("connection", async (socket) => {
           sendSocketData(orderFound.merchantId, eventName, socketData);
         }
         sendSocketData(agentId, event, socketDataForAgent);
-
-        // console.log("Agent successfully reached pick up");
       } else {
-        // console.log("Agent hasn't reached near the pickup location");
-
         const event = "agentNotReachedPickupLocation";
 
         const { data } = await findRolesToNotify(event);
@@ -1287,8 +1292,6 @@ io.on("connection", async (socket) => {
   // Started Delivery
   socket.on("agentDeliveryStarted", async ({ taskId, agentId, location }) => {
     try {
-      // console.log("Agent attempting to start delivery");
-
       const [agentFound, taskFound] = await Promise.all([
         Agent.findById(agentId),
         Task.findById(taskId),
@@ -1322,56 +1325,14 @@ io.on("connection", async (socket) => {
 
       let distanceCoveredByAgent = 0;
       if (taskFound.deliveryMode !== "Custom Order") {
-        const distanceFromStartingToPickup =
-          await getDistanceFromPickupToDelivery(
-            location,
-            taskFound.pickupDetail.pickupLocation
-          );
         distanceCoveredByAgent =
-          distanceFromStartingToPickup + orderFound.orderDetail.distance;
+          (orderFound?.detailAddedByAgent?.distanceCoveredByAgent || 0) +
+          (orderFound?.orderDetail?.distance || 0);
       }
 
       taskFound.pickupDetail.pickupStatus = "Completed";
       taskFound.deliveryDetail.deliveryStatus = "Started";
       taskFound.deliveryDetail.startTime = new Date();
-
-      // if (orderFound?.orderDetail?.deliveryMode === "Custom Order") {
-      //   const customerPricing = await CustomerPricing.findOne({
-      //     deliveryMode: "Custom Order",
-      //     geofenceId: orderFound?.customerId?.customerDetails?.geofenceId,
-      //     status: true,
-      //   });
-
-      //   if (!customerPricing) {
-      //     console.log("Customer Pricing not found");
-      //     return socket.emit("error", {
-      //       message: `Customer pricing for custom order not found`,
-      //       success: false,
-      //     });
-      //   }
-
-      //   const { waitingFare, waitingTime } = customerPricing;
-      //   const now = new Date();
-      //   const reachedTime = taskFound?.pickupDetail?.completedTime;
-
-      //   if (reachedTime) {
-      //     const diffInMinutes = Math.floor(
-      //       (now - new Date(reachedTime)) / 60000
-      //     );
-
-      //     if (diffInMinutes > waitingTime) {
-      //       const additionalMinutes = diffInMinutes - waitingTime;
-      //       const calculatedWaitingFare = parseFloat(
-      //         waitingFare * additionalMinutes
-      //       );
-
-      //       orderFound.billDetail.waitingCharges = calculatedWaitingFare;
-      //       await orderFound.save();
-      //     }
-      //   }
-      // }
-
-      await taskFound.save();
 
       // Update order stepper details
       const stepperDetail = {
@@ -1380,14 +1341,20 @@ io.on("connection", async (socket) => {
         date: new Date(),
         location,
       };
+
       orderFound.detailAddedByAgent.distanceCoveredByAgent =
         distanceCoveredByAgent;
       orderFound.orderDetailStepper.deliveryStarted = stepperDetail;
-      await orderFound.save();
+
+      if (orderFound.orderDetail.deliveryMode === "Custom Order") {
+        await updateBillOfCustomOrderInDelivery(orderFound, taskFound);
+      }
+
+      await Promise.all([orderFound.save(), taskFound.save()]);
 
       // Notify roles
       const eventName = "agentDeliveryStarted";
-      const { rolesToNotify, data } = await findRolesToNotify(eventName);
+      const { rolesToNotify } = await findRolesToNotify(eventName);
 
       for (const role of rolesToNotify) {
         const roleId = {
@@ -1419,9 +1386,8 @@ io.on("connection", async (socket) => {
       sendSocketData(process.env.ADMIN_ID, eventName, socketData);
       sendSocketData(orderFound?.customerId, eventName, socketData);
 
-      if (orderFound?.merchantId) {
+      if (orderFound?.merchantId)
         sendSocketData(orderFound.merchantId, eventName, socketData);
-      }
 
       const agentSocketId = userSocketMap[agentId]?.socketId;
       if (agentSocketId) {
@@ -1430,13 +1396,8 @@ io.on("connection", async (socket) => {
           success: true,
         });
       }
-
-      // console.log("Agent successfully started delivery");
     } catch (err) {
       console.log("Agent failed to start delivery");
-      console.log("Agent Id: ", agentId);
-      console.log("Task Id: ", taskId);
-      console.log("Message: ", err);
 
       return socket.emit("error", {
         message: `Error in starting delivery trip: ${err}`,
@@ -1448,17 +1409,17 @@ io.on("connection", async (socket) => {
   // Agent reached drop location socket
   socket.on("reachedDeliveryLocation", async ({ taskId, agentId }) => {
     try {
-      // console.log("Agent attempting to reach delivery");
+      const [agentFound, taskFound] = await Promise.all([
+        Agent.findById(agentId),
+        Task.findOne({ _id: taskId, agentId }),
+      ]);
 
-      const agentFound = await Agent.findById(agentId);
       if (!agentFound) {
         return socket.emit("error", {
           message: "Agent not found",
           success: false,
         });
       }
-
-      const taskFound = await Task.findOne({ _id: taskId, agentId });
       if (!taskFound) {
         return socket.emit("error", {
           message: "Task not found",
@@ -1495,90 +1456,6 @@ io.on("connection", async (socket) => {
 
         if (distance < maxRadius) {
           const pickupStartAt = taskFound?.pickupDetail?.startTime;
-          const reachedPickupAt = taskFound?.pickupDetail?.completedTime;
-          const deliveryStartAt = taskFound?.deliveryDetail?.startTime;
-          const now = new Date();
-
-          let calculatedWaitingFare = 0;
-          let totalDistance = orderFound?.orderDetail?.distance || 0;
-
-          if (orderFound?.orderDetail?.deliveryMode === "Custom Order") {
-            const customerPricing = await CustomerPricing.findOne({
-              deliveryMode: "Custom Order",
-              geofenceId: orderFound?.customerId?.customerDetails?.geofenceId,
-              status: true,
-            });
-
-            if (!customerPricing) {
-              return socket.emit("error", {
-                message: `Customer pricing for custom order not found`,
-                success: false,
-              });
-            }
-
-            const shopUpdates = orderFound.detailAddedByAgent.shopUpdates;
-
-            const lastLocation =
-              shopUpdates.length > 0
-                ? shopUpdates[shopUpdates.length - 1]?.location
-                : null;
-
-            const { distanceInKM } = await getDistanceFromPickupToDelivery(
-              lastLocation,
-              orderFound.orderDetail.deliveryLocation
-            );
-
-            const {
-              baseFare,
-              baseDistance,
-              fareAfterBaseDistance,
-              waitingFare,
-              waitingTime,
-            } = customerPricing;
-
-            totalDistance += distanceInKM;
-
-            const deliveryCharge = calculateDeliveryCharges(
-              totalDistance,
-              baseFare,
-              baseDistance,
-              fareAfterBaseDistance
-            );
-
-            const minutesWaitedAtPickup = Math.floor(
-              (new Date(deliveryStartAt) - new Date(reachedPickupAt)) / 60000
-            );
-
-            if (minutesWaitedAtPickup > waitingTime) {
-              const additionalMinutes = minutesWaitedAtPickup - waitingTime;
-              calculatedWaitingFare = parseFloat(
-                waitingFare * additionalMinutes
-              );
-            }
-
-            const totalTaskTime = new Date(now) - new Date(pickupStartAt);
-
-            // Convert the difference to minutes
-            const diffInHours = Math.ceil(totalTaskTime / 3600000);
-
-            let calculatedPurchaseFare = 0;
-
-            if (diffInHours > 0) {
-              calculatedPurchaseFare = parseFloat(
-                (diffInHours * customerPricing.purchaseFarePerHour).toFixed(2)
-              );
-            }
-
-            const calculatedDeliveryFare =
-              deliveryCharge + calculatedPurchaseFare + calculatedWaitingFare;
-
-            orderFound.billDetail.waitingCharges = calculatedDeliveryFare;
-            orderFound.billDetail.deliveryCharge = calculatedDeliveryFare;
-            orderFound.billDetail.grandTotal += calculatedDeliveryFare;
-            orderFound.billDetail.subTotal += calculatedDeliveryFare;
-
-            await orderFound.save();
-          }
 
           const stepperDetail = {
             by: agentFound.fullName,
@@ -1592,7 +1469,6 @@ io.on("connection", async (socket) => {
           orderFound.orderDetailStepper.reachedDeliveryLocation = stepperDetail;
           orderFound.orderDetail.deliveryTime = new Date();
           orderFound.orderDetail.timeTaken = timeTaken;
-          orderFound.orderDetail.distance = totalDistance;
 
           taskFound.deliveryDetail.deliveryStatus = "Completed";
           taskFound.deliveryDetail.completedTime = new Date();
@@ -1665,16 +1541,8 @@ io.on("connection", async (socket) => {
           });
         }
       }
-
-      // console.log("Agent successfully to reach delivery point");
-      // console.log("Agent Id: ", agentId);
-      // console.log("Task Id: ", taskId);
     } catch (err) {
       console.log("Agent failed to reach delivery", err);
-      console.log("Agent Id: ", agentId);
-      console.log("Task Id: ", taskId);
-      console.log("Message: ", err);
-
       return socket.emit("error", {
         message: `Error in reaching delivery location`,
         success: false,
