@@ -29,6 +29,7 @@ const admin2 = require("firebase-admin");
 const CustomerPricing = require("../models/CustomerPricing");
 const AutoAllocation = require("../models/AutoAllocation");
 const { formatDate, formatTime } = require("../utils/formatters");
+const Admin = require("../models/Admin");
 
 const serviceAccount1 = {
   type: process.env.TYPE_1,
@@ -362,6 +363,19 @@ const getRealTimeDataCountMerchant = async (data) => {
           merchantId: data.id,
         }),
       ]);
+
+      const realTimeData = {
+        type: "Merchant",
+        orderCount: {
+          pending,
+          ongoing,
+          completed,
+          cancelled,
+        },
+      };
+
+      const { socketId } = userSocketMap[data.id];
+      io.to(socketId).emit("realTimeDataCount", realTimeData);
     } else {
       [pending, ongoing, completed, cancelled] = await Promise.all([
         Order.countDocuments({
@@ -381,64 +395,70 @@ const getRealTimeDataCountMerchant = async (data) => {
           createdAt: { $gte: startOfDay, $lte: endOfDay },
         }),
       ]);
+
+      const [free, inActive, busy] = await Promise.all([
+        Agent.countDocuments({ status: "Free" }),
+        Agent.countDocuments({ status: "Inactive" }),
+        Agent.countDocuments({ status: "Busy" }),
+      ]);
+
+      const today = new Date()
+        .toLocaleString("en-IN", { weekday: "short" })
+        .toLowerCase();
+
+      // Counting active and not active merchants
+      const [open, closed] = await Promise.all([
+        Merchant.countDocuments({
+          status: true,
+        }),
+
+        Merchant.countDocuments({
+          status: false,
+        }),
+      ]);
+
+      const [active, notActive] = await Promise.all([
+        Merchant.countDocuments({
+          "merchantDetail.pricing.0": { $exists: true },
+          "merchantDetail.pricing.modelType": { $exists: true }, // Ensures modelType exists
+          "merchantDetail.pricing.modelId": { $exists: true },
+        }), // active merchants
+        Merchant.countDocuments({
+          "merchantDetail.pricing.0": { $exists: false },
+          "merchantDetail.pricing.modelType": { $exists: true }, // Ensures modelType exists
+          "merchantDetail.pricing.modelId": { $exists: true },
+        }), // inactive merchants
+      ]);
+
+      const realTimeData = {
+        type: "Admin",
+        orderCount: {
+          pending,
+          ongoing,
+          completed,
+          cancelled,
+        },
+        agentCount: {
+          free,
+          inActive,
+          busy,
+        },
+        merchantCount: {
+          open,
+          closed,
+          active,
+          notActive,
+        },
+      };
+
+      // console.log("Emitting real-time data:", realTimeData);
+      const admins = await Admin.find();
+      admins.map((admin) => {
+        const { socketId } = userSocketMap[admin._id];
+        io.to(socketId).emit("realTimeDataCount", realTimeData);
+      });
+      // Emit data globally for admin
     }
-
-    const [free, inActive, busy] = await Promise.all([
-      Agent.countDocuments({ status: "Free" }),
-      Agent.countDocuments({ status: "Inactive" }),
-      Agent.countDocuments({ status: "Busy" }),
-    ]);
-
-    const today = new Date()
-      .toLocaleString("en-IN", { weekday: "short" })
-      .toLowerCase();
-
-    // Counting active and not active merchants
-    const [open, closed] = await Promise.all([
-      Merchant.countDocuments({
-        status: true,
-      }),
-
-      Merchant.countDocuments({
-        status: false,
-      }),
-    ]);
-
-    const [active, notActive] = await Promise.all([
-      Merchant.countDocuments({
-        "merchantDetail.pricing.0": { $exists: true },
-        "merchantDetail.pricing.modelType": { $exists: true }, // Ensures modelType exists
-        "merchantDetail.pricing.modelId": { $exists: true },
-      }), // active merchants
-      Merchant.countDocuments({
-        "merchantDetail.pricing.0": { $exists: false },
-        "merchantDetail.pricing.modelType": { $exists: true }, // Ensures modelType exists
-        "merchantDetail.pricing.modelId": { $exists: true },
-      }), // inactive merchants
-    ]);
-
-    const realTimeData = {
-      orderCount: {
-        pending,
-        ongoing,
-        completed,
-        cancelled,
-      },
-      agentCount: {
-        free,
-        inActive,
-        busy,
-      },
-      merchantCount: {
-        open,
-        closed,
-        active,
-        notActive,
-      },
-    };
-
-    // console.log("Emitting real-time data:", realTimeData);
-    io.emit("realTimeDataCount", realTimeData);
   } catch (err) {
     console.error("Error updating real-time data:", err);
   }
@@ -525,7 +545,11 @@ const getRealTimeDataCount = async () => {
     };
 
     // console.log("Emitting real-time data:", realTimeData);
-    io.emit("realTimeDataCount", realTimeData);
+    const admins = await Admin.find();
+    admins.map((admin) => {
+      const { socketId } = userSocketMap[admin._id];
+      io.to(socketId).emit("realTimeDataCount", realTimeData);
+    });
   } catch (err) {
     console.error("Error updating real-time data:", err);
   }
