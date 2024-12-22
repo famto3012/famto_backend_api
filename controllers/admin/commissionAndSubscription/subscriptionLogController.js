@@ -319,7 +319,7 @@ const setAsPaidController = async (req, res, next) => {
         ActivityLog.create({
           userId: req.userAuth,
           userType: req.userRole,
-          description: `Subscription payment status of ${typeOfUser} (${log.userId}) is updated by Admin (${req.userAuth})`,
+          description: `Subscription payment status of ${typeOfUser} (${log.userId}) is updated by Admin (${req.userName} - ${req.userAuth})`,
         }),
       ]);
     }

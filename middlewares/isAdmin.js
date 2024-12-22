@@ -1,4 +1,3 @@
-const Admin = require("../models/Admin");
 const getTokenFromHeader = require("../utils/getTokenFromHeaders");
 const verifyToken = require("../utils/verifyToken");
 const appError = require("../utils/appError");
@@ -11,6 +10,8 @@ const isAdmin = async (req, res, next) => {
 
   //Save the user into req object
   req.userAuth = decodedUser.id;
+  req.userRole = decodedUser.role;
+  req.userName = decodedUser.name;
 
   //Check if the user is Admin or not
   if (decodedUser.role === "Admin") {

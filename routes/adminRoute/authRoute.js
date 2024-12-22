@@ -1,6 +1,11 @@
 const express = require("express");
 const { body } = require("express-validator");
-const { loginController, forgotPassword, resetPassword } = require("../../controllers/admin/authController");
+const {
+  loginController,
+  forgotPassword,
+  resetPassword,
+  refreshTokenController,
+} = require("../../controllers/admin/authController");
 
 const authRoute = express.Router();
 
@@ -47,14 +52,18 @@ authRoute.post(
 authRoute.post(
   "/forgot-password",
   [
-    body("email").trim().notEmpty().withMessage("Email is required").isEmail().withMessage("Please provide a valid email"),
+    body("email")
+      .trim()
+      .notEmpty()
+      .withMessage("Email is required")
+      .isEmail()
+      .withMessage("Please provide a valid email"),
   ],
   forgotPassword
 );
 
-authRoute.post(
-  "/reset-password",
-  resetPassword
-);
+authRoute.post("/reset-password", resetPassword);
+
+authRoute.post("/refresh-token", refreshTokenController);
 
 module.exports = authRoute;

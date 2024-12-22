@@ -421,6 +421,7 @@ const fetchAllOrdersByAdminController = async (req, res, next) => {
             : order?.paymentMode,
         deliveryOption: order?.orderDetail?.deliveryOption || null,
         amount: order.billDetail.grandTotal,
+        isReady: order?.orderDetail?.isReady,
       };
     });
 
@@ -979,7 +980,7 @@ const confirmOrderByAdminController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Order (#${orderId}) is confirmed by Admin (${req.userAuth})`,
+      description: `Order (#${orderId}) is confirmed by Admin (${req.userName} - ${req.userAuth})`,
     });
 
     const eventName = "orderAccepted";
@@ -1132,7 +1133,7 @@ const rejectOrderByAdminController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Order (#${orderId}) is rejected by Admin (${req.userAuth})`,
+      description: `Order (#${orderId}) is rejected by Admin (${req.userName} - ${req.userAuth})`,
     });
 
     const eventName = "orderRejected";
@@ -1442,6 +1443,12 @@ const downloadOrdersCSVByAdminController = async (req, res, next) => {
     res.status(200).download(filePath, "Order_Data.csv", (err) => {
       if (err) {
         next(err);
+      } else {
+        fs.unlink(filePath, (unlinkErr) => {
+          if (unlinkErr) {
+            console.error("File deletion error:", unlinkErr);
+          }
+        });
       }
     });
   } catch (err) {
@@ -2176,7 +2183,7 @@ const downloadOrderBillController = async (req, res, next) => {
 
     </html>`;
 
-    const filePath = path.join(__dirname, "../../../sample_CSV/invoice.pdf");
+    const filePath = path.join(__dirname, "../../../invoice.pdf");
 
     // Generate PDF using Puppeteer
     const browser = await puppeteer.launch({
@@ -2215,7 +2222,7 @@ const orderMarkAsReadyController = async (req, res, next) => {
         ActivityLog.create({
           userId: req.userAuth,
           userType: req.userRole,
-          description: `Order (#${orderId}) is marked as ready by Admin (${req.userAuth})`,
+          description: `Order (#${orderId}) is marked as ready by Admin (${req.userName} - ${req.userAuth})`,
         }),
       ]);
 
@@ -2332,7 +2339,7 @@ const markTakeAwayOrderCompletedController = async (req, res, next) => {
         ActivityLog.create({
           userId: req.userAuth,
           userType: req.userRole,
-          description: `Order (#${orderId}) is marked as collected by customer by Admin (${req.userAuth})`,
+          description: `Order (#${orderId}) is marked as collected by customer by Admin (${req.userName} - ${req.userAuth})`,
         }),
       ]);
 
@@ -2387,8 +2394,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
       addedTip = 0,
     } = req.body;
 
-    console.log(req.body);
-
     const merchantFound = await fetchMerchantDetails(
       merchantId,
       deliveryMode,
@@ -2407,17 +2412,15 @@ const createInvoiceByAdminController = async (req, res, next) => {
     const customerAddress =
       newCustomerAddress || newPickupAddress || newDeliveryAddress;
 
-    console.log("1");
-
     const customer = await findOrCreateCustomer({
       customerId,
       newCustomer,
       customerAddress,
+      deliveryMode,
       formattedErrors,
     });
-    if (!customer) return res.status(409).json({ errors: formattedErrors });
 
-    console.log("Here");
+    if (!customer) return res.status(409).json({ errors: formattedErrors });
 
     const {
       pickupLocation,
@@ -2442,7 +2445,6 @@ const createInvoiceByAdminController = async (req, res, next) => {
       customPickupLocation
     );
 
-    console.log("Here 2");
     const scheduledDetails = processScheduledDelivery(deliveryOption, req);
 
     const {
@@ -2718,7 +2720,7 @@ const createOrderByAdminController = async (req, res, next) => {
         userType: req.userRole,
         description: `New ${isScheduledOrder ? `scheduled order` : `order`} (#${
           newOrderCreated._id
-        }) is created by Admin (${req.userAuth})`,
+        }) is created by Admin (${req.userName} - ${req.userAuth})`,
       }),
       clearCart(customer._id, deliveryMode),
       updateCustomerTransaction(customer, orderDetails.billDetail),

@@ -11,9 +11,10 @@ const crypto = require("crypto");
 const ejs = require("ejs");
 const fs = require("fs");
 const path = require("path");
+const verifyToken = require("../../utils/verifyToken");
 
 //For Admin and Merchant
-// -----------------------------
+// =============================
 const loginController = async (req, res, next) => {
   const errors = validationResult(req);
 
@@ -62,24 +63,78 @@ const loginController = async (req, res, next) => {
       return res.status(403).json({ errors: formattedErrors });
     }
 
-    let fullName;
+    let fullName, token, refreshToken;
+
     if (user.role === "Admin") {
       fullName = user.fullName;
+      token = generateToken(user._id, user.role, fullName, "2hr");
+      refreshToken = generateToken(user._id, user.role, fullName, "20d");
     } else if (user.role === "Merchant") {
       fullName = user?.merchantDetail?.merchantName || user?.fullName || "-";
+      token = generateToken(user._id, user.role, fullName);
+      refreshToken = generateToken(user._id, user.role, fullName);
     } else if (user.role === "Manager") {
       fullName = user.name;
     }
+
+    user.refreshToken = refreshToken;
+    await user.save();
 
     res.status(200).json({
       _id: user.id,
       fullName,
       email: user.email,
-      token: generateToken(user._id, user.role),
+      token,
+      refreshToken,
       role: user.role,
     });
   } catch (err) {
     next(appError(err.message));
+  }
+};
+
+const refreshTokenController = async (req, res, next) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return next(appError("Refresh token is required", 400));
+    }
+
+    // Verify and decode the refresh token
+    const decoded = verifyToken(refreshToken);
+    if (!decoded) {
+      return next(appError("Invalid refresh token", 401));
+    }
+
+    const { role, id } = decoded;
+
+    // Map roles to corresponding models
+    const modelMap = {
+      Admin,
+      Manager,
+      Merchant,
+    };
+
+    const UserModel = modelMap[role];
+    if (!UserModel) {
+      return next(appError("Invalid role", 400));
+    }
+
+    // Check if the refresh token exists in the database
+    const user = await UserModel.findOne({ refreshToken, _id: id });
+    if (!user) {
+      return next(appError("Invalid refresh token or user not found", 401));
+    }
+
+    // Generate a new token
+    const newToken = generateToken(user._id, user.role, user.fullName, "2hr");
+
+    res.status(200).json({
+      newToken,
+    });
+  } catch (err) {
+    next(appError(err.message || "Failed to refresh token", 500));
   }
 };
 
@@ -155,20 +210,6 @@ const registerOnWebsite = async (req, res, next) => {
   }
 };
 
-const findUserByEmail = async (email) => {
-  let user = await Admin.findOne({ email });
-
-  if (user) return { user, role: "Admin" };
-
-  user = await Manager.findOne({ email });
-  if (user) return { user, role: "Manager" };
-
-  user = await Merchant.findOne({ email });
-  if (user) return { user, role: "Merchant" };
-
-  return null;
-};
-
 const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
@@ -176,33 +217,27 @@ const forgotPassword = async (req, res, next) => {
     // Find the user in any of the models
     const userResult = await findUserByEmail(email);
 
-    if (!userResult) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    if (!userResult) return next(appError("User not found", 404));
 
     const { user, role } = userResult;
 
-    // Generate a token for password reset
     const resetToken = crypto.randomBytes(32).toString("hex");
-    const resetTokenExpiry = Date.now() + 3600000; // 1 hour expiry
+    const resetTokenExpiry = Date.now() + 3600000;
 
-    // Save the token and expiry to the user's model
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpiry = resetTokenExpiry;
     await user.save();
 
-    // Send email with reset link
     const resetTemplatePath = path.join(
       __dirname,
       "../../templates/resetPasswordTemplate.ejs"
     );
-    const resetURL = `${process.env.BASE_URL}/auth/reset-password/?resetToken=${resetToken}&role=${role}`;
+    const resetURL = `${process.env.BASE_URL}/auth/reset-password?resetToken=${resetToken}&role=${role}`;
 
     const htmlContent = await ejs.renderFile(resetTemplatePath, {
       resetURL,
     });
 
-    // Set up nodemailer transport
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 465,
@@ -227,36 +262,29 @@ const forgotPassword = async (req, res, next) => {
 
 const resetPassword = async (req, res, next) => {
   try {
-    const { resetToken, role } = req.query;
-    const { password } = req.body;
+    const { password, resetToken, role } = req.body;
 
-    let user;
+    // Mapping role to corresponding model
+    const modelMap = {
+      Admin,
+      Manager,
+      Merchant,
+    };
 
-    if (role === "Admin") {
-      user = await Admin.findOne({
-        resetPasswordToken: resetToken,
-        resetPasswordExpiry: { $gt: Date.now() },
-      });
-    } else if (role === "Manager") {
-      user = await Manager.findOne({
-        resetPasswordToken: resetToken,
-        resetPasswordExpiry: { $gt: Date.now() },
-      });
-    } else if (role === "Merchant") {
-      user = await Merchant.findOne({
-        resetPasswordToken: resetToken,
-        resetPasswordExpiry: { $gt: Date.now() },
-      });
-    }
+    const UserModel = modelMap[role];
 
-    if (!user) {
-      return res.status(400).json({
-        message: "Token is invalid or has expired",
-      });
-    }
+    if (!UserModel) return next(appError("Invalid role", 400));
+
+    const user = await UserModel.findOne({
+      resetPasswordToken: resetToken,
+      resetPasswordExpiry: { $gt: Date.now() },
+    });
+
+    if (!user) return next(appError("Token is invalid or has expired", 400));
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
+
     // Update the password and clear the token fields
     user.password = hashedPassword;
     user.resetPasswordToken = null;
@@ -269,9 +297,29 @@ const resetPassword = async (req, res, next) => {
   }
 };
 
+// Helper function
+// =============================
+const findUserByEmail = async (email) => {
+  const models = [
+    { model: Admin, role: "Admin" },
+    { model: Manager, role: "Manager" },
+    { model: Merchant, role: "Merchant" },
+  ];
+
+  const normalizedEmail = email.toLowerCase();
+
+  for (let { model, role } of models) {
+    const user = await model.findOne({ email: normalizedEmail });
+    if (user) return { user, role };
+  }
+
+  return null;
+};
+
 module.exports = {
   loginController,
   registerOnWebsite,
   forgotPassword,
   resetPassword,
+  refreshTokenController,
 };

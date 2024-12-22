@@ -100,7 +100,7 @@ app.use(
       "http://localhost:5173",
       "https://famto.in",
       "https://www.famto.in",
-      "*",
+      "https://apparent-titmouse-polished.ngrok-free.app",
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],

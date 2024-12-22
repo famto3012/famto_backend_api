@@ -11,7 +11,7 @@ const isAuthenticated = (req, res, next) => {
   req.userRole = decodedUser.role;
 
   if (!decodedUser) {
-    return next(appError("Invalid / Expired token"));
+    return next(appError("Invalid / Expired token", 401));
   } else {
     next();
   }

@@ -41,8 +41,6 @@ const uploadToFirebase = async (file, folderName, locationImage = false) => {
 
   let fileBuffer;
 
-  console.log(file);
-
   if (file?.mimetype?.startsWith("image/")) {
     // If it's an image, process it with sharp
     try {

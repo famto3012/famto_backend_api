@@ -902,7 +902,7 @@ const confirmOrderController = async (req, res, next) => {
       await ActivityLog.create({
         userId: req.userAuth,
         userType: req.userRole,
-        description: `Order (#${orderId}) is confirmed by Merchant (${req.userAuth})`,
+        description: `Order (#${orderId}) is confirmed by Merchant (${req.userName} - ${req.userAuth})`,
       });
 
       const eventName = "orderAccepted";
@@ -1060,7 +1060,7 @@ const rejectOrderController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Order (#${orderId}) is rejected by Merchant (${req.userAuth})`,
+      description: `Order (#${orderId}) is rejected by Merchant (${req.userName} - ${req.userAuth})`,
     });
 
     const eventName = "orderRejected";
@@ -1438,7 +1438,7 @@ const createOrderController = async (req, res, next) => {
         await ActivityLog.create({
           userId: req.userAuth,
           userType: req.userRole,
-          description: `New order (#${newOrder._id}) is created by Merchant (${req.userAuth})`,
+          description: `New order (#${newOrder._id}) is created by Merchant (${req.userName} - ${req.userAuth})`,
         });
 
         const modelType = merchant.merchantDetail.pricing[0].modelType;
@@ -1494,7 +1494,7 @@ const createOrderController = async (req, res, next) => {
         await ActivityLog.create({
           userId: req.userAuth,
           userType: req.userRole,
-          description: `New scheduled order (#${newOrder._id}) is created by Merchant (${req.userAuth})`,
+          description: `New scheduled order (#${newOrder._id}) is created by Merchant (${req.userName} - ${req.userAuth})`,
         });
 
         // Clear the cart
@@ -1755,7 +1755,7 @@ const downloadOrdersCSVByMerchantController = async (req, res, next) => {
       });
     });
 
-    const filePath = path.join(__dirname, "../../../sample_CSV/sample_CSV.csv");
+    const filePath = path.join(__dirname, "../../../Order.csv");
 
     const csvHeaders = [
       { id: "orderId", title: "Order ID" },
@@ -1802,6 +1802,12 @@ const downloadOrdersCSVByMerchantController = async (req, res, next) => {
     res.status(200).download(filePath, "Order_Data.csv", (err) => {
       if (err) {
         next(err);
+      } else {
+        fs.unlink(filePath, (unlinkErr) => {
+          if (unlinkErr) {
+            console.error("File deletion error:", unlinkErr);
+          }
+        });
       }
     });
   } catch (err) {
@@ -1948,6 +1954,12 @@ const downloadCSVByMerchantController = async (req, res, next) => {
     res.status(200).download(filePath, "Order_Data.csv", (err) => {
       if (err) {
         next(err);
+      } else {
+        fs.unlink(filePath, (unlinkErr) => {
+          if (unlinkErr) {
+            console.error("File deletion error:", unlinkErr);
+          }
+        });
       }
     });
   } catch (err) {

@@ -36,7 +36,7 @@ const addAndEditCommissionController = async (req, res, next) => {
       await ActivityLog.create({
         userId: req.userAuth,
         userType: req.userRole,
-        description: `Updated commission value of Merchant ${merchantId} by Admin (${req.userAuth})`,
+        description: `Updated commission value of Merchant ${merchantId} by Admin (${req.userName} - ${req.userAuth})`,
       });
 
       res.status(200).json({
@@ -81,7 +81,7 @@ const addAndEditCommissionController = async (req, res, next) => {
       await ActivityLog.create({
         userId: req.userAuth,
         userType: req.userRole,
-        description: `New commission updated for Merchant ${merchantId} by Admin ${req.userAuth}`,
+        description: `New commission updated for Merchant ${merchantId} by Admin (${req.userName} - ${req.userAuth})`,
       });
 
       res.status(200).json({
@@ -292,7 +292,7 @@ const updateCommissionLogStatus = async (req, res) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Updated commission payment status of ${commissionLog.merchantName} (${commissionLog.merchantId}) by Admin (${req.userAuth})`,
+      description: `Updated commission payment status of ${commissionLog.merchantName} (${commissionLog.merchantId}) by Admin (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(200).json({
