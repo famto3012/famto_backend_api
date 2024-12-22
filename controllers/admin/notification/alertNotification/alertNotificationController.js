@@ -27,8 +27,6 @@ const addAlertNotificationController = async (req, res, next) => {
   }
 
   try {
-    console.log(req.body);
-    console.log(req.file);
     const { title, description, userType, id } = req.body;
 
     let imageUrl = "";

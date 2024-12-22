@@ -4,6 +4,7 @@ const csvParser = require("csv-parser");
 const { Readable } = require("stream");
 const axios = require("axios");
 const path = require("path");
+const fs = require("fs").promises;
 
 const AccountLogs = require("../../../models/AccountLogs");
 const Customer = require("../../../models/Customer");
@@ -371,7 +372,7 @@ const getSingleCustomerController = async (req, res, next) => {
         (a, b) => new Date(b.date) - new Date(a.date)
       );
 
-    const formattedcustomerTransactions = sortedCustomerTransactions?.map(
+    const formattedCustomerTransactions = sortedCustomerTransactions?.map(
       (transaction) => {
         return {
           closingBalance: transaction.closingBalance || 0,
@@ -395,13 +396,13 @@ const getSingleCustomerController = async (req, res, next) => {
       phoneNumber: customerFound.phoneNumber,
       customerImageURL: customerFound?.customerDetails?.customerImageURL || "",
       lastPlatformUsed: customerFound.lastPlatformUsed,
-      isBlocked: customerFound.customerDetails.isBlocked,
+      isBlocked: customerFound?.customerDetails?.isBlocked || false,
       registrationDate: formatDate(customerFound.createdAt),
-      walletBalance: customerFound.customerDetails.walletBalance,
-      homeAddress: customerFound.customerDetails?.homeAddress || {},
-      workAddress: customerFound.customerDetails?.workAddress || {},
-      otherAddress: customerFound.customerDetails?.otherAddress || [],
-      walletDetails: formattedcustomerTransactions || [],
+      walletBalance: customerFound?.customerDetails?.walletBalance,
+      homeAddress: customerFound?.customerDetails?.homeAddress || {},
+      workAddress: customerFound?.customerDetails?.workAddress || {},
+      otherAddress: customerFound?.customerDetails?.otherAddress || [],
+      walletDetails: formattedCustomerTransactions || [],
       orderDetails: formattedCustomerOrders || [],
     };
 
@@ -649,18 +650,19 @@ const deductMoneyFromWalletCOntroller = async (req, res, next) => {
 
 const addCustomerFromCSVController = async (req, res, next) => {
   try {
-    if (!req.file) {
-      return next(appError("CSV file is required", 400));
-    }
+    if (!req.file) return next(appError("CSV file is required", 400));
 
     // Upload the CSV file to Firebase and get the download URL
     const fileUrl = await uploadToFirebase(req.file, "csv-uploads");
+    console.log("File uploaded to Firebase, file URL:", fileUrl); // Log the file URL
 
     const customers = [];
 
     // Download the CSV data from Firebase Storage
     const response = await axios.get(fileUrl);
+    console.log("response", response);
     const csvData = response.data;
+    console.log("CSV Data received:", csvData); // Log the received CSV data
 
     // Create a readable stream from the CSV data
     const stream = Readable.from(csvData);
@@ -669,6 +671,7 @@ const addCustomerFromCSVController = async (req, res, next) => {
     stream
       .pipe(csvParser())
       .on("data", (row) => {
+        console.log("Parsed row:", row); // Log each row to ensure proper parsing
         const isRowEmpty = Object.values(row).every(
           (value) => value.trim() === ""
         );
@@ -676,7 +679,7 @@ const addCustomerFromCSVController = async (req, res, next) => {
         if (!isRowEmpty) {
           const customer = {
             fullName: row["Full Name"]?.trim(),
-            email: row.Email?.toLowerCase().trim(),
+            email: row["Email"]?.toLowerCase().trim(),
             phoneNumber: row["Phone Number"]?.trim(),
           };
 
@@ -689,6 +692,8 @@ const addCustomerFromCSVController = async (req, res, next) => {
         }
       })
       .on("end", async () => {
+        console.log("Finished parsing CSV data. Customers:", customers); // Log the final customers array
+
         try {
           const customerPromise = customers.map(async (customerData) => {
             // Check if the customer already exists
@@ -698,6 +703,8 @@ const addCustomerFromCSVController = async (req, res, next) => {
                 { phoneNumber: customerData.phoneNumber },
               ],
             });
+
+            console.log("Existing customer check:", existingCustomer); // Log if customer exists
 
             if (existingCustomer) {
               // Prepare the update object
@@ -710,33 +717,43 @@ const addCustomerFromCSVController = async (req, res, next) => {
               if (customerData.phoneNumber)
                 updateData.phoneNumber = customerData.phoneNumber;
 
+              console.log("Updating customer:", existingCustomer._id); // Log the update operation
               await Customer.findByIdAndUpdate(
                 existingCustomer._id,
                 { $set: updateData },
                 { new: true }
               );
             } else {
-              const customer = new Customer(customerData);
-              return customer.save();
+              console.log("Creating new customer:", customerData); // Log the creation operation
+              await Customer.create({
+                ...customerData,
+                "customerDetails.isBlocked": false,
+              });
             }
           });
 
+          // Wait for all customer processing promises to finish
           await Promise.all(customerPromise);
 
+          // Send success response
           res.status(200).json({
             message: "Customers added successfully.",
           });
         } catch (err) {
+          console.error("Error during customer processing:", err); // Log any error during processing
           next(appError(err.message));
         } finally {
-          // Delete the file from Firebase after processing
+          // Ensure file is deleted from Firebase
+          console.log("Deleting file from Firebase:", fileUrl); // Log before deletion
           await deleteFromFirebase(fileUrl);
         }
       })
       .on("error", (error) => {
+        console.error("CSV Parsing Error:", error); // Log any error during CSV parsing
         next(appError(error.message));
       });
   } catch (err) {
+    console.error("Error in addCustomerFromCSVController:", err); // Log any error in the main try block
     next(appError(err.message));
   }
 };
@@ -744,7 +761,7 @@ const addCustomerFromCSVController = async (req, res, next) => {
 const downloadCustomerSampleCSVController = async (req, res, next) => {
   try {
     // Define the path to your sample CSV file
-    const filePath = path.join(__dirname, "../../../sample_CSV/sample_CSV.csv");
+    const filePath = path.join(__dirname, "../../../Customer_CSV.csv");
 
     // Define the headers and data for the CSV
     const csvHeaders = [
@@ -776,9 +793,15 @@ const downloadCustomerSampleCSVController = async (req, res, next) => {
     await writer.writeRecords(csvData);
 
     // Send the CSV file as a response for download
-    res.download(filePath, "Customer_sample.csv", (err) => {
+    res.download(filePath, "Customer_CSV.csv", (err) => {
       if (err) {
         next(err);
+      } else {
+        fs.unlink(filePath, (unlinkErr) => {
+          if (unlinkErr) {
+            console.error("File deletion error:", unlinkErr);
+          }
+        });
       }
     });
   } catch (error) {
@@ -788,10 +811,12 @@ const downloadCustomerSampleCSVController = async (req, res, next) => {
 
 const downloadCustomerCSVController = async (req, res, next) => {
   try {
-    const { geofenceId } = req.query;
+    const { geofenceId, name } = req.query; // Added `name` filter for consistency
     const role = req.userRole;
     const userAuth = req.userAuth;
-    let filter = {};
+
+    // Build the query filter
+    let filter = { "customerDetails.isBlocked": false };
 
     if (role === "Merchant") {
       const customerIds = await Order.aggregate([
@@ -801,73 +826,93 @@ const downloadCustomerCSVController = async (req, res, next) => {
 
       const uniqueCustomerIds = customerIds.map((id) => id._id);
 
-      filter = {
-        _id: { $in: uniqueCustomerIds },
-        ...(geofenceId &&
-          geofenceId !== "All" && {
-            "customerDetails.geofenceId":
-              mongoose.Types.ObjectId.createFromHexString(geofenceId),
-          }),
-      };
-    } else if (geofenceId && geofenceId !== "All") {
+      filter._id = { $in: uniqueCustomerIds };
+
+      if (geofenceId && geofenceId.toLowerCase() !== "all") {
+        filter["customerDetails.geofenceId"] =
+          mongoose.Types.ObjectId.createFromHexString(geofenceId);
+      }
+    } else if (geofenceId && geofenceId.toLowerCase() !== "all") {
       filter["customerDetails.geofenceId"] =
         mongoose.Types.ObjectId.createFromHexString(geofenceId);
     }
 
+    if (name) {
+      filter.$or = [
+        { fullName: { $regex: name, $options: "i" } },
+        { email: { $regex: name, $options: "i" } },
+      ];
+    }
+
+    // Fetch customer data
     const allCustomers = await Customer.find(filter)
       .populate("customerDetails.geofenceId", "name")
       .sort({ createdAt: -1 })
       .lean();
 
+    // Format the response
     const formattedResponse = allCustomers.map((customer) => ({
-      customerId: customer._id || "-",
-      customerName: customer.fullName || "-",
-      customerEmail: customer.email || "-",
-      customerPhoneNumber: customer.phoneNumber || "-",
-      lastPlatformUsed: customer.lastPlatformUsed || "-",
-      geofence: customer?.customerDetails?.geofenceId?.name || "-",
-      referralCode: customer?.customerDetails?.referralCode || "-",
+      customerId: customer._id || "",
+      customerName: customer.fullName || "",
+      customerEmail: customer.email || "",
+      customerPhoneNumber: customer.phoneNumber || "",
+      lastPlatformUsed: customer.lastPlatformUsed || "",
+      geofence: customer?.customerDetails?.geofenceId?.name || "",
+      referralCode: customer?.customerDetails?.referralCode || "",
       homeAddress: customer.customerDetails?.homeAddress
         ? `${customer.customerDetails.homeAddress.fullName}, ${customer.customerDetails.homeAddress.flat}, ${customer.customerDetails.homeAddress.area}, ${customer.customerDetails.homeAddress.landmark}`
-        : "-",
+        : "",
       workAddress: customer.customerDetails?.workAddress
         ? `${customer.customerDetails.workAddress.fullName}, ${customer.customerDetails.workAddress.flat}, ${customer.customerDetails.workAddress.area}, ${customer.customerDetails.workAddress.landmark}`
-        : "-",
+        : "",
       loyaltyPointEarnedToday:
-        customer.customerDetails?.loyaltyPointEarnedToday || "-",
+        customer.customerDetails?.loyaltyPointEarnedToday || "",
       totalLoyaltyPointEarned:
-        customer.customerDetails?.totalLoyaltyPointEarned || "-",
+        customer.customerDetails?.totalLoyaltyPointEarned || "",
     }));
 
-    const filePath = path.join(__dirname, "../../../sample_CSV/sample_CSV.csv");
-
+    // Define file path and headers
+    const filePath = path.join(__dirname, "../../../Customer_CSV.csv");
     const csvHeaders = [
       { id: "customerId", title: "Customer ID" },
-      { id: "customerName", title: "Customer name" },
+      { id: "customerName", title: "Customer Name" },
       { id: "customerEmail", title: "Customer Email" },
-      { id: "customerPhoneNumber", title: "Phone number" },
-      { id: "lastPlatformUsed", title: "Last platform used" },
+      { id: "customerPhoneNumber", title: "Phone Number" },
+      { id: "lastPlatformUsed", title: "Last Platform Used" },
       { id: "geofence", title: "Geofence" },
-      { id: "referralCode", title: "Referal code" },
-      { id: "homeAddress", title: "Home address" },
-      { id: "workAddress", title: "Work address" },
-      { id: "loyaltyPointEarnedToday", title: "Loyalty point earned today" },
-      { id: "totalLoyaltyPointEarned", title: "Total loyalty point earned" },
+      { id: "referralCode", title: "Referral Code" },
+      { id: "homeAddress", title: "Home Address" },
+      { id: "workAddress", title: "Work Address" },
+      { id: "loyaltyPointEarnedToday", title: "Loyalty Points Earned Today" },
+      { id: "totalLoyaltyPointEarned", title: "Total Loyalty Points Earned" },
     ];
 
+    console.log("Headers:", csvHeaders);
+
+    // Write to CSV
     const writer = csvWriter({
       path: filePath,
       header: csvHeaders,
     });
 
     await writer.writeRecords(formattedResponse);
+    console.log("CSV file written successfully at", filePath);
 
+    // Send the CSV file
     res.status(200).download(filePath, "Customer_Data.csv", (err) => {
       if (err) {
+        console.error("Download Error:", err);
         next(err);
+      } else {
+        fs.unlink(filePath, (unlinkErr) => {
+          if (unlinkErr) {
+            console.error("File deletion error:", unlinkErr);
+          }
+        });
       }
     });
   } catch (err) {
+    console.error("Error in downloadCustomerCSVController:", err);
     next(appError(err.message));
   }
 };

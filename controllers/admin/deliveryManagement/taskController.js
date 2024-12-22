@@ -274,7 +274,7 @@ const getAgentsAccordingToGeofenceController = async (req, res, next) => {
               name: agent.fullName,
               workStructure: agent?.workStructure?.tag,
               status: agent.status,
-              distance: distanceInKM, // distance in kilometers, rounded to 2 decimal places
+              distance: distanceInKM,
             };
           })
         );

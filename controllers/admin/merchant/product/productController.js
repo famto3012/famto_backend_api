@@ -97,7 +97,7 @@ const addProductController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `New product (${productName}) is created by ${req.userRole} (${req.userAuth})`,
+      description: `New product (${productName}) is created by ${req.userRole} (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(201).json({
@@ -228,7 +228,7 @@ const editProductController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Product (${productName}) is updated by ${req.userRole} (${req.userAuth})`,
+      description: `Product (${productName}) is updated by ${req.userRole} (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(200).json({
@@ -259,7 +259,7 @@ const deleteProductController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Product (${productToDelete.productName}) is deleted by ${req.userRole} (${req.userAuth})`,
+      description: `Product (${productToDelete.productName}) is deleted by ${req.userRole} (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(200).json({ message: "Product deleted successfully" });
@@ -325,7 +325,7 @@ const changeProductCategoryController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Changed category of product (${productFound.productName}) by ${req.userRole} (${req.userAuth})`,
+      description: `Changed category of product (${productFound.productName}) by ${req.userRole} (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(200).json({ message: "Product category changed" });
@@ -350,7 +350,7 @@ const changeInventoryStatusController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Changed inventory status of product (${productFound.productName}) by ${req.userRole} (${req.userAuth})`,
+      description: `Changed inventory status of product (${productFound.productName}) by ${req.userRole} (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(200).json({ message: "Product inventory status changed" });
@@ -372,7 +372,7 @@ const updateProductOrderController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Product orders are updated by ${req.userRole} (${req.userAuth})`,
+      description: `Product orders are updated by ${req.userRole} (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(200).json({ message: "Product order updated successfully" });
@@ -434,7 +434,7 @@ const addVariantToProductController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Variants added to product (${product.productName}) by ${req.userRole} (${req.userAuth})`,
+      description: `Variants added to product (${product.productName}) by ${req.userRole} (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(201).json({
@@ -486,7 +486,7 @@ const editVariantController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Variants of product (${product.productName}) were edited by ${req.userRole} (${req.userAuth})`,
+      description: `Variants of product (${product.productName}) were edited by ${req.userRole} (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(200).json({
@@ -535,7 +535,7 @@ const deleteVariantTypeController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Variants of product (${product.productName}) is deleted by ${req.userRole} (${req.userAuth})`,
+      description: `Variants of product (${product.productName}) is deleted by ${req.userRole} (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(200).json({
@@ -550,10 +550,7 @@ const deleteVariantTypeController = async (req, res, next) => {
 const downloadProductSampleCSVController = async (req, res, next) => {
   try {
     // Define the path to your sample CSV file
-    const filePath = path.join(
-      __dirname,
-      "../../../../sample_CSV/sample_CSV.csv"
-    );
+    const filePath = path.join(__dirname, "../../../../Product_sample.csv");
 
     // Define the headers and data for the CSV
     const csvHeaders = [
@@ -641,6 +638,12 @@ const downloadProductSampleCSVController = async (req, res, next) => {
     res.download(filePath, "Product_sample.csv", (err) => {
       if (err) {
         next(err);
+      } else {
+        fs.unlink(filePath, (unlinkErr) => {
+          if (unlinkErr) {
+            console.error("File deletion error:", unlinkErr);
+          }
+        });
       }
     });
   } catch (error) {
@@ -709,10 +712,7 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
       });
     }
 
-    const filePath = path.join(
-      __dirname,
-      "../../../../sample_CSV/sample_CSV.csv"
-    );
+    const filePath = path.join(__dirname, "../../../../Product_Data.csv");
 
     const csvHeaders = [
       { id: "businessCategory", title: "Business Category Name*" },
@@ -757,6 +757,12 @@ const downloadCobminedProductAndCategoryController = async (req, res, next) => {
     res.status(200).download(filePath, "Combined_Product_Data.csv", (err) => {
       if (err) {
         next(err);
+      } else {
+        fs.unlink(filePath, (unlinkErr) => {
+          if (unlinkErr) {
+            console.error("File deletion error:", unlinkErr);
+          }
+        });
       }
     });
   } catch (err) {
@@ -827,7 +833,6 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
           // console.log("Existing product out", existingProduct);
 
           if (!existingProduct) {
-            console.log("Inside");
             // Create a new product if it doesn't exist
             existingProduct = {
               productName,
@@ -1021,7 +1026,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
           await ActivityLog.create({
             userId: req.userAuth,
             userType: req.userRole,
-            description: `Uploaded Product CSV by ${req.userRole} (${req.userAuth})`,
+            description: `Uploaded Product CSV by ${req.userRole} (${req.userName} - ${req.userAuth})`,
           });
 
           // console.log("allCategories", allCategories)

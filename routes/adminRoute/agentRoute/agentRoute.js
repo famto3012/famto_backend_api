@@ -16,26 +16,18 @@ const {
   changeAgentStatusController,
   searchAgentInPayoutController,
   downloadAgentCSVController,
-  downloadAgentPaymentCSVController,
   fetchSingleAgentController,
   updateVehicleDetailController,
+  downloadAgentPayoutCSVController,
 } = require("../../../controllers/admin/agent/agentController");
 const { upload } = require("../../../utils/imageOperation");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const isAdmin = require("../../../middlewares/isAdmin");
 const {
   addAgentByAdminValidations,
-  editAgentByAdminValidations,
 } = require("../../../middlewares/validators/agentValidation");
 
 const adminAgentRoute = express.Router();
-
-adminAgentRoute.post(
-  "/download-payment-csv",
-  isAuthenticated,
-  isAdmin,
-  downloadAgentPaymentCSVController
-);
 
 // Filter agent payout
 adminAgentRoute.get(
@@ -43,6 +35,13 @@ adminAgentRoute.get(
   isAuthenticated,
   isAdmin,
   downloadAgentCSVController
+);
+
+adminAgentRoute.get(
+  "/download-payment-csv",
+  isAuthenticated,
+  isAdmin,
+  downloadAgentPayoutCSVController
 );
 
 // Filter agent payout
@@ -69,12 +68,46 @@ adminAgentRoute.get(
   getDeliveryAgentPayoutController
 );
 
-// Approve agent payout
-adminAgentRoute.patch(
-  "/approve-payout/:agentId/:detailId",
+// Get Agent by vehicle type
+adminAgentRoute.get(
+  "/filter",
   isAuthenticated,
   isAdmin,
-  approvePaymentController
+  filterAgentsController
+);
+
+// Get all agents
+adminAgentRoute.get(
+  "/all-agents",
+  isAuthenticated,
+  isAdmin,
+  getAllAgentsController
+);
+
+// Search agent
+adminAgentRoute.get(
+  "/search",
+  isAuthenticated,
+  isAdmin,
+  searchAgentByNameController
+);
+
+// Get ratings of agent by customer
+adminAgentRoute.get(
+  "/:agentId/get-ratings-by-customer",
+  isAuthenticated,
+  isAdmin,
+  getRatingsByCustomerController
+);
+
+// TODO: Change controller before pushing to production
+// Get single agent
+adminAgentRoute.get(
+  "/:agentId",
+  isAuthenticated,
+  isAdmin,
+  // getSingleAgentController
+  fetchSingleAgentController
 );
 
 // Add Agent by admin route
@@ -125,28 +158,12 @@ adminAgentRoute.put(
   updateVehicleDetailController
 );
 
-// Get Agent by vehicle type
-adminAgentRoute.get(
-  "/filter",
+// Approve agent payout
+adminAgentRoute.patch(
+  "/approve-payout/:agentId/:detailId",
   isAuthenticated,
   isAdmin,
-  filterAgentsController
-);
-
-// Get all agents
-adminAgentRoute.get(
-  "/all-agents",
-  isAuthenticated,
-  isAdmin,
-  getAllAgentsController
-);
-
-// Search agent
-adminAgentRoute.get(
-  "/search",
-  isAuthenticated,
-  isAdmin,
-  searchAgentByNameController
+  approvePaymentController
 );
 
 // Change agent status
@@ -165,38 +182,20 @@ adminAgentRoute.patch(
   approveAgentRegistrationController
 );
 
-// Decline registration
-adminAgentRoute.delete(
-  "/reject-registration/:agentId",
-  isAuthenticated,
-  isAdmin,
-  rejectAgentRegistrationController
-);
-
-// Get ratings of agent by customer
-adminAgentRoute.get(
-  "/:agentId/get-ratings-by-customer",
-  isAuthenticated,
-  isAdmin,
-  getRatingsByCustomerController
-);
-
-// TODO: Change controller before pushing to production
-// Get single agent
-adminAgentRoute.get(
-  "/:agentId",
-  isAuthenticated,
-  isAdmin,
-  // getSingleAgentController
-  fetchSingleAgentController
-);
-
 // Block agent
 adminAgentRoute.patch(
   "/block-agent/:agentId",
   isAuthenticated,
   isAdmin,
   blockAgentController
+);
+
+// Decline registration
+adminAgentRoute.delete(
+  "/reject-registration/:agentId",
+  isAuthenticated,
+  isAdmin,
+  rejectAgentRegistrationController
 );
 
 module.exports = adminAgentRoute;

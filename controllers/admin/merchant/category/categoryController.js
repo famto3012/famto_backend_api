@@ -130,7 +130,7 @@ const addCategoryByAdminController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `New category (${categoryName}) is added by Admin (${req.userAuth})`,
+      description: `New category (${categoryName}) is added by Admin (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(201).json({
@@ -155,8 +155,6 @@ const editCategoryByAdminController = async (req, res, next) => {
     });
     return res.status(500).json({ errors: formattedErrors });
   }
-
-  console.log(req.body);
 
   try {
     const categoryToUpdate = await Category.findOne({
@@ -194,7 +192,7 @@ const editCategoryByAdminController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Category (${categoryName}) is updated by Admin (${req.userAuth})`,
+      description: `Category (${categoryName}) is updated by Admin (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(200).json({
@@ -242,7 +240,7 @@ const deleteCategoryByAdminController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Category (${categoryToDelete.categoryName}) is deleted by Admin (${req.userAuth})`,
+      description: `Category (${categoryToDelete.categoryName}) is deleted by Admin (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(200).json({
@@ -276,7 +274,7 @@ const changeCategoryStatusByAdminController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Category status (${categoryFound.categoryName}) is updated by Admin (${req.userAuth})`,
+      description: `Category status (${categoryFound.categoryName}) is updated by Admin (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(200).json({
@@ -290,10 +288,7 @@ const changeCategoryStatusByAdminController = async (req, res, next) => {
 const downloadCategorySampleCSVController = async (req, res, next) => {
   try {
     // Define the path to your sample CSV file
-    const filePath = path.join(
-      __dirname,
-      "../../../../sample_CSV/sample_CSV.csv"
-    );
+    const filePath = path.join(__dirname, "../../../../Category_sample.csv");
 
     // Define the headers and data for the CSV
     const csvHeaders = [
@@ -334,6 +329,12 @@ const downloadCategorySampleCSVController = async (req, res, next) => {
     res.download(filePath, "Category_sample.csv", (err) => {
       if (err) {
         next(err);
+      } else {
+        fs.unlink(filePath, (unlinkErr) => {
+          if (unlinkErr) {
+            console.error("File deletion error:", unlinkErr);
+          }
+        });
       }
     });
   } catch (error) {
@@ -402,7 +403,7 @@ const addCategoryByMerchantController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `New category (${categoryName}) is added by Merchant (${req.userAuth})`,
+      description: `New category (${categoryName}) is added by Merchant (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(201).json({
@@ -506,7 +507,7 @@ const editCategoryByMerchantController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Category (${categoryName}) is updated by Merchant (${req.userAuth})`,
+      description: `Category (${categoryName}) is updated by Merchant (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(200).json({
@@ -556,7 +557,7 @@ const deleteCategoryByMerchantController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Category (${categoryToDelete.categoryName}) is deleted by Merchant (${req.userAuth})`,
+      description: `Category (${categoryToDelete.categoryName}) is deleted by Merchant (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(200).json({
@@ -591,7 +592,7 @@ const changeCategoryStatusByMerchantController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Category status (${categoryFound.categoryName}) is updated by Merchant (${req.userAuth})`,
+      description: `Category status (${categoryFound.categoryName}) is updated by Merchant (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(200).json({
@@ -617,7 +618,7 @@ const updateCategoryOrderController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Category order is updated by ${req.userRole} (${req.userAuth})`,
+      description: `Category order is updated by ${req.userRole} (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(200).json({ message: "Category order updated successfully" });

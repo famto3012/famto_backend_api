@@ -224,8 +224,6 @@ const editProductDiscountController = async (req, res, next) => {
       (prodId) => !productId.includes(prodId.toString())
     );
 
-    console.log("removedProductIds: ", removedProductIds);
-
     if (removedProductIds.length > 0) {
       await Product.updateMany(
         { _id: { $in: removedProductIds } },

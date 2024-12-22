@@ -895,8 +895,6 @@ const getTaskPreviewController = async (req, res, next) => {
       .populate("orderId")
       .sort({ createdAt: 1 });
 
-    console.log(taskFound);
-
     let currentTasks = [];
     let nextTasks = [];
 
@@ -1743,10 +1741,6 @@ const verifyQrPaymentController = async (req, res, next) => {
   try {
     const { orderId } = req.body;
 
-    if (!orderId) {
-      return next(appError("Order ID is required", 400));
-    }
-
     const orderFound = await Order.findById(orderId);
 
     if (!orderFound) return next(appError("Order not found", 404));
@@ -1790,15 +1784,13 @@ const checkPaymentStatusOfOrder = async (req, res, next) => {
 
     const orderFound = await Order.findById(orderId);
 
-    if (!orderFound) {
-      return next(appError("Order not found", 400));
-    }
+    if (!orderFound) return next(appError("Order not found", 400));
 
     if (orderFound?.paymentStatus === "Completed") {
-      return res.status(200).json({ message: "Payment completed" });
+      return res.status(200).json({ status: true });
     }
 
-    res.status(400).json({ message: "Payment is not completed yet" });
+    res.status(200).json({ status: false });
   } catch (err) {
     next(appError(err.message));
   }

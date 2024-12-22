@@ -47,7 +47,7 @@ const addMerchantSubscriptionPlanController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `New Merchant subscription plan (${name}) is created by Admin (${req.userAuth})`,
+      description: `New Merchant subscription plan (${name}) is created by Admin (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(201).json({
@@ -116,8 +116,6 @@ const editMerchantSubscriptionPlanController = async (req, res, next) => {
       totalAmount = Math.round(baseAmount + taxAmount);
     }
 
-    console.log("AMOUNT", totalAmount);
-
     // Update subscription plan fields if provided
     const updatedFields = {
       ...(name && { name }),
@@ -138,7 +136,7 @@ const editMerchantSubscriptionPlanController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Merchant subscription plan (${updatedSubscriptionPlan.name}) updated by Admin (${req.userAuth})`,
+      description: `Merchant subscription plan (${updatedSubscriptionPlan.name}) updated by Admin (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(200).json({
@@ -186,7 +184,7 @@ const deleteMerchantSubscriptionPlanController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Merchant subscription plan (${plan.name}) is deleted by Admin (${req.userAuth})`,
+      description: `Merchant subscription plan (${plan.name}) is deleted by Admin (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(200).json({
@@ -207,27 +205,46 @@ const currentSubscriptionDetailOfMerchant = async (req, res, next) => {
 
     if (!merchant) return next(appError("Merchant not found", 404));
 
-    let planLog;
-    if (merchant.merchantDetail?.pricing?.length > 0) {
-      const subscriptionPlans = merchant.merchantDetail?.pricing?.filter(
-        (plan) => plan.modelType === "Subscription"
-      );
+    const subscriptionPlan = merchant.merchantDetail?.pricing?.find(
+      (plan) => plan.modelType === "Subscription"
+    );
 
-      if (subscriptionPlans?.length > 0) {
-        planLog = await SubscriptionLog.findById(
-          subscriptionPlans[0].modelId
-        ).populate("planId", "name");
-      }
+    if (!subscriptionPlan) {
+      return res.status(200).json({ planName: null, daysLeft: 0 });
     }
 
+    const planLog = await SubscriptionLog.aggregate([
+      { $match: { _id: subscriptionPlan.modelId } },
+      {
+        $lookup: {
+          from: "merchantsubscriptions",
+          localField: "planId",
+          foreignField: "_id",
+          as: "planDetails",
+        },
+      },
+      { $unwind: "$planDetails" },
+    ]);
+
+    if (!planLog.length) {
+      return res.status(200).json({ planName: null, daysLeft: 0 });
+    }
+
+    const currentDate = new Date();
+    const endDate = new Date(planLog[0].endDate);
+    const daysLeft = Math.max(
+      Math.ceil((endDate - currentDate) / (1000 * 60 * 60 * 24)),
+      0
+    );
+
     const formattedResponse = {
-      planName: planLog.planId.name || null,
-      daysLeft: 30 || 1,
+      planName: planLog[0].planDetails.name,
+      daysLeft: daysLeft,
     };
 
     res.status(200).json(formattedResponse);
   } catch (err) {
-    next(appError(err.messages));
+    next(appError(err.message || "Server Error"));
   }
 };
 
@@ -275,7 +292,7 @@ const addCustomerSubscriptionPlanController = async (req, res, next) => {
       await ActivityLog.create({
         userId: req.userAuth,
         userType: req.userRole,
-        description: `New Customer subscription plan (${name}) is created by Admin (${req.userAuth})`,
+        description: `New Customer subscription plan (${name}) is created by Admin (${req.userName} - ${req.userAuth})`,
       }),
     ]);
 
@@ -383,7 +400,7 @@ const editCustomerSubscriptionPlanController = async (req, res, next) => {
       await ActivityLog.create({
         userId: req.userAuth,
         userType: req.userRole,
-        description: `Customer subscription plan (${name}) is updated by Admin (${req.userAuth})`,
+        description: `Customer subscription plan (${name}) is updated by Admin (${req.userName} - ${req.userAuth})`,
       }),
     ]);
 
@@ -432,7 +449,7 @@ const deleteCustomerSubscriptionPlanController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `Customer subscription plan (${plan.name}) is deleted by Admin (${req.userAuth})`,
+      description: `Customer subscription plan (${plan.name}) is deleted by Admin (${req.userName} - ${req.userAuth})`,
     });
 
     res.status(200).json({

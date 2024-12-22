@@ -132,8 +132,6 @@ const getBannerByIdController = async (req, res, next) => {
     const { id } = req.params;
     const banner = await Banner.findById(id);
 
-    console.log(banner);
-
     if (!banner) return next(appError("No banner found", 404));
 
     res.status(200).json({

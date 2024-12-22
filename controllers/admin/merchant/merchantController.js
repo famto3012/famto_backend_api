@@ -524,7 +524,6 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
         );
         const buffer = Buffer.from(response.data);
         const imageBuffer = await changeBufferToImage(buffer, fileName, format);
-        console.log("imageBuffer", imageBuffer);
 
         locationImage = await uploadToFirebase(
           imageBuffer,
@@ -536,9 +535,8 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
             merchantFound?.merchantDetail?.locationImage
           );
         }
-        if (locationImage) {
-          await fs.unlink(fileName);
-        }
+
+        if (locationImage) await fs.unlink(fileName);
       } catch (err) {
         console.error("Failed to fetch Mappls Location image", err);
       }
@@ -575,9 +573,7 @@ const updateMerchantDetailsByMerchantController = async (req, res, next) => {
       ActivityLog.create({
         userId: req.userAuth,
         userType: req.userRole,
-        description: `Details are updated by Merchant (${req.userAuth} - ${
-          merchantFound?.merchantDetail?.merchantName || merchantFound.fullName
-        })`,
+        description: `Details are updated by Merchant (${req.userName} - ${req.userAuth})`,
       }),
     ]);
 
@@ -694,8 +690,6 @@ const fetchAllMerchantsController = async (req, res, next) => {
       geofence,
     } = req.query;
 
-    console.log(req.query);
-
     // Ensure correct data types
     page = parseInt(page, 10);
     limit = parseInt(limit, 10);
@@ -725,8 +719,6 @@ const fetchAllMerchantsController = async (req, res, next) => {
       matchCriteria["merchantDetail.geofenceId"] =
         mongoose.Types.ObjectId.createFromHexString(geofence.trim());
     }
-
-    console.log(matchCriteria);
 
     // Fetch merchants
     const merchants = await Merchant.find(matchCriteria)
@@ -1269,7 +1261,7 @@ const addMerchantController = async (req, res, next) => {
     await ActivityLog.create({
       userId: req.userAuth,
       userType: req.userRole,
-      description: `New merchant (${newMerchant.fullName}) is added by ${req.userRole} (${req.userAuth})`,
+      description: `New merchant (${newMerchant.fullName}) is added by ${req.userRole} (${req.userName} - ${req.userAuth})`,
     });
 
     const formattedResponse = {
@@ -1493,14 +1485,14 @@ const updateMerchantDetailsController = async (req, res, next) => {
           imageBuffer,
           "MerchantLocationImage"
         );
+
         if (merchantFound?.merchantDetail?.locationImage) {
           await deleteFromFirebase(
             merchantFound?.merchantDetail?.locationImage
           );
         }
-        if (locationImage) {
-          await fs.unlink(fileName);
-        }
+
+        if (locationImage) await fs.unlink(fileName);
       } catch (err) {
         console.error("Failed to fetch data from Mappls API:", err);
       }
@@ -1537,7 +1529,7 @@ const updateMerchantDetailsController = async (req, res, next) => {
       ActivityLog.create({
         userId: req.userAuth,
         userType: req.userRole,
-        description: `Details of ${merchantFound.merchantDetail.merchantName} is updated by Admin (${req.userAuth})`,
+        description: `Details of ${merchantFound.merchantDetail.merchantName} is updated by Admin (${req.userName} - ${req.userAuth})`,
       }),
     ]);
 
@@ -1987,6 +1979,12 @@ const downloadMerchantCSVController = async (req, res, next) => {
     res.status(200).download(filePath, "Merchant_Data.csv", (err) => {
       if (err) {
         next(err);
+      } else {
+        fs.unlink(filePath, (unlinkErr) => {
+          if (unlinkErr) {
+            console.error("Error deleting file:", unlinkErr);
+          }
+        });
       }
     });
   } catch (err) {

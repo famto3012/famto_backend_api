@@ -217,7 +217,7 @@ const downloadUserCSVInAccountLogs = async (req, res, next) => {
       blockedTime: formatTime(log.createdAt),
     }));
 
-    const filePath = path.join(__dirname, "../../../Sample_CSV/data.csv");
+    const filePath = path.join(__dirname, "../../../Account_logs.csv");
 
     const csvHeaders = [
       { id: "userId", title: "User ID" },
@@ -238,6 +238,12 @@ const downloadUserCSVInAccountLogs = async (req, res, next) => {
     res.status(200).download(filePath, "Account_Log.csv", (err) => {
       if (err) {
         next(err);
+      } else {
+        fs.unlink(filePath, (unlinkErr) => {
+          if (unlinkErr) {
+            console.error("File deletion error:", unlinkErr);
+          }
+        });
       }
     });
   } catch (err) {

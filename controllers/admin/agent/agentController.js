@@ -1,6 +1,7 @@
 const { createTransport } = require("nodemailer");
 const mongoose = require("mongoose");
 const csvWriter = require("csv-writer").createObjectCsvWriter;
+const fs = require("fs");
 const path = require("path");
 const { validationResult } = require("express-validator");
 
@@ -770,6 +771,7 @@ const getDeliveryAgentPayoutController = async (req, res, next) => {
   }
 };
 
+// TODO: Remove after panel V2
 const searchAgentInPayoutController = async (req, res, next) => {
   try {
     const { agentId } = req.query;
@@ -845,42 +847,164 @@ const searchAgentInPayoutController = async (req, res, next) => {
   }
 };
 
+// const filterAgentPayoutController = async (req, res, next) => {
+//   try {
+//     const { status, agent, geofence, date, name } = req.query;
+
+//     // Build filter criteria based on request parameters
+//     const filterCriteria = { isApproved: "Approved" };
+//     if (agent && agent.toLowerCase() !== "all") filterCriteria._id = agent;
+//     if (geofence && geofence.toLowerCase() !== "all")
+//       filterCriteria.geofenceId =
+//         mongoose.Types.ObjectId.createFromHexString(geofence);
+
+//     const paymentStatusBool = status?.toLowerCase() === "true" ? true : false;
+
+//     // Convert date filter to a start and end range in IST timezone
+//     const dateFilter = {};
+//     if (date) {
+//       const startDate = new Date(date);
+//       startDate.setUTCHours(18, 30, 0, 0);
+//       const endDate = new Date(date);
+//       endDate.setUTCDate(endDate.getUTCDate() + 1); // Move to the next day
+//       endDate.setUTCHours(18, 29, 59, 999);
+//       dateFilter.date = { $gte: startDate, $lte: endDate };
+//     }
+
+//     // Use aggregation to handle filtering, calculation, and counting in the database
+//     const aggregationPipeline = [
+//       { $match: filterCriteria },
+//       { $unwind: "$appDetailHistory" },
+//       {
+//         $match: {
+//           ...(date ? { "appDetailHistory.date": dateFilter.date } : {}),
+//           ...(paymentStatus
+//             ? { "appDetailHistory.details.paymentSettled": paymentStatusBool }
+//             : {}),
+//         },
+//       },
+//       {
+//         $addFields: {
+//           calculatedEarnings: {
+//             $max: [
+//               {
+//                 $subtract: [
+//                   "$appDetailHistory.details.totalEarning",
+//                   "$workStructure.cashInHand",
+//                 ],
+//               },
+//               0,
+//             ],
+//           },
+//         },
+//       },
+//       {
+//         $project: {
+//           _id: 1,
+//           fullName: 1,
+//           phoneNumber: 1,
+//           workedDate: {
+//             $dateToString: {
+//               format: "%Y-%m-%d",
+//               date: { $add: ["$appDetailHistory.date", 19800000] },
+//             },
+//           },
+//           orders: "$appDetailHistory.details.orders",
+//           cancelledOrders: "$appDetailHistory.details.cancelledOrders",
+//           totalDistance: "$appDetailHistory.details.totalDistance",
+//           loginHours: "$appDetailHistory.details.loginDuration",
+//           cashInHand: "$workStructure.cashInHand",
+//           totalEarnings: "$appDetailHistory.details.totalEarning",
+//           calculatedEarnings: 1,
+//           paymentSettled: "$appDetailHistory.details.paymentSettled",
+//           detailId: "$appDetailHistory.detailId",
+//           geofence: "$geofenceId",
+//         },
+//       },
+//       { $sort: { workedDate: -1 } },
+//     ];
+
+//     // Get the total count before applying pagination
+//     const countAggregation = [...aggregationPipeline, { $count: "total" }];
+//     const countResult = await Agent.aggregate(countAggregation);
+//     const totalDocuments = countResult[0]?.total || 0;
+
+//     // Apply pagination
+//     const page = parseInt(req.query.page || 1);
+//     const limit = parseInt(req.query.limit || 50);
+//     const paginationAggregation = [
+//       ...aggregationPipeline,
+//       { $skip: (page - 1) * limit },
+//       { $limit: limit },
+//     ];
+//     const agents = await Agent.aggregate(paginationAggregation);
+
+//     const totalPages = Math.ceil(totalDocuments / limit);
+
+//     const formattedResponse = agents.map(
+//       ({ _id, workedDate, loginHours, ...rest }) => ({
+//         agentId: _id,
+//         workedDate: workedDate ? formatDate(workedDate) : "-",
+//         loginHours: formatToHours(loginHours),
+//         ...rest,
+//       })
+//     );
+
+//     res.status(200).json({
+//       message: "Filtered agent payout details",
+//       data: formattedResponse,
+//       pagination: {
+//         totalDocuments,
+//         totalPages,
+//         currentPage: page,
+//         pageSize: limit,
+//         hasNextPage: page < totalPages,
+//         hasPrevPage: page > 1,
+//       },
+//     });
+//   } catch (err) {
+//     next(appError(err.message));
+//   }
+// };
+
 const filterAgentPayoutController = async (req, res, next) => {
   try {
-    const { paymentStatus, agentId, geofence, date } = req.query;
+    const { status, agent, geofence, date, name } = req.query;
 
-    // Build filter criteria based on request parameters
+    // Build filter criteria
     const filterCriteria = { isApproved: "Approved" };
-    if (agentId && agentId.toLowerCase() !== "all")
-      filterCriteria._id = agentId;
-    if (geofence && geofence.toLowerCase() !== "all")
+    if (agent && agent.toLowerCase() !== "all") filterCriteria._id = agent;
+    if (geofence && geofence.toLowerCase() !== "all") {
       filterCriteria.geofenceId =
         mongoose.Types.ObjectId.createFromHexString(geofence);
+    }
+    if (name) {
+      filterCriteria.fullName = { $regex: name.trim(), $options: "i" };
+    }
 
-    const paymentStatusBool =
-      paymentStatus?.toLowerCase() === "true" ? true : false;
-
-    // Convert date filter to a start and end range in IST timezone
+    // Convert date to range in IST timezone
     const dateFilter = {};
     if (date) {
       const startDate = new Date(date);
-      startDate.setUTCHours(18, 30, 0, 0);
+      startDate.setHours(0, 0, 0, 0);
       const endDate = new Date(date);
-      endDate.setUTCDate(endDate.getUTCDate() + 1); // Move to the next day
-      endDate.setUTCHours(18, 29, 59, 999);
+      endDate.setDate(endDate.getDate() + 1);
+      endDate.setHours(23, 59, 59, 999);
       dateFilter.date = { $gte: startDate, $lte: endDate };
     }
 
-    // Use aggregation to handle filtering, calculation, and counting in the database
+    // Aggregation pipeline
     const aggregationPipeline = [
       { $match: filterCriteria },
       { $unwind: "$appDetailHistory" },
       {
         $match: {
-          ...(date ? { "appDetailHistory.date": dateFilter.date } : {}),
-          ...(paymentStatus
-            ? { "appDetailHistory.details.paymentSettled": paymentStatusBool }
-            : {}),
+          ...(date && { "appDetailHistory.date": dateFilter.date }),
+          ...(status &&
+            status.toLowerCase() !== "all" && {
+              "appDetailHistory.details.paymentSettled":
+                status.toLowerCase() === "true",
+            }),
         },
       },
       {
@@ -924,43 +1048,31 @@ const filterAgentPayoutController = async (req, res, next) => {
       { $sort: { workedDate: -1 } },
     ];
 
-    // Get the total count before applying pagination
-    const countAggregation = [...aggregationPipeline, { $count: "total" }];
-    const countResult = await Agent.aggregate(countAggregation);
-    const totalDocuments = countResult[0]?.total || 0;
+    // Count and paginate results
+    const totalDocuments =
+      (await Agent.aggregate([...aggregationPipeline, { $count: "total" }]))[0]
+        ?.total || 0;
 
-    // Apply pagination
     const page = parseInt(req.query.page || 1);
     const limit = parseInt(req.query.limit || 50);
-    const paginationAggregation = [
+    const agents = await Agent.aggregate([
       ...aggregationPipeline,
       { $skip: (page - 1) * limit },
       { $limit: limit },
-    ];
-    const agents = await Agent.aggregate(paginationAggregation);
-
-    const totalPages = Math.ceil(totalDocuments / limit);
+    ]);
 
     const formattedResponse = agents.map(
       ({ _id, workedDate, loginHours, ...rest }) => ({
         agentId: _id,
-        workedDate: workedDate ? formatDate(workedDate) : "-",
+        workedDate: workedDate || "-",
         loginHours: formatToHours(loginHours),
         ...rest,
       })
     );
 
     res.status(200).json({
-      message: "Filtered agent payout details",
+      total: totalDocuments,
       data: formattedResponse,
-      pagination: {
-        totalDocuments,
-        totalPages,
-        currentPage: page,
-        pageSize: limit,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
-      },
     });
   } catch (err) {
     next(appError(err.message));
@@ -1056,21 +1168,18 @@ const approvePaymentController = async (req, res, next) => {
 
 const downloadAgentCSVController = async (req, res, next) => {
   try {
-    const { geofenceFilter, statusFilter, vehicleTypeFilter, searchFilter } =
-      req.query;
+    const { geofence, status, vehicleType, name } = req.query;
 
     // Build query object based on filters
     const filter = { isApproved: "Approved" };
-    if (geofenceFilter && geofenceFilter !== "All")
-      filter.geofenceId = geofenceFilter?.trim();
-    if (statusFilter && statusFilter !== "All")
-      filter.status = statusFilter?.trim();
-    if (searchFilter) {
-      filter.$or = [{ fullName: { $regex: searchFilter, $options: "i" } }];
+    if (geofence && geofence !== "All") filter.geofenceId = geofence?.trim();
+    if (status && status !== "All") filter.status = status?.trim();
+    if (name) {
+      filter.$or = [{ fullName: { $regex: name.trim(), $options: "i" } }];
     }
-    if (vehicleTypeFilter) {
+    if (vehicleType) {
       filter["vehicleDetail.type"] = {
-        $regex: vehicleTypeFilter?.trim(),
+        $regex: vehicleType?.trim(),
         $options: "i",
       };
     }
@@ -1115,7 +1224,7 @@ const downloadAgentCSVController = async (req, res, next) => {
       });
     });
 
-    const filePath = path.join(__dirname, "../../../sample_CSV/sample_CSV.csv");
+    const filePath = path.join(__dirname, "../../../Agent.csv");
 
     const csvHeaders = [
       { id: "agentId", title: "Agent ID" },
@@ -1150,6 +1259,12 @@ const downloadAgentCSVController = async (req, res, next) => {
     res.status(200).download(filePath, "Agent_Data.csv", (err) => {
       if (err) {
         next(err);
+      } else {
+        fs.unlink(filePath, (unlinkErr) => {
+          if (unlinkErr) {
+            console.error("Error deleting file:", unlinkErr);
+          }
+        });
       }
     });
   } catch (err) {
@@ -1157,11 +1272,10 @@ const downloadAgentCSVController = async (req, res, next) => {
   }
 };
 
-const downloadAgentPaymentCSVController = async (req, res, next) => {
+const downloadAgentPayoutCSVController = async (req, res, next) => {
   try {
-    const { paymentStatus, agent, search, date, geofence } = req.query;
+    const { status, agent, search, date, geofence } = req.query;
 
-    // Define filter criteria
     const filterCriteria = { isApproved: "Approved" };
     if (agent && agent.toLowerCase() !== "all") filterCriteria._id = agent;
     if (geofence && geofence.toLowerCase() !== "all")
@@ -1169,7 +1283,6 @@ const downloadAgentPaymentCSVController = async (req, res, next) => {
     if (search)
       filterCriteria.$or = [{ _id: { $regex: search, $options: "i" } }];
 
-    // Date range for filtering
     const dateFilter = {};
     if (date) {
       const startDate = new Date(date);
@@ -1179,17 +1292,16 @@ const downloadAgentPaymentCSVController = async (req, res, next) => {
       dateFilter.date = { $gte: startDate, $lte: endDate };
     }
 
-    // Aggregation pipeline
     const agents = await Agent.aggregate([
       { $match: filterCriteria },
       { $unwind: "$appDetailHistory" },
       {
         $match: {
           ...(date ? { "appDetailHistory.date": dateFilter.date } : {}),
-          ...(paymentStatus
+          ...(status
             ? {
                 "appDetailHistory.details.paymentSettled":
-                  paymentStatus.toLowerCase() === "true",
+                  status.toLowerCase() === "true",
               }
             : {}),
         },
@@ -1291,17 +1403,12 @@ const downloadAgentPaymentCSVController = async (req, res, next) => {
       },
     ]);
 
-    // Format workedDate using formatDate function
     const formattedAgents = agents.map((agent) => ({
       ...agent,
       workedDate: agent.workedDate ? formatDate(agent.workedDate) : "-",
     }));
 
-    // Set up CSV file path and headers
-    const filePath = path.join(
-      __dirname,
-      "../../../sample_CSV/Agent_Payments.csv"
-    );
+    const filePath = path.join(__dirname, "../../../Agent_Payments.csv");
     const csvHeaders = [
       { id: "_id", title: "Agent ID" },
       { id: "fullName", title: "Full Name" },
@@ -1322,19 +1429,22 @@ const downloadAgentPaymentCSVController = async (req, res, next) => {
       { id: "geofenceName", title: "Geofence Name" },
     ];
 
-    // Create CSV writer
     const writer = csvWriter({
       path: filePath,
       header: csvHeaders,
     });
 
-    // Write records to CSV
     await writer.writeRecords(formattedAgents);
 
-    // Send the CSV file in response
     res.status(200).download(filePath, "Agent_Payments.csv", (err) => {
       if (err) {
         next(err);
+      } else {
+        fs.unlink(filePath, (unlinkErr) => {
+          if (unlinkErr) {
+            console.error("Error deleting file:", unlinkErr);
+          }
+        });
       }
     });
   } catch (err) {
@@ -1407,6 +1517,6 @@ module.exports = {
   approvePaymentController,
   changeAgentStatusController,
   downloadAgentCSVController,
-  downloadAgentPaymentCSVController,
+  downloadAgentPayoutCSVController,
   updateVehicleDetailController,
 };

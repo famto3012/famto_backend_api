@@ -28,6 +28,7 @@ const findOrCreateCustomer = async ({
   newCustomer,
   customerAddress,
   deliveryMode,
+  formattedErrors,
 }) => {
   if (customerId) {
     const customer = await Customer.findById(customerId);
@@ -45,11 +46,16 @@ const findOrCreateCustomer = async ({
   if (existingCustomer) return existingCustomer;
 
   if (newCustomer && deliveryMode === "Take Away") {
-    return await Customer.create({
+    const customer = await Customer.create({
       fullName: newCustomer?.fullName,
       email: newCustomer?.email,
       phoneNumber: newCustomer?.phoneNumber,
+      customerDetails: {
+        isBlocked: false,
+      },
     });
+
+    return customer;
   }
 
   if (customerAddress) {
@@ -812,8 +818,6 @@ const handleDeliveryModeForAdmin = async (
     customPickupLocation
   );
 
-  console.log("Address: ", addressDetails);
-
   let distance = 0;
 
   const customOrderWithPick = addressDetails?.pickupLocation?.length === 2;
@@ -845,8 +849,6 @@ const calculateDeliveryChargeHelperForAdmin = async (
   pickupLocation,
   selectedBusinessCategory
 ) => {
-  console.log("deliveryMode", deliveryMode);
-
   // Handle each delivery mode with a switch statement for clarity
   switch (deliveryMode) {
     case "Take Away":
