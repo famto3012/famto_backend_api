@@ -264,7 +264,7 @@ const sendNotification = async (userId, eventName, data, role) => {
   if (notificationSent) {
     await createNotificationLog(notificationSettings, data.fcm);
   } else {
-    console.error(`No socketId or fcmToken found for userId: ${userId}`);
+    console.log(`No socketId or fcmToken found for userId: ${userId}`);
   }
 };
 
