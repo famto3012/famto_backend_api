@@ -916,6 +916,7 @@ const fetchAllScheduledOrdersByAdminController = async (req, res, next) => {
             : order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
         amount: order.billDetail.grandTotal,
+        isViewed: order?.isViewed || false,
       };
     });
 
@@ -1290,6 +1291,7 @@ const getOrderDetailByAdminController = async (req, res, next) => {
       orderDetailStepper: Array.isArray(orderFound?.orderDetailStepper)
         ? orderFound.orderDetailStepper
         : [orderFound.orderDetailStepper],
+      isViewed: orderFound?.isViewed || false,
     };
 
     res.status(200).json({
