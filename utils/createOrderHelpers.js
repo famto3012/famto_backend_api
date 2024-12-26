@@ -275,7 +275,7 @@ const updateCustomerAddress = async (
     case "work":
       customer.customerDetails.workAddress = newAddress;
       break;
-    case "others":
+    case "other":
       const otherIndex = customer.customerDetails.otherAddress.findIndex(
         (addr) => addr.id.toString() === customerAddressOtherAddressId
       );
