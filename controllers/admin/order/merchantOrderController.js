@@ -34,6 +34,7 @@ const {
   sendSocketData,
 } = require("../../../socket/socket");
 const ActivityLog = require("../../../models/ActivityLog");
+const fs = require("fs");
 
 const csvWriter = require("csv-writer").createObjectCsvWriter;
 
