@@ -1836,6 +1836,7 @@ const orderPaymentController = async (req, res, next) => {
             status: storedOrderData?.status,
             paymentMode: storedOrderData?.paymentMode,
             paymentStatus: storedOrderData?.paymentStatus,
+            paymentId: storedOrderData.paymentId,
             purchasedItems: storedOrderData?.purchasedItems,
             "orderDetailStepper.created": {
               by: storedOrderData?.orderDetail?.deliveryAddress?.fullName,
@@ -2168,6 +2169,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
         if (storedOrderData) {
           let newOrderCreated = await Order.create({
             customerId: storedOrderData.customerId,
+            merchantId: storedOrderData?.merchantId,
             items: storedOrderData.items,
             orderDetail: storedOrderData.orderDetail,
             billDetail: storedOrderData.billDetail,
@@ -2175,6 +2177,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
             status: storedOrderData.status,
             paymentMode: storedOrderData.paymentMode,
             paymentStatus: storedOrderData.paymentStatus,
+            paymentId: storedOrderData.paymentId,
             purchasedItems: storedOrderData.purchasedItems,
             "orderDetailStepper.created": {
               by: storedOrderData.orderDetail.deliveryAddress.fullName,
