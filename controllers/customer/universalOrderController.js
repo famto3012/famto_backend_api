@@ -1836,6 +1836,7 @@ const orderPaymentController = async (req, res, next) => {
             status: storedOrderData?.status,
             paymentMode: storedOrderData?.paymentMode,
             paymentStatus: storedOrderData?.paymentStatus,
+            paymentId: storedOrderData.paymentId,
             purchasedItems: storedOrderData?.purchasedItems,
             "orderDetailStepper.created": {
               by: storedOrderData?.orderDetail?.deliveryAddress?.fullName,
@@ -2166,8 +2167,15 @@ const verifyOnlinePaymentController = async (req, res, next) => {
         const storedOrderData = await TemporaryOrder.findOne({ orderId });
 
         if (storedOrderData) {
+          const existingOrder = await Order.findOne({
+            _id: storedOrderData.orderId,
+          });
+
+          if (existingOrder) return;
+
           let newOrderCreated = await Order.create({
             customerId: storedOrderData.customerId,
+            merchantId: storedOrderData?.merchantId,
             items: storedOrderData.items,
             orderDetail: storedOrderData.orderDetail,
             billDetail: storedOrderData.billDetail,
@@ -2175,6 +2183,7 @@ const verifyOnlinePaymentController = async (req, res, next) => {
             status: storedOrderData.status,
             paymentMode: storedOrderData.paymentMode,
             paymentStatus: storedOrderData.paymentStatus,
+            paymentId: storedOrderData.paymentId,
             purchasedItems: storedOrderData.purchasedItems,
             "orderDetailStepper.created": {
               by: storedOrderData.orderDetail.deliveryAddress.fullName,

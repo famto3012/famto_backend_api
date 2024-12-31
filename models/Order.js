@@ -323,8 +323,8 @@ const stepperSchema = mongoose.Schema(
 const orderDetailStepperSchema = mongoose.Schema(
   {
     created: stepperSchema,
-    assigned: stepperSchema,
     accepted: stepperSchema,
+    assigned: stepperSchema,
     pickupStarted: stepperSchema,
     reachedPickupLocation: stepperSchema,
     deliveryStarted: stepperSchema,

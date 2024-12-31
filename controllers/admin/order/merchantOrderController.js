@@ -425,6 +425,7 @@ const fetchAllOrderOfMerchant = async (req, res, next) => {
             : order?.paymentMode,
         deliveryOption: order?.orderDetail?.deliveryOption || null,
         amount: order.billDetail.grandTotal,
+        isReady: order?.orderDetail?.isReady,
       };
     });
 

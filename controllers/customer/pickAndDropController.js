@@ -839,6 +839,12 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
       const storedOrderData = await TemporaryOrder.findOne({ orderId });
 
       if (storedOrderData) {
+        const existingOrder = await Order.findOne({
+          _id: storedOrderData.orderId,
+        });
+
+        if (existingOrder) return;
+
         const newOrder = await Order.create({
           customerId: storedOrderData.customerId,
           items: storedOrderData.items,
