@@ -38,10 +38,14 @@ const verifyPayment = async (paymentDetails) => {
 
 const razorpayRefund = async (paymentId, amount) => {
   try {
+    const calculatedAmount = Math.round(amount * 0.975 * 100);
+
     const refund = await razorpay.payments.refund(paymentId, {
-      amount: amount * 100,
+      amount: calculatedAmount,
       speed: "normal",
     });
+
+    console.log("refund", refund);
 
     return { success: true, refundId: refund.id };
   } catch (err) {

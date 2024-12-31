@@ -1113,6 +1113,9 @@ const rejectOrderByAdminController = async (req, res, next) => {
             orderFound.billDetail.grandTotal / orderFound.orderDetail.numOfDays;
         }
 
+        console.log("refundAmount", refundAmount);
+        console.log("paymentId", paymentId);
+
         refundResponse = await razorpayRefund(paymentId, refundAmount);
 
         if (!refundResponse.success) {
@@ -2300,6 +2303,7 @@ const orderMarkAsReadyController = async (req, res, next) => {
             );
           }
         }
+
         await AgentAnnouncementLogs.create({
           agentId: orderFound.agentId,
           title: data.title,
