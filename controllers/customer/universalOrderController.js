@@ -173,8 +173,12 @@ const listRestaurantsController = async (req, res, next) => {
 
     const sortedMerchants = await sortMerchantsBySponsorship(filteredMerchants);
 
+    const openedMerchantsFirst = sortedMerchants.sort((a, b) => {
+      return b.status - a.status;
+    });
+
     const simplifiedMerchants = await Promise.all(
-      sortedMerchants.map(async (merchant) => {
+      openedMerchantsFirst.map(async (merchant) => {
         const isFavorite =
           currentCustomer?.customerDetails?.favoriteMerchants?.some(
             (favorite) => favorite?.merchantId === merchant?._id
@@ -1956,6 +1960,9 @@ const orderPaymentController = async (req, res, next) => {
         );
       }
 
+      console.log("Order ID: ", orderId);
+      console.log("Order Amount: ", orderAmount);
+
       res.status(200).json({ success: true, orderId, amount: orderAmount });
       return;
     } else {
@@ -1972,6 +1979,9 @@ const verifyOnlinePaymentController = async (req, res, next) => {
     const { paymentDetails } = req.body;
     const customerId = req.userAuth;
 
+    console.log("Payment Details: ", paymentDetails);
+    console.log("Customer ID: ", customerId);
+
     if (!customerId) {
       return next(appError("Customer is not authenticated", 401));
     }
@@ -1987,6 +1997,9 @@ const verifyOnlinePaymentController = async (req, res, next) => {
         select: "productName productImageURL description variants",
       })
       .exec();
+
+    console.log("Customer: ", Boolean(customer));
+    console.log("Cart: ", Boolean(cart));
 
     if (!cart) {
       return next(appError("Cart not found", 404));
