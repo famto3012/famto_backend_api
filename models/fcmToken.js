@@ -8,9 +8,8 @@ const fcmTokenSchema = new mongoose.Schema(
       unique: true,
     },
     token: {
-      type: String,
+      type: [String], // Define `tokens` as an array of strings
       required: true,
-      // unique: true,
     },
   },
   {

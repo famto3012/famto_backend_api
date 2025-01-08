@@ -92,6 +92,60 @@ const io = socketio(server, {
 
 const userSocketMap = {};
 
+// const sendPushNotificationToUser = async (fcmToken, message, eventName) => {
+//   const notificationSettings = await NotificationSetting.findOne({
+//     event: eventName || "",
+//     status: true,
+//   });
+
+//   const mes = {
+//     notification: {
+//       title: notificationSettings?.title || message?.title,
+//       body: notificationSettings?.description || message?.body,
+//       image: message?.image,
+//     },
+//     data: {
+//       orderId: message?.orderId || "",
+//       merchantName: message?.merchantName || "",
+//       pickAddress: JSON.stringify(message?.pickAddress || {}),
+//       customerName: message?.customerName || "",
+//       customerAddress: JSON.stringify(message?.customerAddress || {}),
+//       orderType: message?.orderType || "",
+//       taskDate: message?.taskDate || "",
+//       taskTime: message?.taskTime || "",
+//       timer: JSON.stringify(message?.timer || ""),
+//     },
+//     webpush: {
+//       fcm_options: {
+//         link: "https://dashboard.famto.in/home",
+//       },
+//       notification: {
+//         icon: "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/admin_panel_assets%2FGroup%20427320384.svg?alt=media&token=0be47a53-43f3-4887-9822-3baad0edd31e",
+//       },
+//     },
+//     token: fcmToken,
+//   };
+//   // console.log(mes);
+
+//   try {
+//     // Try sending with the first project
+//     const response1 = await admin1.messaging(app1).send(mes);
+//     // console.log("Successfully sent message with project1:", response1);
+//     return true; // Return true if the notification was sent successfully with project1
+//   } catch (error1) {
+//     // console.error("Error sending message with project1:", error1);
+
+//     try {
+//       const response2 = await admin2.messaging(app2).send(mes);
+//       // console.log("Successfully sent message with project2:", response2);
+//       return true; // Return true if the notification was sent successfully with project2
+//     } catch (error2) {
+//       // console.error("Error sending message with project2:", error2);
+//       return false; // Return false if there was an error with both projects
+//     }
+//   }
+// };
+
 const sendPushNotificationToUser = async (fcmToken, message, eventName) => {
   const notificationSettings = await NotificationSetting.findOne({
     event: eventName || "",
@@ -125,27 +179,36 @@ const sendPushNotificationToUser = async (fcmToken, message, eventName) => {
     },
     token: fcmToken,
   };
-  // console.log(mes);
 
   try {
     // Try sending with the first project
-    const response1 = await admin1.messaging(app1).send(mes);
-    // console.log("Successfully sent message with project1:", response1);
+    await admin1.messaging(app1).send(mes);
+    console.log(
+      `Successfully sent message with project1 for token: ${fcmToken}`
+    );
     return true; // Return true if the notification was sent successfully with project1
   } catch (error1) {
-    // console.error("Error sending message with project1:", error1);
+    console.error(
+      `Error sending message with project1 for token: ${fcmToken}`,
+      error1
+    );
 
     try {
-      const response2 = await admin2.messaging(app2).send(mes);
-      // console.log("Successfully sent message with project2:", response2);
+      // Try sending with the second project
+      await admin2.messaging(app2).send(mes);
+      console.log(
+        `Successfully sent message with project2 for token: ${fcmToken}`
+      );
       return true; // Return true if the notification was sent successfully with project2
     } catch (error2) {
-      // console.error("Error sending message with project2:", error2);
+      console.error(
+        `Error sending message with project2 for token: ${fcmToken}`,
+        error2
+      );
       return false; // Return false if there was an error with both projects
     }
   }
 };
-
 const createNotificationLog = async (notificationSettings, message) => {
   const logData = {
     imageUrl: message?.image,
@@ -243,8 +306,42 @@ const createNotificationLog = async (notificationSettings, message) => {
 };
 
 // Function to send notification to user (using Socket.IO if available, else FCM)
+// const sendNotification = async (userId, eventName, data, role) => {
+//   const { fcmToken } = userSocketMap[userId] || {};
+//   let notificationSent = false;
+
+//   const notificationSettings = await NotificationSetting.findOne({
+//     event: eventName || "",
+//     status: true,
+//   });
+
+//   for (let token of fcmToken) {
+//     console.log("FcmToken", token);
+//     if (token && !notificationSent) {
+//       notificationSent = await sendPushNotificationToUser(
+//         token,
+//         data.fcm,
+//         eventName
+//       );
+//     }
+//   }
+//   // console.log("Notification send", notificationSent);
+
+//   if (notificationSent) {
+//     await createNotificationLog(notificationSettings, data.fcm);
+//   } else {
+//     console.log(`No socketId or fcmToken found for userId: ${userId}`);
+//   }
+// };
+
 const sendNotification = async (userId, eventName, data, role) => {
-  const { fcmToken } = userSocketMap[userId] || {};
+  const { fcmToken } = userSocketMap[userId] || {}; // Get FCM tokens for the user
+
+  if (!fcmToken || fcmToken.length === 0) {
+    console.log(`No fcmToken found for userId: ${userId}`);
+    return;
+  }
+
   let notificationSent = false;
 
   const notificationSettings = await NotificationSetting.findOne({
@@ -252,19 +349,19 @@ const sendNotification = async (userId, eventName, data, role) => {
     status: true,
   });
 
-  if (fcmToken && !notificationSent) {
-    notificationSent = await sendPushNotificationToUser(
-      fcmToken,
-      data.fcm,
-      eventName
-    );
+  // Loop through all FCM tokens and send the notification to each one
+  for (let token of fcmToken) {
+    if (token) {
+      const sent = await sendPushNotificationToUser(token, data.fcm, eventName);
+      if (sent) notificationSent = true; // Mark as sent if at least one succeeds
+    }
   }
-  // console.log("Notification send", notificationSent);
 
+  // Log notification if at least one was sent successfully
   if (notificationSent) {
     await createNotificationLog(notificationSettings, data.fcm);
   } else {
-    console.log(`No socketId or fcmToken found for userId: ${userId}`);
+    console.log(`Failed to send notification for userId: ${userId}`);
   }
 };
 
@@ -291,7 +388,7 @@ const populateUserSocketMap = async () => {
       }
     });
 
-    // console.log("User socket map", userSocketMap);
+    console.log("User socket map", userSocketMap);
   } catch (error) {
     console.error("Error populating User Socket Map:", error);
   }
@@ -547,10 +644,15 @@ const getRealTimeDataCount = async () => {
 
     // console.log("Emitting real-time data:", realTimeData);
     const admins = await Admin.find();
-    admins.map((admin) => {
-      const { socketId } = userSocketMap[admin._id];
-      io.to(socketId).emit("realTimeDataCount", realTimeData);
-    });
+    for (let admin of admins) {
+      console.log("ADmin", admin);
+      if (userSocketMap[admin._id]) {
+        const { socketId } = userSocketMap[admin._id];
+        if (socketId) {
+          io.to(socketId).emit("realTimeDataCount", realTimeData);
+        }
+      }
+    }
   } catch (err) {
     console.error("Error updating real-time data:", err);
   }
@@ -650,35 +752,51 @@ io.on("connection", async (socket) => {
   const userId = socket?.handshake?.query?.userId;
   const fcmToken = socket?.handshake?.query?.fcmToken;
 
-  if (userId !== "null" && fcmToken !== "null") {
-    // console.log("UserId", userId);
-    // console.log("fcmToken", fcmToken);
-    const user = await FcmToken.findOne({ userId });
-
-    if (!user) {
-      await FcmToken.create({
-        userId,
-        token: fcmToken,
-      });
-    } else {
-      if (user.token === null || user.token !== fcmToken) {
-        await FcmToken.findByIdAndUpdate(user._id, {
-          token: fcmToken,
-        });
-      }
-    }
-  } else {
-    console.error("Invalid user or FCM token provided");
+  if (!userId || !fcmToken || ["null", "undefined"].includes(fcmToken)) {
+    console.error("Invalid userId or fcmToken provided");
     socket.disconnect();
     return;
   }
 
-  if (userId !== "undefined") {
-    if (userSocketMap[userId]) {
-      userSocketMap[userId].socketId = socket.id;
+  console.log("UserId", userId);
+  console.log("fcmToken", fcmToken);
+
+  try {
+    const user = await FcmToken.findOne({ userId });
+
+    if (!user) {
+      // Create a new user entry with the `fcmToken`
+      await FcmToken.create({
+        userId,
+        token: [fcmToken],
+      });
+      console.log("New user created with fcmToken:", fcmToken);
     } else {
-      userSocketMap[userId] = { socketId: socket.id, fcmToken };
+      // Check if `fcmToken` is already in the user's token array
+      if (!Array.isArray(user.token)) {
+        user.token = []; // Initialize if not an array
+      }
+
+      if (!user.token.includes(fcmToken)) {
+        user.token.push(fcmToken);
+        await user.save();
+        console.log("fcmToken added for user:", userId);
+      } else {
+        console.log("fcmToken already exists for user:", userId);
+      }
     }
+
+    // Map socket ID to user
+    if (!userSocketMap[userId]) {
+      userSocketMap[userId] = {
+        socketId: socket.id,
+        fcmToken: user?.token || [],
+      };
+    } else {
+      userSocketMap[userId].socketId = socket.id;
+    }
+  } catch (error) {
+    console.log("Error handling socket connection:", error);
   }
 
   // Get online user socket
