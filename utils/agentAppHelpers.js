@@ -274,7 +274,8 @@ const calculateAgentEarnings = async (agent, order) => {
   if (!agentPricing) throw new Error("Agent pricing not found");
 
   let orderSalary =
-    order.orderDetail.detailAddedByAgent.distanceCoveredByAgent *
+    (order.detailAddedByAgent.distanceCoveredByAgent +
+      order.orderDetail.distance) *
     agentPricing.baseDistanceFarePerKM;
 
   let totalPurchaseFare = 0;

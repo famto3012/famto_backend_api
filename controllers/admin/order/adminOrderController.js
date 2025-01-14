@@ -37,7 +37,10 @@ const {
 } = require("../../../utils/createOrderHelpers");
 const PickAndCustomCart = require("../../../models/PickAndCustomCart");
 const scheduledPickAndCustom = require("../../../models/ScheduledPickAndCustom");
-const { formatToHours } = require("../../../utils/agentAppHelpers");
+const {
+  formatToHours,
+  calculateAgentEarnings,
+} = require("../../../utils/agentAppHelpers");
 const {
   sendNotification,
   findRolesToNotify,
@@ -51,6 +54,7 @@ const puppeteer = require("puppeteer");
 const AgentAnnouncementLogs = require("../../../models/AgentAnnouncementLog");
 const Task = require("../../../models/Task");
 const ActivityLog = require("../../../models/ActivityLog");
+const Agent = require("../../../models/Agent");
 
 // TODO: Remove after panel V2
 const getAllOrdersForAdminController = async (req, res, next) => {
@@ -916,7 +920,6 @@ const fetchAllScheduledOrdersByAdminController = async (req, res, next) => {
             : order.paymentMode,
         deliveryOption: order.orderDetail.deliveryOption,
         amount: order.billDetail.grandTotal,
-        isViewed: order?.isViewed || false,
       };
     });
 
@@ -1113,9 +1116,6 @@ const rejectOrderByAdminController = async (req, res, next) => {
             orderFound.billDetail.grandTotal / orderFound.orderDetail.numOfDays;
         }
 
-        console.log("refundAmount", refundAmount);
-        console.log("paymentId", paymentId);
-
         refundResponse = await razorpayRefund(paymentId, refundAmount);
 
         if (!refundResponse.success) {
@@ -1294,7 +1294,6 @@ const getOrderDetailByAdminController = async (req, res, next) => {
       orderDetailStepper: Array.isArray(orderFound?.orderDetailStepper)
         ? orderFound.orderDetailStepper
         : [orderFound.orderDetailStepper],
-      isViewed: orderFound?.isViewed || false,
     };
 
     res.status(200).json({
@@ -1306,7 +1305,7 @@ const getOrderDetailByAdminController = async (req, res, next) => {
   }
 };
 
-// ? Changed  query => orderId, orderStatus => status
+//* Changed  query => orderId, orderStatus => status
 const downloadOrdersCSVByAdminController = async (req, res, next) => {
   try {
     const {
@@ -2303,7 +2302,6 @@ const orderMarkAsReadyController = async (req, res, next) => {
             );
           }
         }
-
         await AgentAnnouncementLogs.create({
           agentId: orderFound.agentId,
           title: data.title,
@@ -2807,6 +2805,48 @@ const createOrderByAdminController = async (req, res, next) => {
   }
 };
 
+const markOrderAsCompletedByAdminController = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+
+    const orderFound = await Order.findOne({
+      _id: orderId,
+      "orderDetail.deliveryMode": { $ne: "Take Away" },
+    });
+
+    if (
+      !orderFound ||
+      ["Completed", "Cancelled"].includes(orderFound?.status)
+    ) {
+      return next(appError("Order not found", 404));
+    }
+
+    if (isNaN(orderFound?.detailAddedByAgent?.distanceCoveredByAgent)) {
+      return next(appError("Agent haven't started pickup", 400));
+    }
+
+    const agentFound = await Agent.findById(orderFound.agentId);
+
+    if (!agentFound) {
+      return next(appError("Agent not found", 404));
+    }
+
+    const calculatedSalary = await calculateAgentEarnings(
+      agentFound,
+      orderFound
+    );
+
+    agentFound.appDetail.totalEarnings += calculatedSalary;
+    orderFound.status = "Completed";
+
+    await Promise.all([orderFound.save(), agentFound.save()]);
+
+    res.status(200).json({ message: "Order marked as completed" });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getAllOrdersForAdminController,
   getAllScheduledOrdersForAdminController,
@@ -2828,4 +2868,5 @@ module.exports = {
   //
   fetchAllOrdersByAdminController,
   fetchAllScheduledOrdersByAdminController,
+  markOrderAsCompletedByAdminController,
 };

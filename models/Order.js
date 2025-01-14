@@ -298,7 +298,7 @@ const detailAddedByAgentSchema = mongoose.Schema(
     },
     distanceCoveredByAgent: {
       type: Number,
-      default: 0,
+      default: null,
     },
     shopUpdates: [shopUpdatesSchema],
   },

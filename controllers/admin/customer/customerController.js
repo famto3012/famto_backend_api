@@ -887,6 +887,8 @@ const downloadCustomerCSVController = async (req, res, next) => {
       { id: "totalLoyaltyPointEarned", title: "Total Loyalty Points Earned" },
     ];
 
+    console.log("Headers:", csvHeaders);
+
     // Write to CSV
     const writer = csvWriter({
       path: filePath,
@@ -894,9 +896,10 @@ const downloadCustomerCSVController = async (req, res, next) => {
     });
 
     await writer.writeRecords(formattedResponse);
+    console.log("CSV file written successfully at", filePath);
 
     // Send the CSV file
-    res.status(200).download(filePath, "Customer_CSV.csv", (err) => {
+    res.status(200).download(filePath, "Customer_Data.csv", (err) => {
       if (err) {
         console.error("Download Error:", err);
         next(err);

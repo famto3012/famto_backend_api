@@ -1183,6 +1183,7 @@ io.on("connection", async (socket) => {
         }
 
         orderFound.detailAddedByAgent.shopUpdates.push(data);
+        orderFound.detailAddedByAgent.distanceCoveredByAgent = 0;
 
         await orderFound.save();
       }
