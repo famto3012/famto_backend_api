@@ -40,6 +40,7 @@ const {
   getScheduledOrderDetailByAdminController,
   fetchAllOrdersByAdminController,
   fetchAllScheduledOrdersByAdminController,
+  markOrderAsCompletedByAdminController,
 } = require("../../../controllers/admin/order/adminOrderController");
 const isAdmin = require("../../../middlewares/isAdmin");
 const { upload } = require("../../../utils/imageOperation");
@@ -284,6 +285,13 @@ orderRoute.patch(
   isAuthenticated,
   isAdmin,
   confirmOrderByAdminController
+);
+
+orderRoute.patch(
+  "/admin/mark-as-completed/:orderId",
+  isAuthenticated,
+  isAdmin,
+  markOrderAsCompletedByAdminController
 );
 
 module.exports = orderRoute;

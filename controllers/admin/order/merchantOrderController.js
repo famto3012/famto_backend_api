@@ -35,7 +35,6 @@ const {
 } = require("../../../socket/socket");
 const ActivityLog = require("../../../models/ActivityLog");
 const fs = require("fs");
-
 const csvWriter = require("csv-writer").createObjectCsvWriter;
 
 // TODO: Remove after panel V2

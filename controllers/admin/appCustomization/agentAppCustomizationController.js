@@ -201,9 +201,9 @@ const getAgentCustomizationController = async (req, res, next) => {
   try {
     const customization = await AgentAppCustomization.findOne();
 
-    if (!customization) {
-      return res.status(404).json({
-        error: "Agent App Customization not found",
+  if (!customization) {
+      return res.status(200).json({
+        data: {},
       });
     }
 
