@@ -1100,6 +1100,117 @@ io.on("connection", async (socket) => {
   });
 
   // Update started stepper in order detail
+  // socket.on("agentPickupStarted", async ({ taskId, agentId, location }) => {
+  //   try {
+  //     const [taskFound, agentFound] = await Promise.all([
+  //       Task.findById(taskId),
+  //       Agent.findById(agentId),
+  //     ]);
+
+  //     if (!taskFound) {
+  //       return socket.emit("error", {
+  //         message: "Task not found",
+  //         success: false,
+  //       });
+  //     }
+  //     if (!agentFound) {
+  //       return socket.emit("error", {
+  //         message: "Agent not found",
+  //         success: false,
+  //       });
+  //     }
+  //     if (taskFound.pickupDetail.pickupStatus === "Completed") {
+  //       return socket.emit("error", {
+  //         message: "Pickup is already completed",
+  //         success: false,
+  //       });
+  //     }
+
+  //     const orderFound = await Order.findById(taskFound.orderId);
+  //     if (!orderFound) {
+  //       return socket.emit("error", {
+  //         message: "Order not found",
+  //         success: false,
+  //       });
+  //     }
+
+  //     const stepperDetail = {
+  //       by: agentFound.fullName,
+  //       userId: agentId,
+  //       date: new Date(),
+  //       location: agentFound.location,
+  //     };
+
+  //     // Initialize orderDetailStepper if it does not exist
+  //     if (!orderFound.orderDetailStepper) orderFound.orderDetailStepper = {};
+
+  //     orderFound.orderDetailStepper.pickupStarted = stepperDetail;
+  //     taskFound.pickupDetail.pickupStatus = "Started";
+  //     taskFound.pickupDetail.startTime = new Date();
+
+  //     const pickupLocation = orderFound?.orderDetail?.pickupLocation;
+
+  //     if (
+  //       pickupLocation?.length === 2 &&
+  //       !orderFound?.detailAddedByAgent?.distanceCoveredByAgent &&
+  //       orderFound?.detailAddedByAgent?.distanceCoveredByAgent !== 0
+  //     ) {
+  //       const agentLocation = location?.length === 2 && location;
+
+  //       const { distanceInKM } = await getDistanceFromPickupToDelivery(
+  //         agentLocation,
+  //         pickupLocation
+  //       );
+
+  //       if (!orderFound.detailAddedByAgent) orderFound.detailAddedByAgent = {};
+
+  //       orderFound.detailAddedByAgent.distanceCoveredByAgent = distanceInKM;
+  //     }
+
+  //     if (
+  //       orderFound.orderDetail.deliveryMode === "Custom Order" &&
+  //       pickupLocation.length !== 2
+  //     ) {
+  //       const data = {
+  //         location: agentFound.location,
+  //         status: "Initial location",
+  //         description: null,
+  //       };
+
+  //       // Initialize detailAddedByAgent and shopUpdates if not present
+  //       if (!orderFound.detailAddedByAgent) {
+  //         orderFound.detailAddedByAgent = { shopUpdates: [] };
+  //       }
+
+  //       orderFound.detailAddedByAgent.shopUpdates.push(data);
+
+  //       await orderFound.save();
+  //     }
+
+  //     await Promise.all([orderFound.save(), taskFound.save()]);
+
+  //     const eventName = "agentPickupStarted";
+
+  //     const data = {
+  //       orderDetailStepper: stepperDetail,
+  //       success: true,
+  //     };
+
+  //     sendSocketData(process.env.ADMIN_ID, eventName, data);
+  //     sendSocketData(orderFound.customerId, eventName, data);
+  //     if (orderFound?.merchantId) {
+  //       sendSocketData(orderFound.merchantId, eventName, data);
+  //     }
+  //   } catch (err) {
+  //     console.log("Agent failed to start pick up: " + err);
+
+  //     return socket.emit("error", {
+  //       message: `Error in starting pickup: ${err}`,
+  //       success: false,
+  //     });
+  //   }
+  // });
+
   socket.on("agentPickupStarted", async ({ taskId, agentId, location }) => {
     try {
       const [taskFound, agentFound] = await Promise.all([
@@ -1145,48 +1256,59 @@ io.on("connection", async (socket) => {
       if (!orderFound.orderDetailStepper) orderFound.orderDetailStepper = {};
 
       orderFound.orderDetailStepper.pickupStarted = stepperDetail;
+
+      // Update the current task
       taskFound.pickupDetail.pickupStatus = "Started";
       taskFound.pickupDetail.startTime = new Date();
 
+      // Fetch orders assigned to the agent with the same pickupLocation and "ongoing" status
       const pickupLocation = orderFound?.orderDetail?.pickupLocation;
+      const ongoingTasksWithSamePickup = await Task.find({
+        agentId,
+        "pickupDetail.pickupLocation": pickupLocation,
+        "pickupDetail.pickupStatus": { $in: ["Pending", "Started"] },
+      });
 
-      if (
-        pickupLocation?.length === 2 &&
-        !orderFound?.detailAddedByAgent?.distanceCoveredByAgent &&
-        orderFound?.detailAddedByAgent?.distanceCoveredByAgent !== 0
-      ) {
-        const agentLocation = location?.length === 2 && location;
+      // Update pickupStarted and distanceCoveredByAgent for all related tasks
+      for (const relatedTask of ongoingTasksWithSamePickup) {
+        const relatedOrder = await Order.findById(relatedTask.orderId);
 
-        const { distanceInKM } = await getDistanceFromPickupToDelivery(
-          agentLocation,
-          pickupLocation
-        );
+        if (relatedOrder) {
+          // Update stepper detail for related orders
+          if (!relatedOrder.orderDetailStepper)
+            relatedOrder.orderDetailStepper = {};
+          relatedOrder.orderDetailStepper.pickupStarted = stepperDetail;
 
-        if (!orderFound.detailAddedByAgent) orderFound.detailAddedByAgent = {};
+          // Calculate distance only if not already set
+          if (
+            pickupLocation?.length === 2 &&
+            !relatedOrder?.detailAddedByAgent?.distanceCoveredByAgent &&
+            relatedOrder?.detailAddedByAgent?.distanceCoveredByAgent !== 0
+          ) {
+            const agentLocation = location?.length === 2 && location;
 
-        orderFound.detailAddedByAgent.distanceCoveredByAgent = distanceInKM;
-      }
+            const { distanceInKM } = await getDistanceFromPickupToDelivery(
+              agentLocation,
+              pickupLocation
+            );
 
-      if (
-        orderFound.orderDetail.deliveryMode === "Custom Order" &&
-        pickupLocation.length !== 2
-      ) {
-        const data = {
-          location: agentFound.location,
-          status: "Initial location",
-          description: null,
-        };
+            if (!relatedOrder.detailAddedByAgent)
+              relatedOrder.detailAddedByAgent = {};
+            relatedOrder.detailAddedByAgent.distanceCoveredByAgent =
+              distanceInKM;
+          }
 
-        // Initialize detailAddedByAgent and shopUpdates if not present
-        if (!orderFound.detailAddedByAgent) {
-          orderFound.detailAddedByAgent = { shopUpdates: [] };
+          // Save changes to related orders
+          await relatedOrder.save();
         }
 
-        orderFound.detailAddedByAgent.shopUpdates.push(data);
-
-        await orderFound.save();
+        // Update related tasks
+        relatedTask.pickupDetail.pickupStatus = "Started";
+        relatedTask.pickupDetail.startTime = new Date();
+        await relatedTask.save();
       }
 
+      // Save the main order and task
       await Promise.all([orderFound.save(), taskFound.save()]);
 
       const eventName = "agentPickupStarted";
