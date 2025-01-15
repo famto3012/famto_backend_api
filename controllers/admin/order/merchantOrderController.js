@@ -40,93 +40,144 @@ const csvWriter = require("csv-writer").createObjectCsvWriter;
 // TODO: Remove after panel V2
 const getAllOrdersOfMerchantController = async (req, res, next) => {
   try {
-    // Get page, limit, and pagination status from query parameters with default values
     let { page = 1, limit = 50, isPaginated = "true" } = req.query;
 
     isPaginated = isPaginated === "true";
 
     const skip = (page - 1) * limit;
-
-    // Get the current authenticated merchant
     const currentMerchant = req.userAuth;
 
     if (!currentMerchant) {
       return next(appError("Merchant is not authenticated", 401));
     }
 
-    let allOrders;
+    const matchStage = { merchantId: currentMerchant };
 
-    if (isPaginated) {
-      // Fetch orders for the authenticated merchant with pagination
-      allOrders = await Order.find({
-        merchantId: currentMerchant,
-      })
-        .populate({
-          path: "merchantId",
-          select: "merchantDetail.merchantName merchantDetail.deliveryTime",
-        })
-        .populate({
-          path: "customerId",
-          select: "fullName",
-        })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean();
-    } else {
-      // Fetch orders for the authenticated merchant without pagination
-      allOrders = await Order.find({
-        merchantId: currentMerchant,
-      })
-        .populate({
-          path: "merchantId",
-          select: "merchantDetail.merchantName merchantDetail.deliveryTime",
-        })
-        .populate({
-          path: "customerId",
-          select: "fullName",
-        })
-        .sort({ createdAt: -1 })
-        .lean();
-    }
+    const pipeline = [
+      { $match: matchStage },
+      { $sort: { createdAt: -1 } },
+      ...(isPaginated ? [{ $skip: skip }, { $limit: limit }] : []),
+      {
+        $lookup: {
+          from: "products",
+          localField: "purchasedItems.productId",
+          foreignField: "_id",
+          as: "productDetails",
+        },
+      },
+      {
+        $unwind: {
+          path: "$purchasedItems",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $lookup: {
+          from: "products",
+          localField: "purchasedItems.variantId",
+          foreignField: "variants.variantTypes._id",
+          as: "variantDetails",
+        },
+      },
+      {
+        $unwind: {
+          path: "$variantDetails",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $unwind: {
+          path: "$variantDetails.variants",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $addFields: {
+          "purchasedItems.productName": {
+            $arrayElemAt: ["$productDetails.productName", 0],
+          },
+          "purchasedItems.variantTypeName": {
+            $cond: {
+              if: {
+                $or: [
+                  { $eq: ["$purchasedItems.variantId", null] },
+                  { $not: "$variantDetails" },
+                ],
+              },
+              then: null,
+              else: {
+                $arrayElemAt: [
+                  "$variantDetails.variants.variantTypes.typeName",
+                  {
+                    $indexOfArray: [
+                      "$variantDetails.variants.variantTypes._id",
+                      "$purchasedItems.variantId",
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+      {
+        $group: {
+          _id: "$_id",
+          orderStatus: { $first: "$status" },
+          isReady: { $first: "$orderDetail.isReady" },
+          merchantName: { $first: "$merchantId.merchantDetail.merchantName" },
+          customerName: {
+            $first: {
+              $ifNull: [
+                "$customerId.fullName",
+                "$orderDetail.deliveryAddress.fullName",
+              ],
+            },
+          },
+          deliveryMode: { $first: "$orderDetail.deliveryMode" },
+          orderDate: { $first: "$createdAt" },
+          deliveryDate: { $first: "$orderDetail.deliveryTime" },
+          paymentMethod: {
+            $first: {
+              $cond: [
+                { $eq: ["$paymentMode", "Cash-on-delivery"] },
+                "Pay-on-delivery",
+                "$paymentMode",
+              ],
+            },
+          },
+          deliveryOption: { $first: "$orderDetail.deliveryOption" },
+          amount: { $first: "$billDetail.grandTotal" },
+          items: {
+            $push: {
+              productName: "$purchasedItems.productName",
+              variantTypeName: "$purchasedItems.variantTypeName",
+              quantity: "$purchasedItems.quantity",
+              price: "$purchasedItems.price",
+            },
+          },
+        },
+      },
+      { $sort: { orderDate: -1 } },
+      { $project: { productDetails: 0, variantDetails: 0 } },
+    ];
 
-    // Count total documents for the authenticated merchant
-    const totalDocuments =
-      (await Order.countDocuments({ merchantId: currentMerchant })) || 1;
+    const allOrders = await Order.aggregate(pipeline);
 
-    // Format the orders for the response
-    const formattedOrders = allOrders.map((order) => {
-      return {
-        _id: order._id,
-        orderStatus: order.status,
-        isReady: order.orderDetail.isReady,
-        merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
-        customerName:
-          order?.customerId?.fullName ||
-          order?.orderDetail?.deliveryAddress?.fullName ||
-          "-",
-        deliveryMode: order?.orderDetail?.deliveryMode,
-        orderDate: formatDate(order.createdAt),
-        orderTime: formatTime(order.createdAt),
-        deliveryDate: order?.orderDetail?.deliveryTime
-          ? formatDate(order.orderDetail.deliveryTime)
-          : "-",
-        deliveryTime: order?.orderDetail?.deliveryTime
-          ? formatTime(order.orderDetail.deliveryTime)
-          : "-",
-        paymentMethod:
-          order.paymentMode === "Cash-on-delivery"
-            ? "Pay-on-delivery"
-            : order.paymentMode,
-        deliveryOption: order.orderDetail.deliveryOption,
-        amount: order.billDetail.grandTotal,
-      };
-    });
+    // Post-aggregation formatting
+    const formattedOrders = allOrders.map((order) => ({
+      ...order,
+      orderDate: formatDate(order.orderDate),
+      orderTime: formatTime(order.orderDate),
+      deliveryDate: order.deliveryDate ? formatDate(order.deliveryDate) : "-",
+      deliveryTime: order.deliveryDate ? formatTime(order.deliveryDate) : "-",
+    }));
 
-    // Calculate total pages
+    const totalDocuments = isPaginated
+      ? await Order.countDocuments(matchStage)
+      : allOrders.length;
+
     const totalPages = Math.ceil(totalDocuments / limit);
-
-    // Prepare pagination details
     const pagination = {
       totalDocuments,
       totalPages,
