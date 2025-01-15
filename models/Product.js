@@ -36,7 +36,7 @@ const variantSchema = mongoose.Schema(
       type: String,
       required: true,
     },
-    variantTypes: [variantTypeSchema], // Embed VariantType schema
+    variantTypes: [variantTypeSchema],
   },
   {
     _id: false,

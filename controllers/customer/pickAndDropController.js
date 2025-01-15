@@ -619,7 +619,7 @@ const confirmPickAndDropController = async (req, res, next) => {
             customerId: storedOrderData.customerId,
             items: storedOrderData.items,
             orderDetail: storedOrderData.cartDetail,
-            billDetail: storedOrderData.orderBill,
+            billDetail: storedOrderData.billDetail,
             totalAmount: storedOrderData.orderAmount,
             status: storedOrderData.status,
             paymentMode: storedOrderData.paymentMode,
@@ -839,17 +839,11 @@ const verifyPickAndDropPaymentController = async (req, res, next) => {
       const storedOrderData = await TemporaryOrder.findOne({ orderId });
 
       if (storedOrderData) {
-        const existingOrder = await Order.findOne({
-          _id: storedOrderData.orderId,
-        });
-
-        if (existingOrder) return;
-
         const newOrder = await Order.create({
           customerId: storedOrderData.customerId,
           items: storedOrderData.items,
           orderDetail: storedOrderData.orderDetail,
-          billDetail: storedOrderData.orderBill,
+          billDetail: storedOrderData.billDetail,
           totalAmount: storedOrderData.orderAmount,
           status: "Pending",
           paymentMode: "Online-payment",

@@ -48,9 +48,6 @@ const getDistanceFromPickupToDelivery = async (
 
     const distanceInKM = parseFloat(distance);
 
-    console.log("Dis: ", distanceInKM);
-    console.log("Tim: ", durationInMinutes);
-
     return { distanceInKM, durationInMinutes };
   }
 };

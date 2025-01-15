@@ -106,8 +106,8 @@ const getMerchantCustomizationController = async (req, res, next) => {
     const customization = await MerchantAppCustomization.findOne();
 
     if (!customization) {
-      return res.status(404).json({
-        error: "Merchant App Customization not found",
+      return res.status(200).json({
+        data: {},
       });
     }
 
