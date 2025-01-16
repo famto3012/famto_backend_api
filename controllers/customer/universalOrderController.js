@@ -305,7 +305,7 @@ const getAllProductsOfMerchantController = async (req, res, next) => {
 
     if (!currentCustomer) return next(appError("Customer not found", 404));
 
-    const allProducts = await Product.find({ categoryId })
+    const allProducts = await Product.find({ categoryId, inventory: true })
       .populate(
         "discountId",
         "discountName maxAmount discountType discountValue validFrom validTo onAddOn status"
@@ -355,14 +355,16 @@ const getAllProductsOfMerchantController = async (req, res, next) => {
         minQuantityToOrder: product.minQuantityToOrder || null,
         maxQuantityPerOrder: product.maxQuantityPerOrder || null,
         isFavorite,
-        preparationTime: `${product.preparationTime} min` || null,
+        preparationTime: product?.preparationTime
+          ? `${product.preparationTime} min`
+          : null,
         description: product.description || null,
         longDescription: product.longDescription || null,
         type: product.type || null,
         productImageURL:
           product.productImageURL ||
           "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/DefaultImages%2FProductDefaultImage.png?alt=media&token=044503ee-84c8-487b-9df7-793ad0f70e1c",
-        inventory: product.inventory || null,
+        inventory: product.inventory,
         variantAvailable: product.variants && product.variants.length > 0,
       };
     });

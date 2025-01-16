@@ -335,7 +335,7 @@ const updateAgentDetails = async (
 
   agent.appDetail.totalEarning += parseFloat(calculatedSalary);
   agent.appDetail.totalDistance += parseFloat(
-    order.orderDetail.distance.toFixed(2)
+    order.detailAddedByAgent?.distanceCoveredByAgent.toFixed(2)
   );
 
   agent.appDetail.orderDetail.push({
