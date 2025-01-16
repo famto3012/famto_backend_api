@@ -955,16 +955,10 @@ const getTaskPreviewController = async (req, res, next) => {
       groupedTasks[orderId].tasks.delivery = deliveryTask;
     });
 
-    console.dir("currentTasks", currentTasks, { depth: null });
-    console.dir("nextTasks", nextTasks, { depth: null });
-
     // Separate tasks into currentTasks and nextTasks
     Object.values(groupedTasks).forEach((order) => {
       currentTasks.push(order);
     });
-
-    console.dir(currentTasks, { depth: null });
-    console.dir(currentTasks, { depth: null });
 
     res.status(200).json({
       message: "Task preview",
