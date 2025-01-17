@@ -122,6 +122,7 @@ const registerAndLoginController = async (req, res, next) => {
       success: `User ${isNewCustomer ? "created" : "logged in"} successfully`,
       id: customer.id,
       token: generateToken(customer.id, customer.role),
+      refreshToken: generateToken(customer.id, customer.role),
       role: customer.role,
       geofenceName: geofence.name,
     });
