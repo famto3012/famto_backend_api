@@ -88,6 +88,7 @@ const {
 const {
   deleteOldActivityLogs,
 } = require("./controllers/admin/activityLogs/activityLogController.js");
+const whatsappRoute = require("./routes/whatsappRoute/whatsappRoute.js");
 
 //middlewares
 app.use(express.json());
@@ -173,6 +174,10 @@ app.use("/api/v1/customers/subscription-payment", subscriptionLogRoute);
 // --------Token--------
 // =====================
 app.use("/api/v1/token", tokenRoute);
+// =====================
+// --------Whatsapp--------
+// =====================
+app.use("/api/v1/whatsapp", whatsappRoute);
 
 // Schedule the task to run four times daily for deleting expired plans of Merchants and customer
 cron.schedule("0 6,12,18,0 * * *", async () => {
