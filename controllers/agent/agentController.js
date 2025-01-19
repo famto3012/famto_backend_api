@@ -47,6 +47,7 @@ const {
 } = require("../../socket/socket");
 const FcmToken = require("../../models/fcmToken");
 const Merchant = require("../../models/Merchant");
+const AgentAppCustomization = require("../../models/AgentAppCustomization");
 
 // Update location on entering APP
 const updateLocationController = async (req, res, next) => {
@@ -603,7 +604,13 @@ const toggleOnlineController = async (req, res, next) => {
 
     if (!currentAgent) return next(appError("Agent not found", 404));
 
-    // Ensure appDetail exists
+    if (currentAgent.status === "Busy") {
+      res.status(400).json({
+        message: "Cant go offline during an ongoing delivery",
+      });
+      return;
+    }
+
     if (!currentAgent.appDetail) {
       currentAgent.appDetail = {
         orders: 0,
@@ -616,11 +623,9 @@ const toggleOnlineController = async (req, res, next) => {
 
     const eventName = "updatedAgentStatusToggle";
 
-    if (currentAgent.status === "Free" || currentAgent.status === "Busy") {
+    if (currentAgent.status === "Free") {
       currentAgent.status = "Inactive";
-      const data = {
-        status: "Offline",
-      };
+      const data = { status: "Offline" };
       const eventName = "updatedAgentStatusToggle";
 
       sendSocketData(currentAgent._id, eventName, data);
@@ -634,8 +639,59 @@ const toggleOnlineController = async (req, res, next) => {
         currentAgent.appDetail.loginDuration += loginDuration;
       }
 
+      currentAgent.activityLog.push({
+        date: new Date(),
+        description: "Agent gone OFFLINE",
+      });
       currentAgent.loginStartTime = null;
     } else {
+      const agentWorkTimings = currentAgent.workStructure.workTimings || [];
+      const now = new Date();
+
+      const objectIds = agentWorkTimings.map((id) =>
+        mongoose.Types.ObjectId.createFromHexString(id)
+      );
+
+      const workTimings = await AgentAppCustomization.aggregate([
+        { $unwind: "$workingTime" },
+        { $match: { "workingTime._id": { $in: objectIds } } },
+        {
+          $project: {
+            _id: "$workingTime._id",
+            startTime: "$workingTime.startTime",
+            endTime: "$workingTime.endTime",
+          },
+        },
+      ]);
+
+      const isWithInWorkingHours = workTimings.some((workTime) => {
+        const { startTime, endTime } = workTime;
+
+        const [startHour, startMinute] = startTime.split(":").map(Number);
+        const [endHour, endMinute] = endTime.split(":").map(Number);
+
+        const start = new Date(now);
+        const end = new Date(now);
+
+        if (process.env.NODE_ENV === "production") {
+          start.setUTCHours(startHour, startMinute, 0, 0);
+          end.setUTCHours(endHour, endMinute, 0, 0);
+        } else {
+          start.setHours(startHour, startMinute, 0, 0);
+          end.setHours(endHour, endMinute, 0, 0);
+        }
+
+        return now >= start && now <= end;
+      });
+
+      if (!isWithInWorkingHours) {
+        res.status(400).json({
+          message: `You can go online during your working time only!`,
+        });
+
+        return;
+      }
+
       currentAgent.status = "Free";
 
       const data = {
@@ -646,6 +702,10 @@ const toggleOnlineController = async (req, res, next) => {
 
       // Set the start time when the agent goes online
       currentAgent.loginStartTime = new Date();
+      currentAgent.activityLog.push({
+        date: new Date(),
+        description: "Agent gone ONLINE",
+      });
     }
 
     await currentAgent.save();

@@ -13,7 +13,7 @@ const {
 
 const Agent = require("../../../models/Agent");
 const AccountLogs = require("../../../models/AccountLogs");
-const { formatDate } = require("../../../utils/formatters");
+const { formatDate, formatTime } = require("../../../utils/formatters");
 const { formatToHours } = require("../../../utils/agentAppHelpers");
 const ejs = require("ejs");
 
@@ -35,6 +35,7 @@ const addAgentByAdminController = async (req, res, next) => {
     accountNumber,
     IFSCCode,
     UPIId,
+    workTimings,
   } = req.body;
 
   const errors = validationResult(req);
@@ -102,6 +103,10 @@ const addAgentByAdminController = async (req, res, next) => {
       }
     }
 
+    const formattedTimings = req.body.workTimings
+      ? req.body.workTimings.split(",")
+      : [];
+
     const newAgent = await Agent.create({
       fullName,
       phoneNumber,
@@ -110,6 +115,7 @@ const addAgentByAdminController = async (req, res, next) => {
       agentImageURL,
       workStructure: {
         // managerId: managerId || null,
+        workTimings: formattedTimings,
         salaryStructureId,
         tag,
       },
@@ -239,6 +245,10 @@ const editAgentByAdminController = async (req, res, next) => {
       }
     }
 
+    const workTimings = req.body.workStructure.workTimings
+      ? req.body.workStructure.workTimings.split(",")
+      : [];
+
     const updatedAgent = await Agent.findByIdAndUpdate(
       req.params.agentId,
       {
@@ -249,6 +259,7 @@ const editAgentByAdminController = async (req, res, next) => {
         agentImageURL,
         workStructure: {
           ...workStructure,
+          workTimings,
           managerId:
             workStructure?.managerId === "null" || !workStructure?.managerId
               ? null
@@ -271,44 +282,6 @@ const editAgentByAdminController = async (req, res, next) => {
     if (!updatedAgent) return next(appError("Error in editing agent"));
 
     res.status(200).json(updatedAgent);
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
-// TODO: Remove after panel V2
-const getSingleAgentController = async (req, res, next) => {
-  try {
-    const { agentId } = req.params;
-
-    const agentFound = await Agent.findById(agentId)
-      .populate("geofenceId", "name")
-      .populate("workStructure.managerId", "name")
-      .populate("workStructure.salaryStructureId", "ruleName")
-      .select(
-        "-ratingsByCustomers -appDetail -appDetailHistory -agentTransaction -location -role -taskCompleted -isBlocked -reasonForBlockingOrDeleting -blockedDate -loginStartTime -loginEndTime"
-      );
-
-    if (!agentFound) {
-      return next(appError("Agent not found", 404));
-    }
-
-    agentFound.status = agentFound.status === "Inactive" ? false : true;
-
-    let vehicleDetail = {};
-    if (agentFound.vehicleDetail && agentFound.vehicleDetail.length > 0) {
-      vehicleDetail = agentFound.vehicleDetail[0];
-    }
-
-    agentFound.vehicleDetail = vehicleDetail;
-
-    res.status(200).json({
-      message: "Single agent detail",
-      data: {
-        ...agentFound.toObject(),
-        status: Boolean(agentFound.status),
-      },
-    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -371,111 +344,24 @@ const fetchSingleAgentController = async (req, res, next) => {
         salaryStructureId: agent?.workStructure?.salaryStructureId?._id || null,
         salaryStructure:
           agent?.workStructure?.salaryStructureId?.ruleName || null,
+        workTimings: agent?.workStructure?.workTimings,
         tag: agent?.workStructure?.tag || null,
       },
+      activityLog: agent?.activityLog
+        ?.sort((a, b) => {
+          // Sort by date first, then time
+          const dateComparison = new Date(b.date) - new Date(a.date);
+          if (dateComparison !== 0) return dateComparison;
+          return b.time.localeCompare(a.time); // Compare times if dates are the same
+        })
+        ?.map((log) => ({
+          date: formatDate(log.date),
+          time: formatTime(log.date),
+          description: log.description,
+        })),
     };
 
     res.status(200).json(formattedResponse);
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
-// TODO: Remove after panel V2
-const getAllAgentsController = async (req, res, next) => {
-  try {
-    // Get page and limit from query parameters with default values
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-
-    // Fetch agents with pagination
-    const allAgents = await Agent.find({ isBlocked: false })
-      .populate("geofenceId", "name")
-      .populate("workStructure.managerId", "name")
-      .select(
-        "fullName email phoneNumber location isApproved geofenceId status workStructure"
-      )
-      .sort({ createdAt: -1 }) // Assuming agents have a createdAt field for sorting
-      .skip(skip)
-      .limit(limit)
-      .lean(); // Convert MongoDB documents to plain JavaScript objects
-
-    // Format the response data
-    const formattedResponse = allAgents.map((agent) => ({
-      _id: agent._id,
-      fullName: agent.fullName,
-      email: agent.email,
-      phoneNumber: agent.phoneNumber,
-      isApproved: agent.isApproved,
-      geofence: agent?.geofenceId?.name || "-",
-      status: agent.status !== "Inactive", // True for Active, False for Inactive
-      manager: agent?.workStructure?.managerId?.name || "-",
-      location: agent.location,
-    }));
-
-    // Count total documents
-    const totalDocuments = await Agent.countDocuments({});
-
-    // Calculate total pages
-    const totalPages = Math.ceil(totalDocuments / limit);
-
-    // Prepare pagination details
-    const pagination = {
-      totalDocuments,
-      totalPages,
-      currentPage: page,
-      pageSize: limit,
-      hasNextPage: page < totalPages,
-      hasPrevPage: page > 1,
-    };
-
-    // Send the response with the formatted data and pagination
-    res.status(200).json({
-      message: "All agents retrieved successfully",
-      data: formattedResponse,
-      pagination,
-    });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
-// TODO: Remove after panel V2
-const searchAgentByNameController = async (req, res, next) => {
-  try {
-    const { query } = req.query;
-
-    if (!query || query.trim() === "") {
-      return next(appError("query is required"));
-    }
-
-    const allAgents = await Agent.find({
-      fullName: { $regex: query.trim(), $options: "i" },
-    })
-      .populate("geofenceId", "name")
-      .populate("workStructure.managerId", "name")
-      .select(
-        "fullName email phoneNumber location isApproved geofenceId status workStructure"
-      );
-
-    const formattedResponse = allAgents?.map((agent) => {
-      return {
-        _id: agent._id,
-        fullName: agent.fullName,
-        email: agent.email,
-        phoneNumber: agent.phoneNumber,
-        isApproved: agent.isApproved,
-        geofence: agent?.geofenceId?.name || "-",
-        status: agent.status === "Inactive" ? false : true,
-        manager: agent?.workStructure?.managerId?.name || "-",
-      };
-    });
-
-    res.status(200).json({
-      message: "Search results",
-      data: formattedResponse,
-    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -588,7 +474,7 @@ const getRatingsByCustomerController = async (req, res, next) => {
       populate: {
         path: "customerId",
         model: "Customer",
-        select: "fullName _id", // Selecting the fields of fullName and _id from Customer
+        select: "fullName _id",
       },
     });
 
@@ -770,202 +656,6 @@ const getDeliveryAgentPayoutController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
-
-// TODO: Remove after panel V2
-const searchAgentInPayoutController = async (req, res, next) => {
-  try {
-    const { agentId } = req.query;
-    if (!agentId)
-      return res.status(400).json({ message: "Agent ID is required" });
-
-    const searchCriteria = {
-      _id: { $regex: agentId, $options: "i" },
-      isApproved: "Approved",
-    };
-
-    // Find approved agents with a matching ID
-    const agents = await Agent.find(searchCriteria)
-      .select(
-        "fullName phoneNumber appDetailHistory workStructure.cashInHand workStructure.salaryStructureId"
-      )
-      .lean();
-
-    // Format the response data
-    const formattedResponse = await Promise.all(
-      agents
-        .filter((agent) => agent.appDetailHistory.length > 0)
-        .map((agent) => {
-          const { cashInHand } = agent.workStructure;
-          const latestHistory = agent.appDetailHistory.at(-1);
-
-          const { totalEarning, loginDuration } = latestHistory.details;
-
-          // Calculate earnings after cash in hand is deducted
-          const calculatedEarnings = Math.max(totalEarning - cashInHand, 0);
-
-          return {
-            agentId: agent._id,
-            fullName: agent.fullName,
-            phoneNumber: agent.phoneNumber,
-            workedDate: latestHistory.date
-              ? formatDate(latestHistory.date)
-              : "-",
-            orders: latestHistory.details.orders || 0,
-            cancelledOrders: latestHistory.details.cancelledOrders || 0,
-            totalDistance: latestHistory.details.totalDistance || 0,
-            loginHours: loginDuration
-              ? formatToHours(loginDuration)
-              : "0:00 hr",
-            cashInHand,
-            totalEarnings: totalEarning,
-            calculatedEarnings,
-            paymentSettled: latestHistory.details.paymentSettled,
-            detailId: latestHistory.detailId,
-          };
-        })
-    );
-
-    // Get total number of approved agents with history
-    const totalDocuments = (await Agent.countDocuments(searchCriteria)) || 1;
-    const totalPages = Math.ceil(totalDocuments / limit);
-
-    // Respond with formatted data and pagination
-    res.status(200).json({
-      message: "Agent payout detail",
-      data: formattedResponse,
-      pagination: {
-        totalDocuments,
-        totalPages,
-        currentPage: page,
-        pageSize: limit,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
-      },
-    });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
-// const filterAgentPayoutController = async (req, res, next) => {
-//   try {
-//     const { status, agent, geofence, date, name } = req.query;
-
-//     // Build filter criteria based on request parameters
-//     const filterCriteria = { isApproved: "Approved" };
-//     if (agent && agent.toLowerCase() !== "all") filterCriteria._id = agent;
-//     if (geofence && geofence.toLowerCase() !== "all")
-//       filterCriteria.geofenceId =
-//         mongoose.Types.ObjectId.createFromHexString(geofence);
-
-//     const paymentStatusBool = status?.toLowerCase() === "true" ? true : false;
-
-//     // Convert date filter to a start and end range in IST timezone
-//     const dateFilter = {};
-//     if (date) {
-//       const startDate = new Date(date);
-//       startDate.setUTCHours(18, 30, 0, 0);
-//       const endDate = new Date(date);
-//       endDate.setUTCDate(endDate.getUTCDate() + 1); // Move to the next day
-//       endDate.setUTCHours(18, 29, 59, 999);
-//       dateFilter.date = { $gte: startDate, $lte: endDate };
-//     }
-
-//     // Use aggregation to handle filtering, calculation, and counting in the database
-//     const aggregationPipeline = [
-//       { $match: filterCriteria },
-//       { $unwind: "$appDetailHistory" },
-//       {
-//         $match: {
-//           ...(date ? { "appDetailHistory.date": dateFilter.date } : {}),
-//           ...(paymentStatus
-//             ? { "appDetailHistory.details.paymentSettled": paymentStatusBool }
-//             : {}),
-//         },
-//       },
-//       {
-//         $addFields: {
-//           calculatedEarnings: {
-//             $max: [
-//               {
-//                 $subtract: [
-//                   "$appDetailHistory.details.totalEarning",
-//                   "$workStructure.cashInHand",
-//                 ],
-//               },
-//               0,
-//             ],
-//           },
-//         },
-//       },
-//       {
-//         $project: {
-//           _id: 1,
-//           fullName: 1,
-//           phoneNumber: 1,
-//           workedDate: {
-//             $dateToString: {
-//               format: "%Y-%m-%d",
-//               date: { $add: ["$appDetailHistory.date", 19800000] },
-//             },
-//           },
-//           orders: "$appDetailHistory.details.orders",
-//           cancelledOrders: "$appDetailHistory.details.cancelledOrders",
-//           totalDistance: "$appDetailHistory.details.totalDistance",
-//           loginHours: "$appDetailHistory.details.loginDuration",
-//           cashInHand: "$workStructure.cashInHand",
-//           totalEarnings: "$appDetailHistory.details.totalEarning",
-//           calculatedEarnings: 1,
-//           paymentSettled: "$appDetailHistory.details.paymentSettled",
-//           detailId: "$appDetailHistory.detailId",
-//           geofence: "$geofenceId",
-//         },
-//       },
-//       { $sort: { workedDate: -1 } },
-//     ];
-
-//     // Get the total count before applying pagination
-//     const countAggregation = [...aggregationPipeline, { $count: "total" }];
-//     const countResult = await Agent.aggregate(countAggregation);
-//     const totalDocuments = countResult[0]?.total || 0;
-
-//     // Apply pagination
-//     const page = parseInt(req.query.page || 1);
-//     const limit = parseInt(req.query.limit || 50);
-//     const paginationAggregation = [
-//       ...aggregationPipeline,
-//       { $skip: (page - 1) * limit },
-//       { $limit: limit },
-//     ];
-//     const agents = await Agent.aggregate(paginationAggregation);
-
-//     const totalPages = Math.ceil(totalDocuments / limit);
-
-//     const formattedResponse = agents.map(
-//       ({ _id, workedDate, loginHours, ...rest }) => ({
-//         agentId: _id,
-//         workedDate: workedDate ? formatDate(workedDate) : "-",
-//         loginHours: formatToHours(loginHours),
-//         ...rest,
-//       })
-//     );
-
-//     res.status(200).json({
-//       message: "Filtered agent payout details",
-//       data: formattedResponse,
-//       pagination: {
-//         totalDocuments,
-//         totalPages,
-//         currentPage: page,
-//         pageSize: limit,
-//         hasNextPage: page < totalPages,
-//         hasPrevPage: page > 1,
-//       },
-//     });
-//   } catch (err) {
-//     next(appError(err.message));
-//   }
-// };
 
 const filterAgentPayoutController = async (req, res, next) => {
   try {
@@ -1503,16 +1193,12 @@ module.exports = {
   addAgentByAdminController,
   fetchSingleAgentController,
   editAgentByAdminController,
-  getSingleAgentController,
   approveAgentRegistrationController,
-  searchAgentByNameController,
   rejectAgentRegistrationController,
   getRatingsByCustomerController,
   filterAgentsController,
   blockAgentController,
-  getAllAgentsController,
   getDeliveryAgentPayoutController,
-  searchAgentInPayoutController,
   filterAgentPayoutController,
   approvePaymentController,
   changeAgentStatusController,

@@ -1,3 +1,4 @@
+const Agent = require("../../../models/Agent");
 const AgentAppCustomization = require("../../../models/AgentAppCustomization");
 const appError = require("../../../utils/appError");
 
@@ -6,190 +7,92 @@ const {
   uploadToFirebase,
 } = require("../../../utils/imageOperation");
 
-// const createOrUpdateAgentCustomizationController = async (req, res, next) => {
-//   try {
-//     const {
-//       email,
-//       phoneNumber,
-//       emailVerification,
-//       otpVerification,
-//       loginViaOtp,
-//       loginViaGoogle,
-//       loginViaApple,
-//       loginViaFacebook,
-//       workingTime,
-//     } = req.body;
+const updateAgentsWorkTime = async (oldWorkTime, newWorkTime) => {
+  const deletedTimings = oldWorkTime.filter(
+    (oldTime) =>
+      !newWorkTime.some(
+        (newTime) =>
+          newTime.startTime === oldTime.startTime &&
+          newTime.endTime === oldTime.endTime
+      )
+  );
 
-//     const customization = await AgentAppCustomization.findOne();
-// console.log("workingTime", workingTime)
-//     if (customization) {
-//       let splashScreenUrl = customization.splashScreenUrl;
-//       if (req.file) {
-//         await deleteFromFirebase(customization.splashScreenUrl);
-//         splashScreenUrl = await uploadToFirebase(
-//           req.file,
-//           "AgentAppSplashScreenImages"
-//         );
-//       }
-
-//       customization.email = email !== undefined ? email : customization.email;
-//       customization.phoneNumber =
-//         phoneNumber !== undefined ? phoneNumber : customization.phoneNumber;
-//       customization.emailVerification =
-//         emailVerification !== undefined
-//           ? emailVerification
-//           : customization.emailVerification;
-//       customization.otpVerification =
-//         otpVerification !== undefined
-//           ? otpVerification
-//           : customization.otpVerification;
-//       customization.loginViaOtp =
-//         loginViaOtp !== undefined ? loginViaOtp : customization.loginViaOtp;
-//       customization.loginViaGoogle =
-//         loginViaGoogle !== undefined
-//           ? loginViaGoogle
-//           : customization.loginViaGoogle;
-//       customization.loginViaApple =
-//         loginViaApple !== undefined
-//           ? loginViaApple
-//           : customization.loginViaApple;
-//       customization.loginViaFacebook =
-//         loginViaFacebook !== undefined
-//           ? loginViaFacebook
-//           : customization.loginViaFacebook;
-//       customization.splashScreenUrl = splashScreenUrl;
-
-//       await customization.save();
-
-//       res.status(200).json({
-//         success: "Agent App Customization updated successfully",
-//         data: customization,
-//       });
-//     } else {
-//       let splashScreenUrl = "";
-//       if (req.file) {
-//         splashScreenUrl = await uploadToFirebase(
-//           req.file,
-//           "AgentAppSplashScreenImages"
-//         );
-//       }
-
-//       const newAgentAppCustomization = new AgentAppCustomization({
-//         email,
-//         phoneNumber,
-//         emailVerification,
-//         otpVerification,
-//         loginViaOtp,
-//         loginViaGoogle,
-//         loginViaApple,
-//         loginViaFacebook,
-//         splashScreenUrl,
-//       });
-
-//       await newAgentAppCustomization.save();
-
-//       res.status(201).json({
-//         success: "Agent App Customization created successfully",
-//         data: newAgentAppCustomization,
-//       });
-//     }
-//   } catch (err) {
-//     next(appError(err.message));
-//   }
-// };
+  if (deletedTimings.length > 0) {
+    await Agent.updateMany(
+      {
+        "workStructure.workTimings": {
+          $in: deletedTimings.map((t) => t._id),
+        },
+      },
+      {
+        $pull: {
+          "workStructure.workTimings": {
+            $in: deletedTimings.map((t) => t._id),
+          },
+        },
+      }
+    );
+  }
+};
 
 const createOrUpdateAgentCustomizationController = async (req, res, next) => {
   try {
-    const {
-      email,
-      phoneNumber,
-      emailVerification,
-      otpVerification,
-      loginViaOtp,
-      loginViaGoogle,
-      loginViaApple,
-      loginViaFacebook,
+    const workingTime = req.body.workingTime
+      ? typeof req.body.workingTime === "string"
+        ? JSON.parse(req.body.workingTime)
+        : req.body.workingTime
+      : [];
+
+    const updateFields = {
+      email: req.body.email || false,
+      phoneNumber: req.body.phoneNumber || false,
+      emailVerification: req.body.emailVerification || false,
+      otpVerification: req.body.otpVerification || false,
+      loginViaOtp: req.body.loginViaOtp || false,
+      loginViaGoogle: req.body.loginViaGoogle || false,
+      loginViaApple: req.body.loginViaApple || false,
+      loginViaFacebook: req.body.loginViaFacebook || false,
       workingTime,
-    } = req.body;
+    };
+
+    console.log("workingTime: ", workingTime);
+
+    if (req.file) {
+      const splashScreenUrl = await uploadToFirebase(
+        req.file,
+        "AgentAppSplashScreenImages"
+      );
+      updateFields.splashScreenUrl = splashScreenUrl;
+    }
+
     const customization = await AgentAppCustomization.findOne();
 
+    let oldWorkTime = [];
     if (customization) {
-      let splashScreenUrl = customization.splashScreenUrl;
-      if (req.file) {
+      if (customization?.workingTime?.length) {
+        oldWorkTime = customization.workingTime;
+      }
+
+      if (customization.splashScreenUrl)
         await deleteFromFirebase(customization.splashScreenUrl);
-        splashScreenUrl = await uploadToFirebase(
-          req.file,
-          "AgentAppSplashScreenImages"
-        );
-      }
 
-      // Update fields, including workingTime
-      customization.email = email !== undefined ? email : customization.email;
-      customization.phoneNumber =
-        phoneNumber !== undefined ? phoneNumber : customization.phoneNumber;
-      customization.emailVerification =
-        emailVerification !== undefined
-          ? emailVerification
-          : customization.emailVerification;
-      customization.otpVerification =
-        otpVerification !== undefined
-          ? otpVerification
-          : customization.otpVerification;
-      customization.loginViaOtp =
-        loginViaOtp !== undefined ? loginViaOtp : customization.loginViaOtp;
-      customization.loginViaGoogle =
-        loginViaGoogle !== undefined
-          ? loginViaGoogle
-          : customization.loginViaGoogle;
-      customization.loginViaApple =
-        loginViaApple !== undefined
-          ? loginViaApple
-          : customization.loginViaApple;
-      customization.loginViaFacebook =
-        loginViaFacebook !== undefined
-          ? loginViaFacebook
-          : customization.loginViaFacebook;
-      customization.splashScreenUrl = splashScreenUrl;
+      Object.assign(customization, updateFields);
 
-      // Update the workingTime array
-      if (workingTime !== undefined) {
-        customization.workingTime = workingTime;
-      }
-
-      await customization.save();
+      await Promise.all([
+        customization.save(),
+        updateAgentsWorkTime(oldWorkTime, workingTime),
+      ]);
 
       res.status(200).json({
         success: "Agent App Customization updated successfully",
         data: customization,
       });
     } else {
-      let splashScreenUrl = "";
-      if (req.file) {
-        splashScreenUrl = await uploadToFirebase(
-          req.file,
-          "AgentAppSplashScreenImages"
-        );
-      }
-
-      // Create a new AgentAppCustomization document
-      const newAgentAppCustomization = new AgentAppCustomization({
-        email,
-        phoneNumber,
-        emailVerification,
-        otpVerification,
-        loginViaOtp,
-        loginViaGoogle,
-        loginViaApple,
-        loginViaFacebook,
-        splashScreenUrl,
-        workingTime,
-      });
-
-      await newAgentAppCustomization.save();
-
+      const newCustomization = new AgentAppCustomization(updateFields);
+      await newCustomization.save();
       res.status(200).json({
         success: "Agent App Customization created successfully",
-        data: newAgentAppCustomization,
+        data: newCustomization,
       });
     }
   } catch (err) {
@@ -201,7 +104,7 @@ const getAgentCustomizationController = async (req, res, next) => {
   try {
     const customization = await AgentAppCustomization.findOne();
 
-  if (!customization) {
+    if (!customization) {
       return res.status(200).json({
         data: {},
       });
@@ -216,7 +119,26 @@ const getAgentCustomizationController = async (req, res, next) => {
   }
 };
 
+const getAgentWorkTimings = async (req, res, next) => {
+  try {
+    const customization = await AgentAppCustomization.findOne()
+      .select("workingTime")
+      .lean();
+
+    const formattedResponse = customization?.workingTime?.map((time) => ({
+      id: time._id,
+      startTime: time.startTime,
+      endTime: time.endTime,
+    }));
+
+    res.status(200).json(formattedResponse);
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   createOrUpdateAgentCustomizationController,
   getAgentCustomizationController,
+  getAgentWorkTimings,
 };

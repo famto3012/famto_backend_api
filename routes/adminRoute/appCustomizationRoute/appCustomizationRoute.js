@@ -3,6 +3,7 @@ const { upload } = require("../../../utils/imageOperation");
 const {
   createOrUpdateAgentCustomizationController,
   getAgentCustomizationController,
+  getAgentWorkTimings,
 } = require("../../../controllers/admin/appCustomization/agentAppCustomizationController");
 const isAuthenticated = require("../../../middlewares/isAuthenticated");
 const isAdmin = require("../../../middlewares/isAdmin");
@@ -60,6 +61,13 @@ appCustomizationRoute.get(
   isAuthenticated,
   isAdmin,
   getCustomerCustomizationController
+);
+
+appCustomizationRoute.get(
+  "/agent-app-timing",
+  isAuthenticated,
+  isAdmin,
+  getAgentWorkTimings
 );
 
 module.exports = appCustomizationRoute;

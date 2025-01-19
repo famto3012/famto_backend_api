@@ -101,6 +101,12 @@ const workStructureSchema = mongoose.Schema(
       type: Number,
       default: 0,
     },
+    workTimings: [
+      {
+        type: String,
+        required: true,
+      },
+    ],
   },
   { _id: false }
 );
@@ -184,6 +190,20 @@ const agentTransactionSchema = mongoose.Schema({
     required: true,
   },
 });
+
+const agentActivityLogSchema = mongoose.Schema(
+  {
+    date: {
+      type: Date,
+      required: true,
+    },
+    description: {
+      type: String,
+      required: true,
+    },
+  },
+  { _id: false }
+);
 
 const agentSchema = mongoose.Schema(
   {
@@ -274,6 +294,7 @@ const agentSchema = mongoose.Schema(
       },
     ],
     agentTransaction: [agentTransactionSchema],
+    activityLog: [agentActivityLogSchema],
   },
   {
     timestamps: true,
