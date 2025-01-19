@@ -2,19 +2,15 @@ const express = require("express");
 const {
   addAgentByAdminController,
   editAgentByAdminController,
-  getSingleAgentController,
   getRatingsByCustomerController,
   filterAgentsController,
   approveAgentRegistrationController,
   rejectAgentRegistrationController,
   blockAgentController,
-  getAllAgentsController,
-  searchAgentByNameController,
   getDeliveryAgentPayoutController,
   approvePaymentController,
   filterAgentPayoutController,
   changeAgentStatusController,
-  searchAgentInPayoutController,
   downloadAgentCSVController,
   fetchSingleAgentController,
   updateVehicleDetailController,
@@ -52,14 +48,6 @@ adminAgentRoute.get(
   filterAgentPayoutController
 );
 
-// Search agent payout
-adminAgentRoute.get(
-  "/search-payout",
-  isAuthenticated,
-  isAdmin,
-  searchAgentInPayoutController
-);
-
 // Get payout of agents
 adminAgentRoute.get(
   "/get-agent-payout",
@@ -76,22 +64,6 @@ adminAgentRoute.get(
   filterAgentsController
 );
 
-// Get all agents
-adminAgentRoute.get(
-  "/all-agents",
-  isAuthenticated,
-  isAdmin,
-  getAllAgentsController
-);
-
-// Search agent
-adminAgentRoute.get(
-  "/search",
-  isAuthenticated,
-  isAdmin,
-  searchAgentByNameController
-);
-
 // Get ratings of agent by customer
 adminAgentRoute.get(
   "/:agentId/get-ratings-by-customer",
@@ -100,13 +72,11 @@ adminAgentRoute.get(
   getRatingsByCustomerController
 );
 
-// TODO: Change controller before pushing to production
 // Get single agent
 adminAgentRoute.get(
   "/:agentId",
   isAuthenticated,
   isAdmin,
-  // getSingleAgentController
   fetchSingleAgentController
 );
 
