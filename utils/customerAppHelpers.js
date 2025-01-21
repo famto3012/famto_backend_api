@@ -591,7 +591,10 @@ const filterProductIdAndQuantity = async (items) => {
         if (item.variantTypeId) {
           const variantType = product.variants
             .flatMap((variant) => variant.variantTypes)
-            .find((vType) => vType._id.toString() === item.variantTypeId);
+            .find(
+              (vType) =>
+                vType._id.toString() === item?.variantTypeId?._id?.toString()
+            );
 
           if (variantType) {
             price = variantType?.price || 0;

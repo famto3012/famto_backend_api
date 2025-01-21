@@ -896,11 +896,16 @@ io.on("connection", async (socket) => {
 
       // Update order and task status
       await Promise.all([
-        Order.findByIdAndUpdate(orderId, {
-          agentId,
-          "orderDetail.agentAcceptedAt": new Date(),
-          "orderDetailStepper.assigned": stepperDetail,
-        }),
+        Order.findByIdAndUpdate(
+          orderId,
+          {
+            agentId,
+            "orderDetail.agentAcceptedAt": new Date(),
+            "orderDetailStepper.assigned": stepperDetail,
+            "detailAddedByAgent.distanceCoveredByAgent": null,
+          },
+          { new: true }
+        ),
         Task.findByIdAndUpdate(task._id, {
           agentId,
           taskStatus: "Assigned",
