@@ -66,12 +66,6 @@ const getAllOrdersOfMerchantController = async (req, res, next) => {
         },
       },
       {
-        $unwind: {
-          path: "$purchasedItems",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
         $lookup: {
           from: "products",
           localField: "purchasedItems.variantId",
@@ -80,44 +74,96 @@ const getAllOrdersOfMerchantController = async (req, res, next) => {
         },
       },
       {
-        $unwind: {
-          path: "$variantDetails",
-          preserveNullAndEmptyArrays: true,
+        $lookup: {
+          from: "merchants",
+          localField: "merchantId",
+          foreignField: "_id",
+          as: "merchantId",
         },
       },
       {
-        $unwind: {
-          path: "$variantDetails.variants",
-          preserveNullAndEmptyArrays: true,
+        $lookup: {
+          from: "customers",
+          localField: "customerId",
+          foreignField: "_id",
+          as: "customerId",
         },
       },
       {
         $addFields: {
-          "purchasedItems.productName": {
-            $arrayElemAt: ["$productDetails.productName", 0],
-          },
-          "purchasedItems.variantTypeName": {
-            $cond: {
-              if: {
-                $or: [
-                  { $eq: ["$purchasedItems.variantId", null] },
-                  { $not: "$variantDetails" },
-                ],
-              },
-              then: null,
-              else: {
-                $arrayElemAt: [
-                  "$variantDetails.variants.variantTypes.typeName",
-                  {
-                    $indexOfArray: [
-                      "$variantDetails.variants.variantTypes._id",
-                      "$purchasedItems.variantId",
-                    ],
-                  },
-                ],
+          items: {
+            $map: {
+              input: "$purchasedItems",
+              as: "item",
+              in: {
+                productName: {
+                  $arrayElemAt: [
+                    {
+                      $map: {
+                        input: {
+                          $filter: {
+                            input: "$productDetails",
+                            as: "product",
+                            cond: {
+                              $eq: ["$$product._id", "$$item.productId"],
+                            },
+                          },
+                        },
+                        as: "product",
+                        in: "$$product.productName",
+                      },
+                    },
+                    0,
+                  ],
+                },
+                variantTypeName: {
+                  $arrayElemAt: [
+                    {
+                      $map: {
+                        input: {
+                          $filter: {
+                            input: {
+                              $arrayElemAt: [
+                                {
+                                  $filter: {
+                                    input: "$variantDetails",
+                                    as: "variant",
+                                    cond: {
+                                      $eq: [
+                                        "$$variant._id",
+                                        "$$item.variantId",
+                                      ],
+                                    },
+                                  },
+                                },
+                                0,
+                              ],
+                            },
+                            as: "variantType",
+                            cond: {
+                              $eq: ["$$variantType._id", "$$item.variantId"],
+                            },
+                          },
+                        },
+                        as: "variantType",
+                        in: "$$variantType.typeName",
+                      },
+                    },
+                    0,
+                  ],
+                },
+                quantity: "$$item.quantity",
+                price: "$$item.price",
               },
             },
           },
+        },
+      },
+      {
+        $project: {
+          purchasedItems: 0,
+          productDetails: 0,
+          variantDetails: 0,
         },
       },
       {
@@ -125,11 +171,15 @@ const getAllOrdersOfMerchantController = async (req, res, next) => {
           _id: "$_id",
           orderStatus: { $first: "$status" },
           isReady: { $first: "$orderDetail.isReady" },
-          merchantName: { $first: "$merchantId.merchantDetail.merchantName" },
+          merchantName: {
+            $first: {
+              $arrayElemAt: ["$merchantId.merchantDetail.merchantName", 0],
+            },
+          },
           customerName: {
             $first: {
               $ifNull: [
-                "$customerId.fullName",
+                { $arrayElemAt: ["$customerId.fullName", 0] },
                 "$orderDetail.deliveryAddress.fullName",
               ],
             },
@@ -148,18 +198,10 @@ const getAllOrdersOfMerchantController = async (req, res, next) => {
           },
           deliveryOption: { $first: "$orderDetail.deliveryOption" },
           amount: { $first: "$billDetail.grandTotal" },
-          items: {
-            $push: {
-              productName: "$purchasedItems.productName",
-              variantTypeName: "$purchasedItems.variantTypeName",
-              quantity: "$purchasedItems.quantity",
-              price: "$purchasedItems.price",
-            },
-          },
+          items: { $first: "$items" }, // Use $first to flatten the array
         },
       },
       { $sort: { orderDate: -1 } },
-      { $project: { productDetails: 0, variantDetails: 0 } },
     ];
 
     const allOrders = await Order.aggregate(pipeline);
@@ -185,6 +227,7 @@ const getAllOrdersOfMerchantController = async (req, res, next) => {
       hasNextPage: page < totalPages,
       hasPrevPage: page > 1,
     };
+    console.log("data", allOrders[0]);
 
     res.status(200).json({
       message: "All orders of merchant",
