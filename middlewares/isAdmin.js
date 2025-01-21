@@ -1,23 +1,32 @@
 const getTokenFromHeader = require("../utils/getTokenFromHeaders");
 const verifyToken = require("../utils/verifyToken");
 const appError = require("../utils/appError");
+const ManagerRoles = require("../models/ManagerRoles");
 
 const isAdmin = async (req, res, next) => {
-  //Get token from header
-  const token = getTokenFromHeader(req);
-  //Verify the token
-  const decodedUser = verifyToken(token);
+  try {
+    const token = getTokenFromHeader(req);
+    if (!token) {
+      return next(appError("Token not provided", 401));
+    }
 
-  //Save the user into req object
-  req.userAuth = decodedUser.id;
-  req.userRole = decodedUser.role;
-  req.userName = decodedUser.name;
+    const decodedUser = verifyToken(token);
 
-  //Check if the user is Admin or not
-  if (decodedUser.role === "Admin") {
-    return next();
-  } else {
+    req.userAuth = decodedUser.id;
+    req.userRole = decodedUser.role;
+    req.userName = decodedUser.name;
+
+    const roleExists = await ManagerRoles.findOne({
+      roleName: decodedUser.role,
+    });
+
+    if (decodedUser.role === "Admin" || roleExists) {
+      return next();
+    }
+
     return next(appError("Access denied, Admin only!", 403));
+  } catch (error) {
+    return next(appError(error.message, 500));
   }
 };
 

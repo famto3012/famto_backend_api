@@ -19,33 +19,19 @@ const managerSchema = mongoose.Schema(
       required: true,
     },
     role: {
-      type: String,
-      default: "Manager",
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ManagerRoles",
       required: true,
-    },
-    merchants: {
-      type: String,
-      ref: "Merchant",
-      default: null,
     },
     geofenceId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Geofence",
       required: true,
     },
-    viewCustomers: {
-      type: Boolean,
-      default: false,
-    },
-    domain: {
-      type: String,
-      enum: ["Order", "Finance", "Marketing"],
-      required: true,
-    },
     resetPasswordToken: {
       type: String,
     },
-    resetPasswordExpiry : {
+    resetPasswordExpiry: {
       type: Date,
     },
   },

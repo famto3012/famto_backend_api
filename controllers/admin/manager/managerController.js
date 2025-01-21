@@ -5,20 +5,11 @@ const { validationResult } = require("express-validator");
 const appError = require("../../../utils/appError");
 
 const Manager = require("../../../models/Manager");
+const ManagerRoles = require("../../../models/ManagerRoles");
 
 //Add manager
 const addManagerController = async (req, res, next) => {
-  const {
-    name,
-    email,
-    phoneNumber,
-    password,
-    role,
-    merchants,
-    geofenceId,
-    viewCustomers,
-    domain,
-  } = req.body;
+  const { name, email, phoneNumber, password, role, geofenceId } = req.body;
 
   const errors = validationResult(req);
 
@@ -49,10 +40,7 @@ const addManagerController = async (req, res, next) => {
       phoneNumber,
       password: hashedPassword,
       role,
-      merchants,
       geofenceId,
-      viewCustomers,
-      domain,
     });
 
     if (!newManager) {
@@ -87,17 +75,7 @@ const getManagerByIdController = async (req, res, next) => {
 
 //Edit manager
 const editManagerController = async (req, res, next) => {
-  const {
-    name,
-    email,
-    phoneNumber,
-    password,
-    role,
-    merchants,
-    geofenceId,
-    viewCustomers,
-    domain,
-  } = req.body;
+  const { name, email, phoneNumber, password, role, geofenceId } = req.body;
 
   const errors = validationResult(req);
 
@@ -137,10 +115,7 @@ const editManagerController = async (req, res, next) => {
         phoneNumber,
         password: hashedPassword,
         role,
-        merchants,
         geofenceId,
-        viewCustomers,
-        domain,
       },
       { new: true }
     );
@@ -160,7 +135,7 @@ const getAllManagersController = async (req, res, next) => {
   try {
     const allManagers = await Manager.find({})
       .populate("geofenceId", "name")
-      .select("-merchants -password -viewCustomers");
+      .select("-password");
 
     res.status(200).json({
       message: "Getting all managers",
@@ -200,7 +175,7 @@ const searchManagerByNameController = async (req, res, next) => {
       name: { $regex: searchTerm, $options: "i" },
     })
       .populate("geofenceId", "name")
-      .select("-merchants -password -viewCustomers");
+      .select("-password");
 
     res.status(200).json({
       message: "Searched manager results",
@@ -236,16 +211,109 @@ const getManagerByGeofenceController = async (req, res, next) => {
 
       managersFound = await Manager.find({ geofenceId })
         .populate("geofenceId", "name")
-        .select("-merchants -password -viewCustomers");
+        .select("-password");
     } else {
       managersFound = await Manager.find({})
         .populate("geofenceId", "name")
-        .select("-merchants -password -viewCustomers");
+        .select("-password");
     }
 
     res.status(200).json({
       message: "Filtered managers by geofence",
       data: managersFound,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const createManagerRoleController = async (req, res, next) => {
+  try {
+    const { roleName, allowedRoutes } = req.body;
+
+    const newRole = new ManagerRoles({
+      roleName,
+      allowedRoutes,
+    });
+
+    await newRole.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Manager role created successfully",
+      data: newRole,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const getManagerRolesController = async (req, res, next) => {
+  try {
+    const roles = await ManagerRoles.find();
+
+    if (roles.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No manager roles found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Manager roles fetched successfully",
+      data: roles,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const editManagerRoleController = async (req, res) => {
+  try {
+    const { roleId } = req.params;
+    const { roleName, allowedRoutes } = req.body;
+
+    const role = await ManagerRoles.findById(roleId);
+
+    if (!role) {
+      return res.status(404).json({
+        success: false,
+        message: "Manager role not found",
+      });
+    }
+
+    role.roleName = roleName || role.roleName;
+    role.allowedRoutes = allowedRoutes || role.allowedRoutes;
+
+    await role.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Manager role updated successfully",
+      data: role,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+const deleteManagerRoleController = async (req, res, next) => {
+  try {
+    const { roleId } = req.params;
+
+    const role = await ManagerRoles.findByIdAndDelete(roleId);
+
+    if (!role) {
+      return res.status(404).json({
+        success: false,
+        message: "Manager role not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Manager role deleted successfully",
     });
   } catch (err) {
     next(appError(err.message));
@@ -260,4 +328,8 @@ module.exports = {
   deleteManagerController,
   searchManagerByNameController,
   getManagerByGeofenceController,
+  createManagerRoleController,
+  getManagerRolesController,
+  editManagerRoleController,
+  deleteManagerRoleController,
 };

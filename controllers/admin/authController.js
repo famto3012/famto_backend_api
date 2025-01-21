@@ -37,10 +37,7 @@ const loginController = async (req, res, next) => {
     } else if (role === "Merchant") {
       user = await Merchant.findOne({ email: normalizedEmail });
     } else if (role === "Manager") {
-      user = await Manager.findOne({ email: normalizedEmail });
-    } else {
-      formattedErrors.role = "Invalid role";
-      return res.status(500).json({ errors: formattedErrors });
+      user = await Manager.findOne({ email: normalizedEmail }).populate("role");
     }
 
     if (!user) {
@@ -58,9 +55,12 @@ const loginController = async (req, res, next) => {
       return res.status(500).json({ errors: formattedErrors });
     }
 
-    if (user.isBlocked || user.isApproved !== "Approved") {
-      formattedErrors.general = "Login is restricted";
-      return res.status(403).json({ errors: formattedErrors });
+    // Exclude login restriction checks for Managers
+    if (role !== "Manager") {
+      if (user.isBlocked || user.isApproved !== "Approved") {
+        formattedErrors.general = "Login is restricted";
+        return res.status(403).json({ errors: formattedErrors });
+      }
     }
 
     let fullName, token, refreshToken;
@@ -73,8 +73,10 @@ const loginController = async (req, res, next) => {
       fullName = user?.merchantDetail?.merchantName || user?.fullName || "-";
       token = generateToken(user._id, user.role, fullName);
       refreshToken = generateToken(user._id, user.role, fullName);
-    } else if (user.role === "Manager") {
+    } else if (role === "Manager") {
       fullName = user.name;
+      token = generateToken(user._id, user.role, fullName);
+      refreshToken = generateToken(user._id, user.role, fullName);
     }
 
     user.refreshToken = refreshToken;
@@ -86,7 +88,7 @@ const loginController = async (req, res, next) => {
       email: user.email,
       token,
       refreshToken,
-      role: user.role,
+      role: role === "Manager" ? user.role.roleName : user.role,
     });
   } catch (err) {
     next(appError(err.message));
