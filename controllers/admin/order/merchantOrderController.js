@@ -35,13 +35,13 @@ const {
 } = require("../../../socket/socket");
 const ActivityLog = require("../../../models/ActivityLog");
 const fs = require("fs");
+const Product = require("../../../models/Product");
 const csvWriter = require("csv-writer").createObjectCsvWriter;
 
 // TODO: Remove after panel V2
 const getAllOrdersOfMerchantController = async (req, res, next) => {
   try {
     let { page = 1, limit = 50, isPaginated = "true" } = req.query;
-
     isPaginated = isPaginated === "true";
 
     const skip = (page - 1) * limit;
@@ -51,188 +51,90 @@ const getAllOrdersOfMerchantController = async (req, res, next) => {
       return next(appError("Merchant is not authenticated", 401));
     }
 
-    const matchStage = { merchantId: currentMerchant };
+    // Retrieve orders with pagination and sorting
+    const orders = await Order.find({ merchantId: currentMerchant })
+      .sort({ createdAt: -1 })
+      .skip(isPaginated ? skip : 0)
+      .limit(isPaginated ? limit : Number.MAX_SAFE_INTEGER);
 
-    const pipeline = [
-      { $match: matchStage },
-      { $sort: { createdAt: -1 } },
-      ...(isPaginated ? [{ $skip: skip }, { $limit: limit }] : []),
-      {
-        $lookup: {
-          from: "products",
-          localField: "purchasedItems.productId",
-          foreignField: "_id",
-          as: "productDetails",
-        },
-      },
-      {
-        $lookup: {
-          from: "products",
-          localField: "purchasedItems.variantId",
-          foreignField: "variants.variantTypes._id",
-          as: "variantDetails",
-        },
-      },
-      {
-        $lookup: {
-          from: "merchants",
-          localField: "merchantId",
-          foreignField: "_id",
-          as: "merchantId",
-        },
-      },
-      {
-        $lookup: {
-          from: "customers",
-          localField: "customerId",
-          foreignField: "_id",
-          as: "customerId",
-        },
-      },
-      {
-        $addFields: {
-          items: {
-            $map: {
-              input: "$purchasedItems",
-              as: "item",
-              in: {
-                productName: {
-                  $arrayElemAt: [
-                    {
-                      $map: {
-                        input: {
-                          $filter: {
-                            input: "$productDetails",
-                            as: "product",
-                            cond: {
-                              $eq: ["$$product._id", "$$item.productId"],
-                            },
-                          },
-                        },
-                        as: "product",
-                        in: "$$product.productName",
-                      },
-                    },
-                    0,
-                  ],
-                },
-                variantTypeName: {
-                  $arrayElemAt: [
-                    {
-                      $map: {
-                        input: {
-                          $filter: {
-                            input: {
-                              $arrayElemAt: [
-                                {
-                                  $filter: {
-                                    input: "$variantDetails",
-                                    as: "variant",
-                                    cond: {
-                                      $eq: [
-                                        "$$variant._id",
-                                        "$$item.variantId",
-                                      ],
-                                    },
-                                  },
-                                },
-                                0,
-                              ],
-                            },
-                            as: "variantType",
-                            cond: {
-                              $eq: ["$$variantType._id", "$$item.variantId"],
-                            },
-                          },
-                        },
-                        as: "variantType",
-                        in: "$$variantType.typeName",
-                      },
-                    },
-                    0,
-                  ],
-                },
-                quantity: "$$item.quantity",
-                price: "$$item.price",
-              },
-            },
-          },
-        },
-      },
-      {
-        $project: {
-          purchasedItems: 0,
-          productDetails: 0,
-          variantDetails: 0,
-        },
-      },
-      {
-        $group: {
-          _id: "$_id",
-          orderStatus: { $first: "$status" },
-          isReady: { $first: "$orderDetail.isReady" },
-          merchantName: {
-            $first: {
-              $arrayElemAt: ["$merchantId.merchantDetail.merchantName", 0],
-            },
-          },
-          customerName: {
-            $first: {
-              $ifNull: [
-                { $arrayElemAt: ["$customerId.fullName", 0] },
-                "$orderDetail.deliveryAddress.fullName",
-              ],
-            },
-          },
-          deliveryMode: { $first: "$orderDetail.deliveryMode" },
-          orderDate: { $first: "$createdAt" },
-          deliveryDate: { $first: "$orderDetail.deliveryTime" },
-          paymentMethod: {
-            $first: {
-              $cond: [
-                { $eq: ["$paymentMode", "Cash-on-delivery"] },
-                "Pay-on-delivery",
-                "$paymentMode",
-              ],
-            },
-          },
-          deliveryOption: { $first: "$orderDetail.deliveryOption" },
-          amount: { $first: "$billDetail.grandTotal" },
-          items: { $first: "$items" }, // Use $first to flatten the array
-        },
-      },
-      { $sort: { orderDate: -1 } },
-    ];
+    // Fetch product details for each order
+    const orderDetails = await Promise.all(
+      orders.map(async (order) => {
+        const populatedOrder = await order.populate("purchasedItems.productId");
 
-    const allOrders = await Order.aggregate(pipeline);
+        // Format each order's purchased items
+        const formattedItems = await Promise.all(
+          populatedOrder.purchasedItems.map(async (item) => {
+            const product = await Product.findById(item.productId);
+            if (!product) return item;
 
-    // Post-aggregation formatting
-    const formattedOrders = allOrders.map((order) => ({
-      ...order,
-      orderDate: formatDate(order.orderDate),
-      orderTime: formatTime(order.orderDate),
-      deliveryDate: order.deliveryDate ? formatDate(order.deliveryDate) : "-",
-      deliveryTime: order.deliveryDate ? formatTime(order.deliveryDate) : "-",
-    }));
+            const variant = product.variants.find((variant) =>
+              variant.variantTypes.some((type) =>
+                type._id.equals(item.variantId)
+              )
+            );
+
+            const variantType = variant
+              ? variant.variantTypes.find((type) =>
+                  type._id.equals(item.variantId)
+                )
+              : null;
+
+            return {
+              productName: product.productName,
+              variantTypeName: variantType ? variantType.typeName : null,
+              quantity: item.quantity,
+              price: item.price,
+            };
+          })
+        );
+
+        return {
+          _id: order._id,
+          orderStatus: order.status,
+          isReady: order.orderDetail.isReady,
+          merchantName: order?.merchantId?.merchantDetail?.merchantName || "-",
+          customerName:
+            order?.customerId?.fullName ||
+            order?.orderDetail?.deliveryAddress?.fullName ||
+            "-",
+          deliveryMode: order?.orderDetail?.deliveryMode,
+          orderDate: formatDate(order.createdAt),
+          orderTime: formatTime(order.createdAt),
+          deliveryDate: order?.orderDetail?.deliveryTime
+            ? formatDate(order.orderDetail.deliveryTime)
+            : "-",
+          deliveryTime: order?.orderDetail?.deliveryTime
+            ? formatTime(order.orderDetail.deliveryTime)
+            : "-",
+          paymentMethod:
+            order.paymentMode === "Cash-on-delivery"
+              ? "Pay-on-delivery"
+              : order.paymentMode,
+          deliveryOption: order.orderDetail.deliveryOption,
+          amount: order.billDetail.grandTotal,
+          items: formattedItems,
+        };
+      })
+    );
 
     const totalDocuments = isPaginated
-      ? await Order.countDocuments(matchStage)
-      : allOrders.length;
-
+      ? await Order.countDocuments({ merchantId: currentMerchant })
+      : orders.length;
     const totalPages = Math.ceil(totalDocuments / limit);
-    const pagination = {
-      totalDocuments,
-      totalPages,
-      currentPage: page,
-      hasNextPage: page < totalPages,
-      hasPrevPage: page > 1,
-    };
-    console.log("data", allOrders[0]);
 
     res.status(200).json({
       message: "All orders of merchant",
-      data: formattedOrders,
-      ...(isPaginated && { pagination }),
+      data: orderDetails,
+      pagination: isPaginated
+        ? {
+            totalDocuments,
+            totalPages,
+            currentPage: page,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+          }
+        : undefined,
     });
   } catch (err) {
     next(appError(err.message));
