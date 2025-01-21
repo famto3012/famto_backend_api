@@ -2821,22 +2821,25 @@ const markOrderAsCompletedByAdminController = async (req, res, next) => {
       return next(appError("Order not found", 404));
     }
 
-    if (isNaN(orderFound?.detailAddedByAgent?.distanceCoveredByAgent)) {
-      return next(appError("Agent haven't started pickup", 400));
-    }
-
     const agentFound = await Agent.findById(orderFound.agentId);
 
     if (!agentFound) {
       return next(appError("Agent not found", 404));
     }
 
-    const calculatedSalary = await calculateAgentEarnings(
-      agentFound,
-      orderFound
-    );
+    let calculatedSalary;
 
-    agentFound.appDetail.totalEarnings += calculatedSalary;
+    if (isNaN(orderFound?.detailAddedByAgent?.distanceCoveredByAgent)) {
+      calculatedSalary = await calculateAgentEarnings(agentFound, orderFound);
+    } else {
+      calculatedSalary = await calculateAgentEarnings(agentFound, orderFound);
+    }
+
+    agentFound.appDetail.totalEarning += calculatedSalary;
+    agentFound.appDetail.totalDistance +=
+      orderFound?.detailAddedByAgent?.distanceCoveredByAgent ||
+      orderFound?.orderDetail?.distance;
+    agentFound.appDetail.orders += 1;
     orderFound.status = "Completed";
 
     await Promise.all([orderFound.save(), agentFound.save()]);
