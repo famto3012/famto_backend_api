@@ -136,24 +136,26 @@ const fetchAllManagersController = async (req, res, next) => {
 
     if (geofence) {
       matchCriteria.geofence = mongoose.Types.ObjectId.createFromHexString(
-        geofence.trim()
+        geofence?.trim()
       );
     }
 
     if (name) {
-      matchCriteria.name = { $regex: name.trim(), $options: "i" };
+      matchCriteria.name = { $regex: name?.trim(), $options: "i" };
     }
 
     const allManagers = await Manager.find(matchCriteria)
       .populate("geofenceId", "name")
+      .populate("role", "roleName")
       .select("-password -resetPasswordToken -resetPasswordExpiry");
 
     const formattedResponse = allManagers?.map((manager) => ({
-      managerId: manager._id,
-      name: manager.name,
-      email: manager.email,
-      phoneNumber: manager.phoneNumber,
-      geofence: manager.geofence.name,
+      managerId: manager?._id,
+      name: manager?.name,
+      email: manager?.email,
+      role: manager?.role?.roleName,
+      phone: manager?.phoneNumber,
+      geofence: manager?.geofence?.name,
     }));
 
     res.status(200).json(formattedResponse);
