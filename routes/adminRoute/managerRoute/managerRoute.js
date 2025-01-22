@@ -47,6 +47,13 @@ managerRoute.post(
   addManagerController
 );
 
+managerRoute.get(
+  "/manager-roles",
+  isAuthenticated,
+  isAdmin,
+  getManagerRolesController
+);
+
 //Get manager by Id
 managerRoute.get(
   "/:managerId",
@@ -103,12 +110,6 @@ managerRoute.delete(
 // +++++++++++++++++++++
 // Roles
 // +++++++++++++++++++++
-managerRoute.get(
-  "/manager-roles",
-  isAuthenticated,
-  isAdmin,
-  getManagerRolesController
-);
 
 managerRoute.get(
   "/manager-roles/:roleId",

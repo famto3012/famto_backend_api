@@ -1167,7 +1167,7 @@ const rejectOrderByAdminController = async (req, res, next) => {
         roleId = orderFound?.agentId;
       } else if (role === "customer") {
         roleId = orderFound?.customerId;
-      }else {
+      } else {
         const roleValue = await ManagerRoles.findOne({ roleName: role });
         let manager;
         if (roleValue) {
@@ -2266,7 +2266,7 @@ const orderMarkAsReadyController = async (req, res, next) => {
           roleId = orderFound.agentId;
         } else if (role === "customer") {
           roleId = orderFound?.customerId;
-        }else {
+        } else {
           const roleValue = await ManagerRoles.findOne({ roleName: role });
           let manager;
           if (roleValue) {
@@ -2320,7 +2320,7 @@ const orderMarkAsReadyController = async (req, res, next) => {
             roleId = orderFound.agentId;
           } else if (role === "customer") {
             roleId = orderFound?.customerId;
-          }else {
+          } else {
             const roleValue = await ManagerRoles.findOne({ roleName: role });
             let manager;
             if (roleValue) {
@@ -2817,7 +2817,7 @@ const createOrderByAdminController = async (req, res, next) => {
         roleId = newOrder?.agentId;
       } else if (role === "customer") {
         roleId = newOrder?.customerId;
-      }else {
+      } else {
         const roleValue = await ManagerRoles.findOne({ roleName: role });
         let manager;
         if (roleValue) {
