@@ -57,8 +57,7 @@ const addManagerController = async (req, res, next) => {
 const getManagerByIdController = async (req, res, next) => {
   try {
     const managerFound = await Manager.findById(req.params.managerId)
-      .populate("geofenceId", "name")
-      .select("-password");
+    .select("-password");
 
     if (!managerFound) {
       return next(appError("Manager not found", 404));
@@ -155,7 +154,7 @@ const fetchAllManagersController = async (req, res, next) => {
       email: manager?.email,
       role: manager?.role?.roleName,
       phone: manager?.phoneNumber,
-      geofence: manager?.geofence?.name,
+      geofence: manager?.geofenceId?.name,
     }));
 
     res.status(200).json(formattedResponse);
