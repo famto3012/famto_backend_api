@@ -13,25 +13,11 @@ const {
   createManagerRoleController,
   editManagerRoleController,
   deleteManagerRoleController,
+  fetchAllManagersController,
+  getSingleManagerRole,
 } = require("../../../controllers/admin/manager/managerController");
 const { body } = require("express-validator");
 const managerRoute = express.Router();
-
-//Search manager by name
-managerRoute.get(
-  "/search",
-  isAuthenticated,
-  isAdmin,
-  searchManagerByNameController
-);
-
-//Filrer manager by geofence
-managerRoute.get(
-  "/filter",
-  isAuthenticated,
-  isAdmin,
-  getManagerByGeofenceController
-);
 
 //Add manager
 managerRoute.post(
@@ -104,7 +90,7 @@ managerRoute.put(
 );
 
 //Get all managers
-managerRoute.get("/", isAuthenticated, isAdmin, getAllManagersController);
+managerRoute.get("/", isAuthenticated, isAdmin, fetchAllManagersController);
 
 //Delete manager
 managerRoute.delete(
@@ -114,11 +100,21 @@ managerRoute.delete(
   deleteManagerController
 );
 
+// +++++++++++++++++++++
+// Roles
+// +++++++++++++++++++++
 managerRoute.get(
   "/manager-roles",
   isAuthenticated,
   isAdmin,
   getManagerRolesController
+);
+
+managerRoute.get(
+  "/manager-roles/:roleId",
+  isAuthenticated,
+  isAdmin,
+  getSingleManagerRole
 );
 
 managerRoute.post(
