@@ -146,9 +146,17 @@ const fetchAllManagersController = async (req, res, next) => {
 
     const allManagers = await Manager.find(matchCriteria)
       .populate("geofenceId", "name")
-      .select("-password");
+      .select("-password -resetPasswordToken -resetPasswordExpiry");
 
-    res.status(200).json(allManagers);
+    const formattedResponse = allManagers?.map((manager) => ({
+      managerId: manager._id,
+      name: manager.name,
+      email: manager.email,
+      phoneNumber: manager.phoneNumber,
+      geofence: manager.geofence.name,
+    }));
+
+    res.status(200).json(formattedResponse);
   } catch (err) {
     next(appError(err.message));
   }
@@ -199,6 +207,7 @@ const getManagerRolesController = async (req, res, next) => {
     const roles = await ManagerRoles.find({});
 
     const formattedRoles = roles?.map((role) => ({
+      roleId: role._id,
       roleName: role.roleName,
       allowedRoutes: role.allowedRoutes?.map((route) => ({
         label: route.label,
