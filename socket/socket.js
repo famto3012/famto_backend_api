@@ -31,6 +31,8 @@ const CustomerPricing = require("../models/CustomerPricing");
 const AutoAllocation = require("../models/AutoAllocation");
 const { formatDate, formatTime } = require("../utils/formatters");
 const Admin = require("../models/Admin");
+const ManagerRoles = require("../models/ManagerRoles");
+const Manager = require("../models/Manager");
 
 const serviceAccount1 = {
   type: process.env.TYPE_1,
@@ -415,20 +417,27 @@ const findRolesToNotify = async (eventName) => {
       event: eventName,
     });
 
-    // console.log("notificationSettings", notificationSettings);
+    if (!notificationSettings) {
+      throw new Error("Notification settings not found for the given event.");
+    }
 
+    // Find roles to notify based on boolean fields
     const rolesToNotify = ["admin", "merchant", "driver", "customer"].filter(
       (role) => notificationSettings[role]
     );
 
-    // console.log("Found roles");
+    // Include roles from the `manager` array
+    if (
+      notificationSettings.manager &&
+      Array.isArray(notificationSettings.manager)
+    ) {
+      rolesToNotify.push(...notificationSettings.manager);
+    }
 
     const data = {
       title: notificationSettings.title,
       description: notificationSettings.description,
     };
-
-    // console.log("Found data");
 
     return { rolesToNotify, data };
   } catch (err) {
@@ -930,22 +939,26 @@ io.on("connection", async (socket) => {
 
       // Send dynamic notifications
       const { rolesToNotify, data } = await findRolesToNotify(eventName);
-      const notifications = rolesToNotify.map((role) => {
+      const notifications = rolesToNotify.map(async (role) => {
         let roleId;
 
-        switch (role) {
-          case "admin":
-            roleId = process.env.ADMIN_ID;
-            break;
-          case "merchant":
-            roleId = order?.merchantId;
-            break;
-          case "driver":
-            roleId = order?.agentId;
-            break;
-          case "customer":
-            roleId = order?.customerId;
-            break;
+        if (role === "admin") {
+          roleId = process.env.ADMIN_ID;
+        } else if (role === "merchant") {
+          roleId = order?.merchantId;
+        } else if (role === "driver") {
+          roleId = order?.agentId;
+        } else if (role === "customer") {
+          roleId = order?.customerId;
+        } else {
+          const roleValue = await ManagerRoles.findOne({ roleName: role });
+          let manager;
+          if (roleValue) {
+            manager = await Manager.findOne({ role: roleValue._id });
+          } // Assuming `role` is the role field to match in Manager model
+          if (manager) {
+            roleId = manager._id; // Set roleId to the Manager's ID
+          }
         }
 
         if (roleId) {
@@ -1049,6 +1062,15 @@ io.on("connection", async (socket) => {
           roleId = orderFound?.agentId;
         } else if (role === "customer") {
           roleId = orderFound?.customerId;
+        } else {
+          const roleValue = await ManagerRoles.findOne({ roleName: role });
+          let manager;
+          if (roleValue) {
+            manager = await Manager.findOne({ role: roleValue._id });
+          } // Assuming `role` is the role field to match in Manager model
+          if (manager) {
+            roleId = manager._id; // Set roleId to the Manager's ID
+          }
         }
 
         if (roleId) {
@@ -1285,6 +1307,15 @@ io.on("connection", async (socket) => {
             roleId = orderFound?.agentId;
           } else if (role === "customer") {
             roleId = orderFound?.customerId;
+          } else {
+            const roleValue = await ManagerRoles.findOne({ roleName: role });
+            let manager;
+            if (roleValue) {
+              manager = await Manager.findOne({ role: roleValue._id });
+            } // Assuming `role` is the role field to match in Manager model
+            if (manager) {
+              roleId = manager._id; // Set roleId to the Manager's ID
+            }
           }
 
           if (roleId) {
@@ -1888,6 +1919,15 @@ io.on("connection", async (socket) => {
             roleId = orderFound?.agentId;
           } else if (role === "customer") {
             roleId = orderFound?.customerId;
+          } else {
+            const roleValue = await ManagerRoles.findOne({ roleName: role });
+            let manager;
+            if (roleValue) {
+              manager = await Manager.findOne({ role: roleValue._id });
+            } // Assuming `role` is the role field to match in Manager model
+            if (manager) {
+              roleId = manager._id; // Set roleId to the Manager's ID
+            }
           }
 
           if (roleId) {

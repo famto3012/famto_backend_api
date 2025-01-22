@@ -16,6 +16,8 @@ const {
   getDistanceFromPickupToDelivery,
 } = require("../../../utils/customerAppHelpers");
 const { formatDate, formatTime } = require("../../../utils/formatters");
+const Manager = require("../../../models/Manager");
+const ManagerRoles = require("../../../models/ManagerRoles");
 
 //TODO: Remove after panel v2
 const getTaskFilterController = async (req, res, next) => {
@@ -106,6 +108,15 @@ const assignAgentToTaskController = async (req, res, next) => {
         roleId = agentId;
       } else if (role === "customer") {
         roleId = order?.customerId;
+      } else {
+        const roleValue = await ManagerRoles.findOne({ roleName: role });
+        let manager;
+        if (roleValue) {
+          manager = await Manager.findOne({ role: roleValue._id });
+        } // Assuming `role` is the role field to match in Manager model
+        if (manager) {
+          roleId = manager._id; // Set roleId to the Manager's ID
+        }
       }
 
       if (roleId) {
