@@ -18,6 +18,8 @@ const appError = require("./appError");
 const LoyaltyPoint = require("../models/LoyaltyPoint");
 const CustomerCart = require("../models/CustomerCart");
 const { deleteFromFirebase, uploadToFirebase } = require("./imageOperation");
+const ManagerRoles = require("../models/ManagerRoles");
+const Manager = require("../models/Manager");
 
 // Helper function to sort merchants by sponsorship
 const sortMerchantsBySponsorship = (merchants) => {
@@ -203,6 +205,15 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
         roleId = newOrder?.agentId;
       } else if (role === "customer") {
         roleId = newOrder?.customerId;
+      } else {
+        const roleValue = await ManagerRoles.findOne({ roleName: role });
+        let manager;
+        if (roleValue) {
+          manager = await Manager.findOne({ role: roleValue._id });
+        } // Assuming `role` is the role field to match in Manager model
+        if (manager) {
+          roleId = manager._id; // Set roleId to the Manager's ID
+        }
       }
 
       if (roleId) {
@@ -332,6 +343,15 @@ const createOrdersFromScheduledPickAndDrop = async (scheduledOrder) => {
         roleId = newOrder?.agentId;
       } else if (role === "customer") {
         roleId = newOrder?.customerId;
+      }else {
+        const roleValue = await ManagerRoles.findOne({ roleName: role });
+        let manager;
+        if (roleValue) {
+          manager = await Manager.findOne({ role: roleValue._id });
+        } // Assuming `role` is the role field to match in Manager model
+        if (manager) {
+          roleId = manager._id; // Set roleId to the Manager's ID
+        }
       }
 
       if (roleId) {

@@ -55,6 +55,8 @@ const AgentAnnouncementLogs = require("../../../models/AgentAnnouncementLog");
 const Task = require("../../../models/Task");
 const ActivityLog = require("../../../models/ActivityLog");
 const Agent = require("../../../models/Agent");
+const Manager = require("../../../models/Manager");
+const ManagerRoles = require("../../../models/ManagerRoles");
 
 // TODO: Remove after panel V2
 const getAllOrdersForAdminController = async (req, res, next) => {
@@ -1003,6 +1005,15 @@ const confirmOrderByAdminController = async (req, res, next) => {
         roleId = orderFound?.agentId;
       } else if (role === "customer") {
         roleId = orderFound?.customerId;
+      } else {
+        const roleValue = await ManagerRoles.findOne({ roleName: role });
+        let manager;
+        if (roleValue) {
+          manager = await Manager.findOne({ role: roleValue._id });
+        } // Assuming `role` is the role field to match in Manager model
+        if (manager) {
+          roleId = manager._id; // Set roleId to the Manager's ID
+        }
       }
 
       if (roleId) {
@@ -1156,6 +1167,15 @@ const rejectOrderByAdminController = async (req, res, next) => {
         roleId = orderFound?.agentId;
       } else if (role === "customer") {
         roleId = orderFound?.customerId;
+      }else {
+        const roleValue = await ManagerRoles.findOne({ roleName: role });
+        let manager;
+        if (roleValue) {
+          manager = await Manager.findOne({ role: roleValue._id });
+        } // Assuming `role` is the role field to match in Manager model
+        if (manager) {
+          roleId = manager._id; // Set roleId to the Manager's ID
+        }
       }
 
       if (roleId) {
@@ -2246,6 +2266,15 @@ const orderMarkAsReadyController = async (req, res, next) => {
           roleId = orderFound.agentId;
         } else if (role === "customer") {
           roleId = orderFound?.customerId;
+        }else {
+          const roleValue = await ManagerRoles.findOne({ roleName: role });
+          let manager;
+          if (roleValue) {
+            manager = await Manager.findOne({ role: roleValue._id });
+          } // Assuming `role` is the role field to match in Manager model
+          if (manager) {
+            roleId = manager._id; // Set roleId to the Manager's ID
+          }
         }
 
         if (roleId) {
@@ -2291,6 +2320,15 @@ const orderMarkAsReadyController = async (req, res, next) => {
             roleId = orderFound.agentId;
           } else if (role === "customer") {
             roleId = orderFound?.customerId;
+          }else {
+            const roleValue = await ManagerRoles.findOne({ roleName: role });
+            let manager;
+            if (roleValue) {
+              manager = await Manager.findOne({ role: roleValue._id });
+            } // Assuming `role` is the role field to match in Manager model
+            if (manager) {
+              roleId = manager._id; // Set roleId to the Manager's ID
+            }
           }
 
           if (roleId) {
@@ -2779,6 +2817,15 @@ const createOrderByAdminController = async (req, res, next) => {
         roleId = newOrder?.agentId;
       } else if (role === "customer") {
         roleId = newOrder?.customerId;
+      }else {
+        const roleValue = await ManagerRoles.findOne({ roleName: role });
+        let manager;
+        if (roleValue) {
+          manager = await Manager.findOne({ role: roleValue._id });
+        } // Assuming `role` is the role field to match in Manager model
+        if (manager) {
+          roleId = manager._id; // Set roleId to the Manager's ID
+        }
       }
 
       if (roleId) {

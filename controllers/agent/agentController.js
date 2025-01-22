@@ -48,6 +48,8 @@ const {
 const FcmToken = require("../../models/fcmToken");
 const Merchant = require("../../models/Merchant");
 const AgentAppCustomization = require("../../models/AgentAppCustomization");
+const ManagerRoles = require("../../models/ManagerRoles");
+const Manager = require("../../models/Manager");
 
 // Update location on entering APP
 const updateLocationController = async (req, res, next) => {
@@ -1461,6 +1463,15 @@ const completeOrderController = async (req, res, next) => {
         roleId = orderFound?.agentId;
       } else if (role === "customer") {
         roleId = orderFound?.customerId;
+      }else {
+        const roleValue = await ManagerRoles.findOne({ roleName: role });
+        let manager;
+        if (roleValue) {
+          manager = await Manager.findOne({ role: roleValue._id });
+        } // Assuming `role` is the role field to match in Manager model
+        if (manager) {
+          roleId = manager._id; // Set roleId to the Manager's ID
+        }
       }
 
       if (roleId) {
