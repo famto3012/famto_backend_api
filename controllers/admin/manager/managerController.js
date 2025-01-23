@@ -56,8 +56,9 @@ const addManagerController = async (req, res, next) => {
 //Get manager by Id
 const getManagerByIdController = async (req, res, next) => {
   try {
-    const managerFound = await Manager.findById(req.params.managerId)
-    .select("-password");
+    const managerFound = await Manager.findById(req.params.managerId).select(
+      "-password"
+    );
 
     if (!managerFound) {
       return next(appError("Manager not found", 404));
