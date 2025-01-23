@@ -67,7 +67,7 @@ const loginController = async (req, res, next) => {
 
     if (user.role === "Admin") {
       fullName = user.fullName;
-      token = generateToken(user._id, user.role, fullName, "2hr");
+      token = generateToken(user._id, user.role, fullName, "5min");
       refreshToken = generateToken(user._id, user.role, fullName, "20d");
     } else if (user.role === "Merchant") {
       fullName = user?.merchantDetail?.merchantName || user?.fullName || "-";
@@ -130,7 +130,7 @@ const refreshTokenController = async (req, res, next) => {
     }
 
     // Generate a new token
-    const newToken = generateToken(user._id, user.role, user.fullName, "2hr");
+    const newToken = generateToken(user._id, user.role, user.fullName, "5min");
 
     res.status(200).json({
       newToken,
