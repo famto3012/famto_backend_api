@@ -56,8 +56,9 @@ const addManagerController = async (req, res, next) => {
 //Get manager by Id
 const getManagerByIdController = async (req, res, next) => {
   try {
-    const managerFound = await Manager.findById(req.params.managerId)
-    .select("-password");
+    const managerFound = await Manager.findById(req.params.managerId).select(
+      "-password"
+    );
 
     if (!managerFound) {
       return next(appError("Manager not found", 404));
@@ -72,6 +73,8 @@ const getManagerByIdController = async (req, res, next) => {
 //Edit manager
 const editManagerController = async (req, res, next) => {
   const { name, email, phoneNumber, password, role, geofenceId } = req.body;
+
+  console.log(req.body);
 
   const errors = validationResult(req);
 
@@ -100,8 +103,12 @@ const editManagerController = async (req, res, next) => {
       }
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    let hashedPassword = managerFound.password;
+
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      hashedPassword = await bcrypt.hash(password, salt);
+    }
 
     const updatedManager = await Manager.findByIdAndUpdate(
       req.params.managerId,
@@ -133,8 +140,8 @@ const fetchAllManagersController = async (req, res, next) => {
 
     const matchCriteria = {};
 
-    if (geofence) {
-      matchCriteria.geofence = mongoose.Types.ObjectId.createFromHexString(
+    if (geofence && geofence.toLowerCase() !== "all") {
+      matchCriteria.geofenceId = mongoose.Types.ObjectId.createFromHexString(
         geofence?.trim()
       );
     }
@@ -293,6 +300,31 @@ const deleteManagerRoleController = async (req, res, next) => {
   }
 };
 
+// ==================
+const getAllowedRoutesOfUser = async (req, res, next) => {
+  try {
+    const currentUser = req.userAuth;
+
+    const managerFound = await Manager.findById(currentUser).populate(
+      "role",
+      "allowedRoutes"
+    );
+
+    if (!managerFound) {
+      return next(appError("Manager not found", 404));
+    }
+
+    const formattedResponse = managerFound.role.allowedRoutes.map((route) => ({
+      label: route.label,
+      value: route.route,
+    }));
+
+    res.status(200).json(formattedResponse);
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   addManagerController,
   getManagerByIdController,
@@ -305,4 +337,6 @@ module.exports = {
   getSingleManagerRole,
   editManagerRoleController,
   deleteManagerRoleController,
+
+  getAllowedRoutesOfUser,
 };
