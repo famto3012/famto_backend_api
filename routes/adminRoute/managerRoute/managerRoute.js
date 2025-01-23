@@ -15,6 +15,7 @@ const {
   deleteManagerRoleController,
   fetchAllManagersController,
   getSingleManagerRole,
+  getAllowedRoutesOfUser,
 } = require("../../../controllers/admin/manager/managerController");
 const { body } = require("express-validator");
 const managerRoute = express.Router();
@@ -47,12 +48,7 @@ managerRoute.post(
   addManagerController
 );
 
-managerRoute.get(
-  "/manager-roles",
-  isAuthenticated,
-  isAdmin,
-  getManagerRolesController
-);
+managerRoute.get("/manager-roles", getManagerRolesController);
 
 //Get manager by Id
 managerRoute.get(
@@ -79,17 +75,10 @@ managerRoute.put(
       .withMessage("Phone number is required")
       .isMobilePhone()
       .withMessage("Invalid phone number"),
-    body("password").trim().notEmpty().withMessage("Password is required"),
-    body("domain").trim().notEmpty().withMessage("Please select a domain"),
-    body("merchants").trim().notEmpty().withMessage("Please select a merchant"),
     body("geofenceId")
       .trim()
       .notEmpty()
       .withMessage("Please select a geofence"),
-    body("viewCustomers")
-      .trim()
-      .notEmpty()
-      .withMessage("View customer permission is required"),
   ],
   isAuthenticated,
   isAdmin,
@@ -137,6 +126,13 @@ managerRoute.delete(
   isAuthenticated,
   isAdmin,
   deleteManagerRoleController
+);
+
+// ==================
+managerRoute.get(
+  "/get-allowed-routes",
+  isAuthenticated,
+  getAllowedRoutesOfUser
 );
 
 module.exports = managerRoute;
