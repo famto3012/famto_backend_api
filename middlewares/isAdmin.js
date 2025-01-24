@@ -17,10 +17,10 @@ const isAdmin = async (req, res, next) => {
     req.userName = decodedUser.name;
 
     const roleExists = await ManagerRoles.findOne({
-      roleName: decodedUser.role,
+      roleName: decodedUser.role.roleName,
     });
 
-    if (decodedUser.role === "Admin" || roleExists) {
+    if (decodedUser.role !== "Merchant" || roleExists) {
       return next();
     }
 
