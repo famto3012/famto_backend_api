@@ -304,6 +304,7 @@ const deleteManagerRoleController = async (req, res, next) => {
 const getAllowedRoutesOfUser = async (req, res, next) => {
   try {
     const currentUser = req.userAuth;
+    console.log("current user", currentUser);
 
     const managerFound = await Manager.findById(currentUser).populate(
       "role",

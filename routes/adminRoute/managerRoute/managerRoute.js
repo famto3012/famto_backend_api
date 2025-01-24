@@ -50,6 +50,12 @@ managerRoute.post(
 
 managerRoute.get("/manager-roles", getManagerRolesController);
 
+managerRoute.get(
+  "/get-allowed-routes",
+  isAuthenticated,
+  getAllowedRoutesOfUser
+);
+
 //Get manager by Id
 managerRoute.get(
   "/:managerId",
@@ -129,10 +135,5 @@ managerRoute.delete(
 );
 
 // ==================
-managerRoute.get(
-  "/get-allowed-routes",
-  isAuthenticated,
-  getAllowedRoutesOfUser
-);
 
 module.exports = managerRoute;
