@@ -295,6 +295,10 @@ const agentSchema = mongoose.Schema(
     ],
     agentTransaction: [agentTransactionSchema],
     activityLog: [agentActivityLogSchema],
+    refreshToken: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,

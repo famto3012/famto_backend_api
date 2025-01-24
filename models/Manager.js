@@ -34,6 +34,10 @@ const managerSchema = mongoose.Schema(
     resetPasswordExpiry: {
       type: Date,
     },
+    refreshToken: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamp: true,

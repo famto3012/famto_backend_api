@@ -16,71 +16,73 @@ const verifyToken = require("../../utils/verifyToken");
 //For Admin and Merchant
 // =============================
 const loginController = async (req, res, next) => {
-  const errors = validationResult(req);
-
-  let formattedErrors = {};
-  if (!errors.isEmpty()) {
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
-    return res.status(500).json({ errors: formattedErrors });
-  }
-
   try {
-    const { email, password, role } = req.body;
+    const errors = validationResult(req);
 
-    const normalizedEmail = email.toLowerCase();
-
-    let user;
-    if (role === "Admin") {
-      user = await Admin.findOne({ email: normalizedEmail });
-    } else if (role === "Merchant") {
-      user = await Merchant.findOne({ email: normalizedEmail });
-    } else if (role === "Manager") {
-      user = await Manager.findOne({ email: normalizedEmail }).populate("role");
-    }
-
-    if (!user) {
-      formattedErrors.general = "Invalid credentials";
+    if (!errors.isEmpty()) {
+      const formattedErrors = errors.array().reduce((acc, error) => {
+        acc[error.path] = error.msg;
+        return acc;
+      }, {});
       return res.status(500).json({ errors: formattedErrors });
     }
+
+    const { email, password, role } = req.body;
+    const normalizedEmail = email.toLowerCase();
+
+    // Map roles to models
+    const modelMap = {
+      Admin,
+      Merchant,
+      Manager,
+    };
+    const UserModel = modelMap[role];
+    if (!UserModel) return next(appError("Invalid role", 400));
+
+    // Find the user based on role
+    const user = await UserModel.findOne({ email: normalizedEmail }).populate(
+      role === "Manager" ? "role" : ""
+    );
+    if (!user)
+      return res.status(500).json({
+        errors: { general: "Invalid credentials" },
+      });
 
     const isPasswordCorrect = await bcrypt.compare(
       password,
       user.password || ""
     );
+    if (!isPasswordCorrect)
+      return res.status(500).json({
+        errors: { general: "Invalid credentials" },
+      });
 
-    if (!isPasswordCorrect) {
-      formattedErrors.general = "Invalid credentials";
-      return res.status(500).json({ errors: formattedErrors });
+    if (
+      role !== "Manager" &&
+      (user.isBlocked || user.isApproved !== "Approved")
+    ) {
+      return res.status(403).json({
+        errors: { general: "Login is restricted" },
+      });
     }
 
-    // Exclude login restriction checks for Managers
-    if (role !== "Manager") {
-      if (user.isBlocked || user.isApproved !== "Approved") {
-        formattedErrors.general = "Login is restricted";
-        return res.status(403).json({ errors: formattedErrors });
-      }
+    // Generate tokens
+    const fullName =
+      role === "Merchant"
+        ? user?.merchantDetail?.merchantName || user?.fullName || "-"
+        : user.fullName || user.name;
+    const token = generateToken(user._id, user.role, fullName, "2hr");
+
+    let refreshToken = user.refreshToken;
+    try {
+      // Verify if the refresh token is still valid
+      if (refreshToken) verifyToken(refreshToken);
+    } catch {
+      // Generate a new refresh token if expired/invalid
+      refreshToken = generateToken(user._id, user.role, fullName, "30d");
+      user.refreshToken = refreshToken;
+      await user.save();
     }
-
-    let fullName, token, refreshToken;
-
-    if (user.role === "Admin") {
-      fullName = user.fullName;
-      token = generateToken(user._id, user.role, fullName, "5min");
-      refreshToken = generateToken(user._id, user.role, fullName, "20d");
-    } else if (user.role === "Merchant") {
-      fullName = user?.merchantDetail?.merchantName || user?.fullName || "-";
-      token = generateToken(user._id, user.role, fullName);
-      refreshToken = generateToken(user._id, user.role, fullName);
-    } else if (role === "Manager") {
-      fullName = user.name;
-      token = generateToken(user._id, user.role, fullName);
-      refreshToken = generateToken(user._id, user.role, fullName);
-    }
-
-    user.refreshToken = refreshToken;
-    await user.save();
 
     res.status(200).json({
       _id: user.id,
