@@ -76,7 +76,13 @@ const loginController = async (req, res, next) => {
     let refreshToken = user.refreshToken;
     try {
       // Verify if the refresh token is still valid
-      if (refreshToken) verifyToken(refreshToken);
+      if (refreshToken) {
+        verifyToken(refreshToken);
+      } else {
+        refreshToken = generateToken(user._id, user.role, fullName, "30d");
+        user.refreshToken = refreshToken;
+        await user.save();
+      }
     } catch {
       // Generate a new refresh token if expired/invalid
       refreshToken = generateToken(user._id, user.role, fullName, "30d");
