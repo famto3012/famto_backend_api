@@ -893,6 +893,7 @@ const confirmCustomOrderController = async (req, res, next) => {
 
         const { rolesToNotify, data } = await findRolesToNotify(eventName);
 
+        let manager;
         // Send notifications to each role dynamically
         for (const role of rolesToNotify) {
           let roleId;
@@ -907,7 +908,6 @@ const confirmCustomOrderController = async (req, res, next) => {
             roleId = newOrder?.customerId;
           } else {
             const roleValue = await ManagerRoles.findOne({ roleName: role });
-            let manager;
             if (roleValue) {
               manager = await Manager.findOne({ role: roleValue._id });
             } // Assuming `role` is the role field to match in Manager model
@@ -965,6 +965,7 @@ const confirmCustomOrderController = async (req, res, next) => {
 
         sendSocketData(newOrder.customerId, eventName, socketData);
         sendSocketData(process.env.ADMIN_ID, eventName, socketData);
+        sendSocketData(manager._id, eventName, socketData);
       }
     }, 60000);
   } catch (err) {

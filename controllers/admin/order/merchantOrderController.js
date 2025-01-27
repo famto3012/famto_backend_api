@@ -908,6 +908,7 @@ const confirmOrderController = async (req, res, next) => {
 
       const { rolesToNotify, data } = await findRolesToNotify(eventName);
 
+      let manager;
       // Send notifications to each role dynamically
       for (const role of rolesToNotify) {
         let roleId;
@@ -922,7 +923,6 @@ const confirmOrderController = async (req, res, next) => {
           roleId = orderFound?.customerId;
         } else {
           const roleValue = await ManagerRoles.findOne({ roleName: role });
-          let manager;
           if (roleValue) {
             manager = await Manager.findOne({ role: roleValue._id });
           } // Assuming `role` is the role field to match in Manager model
@@ -961,6 +961,7 @@ const confirmOrderController = async (req, res, next) => {
       sendSocketData(orderFound.customerId, eventName, socketData);
       sendSocketData(orderFound?.merchantId, eventName, socketData);
       sendSocketData(process.env.ADMIN_ID, eventName, socketData);
+      sendSocketData(manager._id, eventName, socketData);
     } else {
       return next(appError("Access Denied", 400));
     }
@@ -1075,6 +1076,7 @@ const rejectOrderController = async (req, res, next) => {
 
     const { rolesToNotify, data } = await findRolesToNotify(eventName);
 
+    let manager;
     // Send notifications to each role dynamically
     for (const role of rolesToNotify) {
       let roleId;
@@ -1089,7 +1091,6 @@ const rejectOrderController = async (req, res, next) => {
         roleId = orderFound?.customerId;
       } else {
         const roleValue = await ManagerRoles.findOne({ roleName: role });
-        let manager;
         if (roleValue) {
           manager = await Manager.findOne({ role: roleValue._id });
         } // Assuming `role` is the role field to match in Manager model
@@ -1128,6 +1129,7 @@ const rejectOrderController = async (req, res, next) => {
     sendSocketData(orderFound.customerId, eventName, socketData);
     sendSocketData(orderFound?.merchantId, eventName, socketData);
     sendSocketData(process.env.ADMIN_ID, eventName, socketData);
+    sendSocketData(manager._id, eventName, socketData);
 
     res.status(200).json({ message: "Order cancelled" });
   } catch (err) {
@@ -1617,6 +1619,7 @@ const createOrderController = async (req, res, next) => {
           sendSocketData(newOrder?.merchantId?._id, eventName, socketData);
         }
 
+        let manager;
         // Send notifications to each role dynamically
         for (const role of rolesToNotify) {
           let roleId;
@@ -1631,7 +1634,6 @@ const createOrderController = async (req, res, next) => {
             roleId = newOrder?.customerId;
           } else {
             const roleValue = await ManagerRoles.findOne({ roleName: role });
-            let manager;
             if (roleValue) {
               manager = await Manager.findOne({ role: roleValue._id });
             } // Assuming `role` is the role field to match in Manager model
@@ -1657,6 +1659,8 @@ const createOrderController = async (req, res, next) => {
             );
           }
         }
+
+        sendSocketData(manager?._id, eventName, socketData);
 
         // Clear the cart
         await CustomerCart.deleteOne({ customerId: customerFound._id });
