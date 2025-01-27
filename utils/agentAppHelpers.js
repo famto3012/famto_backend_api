@@ -67,44 +67,70 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
       ).lean();
 
       if (agentPricing) {
-        const minLoginMillis = agentPricing.minLoginHours * 60 * 60 * 1000;
-
-        if (
-          appDetail.loginDuration >= minLoginMillis &&
-          appDetail.orders >= agentPricing.minOrderNumber &&
-          appDetail.orders > agentPricing.minOrderNumber
-        ) {
-          // Calculate extra order earnings
-          const earningForExtraOrders =
-            (appDetail.orders - agentPricing.minOrderNumber) *
-            agentPricing.fareAfterMinOrderNumber;
-
-          appDetail.totalEarning += earningForExtraOrders;
-        }
-
-        // Calculate extra login hours earnings
-        const extraMillis = appDetail.loginDuration - minLoginMillis;
-
-        if (
-          appDetail.loginDuration >= minLoginMillis &&
-          appDetail.orders >= agentPricing.minOrderNumber &&
-          extraMillis > 0
-        ) {
-          const extraHours = Math.floor(extraMillis / (60 * 60 * 1000));
-          if (extraHours >= 1) {
-            const earningForExtraHours =
-              extraHours * agentPricing.fareAfterMinLoginHours;
-
-            appDetail.totalEarning += earningForExtraHours;
+        if (agentPricing?.type && agentPricing?.type.startsWith("Monthly")) {
+          if (agentPricing?.type === "Monthly-Full-Time") {
+            const perHourBaseFare =
+              agentPricing?.baseFare / agentPricing?.minLoginHours;
+            const loginDurationInHours = Math.min(
+              agentPricing?.minLoginHours,
+              appDetail.loginDuration / 3600000
+            );
+            const earningForLoginHours = Math.round(
+              perHourBaseFare * loginDurationInHours
+            );
+            appDetail.totalEarning = earningForLoginHours;
+          } else {
+            const perHourBaseFare =
+              agentPricing?.baseFare / agentPricing?.minLoginHours;
+            const loginDurationInHours = Math.min(
+              agentPricing?.minLoginHours,
+              appDetail.loginDuration / 3600000
+            );
+            const earningForLoginHours = Math.round(
+              perHourBaseFare * loginDurationInHours
+            );
+            appDetail.totalEarning = earningForLoginHours;
           }
-        }
+        } else {
+          const minLoginMillis = agentPricing.minLoginHours * 60 * 60 * 1000;
 
-        if (
-          appDetail.loginDuration >= minLoginMillis &&
-          appDetail.orders >= agentPricing.minOrderNumber &&
-          appDetail.totalEarning < agentPricing.baseFare
-        ) {
-          appDetail.totalEarning = agentPricing.baseFare;
+          if (
+            appDetail.loginDuration >= minLoginMillis &&
+            appDetail.orders >= agentPricing.minOrderNumber &&
+            appDetail.orders > agentPricing.minOrderNumber
+          ) {
+            // Calculate extra order earnings
+            const earningForExtraOrders =
+              (appDetail.orders - agentPricing.minOrderNumber) *
+              agentPricing.fareAfterMinOrderNumber;
+
+            appDetail.totalEarning += earningForExtraOrders;
+          }
+
+          // Calculate extra login hours earnings
+          const extraMillis = appDetail.loginDuration - minLoginMillis;
+
+          if (
+            appDetail.loginDuration >= minLoginMillis &&
+            appDetail.orders >= agentPricing.minOrderNumber &&
+            extraMillis > 0
+          ) {
+            const extraHours = Math.floor(extraMillis / (60 * 60 * 1000));
+            if (extraHours >= 1) {
+              const earningForExtraHours =
+                extraHours * agentPricing.fareAfterMinLoginHours;
+
+              appDetail.totalEarning += earningForExtraHours;
+            }
+          }
+
+          if (
+            appDetail.loginDuration >= minLoginMillis &&
+            appDetail.orders >= agentPricing.minOrderNumber &&
+            appDetail.totalEarning < agentPricing.baseFare
+          ) {
+            appDetail.totalEarning = agentPricing.baseFare;
+          }
         }
       }
 
@@ -272,6 +298,9 @@ const calculateAgentEarnings = async (agent, order) => {
   );
 
   if (!agentPricing) throw new Error("Agent pricing not found");
+  if (agentPricing?.type.startsWith("Monthly")) {
+    return 0;
+  }
 
   let orderSalary =
     (order.detailAddedByAgent.distanceCoveredByAgent +
