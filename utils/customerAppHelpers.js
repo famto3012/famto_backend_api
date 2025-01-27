@@ -193,6 +193,7 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
 
     const { rolesToNotify, data } = await findRolesToNotify(eventName);
 
+    let manager;
     // Send notifications to each role dynamically
     for (const role of rolesToNotify) {
       let roleId;
@@ -207,7 +208,6 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
         roleId = newOrder?.customerId;
       } else {
         const roleValue = await ManagerRoles.findOne({ roleName: role });
-        let manager;
         if (roleValue) {
           manager = await Manager.findOne({ role: roleValue._id });
         } // Assuming `role` is the role field to match in Manager model
@@ -266,6 +266,7 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
     sendSocketData(newOrder.customerId, eventName, socketData);
     sendSocketData(newOrder.merchantId, eventName, socketData);
     sendSocketData(process.env.ADMIN_ID, eventName, socketData);
+    sendSocketData(manager._id, eventName, socketData);
   } catch (err) {
     console.error("Error creating order from scheduled order:", err.message);
   }
@@ -331,6 +332,7 @@ const createOrdersFromScheduledPickAndDrop = async (scheduledOrder) => {
 
     const { rolesToNotify, data } = await findRolesToNotify(eventName);
 
+    let manager;
     // Send notifications to each role dynamically
     for (const role of rolesToNotify) {
       let roleId;
@@ -345,7 +347,6 @@ const createOrdersFromScheduledPickAndDrop = async (scheduledOrder) => {
         roleId = newOrder?.customerId;
       } else {
         const roleValue = await ManagerRoles.findOne({ roleName: role });
-        let manager;
         if (roleValue) {
           manager = await Manager.findOne({ role: roleValue._id });
         } // Assuming `role` is the role field to match in Manager model
@@ -403,6 +404,7 @@ const createOrdersFromScheduledPickAndDrop = async (scheduledOrder) => {
 
     sendSocketData(newOrder.customerId, eventName, socketData);
     sendSocketData(process.env.ADMIN_ID, eventName, socketData);
+    sendSocketData(manager._id, eventName, socketData);
   } catch (err) {
     next(appError(err.message));
   }
