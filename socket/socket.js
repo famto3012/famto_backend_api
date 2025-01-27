@@ -657,17 +657,27 @@ const getRealTimeDataCount = async () => {
       },
     };
 
-    // console.log("Emitting real-time data:", realTimeData);
     const admins = await Admin.find();
-    for (let admin of admins) {
-      // console.log("ADmin", admin);
-      if (userSocketMap[admin._id]) {
-        const { socketId } = userSocketMap[admin._id];
-        if (socketId) {
-          io.to(socketId).emit("realTimeDataCount", realTimeData);
+    // console.log("Emitting real-time data:", realTimeData);
+    const managers = await Manager.find(); // Assuming you have a `Manager` model
+
+    // Function to emit data to a specific user group
+    const emitRealTimeData = (users) => {
+      for (let user of users) {
+        if (userSocketMap[user._id]) {
+          const { socketId } = userSocketMap[user._id];
+          if (socketId) {
+            io.to(socketId).emit("realTimeDataCount", realTimeData);
+          }
         }
       }
-    }
+    };
+
+    // Emit data to admins
+    emitRealTimeData(admins);
+
+    // Emit data to managers
+    emitRealTimeData(managers);
   } catch (err) {
     console.error("Error updating real-time data:", err);
   }
