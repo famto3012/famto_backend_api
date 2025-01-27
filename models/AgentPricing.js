@@ -51,6 +51,16 @@ const agentPricingSchema = new mongoose.Schema(
       ref: "Geofence",
       required: true,
     },
+    type: {
+      type: String,
+      enum: [
+        "Daily-Full-Time",
+        "Daily-Part-Time",
+        "Monthly-Full-Time",
+        "Monthly-Part-Time",
+      ],
+      required: true,
+    },
   },
   {
     timestamps: true,

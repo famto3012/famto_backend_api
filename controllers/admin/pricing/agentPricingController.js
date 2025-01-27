@@ -15,6 +15,7 @@ const addAgentPricingController = async (req, res, next) => {
     fareAfterMinLoginHours,
     fareAfterMinOrderNumber,
     geofenceId,
+    type,
   } = req.body;
 
   const errors = validationResult(req);
@@ -54,6 +55,7 @@ const addAgentPricingController = async (req, res, next) => {
       fareAfterMinLoginHours,
       fareAfterMinOrderNumber,
       geofenceId,
+      type,
     });
 
     if (!newRule) {
@@ -119,6 +121,7 @@ const editAgentPricingController = async (req, res, next) => {
     fareAfterMinLoginHours,
     fareAfterMinOrderNumber,
     geofenceId,
+    type,
   } = req.body;
 
   const errors = validationResult(req);
@@ -169,6 +172,7 @@ const editAgentPricingController = async (req, res, next) => {
         fareAfterMinLoginHours,
         fareAfterMinOrderNumber,
         geofenceId,
+        type,
       },
       { new: true }
     );
