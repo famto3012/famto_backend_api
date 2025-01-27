@@ -949,6 +949,7 @@ io.on("connection", async (socket) => {
 
       // Send dynamic notifications
       const { rolesToNotify, data } = await findRolesToNotify(eventName);
+      let manager;
       const notifications = rolesToNotify.map(async (role) => {
         let roleId;
 
@@ -962,7 +963,6 @@ io.on("connection", async (socket) => {
           roleId = order?.customerId;
         } else {
           const roleValue = await ManagerRoles.findOne({ roleName: role });
-          let manager;
           if (roleValue) {
             manager = await Manager.findOne({ role: roleValue._id });
           } // Assuming `role` is the role field to match in Manager model
@@ -999,6 +999,7 @@ io.on("connection", async (socket) => {
       if (task?.orderId?.merchantId) {
         sendSocketData(task.orderId.merchantId, eventName, socketData);
       }
+      sendSocketData(manager._id, eventName, socketData);
 
       // console.log("Order accepted successfully");
     } catch (err) {
@@ -1060,6 +1061,7 @@ io.on("connection", async (socket) => {
 
       const { rolesToNotify, data } = await findRolesToNotify(eventName);
 
+      let manager;
       // Send notifications to each role dynamically
       for (const role of rolesToNotify) {
         let roleId;
@@ -1074,7 +1076,6 @@ io.on("connection", async (socket) => {
           roleId = orderFound?.customerId;
         } else {
           const roleValue = await ManagerRoles.findOne({ roleName: role });
-          let manager;
           if (roleValue) {
             manager = await Manager.findOne({ role: roleValue._id });
           } // Assuming `role` is the role field to match in Manager model
@@ -1102,6 +1103,7 @@ io.on("connection", async (socket) => {
       }
 
       sendSocketData(agentId, parameters.eventName, agentFound.appDetail);
+      sendSocketData(manager._id, parameters.eventName, agentFound.appDetail);
     } catch (err) {
       console.log("Failed to reject order :" + err);
 
@@ -1305,6 +1307,7 @@ io.on("connection", async (socket) => {
 
         await Promise.all([taskFound.save(), orderFound.save()]);
 
+        let manager;
         // Send notifications to each role dynamically
         for (const role of rolesToNotify) {
           let roleId;
@@ -1319,7 +1322,6 @@ io.on("connection", async (socket) => {
             roleId = orderFound?.customerId;
           } else {
             const roleValue = await ManagerRoles.findOne({ roleName: role });
-            let manager;
             if (roleValue) {
               manager = await Manager.findOne({ role: roleValue._id });
             } // Assuming `role` is the role field to match in Manager model
@@ -1365,6 +1367,7 @@ io.on("connection", async (socket) => {
         if (orderFound?.merchantId) {
           sendSocketData(orderFound.merchantId, eventName, socketData);
         }
+        sendSocketData(manager._id, eventName, socketData);
         sendSocketData(agentId, event, socketDataForAgent);
 
         return;
@@ -1917,6 +1920,7 @@ io.on("connection", async (socket) => {
 
         const { rolesToNotify, data } = await findRolesToNotify(eventName);
 
+        let manager;
         // Send notifications to each role dynamically
         for (const role of rolesToNotify) {
           let roleId;
@@ -1931,7 +1935,6 @@ io.on("connection", async (socket) => {
             roleId = orderFound?.customerId;
           } else {
             const roleValue = await ManagerRoles.findOne({ roleName: role });
-            let manager;
             if (roleValue) {
               manager = await Manager.findOne({ role: roleValue._id });
             } // Assuming `role` is the role field to match in Manager model
@@ -1964,6 +1967,7 @@ io.on("connection", async (socket) => {
 
         sendSocketData(orderFound.customerId, eventName, socketData);
         sendSocketData(process.env.ADMIN_ID, eventName, socketData);
+        sendSocketData(manager._id, eventName, socketData);
       } catch (err) {
         return socket.emit("error", {
           message: `Error in cancelling custom order by agent: ${err}`,
