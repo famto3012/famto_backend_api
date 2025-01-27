@@ -1451,6 +1451,7 @@ const completeOrderController = async (req, res, next) => {
 
     const { rolesToNotify, data } = await findRolesToNotify(eventName);
 
+    let manager;
     // Send notifications to each role dynamically
     for (const role of rolesToNotify) {
       let roleId;
@@ -1463,9 +1464,8 @@ const completeOrderController = async (req, res, next) => {
         roleId = orderFound?.agentId;
       } else if (role === "customer") {
         roleId = orderFound?.customerId;
-      }else {
+      } else {
         const roleValue = await ManagerRoles.findOne({ roleName: role });
-        let manager;
         if (roleValue) {
           manager = await Manager.findOne({ role: roleValue._id });
         } // Assuming `role` is the role field to match in Manager model
@@ -1502,6 +1502,7 @@ const completeOrderController = async (req, res, next) => {
     if (orderFound?.merchantId) {
       sendSocketData(orderFound.merchantId, eventName, socketData);
     }
+    sendSocketData(manager._id, eventName, socketData);
 
     res.status(200).json({
       message: "Order completed successfully",
