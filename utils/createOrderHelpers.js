@@ -393,7 +393,7 @@ const handleAddressDetails = async (
     if (newPickupAddress) {
       pickupLocation = [newPickupAddress.latitude, newPickupAddress.longitude];
       pickupAddress = newPickupAddress;
-      if (newDeliveryAddress.saveAddress) {
+      if (newPickupAddress.saveAddress) {
         await updateCustomerAddress(
           newPickupAddress.type,
           newPickupAddress,

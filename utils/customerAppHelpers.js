@@ -343,7 +343,7 @@ const createOrdersFromScheduledPickAndDrop = async (scheduledOrder) => {
         roleId = newOrder?.agentId;
       } else if (role === "customer") {
         roleId = newOrder?.customerId;
-      }else {
+      } else {
         const roleValue = await ManagerRoles.findOne({ roleName: role });
         let manager;
         if (roleValue) {
