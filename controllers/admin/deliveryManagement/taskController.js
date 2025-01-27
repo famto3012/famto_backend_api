@@ -86,6 +86,17 @@ const assignAgentToTaskController = async (req, res, next) => {
     const order = await Order.findById(task.orderId);
     const agent = await Agent.findById(agentId);
     const autoAllocation = await AutoAllocation.findOne();
+    if (!agent.appDetail) {
+      agent.appDetail = {
+        totalEarning: 0,
+        orders: 0,
+        pendingOrders: 0,
+        totalDistance: 0,
+        cancelledOrders: 0,
+        loginDuration: 0,
+      };
+    }
+
     agent.appDetail.pendingOrders += 1;
 
     await agent.save();

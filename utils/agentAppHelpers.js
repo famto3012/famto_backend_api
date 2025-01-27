@@ -68,16 +68,23 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
 
       if (agentPricing) {
         if (agentPricing?.type && agentPricing?.type.startsWith("Monthly")) {
+          console.log("Monthly Agent");
           if (agentPricing?.type === "Monthly-Full-Time") {
-            const perHourBaseFare =
-              agentPricing?.baseFare / agentPricing?.minLoginHours;
-            const loginDurationInHours = Math.min(
-              agentPricing?.minLoginHours,
-              appDetail.loginDuration / 3600000
+            const perHourBaseFare = Number(
+              (agentPricing?.baseFare / agentPricing?.minLoginHours).toFixed(2)
             );
+
+            const loginDurationInHours = Number(
+              Math.min(
+                agentPricing?.minLoginHours,
+                Math.floor(appDetail.loginDuration / 3600000)
+              ).toFixed(2)
+            );
+
             const earningForLoginHours = Math.round(
               perHourBaseFare * loginDurationInHours
             );
+
             appDetail.totalEarning = earningForLoginHours;
           } else {
             const perHourBaseFare =
@@ -150,6 +157,7 @@ const moveAppDetailToHistoryAndResetForAllAgents = async () => {
           "appDetail.totalDistance": 0,
           "appDetail.cancelledOrders": 0,
           "appDetail.loginDuration": 0,
+          "appDetail.orderDetail": [],
           loginStartTime:
             agent.status !== "Inactive" ? currentTime : agent.loginStartTime,
         },
