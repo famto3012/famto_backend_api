@@ -1502,7 +1502,9 @@ const completeOrderController = async (req, res, next) => {
     if (orderFound?.merchantId) {
       sendSocketData(orderFound.merchantId, eventName, socketData);
     }
-    sendSocketData(manager._id, eventName, socketData);
+    if (manager?._id) {
+      sendSocketData(manager._id, eventName, socketData);
+    }
 
     res.status(200).json({
       message: "Order completed successfully",

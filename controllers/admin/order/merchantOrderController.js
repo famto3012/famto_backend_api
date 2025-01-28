@@ -961,7 +961,9 @@ const confirmOrderController = async (req, res, next) => {
       sendSocketData(orderFound.customerId, eventName, socketData);
       sendSocketData(orderFound?.merchantId, eventName, socketData);
       sendSocketData(process.env.ADMIN_ID, eventName, socketData);
-      sendSocketData(manager._id, eventName, socketData);
+      if (manager?._id) {
+        sendSocketData(manager._id, eventName, socketData);
+      }
     } else {
       return next(appError("Access Denied", 400));
     }
@@ -1129,7 +1131,9 @@ const rejectOrderController = async (req, res, next) => {
     sendSocketData(orderFound.customerId, eventName, socketData);
     sendSocketData(orderFound?.merchantId, eventName, socketData);
     sendSocketData(process.env.ADMIN_ID, eventName, socketData);
-    sendSocketData(manager._id, eventName, socketData);
+    if (manager?._id) {
+      sendSocketData(manager._id, eventName, socketData);
+    }
 
     res.status(200).json({ message: "Order cancelled" });
   } catch (err) {
@@ -1660,7 +1664,9 @@ const createOrderController = async (req, res, next) => {
           }
         }
 
-        sendSocketData(manager?._id, eventName, socketData);
+        if (manager?._id) {
+          sendSocketData(manager._id, eventName, socketData);
+        }
 
         // Clear the cart
         await CustomerCart.deleteOne({ customerId: customerFound._id });

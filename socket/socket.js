@@ -803,6 +803,8 @@ io.on("connection", async (socket) => {
       }
 
       if (!user.token.includes(fcmToken)) {
+        if (user.token.length === 3) user.token.shift();
+
         user.token.push(fcmToken);
         await user.save();
         console.log("fcmToken added for user:", userId);
@@ -999,7 +1001,9 @@ io.on("connection", async (socket) => {
       if (task?.orderId?.merchantId) {
         sendSocketData(task.orderId.merchantId, eventName, socketData);
       }
-      sendSocketData(manager._id, eventName, socketData);
+      if (manager?._id) {
+        sendSocketData(manager._id, eventName, socketData);
+      }
 
       // console.log("Order accepted successfully");
     } catch (err) {
@@ -1103,7 +1107,9 @@ io.on("connection", async (socket) => {
       }
 
       sendSocketData(agentId, parameters.eventName, agentFound.appDetail);
-      sendSocketData(manager._id, parameters.eventName, agentFound.appDetail);
+      if (manager?._id) {
+        sendSocketData(manager._id, parameters.eventName, agentFound.appDetail);
+      }
     } catch (err) {
       console.log("Failed to reject order :" + err);
 
@@ -1367,7 +1373,9 @@ io.on("connection", async (socket) => {
         if (orderFound?.merchantId) {
           sendSocketData(orderFound.merchantId, eventName, socketData);
         }
-        sendSocketData(manager._id, eventName, socketData);
+        if (manager?._id) {
+          sendSocketData(manager._id, eventName, socketData);
+        }
         sendSocketData(agentId, event, socketDataForAgent);
 
         return;
@@ -1967,7 +1975,9 @@ io.on("connection", async (socket) => {
 
         sendSocketData(orderFound.customerId, eventName, socketData);
         sendSocketData(process.env.ADMIN_ID, eventName, socketData);
-        sendSocketData(manager._id, eventName, socketData);
+        if (manager?._id) {
+          sendSocketData(manager._id, eventName, socketData);
+        }
       } catch (err) {
         return socket.emit("error", {
           message: `Error in cancelling custom order by agent: ${err}`,
