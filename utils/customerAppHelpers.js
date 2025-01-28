@@ -825,11 +825,11 @@ const getDiscountAmountFromLoyalty = async (customer, cartTotal) => {
       pointsLeftForRedemption >= loyaltyPoint.redemptionCriteriaPoint
     ) {
       const maxRedemptionAmount =
-        (maxRedemptionAmountPercentage / 100) * cartTotal;
+        (loyaltyPoint.maxRedemptionAmountPercentage / 100) * cartTotal;
 
       const calculatedDiscount =
         Math.floor(cartTotal / loyaltyPoint.redemptionCriteriaPoint) *
-        redemptionCriteriaRupee;
+        loyaltyPoint.redemptionCriteriaRupee;
 
       discountAmount = Math.min(calculatedDiscount, maxRedemptionAmount);
     }

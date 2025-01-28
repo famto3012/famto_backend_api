@@ -1401,7 +1401,11 @@ const completeOrderController = async (req, res, next) => {
       loyaltyPointCriteria &&
       itemTotal >= loyaltyPointCriteria.minOrderAmountForEarning
     ) {
-      updateLoyaltyPoints(customerFound, loyaltyPointCriteria, cartTotal);
+      updateLoyaltyPoints(
+        customerFound,
+        loyaltyPointCriteria,
+        orderFound.billDetail.grandTotal
+      );
     }
 
     // Calculate referral rewards for customer

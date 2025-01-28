@@ -185,28 +185,28 @@ const sendPushNotificationToUser = async (fcmToken, message, eventName) => {
   try {
     // Try sending with the first project
     await admin1.messaging(app1).send(mes);
-    // console.log(
-    //   `Successfully sent message with project1 for token: ${fcmToken}`
-    // );
+    console.log(
+      `Successfully sent message with project1 for token: ${fcmToken}`
+    );
     return true; // Return true if the notification was sent successfully with project1
   } catch (error1) {
-    // console.error(
-    //   `Error sending message with project1 for token: ${fcmToken}`,
-    //   error1
-    // );
+    console.error(
+      `Error sending message with project1 for token: ${fcmToken}`,
+      error1
+    );
 
     try {
       // Try sending with the second project
       await admin2.messaging(app2).send(mes);
-      // console.log(
-      //   `Successfully sent message with project2 for token: ${fcmToken}`
-      // );
+      console.log(
+        `Successfully sent message with project2 for token: ${fcmToken}`
+      );
       return true; // Return true if the notification was sent successfully with project2
     } catch (error2) {
-      // console.error(
-      //   `Error sending message with project2 for token: ${fcmToken}`,
-      //   error2
-      // );
+      console.error(
+        `Error sending message with project2 for token: ${fcmToken}`,
+        error2
+      );
       return false; // Return false if there was an error with both projects
     }
   }
@@ -1572,7 +1572,7 @@ io.on("connection", async (socket) => {
           admin: process.env.ADMIN_ID,
           merchant: orderFound?.merchantId,
           driver: orderFound?.agentId,
-          customer: orderFound?.customerId,
+          customer: orderFound?.customerId._id,
         }[role];
 
         if (roleId) {
@@ -1595,7 +1595,7 @@ io.on("connection", async (socket) => {
       // Emit socket events to relevant users
       const socketData = { orderDetailStepper: stepperDetail };
       sendSocketData(process.env.ADMIN_ID, eventName, socketData);
-      sendSocketData(orderFound?.customerId, eventName, socketData);
+      sendSocketData(orderFound?.customerId._id, eventName, socketData);
 
       if (orderFound?.merchantId)
         sendSocketData(orderFound.merchantId, eventName, socketData);
@@ -1665,93 +1665,91 @@ io.on("connection", async (socket) => {
         { units: "kilometers" }
       );
 
-      // if (distance < maxRadius) {
-      const pickupStartAt = taskFound?.pickupDetail?.startTime;
+      if (distance < maxRadius) {
+        const pickupStartAt = taskFound?.pickupDetail?.startTime;
 
-      const stepperDetail = {
-        by: agentFound.fullName,
-        userId: agentId,
-        date: new Date(),
-        location: agentFound.location,
-      };
+        const stepperDetail = {
+          by: agentFound.fullName,
+          userId: agentId,
+          date: new Date(),
+          location: agentFound.location,
+        };
 
-      const timeTaken = new Date() - new Date(pickupStartAt);
+        const timeTaken = new Date() - new Date(pickupStartAt);
 
-      orderFound.orderDetailStepper.reachedDeliveryLocation = stepperDetail;
-      orderFound.orderDetail.deliveryTime = new Date();
-      orderFound.orderDetail.timeTaken = timeTaken;
+        orderFound.orderDetailStepper.reachedDeliveryLocation = stepperDetail;
+        orderFound.orderDetail.deliveryTime = new Date();
+        orderFound.orderDetail.timeTaken = timeTaken;
 
-      taskFound.deliveryDetail.deliveryStatus = "Completed";
-      taskFound.deliveryDetail.completedTime = new Date();
-      taskFound.taskStatus = "Completed";
+        taskFound.deliveryDetail.deliveryStatus = "Completed";
+        taskFound.deliveryDetail.completedTime = new Date();
+        taskFound.taskStatus = "Completed";
 
-      await Promise.all([orderFound.save(), taskFound.save()]);
+        await Promise.all([orderFound.save(), taskFound.save()]);
 
-      // Send notifications to each role dynamically
-      for (const role of rolesToNotify) {
-        let roleId;
+        // Send notifications to each role dynamically
+        for (const role of rolesToNotify) {
+          let roleId;
 
-        if (role === "admin") {
-          roleId = process.env.ADMIN_ID;
-        } else if (role === "merchant") {
-          roleId = orderFound?.merchantId;
-        } else if (role === "driver") {
-          roleId = orderFound?.agentId;
-        } else if (role === "customer") {
-          roleId = orderFound?.customerId;
+          if (role === "admin") {
+            roleId = process.env.ADMIN_ID;
+          } else if (role === "merchant") {
+            roleId = orderFound?.merchantId;
+          } else if (role === "driver") {
+            roleId = orderFound?.agentId;
+          } else if (role === "customer") {
+            roleId = orderFound?.customerId._id;
+          }
+
+          if (roleId) {
+            const notificationData = {
+              fcm: {
+                customerId: orderFound.customerId,
+              },
+            };
+
+            await sendNotification(
+              roleId,
+              eventName,
+              notificationData,
+              role.charAt(0).toUpperCase() + role.slice(1)
+            );
+          }
         }
 
-        if (roleId) {
-          const notificationData = {
-            fcm: {
-              customerId: orderFound.customerId,
-            },
-          };
+        const socketData = {
+          orderDetailStepper: stepperDetail,
+          success: true,
+        };
 
-          await sendNotification(
-            roleId,
-            eventName,
-            notificationData,
-            role.charAt(0).toUpperCase() + role.slice(1)
-          );
-        }
+        const event = "agentReachedDeliveryLocation";
+
+        const socketDataForAgent = {
+          message: "Agent reached delivery location",
+          success: true,
+        };
+
+        sendSocketData(process.env.ADMIN_ID, eventName, socketData);
+        sendSocketData(orderFound.customerId._id, eventName, socketData);
+        sendSocketData(agentId, event, socketDataForAgent);
+      } else {
+        const event = "agentNotReachedDeliveryLocation";
+
+        const { data } = await findRolesToNotify(event);
+
+        const dataToSend = {
+          ...data,
+          orderId: taskFound.orderId,
+          agentId,
+        };
+
+        await sendNotification(agentId, event, dataToSend, "Agent");
+
+        return socket.emit("error", {
+          message: "Agent is far from delivery point",
+          success: false,
+        });
       }
-
-      const socketData = {
-        orderDetailStepper: stepperDetail,
-        success: true,
-      };
-
-      const event = "agentReachedDeliveryLocation";
-
-      const socketDataForAgent = {
-        message: "Agent reached delivery location",
-        success: true,
-      };
-
-      sendSocketData(process.env.ADMIN_ID, eventName, socketData);
-      sendSocketData(orderFound.customerId, eventName, socketData);
-      sendSocketData(agentId, event, socketDataForAgent);
-      // } else {
-
-      //   const event = "agentNotReachedDeliveryLocation";
-
-      //   const { data } = await findRolesToNotify(event);
-
-      //   const dataToSend = {
-      //     ...data,
-      //     orderId: taskFound.orderId,
-      //     agentId,
-      //   };
-
-      //   await sendNotification(agentId, event, dataToSend, "Agent");
-
-      //   return socket.emit("error", {
-      //     message: "Agent is far from delivery point",
-      //     success: false,
-      //   });
-      // }
-      // }
     } catch (err) {
       console.log("Agent failed to reach delivery", err);
       return socket.emit("error", {
