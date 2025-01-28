@@ -266,7 +266,9 @@ const createOrdersFromScheduled = async (scheduledOrder) => {
     sendSocketData(newOrder.customerId, eventName, socketData);
     sendSocketData(newOrder.merchantId, eventName, socketData);
     sendSocketData(process.env.ADMIN_ID, eventName, socketData);
-    sendSocketData(manager._id, eventName, socketData);
+    if (manager?._id) {
+      sendSocketData(manager._id, eventName, socketData);
+    }
   } catch (err) {
     console.error("Error creating order from scheduled order:", err.message);
   }
@@ -404,7 +406,9 @@ const createOrdersFromScheduledPickAndDrop = async (scheduledOrder) => {
 
     sendSocketData(newOrder.customerId, eventName, socketData);
     sendSocketData(process.env.ADMIN_ID, eventName, socketData);
-    sendSocketData(manager._id, eventName, socketData);
+    if (manager?._id) {
+      sendSocketData(manager._id, eventName, socketData);
+    }
   } catch (err) {
     next(appError(err.message));
   }

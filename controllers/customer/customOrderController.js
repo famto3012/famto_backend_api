@@ -965,7 +965,9 @@ const confirmCustomOrderController = async (req, res, next) => {
 
         sendSocketData(newOrder.customerId, eventName, socketData);
         sendSocketData(process.env.ADMIN_ID, eventName, socketData);
-        sendSocketData(manager._id, eventName, socketData);
+        if (manager?._id) {
+          sendSocketData(manager._id, eventName, socketData);
+        }
       }
     }, 60000);
   } catch (err) {

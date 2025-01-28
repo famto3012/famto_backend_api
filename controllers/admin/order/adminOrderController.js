@@ -1046,7 +1046,9 @@ const confirmOrderByAdminController = async (req, res, next) => {
 
     sendSocketData(orderFound.customerId, eventName, socketData);
     sendSocketData(process.env.ADMIN_ID, eventName, socketData);
-    sendSocketData(manager._id, eventName, socketData);
+    if (manager?._id) {
+      sendSocketData(manager._id, eventName, socketData);
+    }
     if (orderFound?.merchantId) {
       sendSocketData(orderFound?.merchantId, eventName, socketData);
     }
@@ -1210,7 +1212,9 @@ const rejectOrderByAdminController = async (req, res, next) => {
 
     sendSocketData(orderFound.customerId, eventName, socketData);
     sendSocketData(process.env.ADMIN_ID, eventName, socketData);
-    sendSocketData(manager._id, eventName, socketData);
+    if (manager?._id) {
+      sendSocketData(manager._id, eventName, socketData);
+    }
     if (orderFound?.merchantId) {
       sendSocketData(orderFound?.merchantId, eventName, socketData);
     }
@@ -2851,7 +2855,9 @@ const createOrderByAdminController = async (req, res, next) => {
       }
     }
 
-    sendSocketData(manager._id, eventName, socketData);
+    if (manager?._id) {
+      sendSocketData(manager._id, eventName, socketData);
+    }
 
     res.status(201).json({ cartFound });
   } catch (err) {
