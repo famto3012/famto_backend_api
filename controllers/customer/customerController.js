@@ -45,6 +45,7 @@ const { sendNotification, sendSocketData } = require("../../socket/socket");
 const LoyaltyPoint = require("../../models/LoyaltyPoint");
 const Banner = require("../../models/Banner");
 const PickAndCustomCart = require("../../models/PickAndCustomCart");
+const verifyToken = require("../../utils/verifyToken");
 
 // Register or login customer
 const registerAndLoginController = async (req, res, next) => {
@@ -118,11 +119,42 @@ const registerAndLoginController = async (req, res, next) => {
       }
     }
 
+    let refreshToken = customer?.refreshToken;
+    try {
+      // Verify if the refresh token is still valid
+      if (refreshToken) {
+        verifyToken(refreshToken);
+      } else {
+        refreshToken = generateToken(
+          customer._id,
+          customer.role,
+          customer?.fullName ? customer.fullName : "",
+          "30d"
+        );
+        customer.refreshToken = refreshToken;
+        await customer.save();
+      }
+    } catch {
+      // Generate a new refresh token if expired/invalid
+      refreshToken = generateToken(
+        customer._id,
+        customer.role,
+        customer?.fullName ? customer.fullName : "",
+        "30d"
+      );
+      customer.refreshToken = refreshToken;
+      await customer.save();
+    }
+
     res.status(200).json({
       success: `User ${isNewCustomer ? "created" : "logged in"} successfully`,
       id: customer.id,
-      token: generateToken(customer.id, customer.role),
-      refreshToken: generateToken(customer.id, customer.role),
+      token: generateToken(
+        customer.id,
+        customer.role,
+        customer?.fullName ? customer.fullName : ""
+      ),
+      refreshToken: refreshToken,
       role: customer.role,
       geofenceName: geofence.name,
     });
