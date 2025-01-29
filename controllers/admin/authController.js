@@ -124,6 +124,8 @@ const refreshTokenController = async (req, res, next) => {
       Admin,
       Manager,
       Merchant,
+      Customer,
+      Agent,
     };
 
     const UserModel = modelMap[role];
