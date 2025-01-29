@@ -12,6 +12,7 @@ const ejs = require("ejs");
 const fs = require("fs");
 const path = require("path");
 const verifyToken = require("../../utils/verifyToken");
+const Customer = require("../../models/Customer");
 
 //For Admin and Merchant
 // =============================
