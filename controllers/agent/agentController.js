@@ -50,6 +50,7 @@ const Merchant = require("../../models/Merchant");
 const AgentAppCustomization = require("../../models/AgentAppCustomization");
 const ManagerRoles = require("../../models/ManagerRoles");
 const Manager = require("../../models/Manager");
+const verifyToken = require("../../utils/verifyToken");
 
 // Update location on entering APP
 const updateLocationController = async (req, res, next) => {
@@ -148,12 +149,40 @@ const registerAgentController = async (req, res, next) => {
     sendNotification(process.env.ADMIN_ID, event, data, role);
     sendSocketData(process.env.ADMIN_ID, event, data);
 
+    let refreshToken = newAgent?.refreshToken;
+    try {
+      // Verify if the refresh token is still valid
+      if (refreshToken) {
+        verifyToken(refreshToken);
+      } else {
+        refreshToken = generateToken(
+          newAgent._id,
+          newAgent.role,
+          newAgent?.fullName,
+          "30d"
+        );
+        newAgent.refreshToken = refreshToken;
+        await newAgent.save();
+      }
+    } catch {
+      // Generate a new refresh token if expired/invalid
+      refreshToken = generateToken(
+        newAgent._id,
+        newAgent.role,
+        newAgent?.fullName,
+        "30d"
+      );
+      newAgent.refreshToken = refreshToken;
+      await newAgent.save();
+    }
+
     // Send success response
     res.status(200).json({
       message: "Agent registered successfully",
       _id: newAgent._id,
       fullName: newAgent.fullName,
-      token: generateToken(newAgent._id, newAgent.role),
+      token: generateToken(newAgent._id, newAgent.role, newAgent?.fullName),
+      refreshToken: refreshToken,
     });
   } catch (err) {
     next(appError(err.message));
@@ -197,9 +226,41 @@ const agentLoginController = async (req, res, next) => {
       { upsert: true, new: true }
     );
 
+    let refreshToken = agentFound?.refreshToken;
+    try {
+      // Verify if the refresh token is still valid
+      if (refreshToken) {
+        verifyToken(refreshToken);
+      } else {
+        refreshToken = generateToken(
+          agentFound._id,
+          agentFound.role,
+          agentFound?.fullName,
+          "30d"
+        );
+        agentFound.refreshToken = refreshToken;
+        await agentFound.save();
+      }
+    } catch {
+      // Generate a new refresh token if expired/invalid
+      refreshToken = generateToken(
+        agentFound._id,
+        agentFound.role,
+        agentFound?.fullName,
+        "30d"
+      );
+      agentFound.refreshToken = refreshToken;
+      await agentFound.save();
+    }
+
     res.status(200).json({
       message: "Agent Login successful",
-      token: generateToken(agentFound._id, agentFound.role),
+      token: generateToken(
+        agentFound._id,
+        agentFound.role,
+        agentFound?.fullName
+      ),
+      refreshToken: refreshToken,
       _id: agentFound._id,
       fullName: agentFound.fullName,
       agentImageURL: agentFound.agentImageURL,
