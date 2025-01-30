@@ -9,7 +9,7 @@ const {
 } = require("../../../utils/imageOperation");
 
 const addBusinessCategoryController = async (req, res, next) => {
-  const { title, geofenceId } = req.body;
+  const { title, geofenceId, increasedPercentage } = req.body;
 
   const errors = validationResult(req);
 
@@ -42,6 +42,7 @@ const addBusinessCategoryController = async (req, res, next) => {
       geofenceId,
       bannerImageURL,
       order: newOrder,
+      increasedPercentage,
     });
 
     if (!newBusinessCategory) {
@@ -68,6 +69,7 @@ const getAllBusinessCategoryController = async (req, res, next) => {
         _id: category._id,
         title: category.title,
         bannerImageURL: category.bannerImageURL,
+        increasedPercentage: category.increasedPercentage,
         status: category.status,
       };
     });
@@ -95,6 +97,7 @@ const getSingleBusinessCategoryController = async (req, res, next) => {
       _id: businessCategory._id,
       title: businessCategory.title,
       geofenceId: businessCategory?.geofenceId,
+      increasedPercentage: businessCategory.increasedPercentage,
       bannerImageURL: businessCategory.bannerImageURL,
     };
 
@@ -108,7 +111,7 @@ const getSingleBusinessCategoryController = async (req, res, next) => {
 };
 
 const editBusinessCategoryController = async (req, res, next) => {
-  const { title, geofenceId } = req.body;
+  const { title, geofenceId, increasedPercentage } = req.body;
 
   const errors = validationResult(req);
 
@@ -149,6 +152,7 @@ const editBusinessCategoryController = async (req, res, next) => {
         geofenceId,
         bannerImageURL,
         order,
+        increasedPercentage,
         status: businessCategoryFound.status,
       },
       { new: true }
