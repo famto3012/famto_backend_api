@@ -26,6 +26,10 @@ const BusinessCategorySchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    increasedPercentage: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

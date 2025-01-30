@@ -52,6 +52,10 @@ const addProductController = async (req, res, next) => {
 
   try {
     const existingProduct = await Product.findOne({ productName, categoryId });
+    const category = await Category.findById(categoryId).populate(
+      "businessCategoryId"
+    );
+    const increasedPercentage = category.businessCategoryId.increasedPercentage;
 
     if (existingProduct) {
       formattedErrors.productName = "Product already exists";
@@ -64,7 +68,11 @@ const addProductController = async (req, res, next) => {
 
     // Determine the price based on user role
     let price = Math.round(initialPrice);
-    if (req.userRole === "Merchant") price = Math.round(costPrice * 1.05);
+    req.userRole === "Merchant"
+      ? (price = Math.round(costPrice * (1 + increasedPercentage / 100)))
+      : price != 0
+      ? price
+      : (price = Math.round(costPrice * (1 + increasedPercentage / 100)));
 
     let productImageURL = "";
     if (req.file)
@@ -182,6 +190,10 @@ const editProductController = async (req, res, next) => {
   try {
     const { productId } = req.params;
     const productToUpdate = await Product.findById(productId);
+    const category = await Category.findById(
+      productToUpdate.categoryId
+    ).populate("businessCategoryId");
+    const increasedPercentage = category.businessCategoryId.increasedPercentage;
 
     if (!productToUpdate) {
       return next(appError("Product not found", 404));
@@ -197,8 +209,17 @@ const editProductController = async (req, res, next) => {
 
     // Determine the price based on user role
     let price = Math.round(initialPrice);
-    if (req.userRole === "Merchant" && costPrice)
-      price = Math.round(costPrice * 1.05);
+    if (costPrice) {
+      if (req.userRole === "Merchant") {
+        price = Math.round(costPrice * (1 + increasedPercentage / 100));
+      } else {
+        // If role is not Merchant, check if price is non-zero; otherwise, apply the same logic
+        price =
+          productToUpdate?.price != price
+            ? price
+            : Math.round(costPrice * (1 + increasedPercentage / 100));
+      }
+    }
 
     const product = await Product.findByIdAndUpdate(
       productId,
@@ -405,13 +426,24 @@ const addVariantToProductController = async (req, res, next) => {
     if (!product) {
       return next(appError("Product not found", 404));
     }
+    const category = await Category.findById(product.categoryId).populate(
+      "businessCategoryId"
+    );
+    const increasedPercentage = category.businessCategoryId.increasedPercentage;
 
     // Adjust prices for variant types if user role is merchant
     const updatedVariantTypes = variantTypes.map((variant) => {
       let price = Math.round(variant.price);
 
-      if (req.userRole === "Merchant" && variant.costPrice)
-        price = Math.round(variant.costPrice * 1.05);
+      req.userRole === "Merchant"
+        ? (price = Math.round(
+            variant.costPrice * (1 + increasedPercentage / 100)
+          ))
+        : price != 0
+        ? price
+        : (price = Math.round(
+            variant.costPrice * (1 + increasedPercentage / 100)
+          ));
 
       return {
         ...variant,
@@ -455,6 +487,10 @@ const editVariantController = async (req, res, next) => {
 
     const product = await Product.findById(productId);
     if (!product) return next(appError("Product not found", 404));
+    const category = await Category.findById(product.categoryId).populate(
+      "businessCategoryId"
+    );
+    const increasedPercentage = category.businessCategoryId.increasedPercentage;
 
     const variant = product.variants.id(variantId);
     if (!variant) return next(appError("Variant not found", 404));
@@ -468,7 +504,9 @@ const editVariantController = async (req, res, next) => {
         let price = Math.round(variant.price);
 
         if (req.userRole === "Merchant" && variant.costPrice)
-          price = Math.round(variant.costPrice * 1.05);
+          price = Math.round(
+            variant.costPrice * (1 + increasedPercentage / 100)
+          );
 
         return {
           ...variant,
@@ -476,7 +514,26 @@ const editVariantController = async (req, res, next) => {
         };
       });
     } else {
-      variant.variantTypes = variantTypes;
+      const variantTypePresent = variant.variantTypes;
+
+      variant.variantTypes = variantTypes.map((variant) => {
+        let price = Math.round(variant.price); // Default price
+
+        // Find matching variant in variantTypePresent
+        const existingVariant = variantTypePresent?.find(
+          (v) => v.price === variant.price
+        );
+
+        // If found, keep variant.price; otherwise, calculate dynamically
+        price = existingVariant
+          ? Math.round(variant.costPrice * (1 + increasedPercentage / 100))
+          : variant.price;
+
+        return {
+          ...variant,
+          price,
+        };
+      });
     }
 
     // Save the updated product
@@ -793,7 +850,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
     // Parse the CSV data
     stream
       .pipe(csvParser())
-      .on("data", (row) => {
+      .on("data", async (row) => {
         const isRowEmpty = Object.values(row).every(
           (value) => value.trim() === ""
         );
@@ -825,6 +882,15 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
           // Get the category entry from the map
           const categoryEntry = categoriesMap.get(categoryKey);
 
+          const businessCategory = await BusinessCategory.findOne({
+            title: businessCategoryName,
+          });
+
+          let increasedPercentage = 0; // Default 5% if no business category is found
+          if (businessCategory) {
+            increasedPercentage = businessCategory.increasedPercentage;
+          }
+
           // Check if the product already exists in the category
           let existingProduct = categoryEntry.products.find((p) => {
             return p.productName.toLowerCase() === productName.toLowerCase();
@@ -838,10 +904,12 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
               productName,
               price: Math.round(
                 req.userRole === "Merchant"
-                  ? parseFloat(row["Product Cost Price*"]?.trim()) * 1.05
+                  ? parseFloat(row["Product Cost Price*"]?.trim()) *
+                      (1 + increasedPercentage / 100)
                   : row["Product Price*"]?.trim()
                   ? parseFloat(row["Product Price*"]?.trim())
-                  : parseFloat(row["Product Cost Price*"]?.trim()) * 1.05
+                  : parseFloat(row["Product Cost Price*"]?.trim()) *
+                    (1 + increasedPercentage / 100)
               ),
               minQuantityToOrder:
                 parseInt(row["Min Quantity To Order"]?.trim()) || 0,
@@ -873,10 +941,10 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
           );
           const variantTypePrice = Math.round(
             req.userRole === "Merchant"
-              ? variantTypeCostPrice * 1.05
+              ? variantTypeCostPrice * (1 + increasedPercentage / 100)
               : row["Variant Type Price"]?.trim()
               ? parseFloat(row["Variant Type Price"]?.trim())
-              : variantTypeCostPrice * 1.05
+              : variantTypeCostPrice * (1 + increasedPercentage / 100)
           );
 
           if (
