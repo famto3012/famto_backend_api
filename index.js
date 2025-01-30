@@ -92,7 +92,7 @@ const whatsappRoute = require("./routes/whatsappRoute/whatsappRoute.js");
 
 //middlewares
 app.use(express.json());
-app.use(morgan("tiny"));
+// app.use(morgan("tiny"));
 app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
