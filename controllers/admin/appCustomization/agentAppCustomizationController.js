@@ -8,26 +8,25 @@ const {
 } = require("../../../utils/imageOperation");
 
 const updateAgentsWorkTime = async (oldWorkTime, newWorkTime) => {
+  const newWorkTimeIds = newWorkTime
+    .filter((newTime) => newTime._id)
+    .map((newTime) => newTime._id.toString());
+
   const deletedTimings = oldWorkTime.filter(
-    (oldTime) =>
-      !newWorkTime.some(
-        (newTime) =>
-          newTime.startTime === oldTime.startTime &&
-          newTime.endTime === oldTime.endTime
-      )
+    (oldTime) => !newWorkTimeIds.includes(oldTime._id.toString())
   );
 
   if (deletedTimings.length > 0) {
     await Agent.updateMany(
       {
-        "workStructure.workTimings": {
+        "workStructure.workTimings._id": {
           $in: deletedTimings.map((t) => t._id),
         },
       },
       {
         $pull: {
           "workStructure.workTimings": {
-            $in: deletedTimings.map((t) => t._id),
+            _id: { $in: deletedTimings.map((t) => t._id) },
           },
         },
       }
@@ -54,8 +53,6 @@ const createOrUpdateAgentCustomizationController = async (req, res, next) => {
       loginViaFacebook: req.body.loginViaFacebook || false,
       workingTime,
     };
-
-    console.log("workingTime: ", workingTime);
 
     if (req.file) {
       const splashScreenUrl = await uploadToFirebase(
