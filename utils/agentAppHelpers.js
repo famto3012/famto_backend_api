@@ -5,10 +5,7 @@ const CustomerPricing = require("../models/CustomerPricing");
 const Referral = require("../models/Referral");
 const SubscriptionLog = require("../models/SubscriptionLog");
 const Task = require("../models/Task");
-const {
-  getDistanceFromPickupToDelivery,
-  calculateDeliveryCharges,
-} = require("./customerAppHelpers");
+const { calculateDeliveryCharges } = require("./customerAppHelpers");
 
 const formatToHours = (milliseconds) => {
   const totalMinutes = Math.floor(milliseconds / 60000);
