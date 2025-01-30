@@ -16,6 +16,8 @@ const AccountLogs = require("../../../models/AccountLogs");
 const { formatDate, formatTime } = require("../../../utils/formatters");
 const { formatToHours } = require("../../../utils/agentAppHelpers");
 const ejs = require("ejs");
+const AgentAppCustomization = require("../../../models/AgentAppCustomization");
+const { sendSocketData } = require("../../../socket/socket");
 
 const addAgentByAdminController = async (req, res, next) => {
   const {
@@ -103,9 +105,7 @@ const addAgentByAdminController = async (req, res, next) => {
       }
     }
 
-    const formattedTimings = req.body.workTimings
-      ? req.body.workTimings.split(",")
-      : [];
+    const formattedTimings = workTimings ? workTimings.split(",") : [];
 
     const newAgent = await Agent.create({
       fullName,
@@ -114,7 +114,7 @@ const addAgentByAdminController = async (req, res, next) => {
       geofenceId,
       agentImageURL,
       workStructure: {
-        // managerId: managerId || null,
+        managerId: managerId || null,
         workTimings: formattedTimings,
         salaryStructureId,
         tag,
@@ -377,10 +377,102 @@ const changeAgentStatusController = async (req, res, next) => {
       return next(appError("Agent not found", 404));
     }
 
-    if (agentFound.status === "Free" || agentFound.status === "Busy") {
+    if (agentFound.isApproved === "Pending") {
+      res.status(400).json({
+        message: "Agent is not approved",
+      });
+      return;
+    }
+
+    if (agentFound.status === "Busy") {
+      res.status(400).json({
+        message: "Agent can't go offline during an ongoing delivery",
+      });
+      return;
+    }
+
+    const eventName = "updatedAgentStatusToggle";
+    if (agentFound.status === "Free") {
       agentFound.status = "Inactive";
+      const data = { status: "Offline" };
+
+      sendSocketData(agentFound._id, eventName, data);
+
+      // Set the end time when the agent goes offline
+      agentFound.loginEndTime = new Date();
+
+      if (agentFound.loginStartTime) {
+        const loginDuration = new Date() - new Date(agentFound.loginStartTime); // in milliseconds
+        agentFound.appDetail.loginDuration += loginDuration;
+      }
+
+      agentFound.activityLog.push({
+        date: new Date(),
+        description: "Agent status changed to OFFLINE from panel",
+      });
+      agentFound.loginStartTime = null;
     } else {
+      const agentWorkTimings = agentFound.workStructure.workTimings || [];
+      const now = new Date();
+
+      const objectIds = agentWorkTimings.map((id) =>
+        mongoose.Types.ObjectId.createFromHexString(id)
+      );
+
+      const workTimings = await AgentAppCustomization.aggregate([
+        { $unwind: "$workingTime" },
+        { $match: { "workingTime._id": { $in: objectIds } } },
+        {
+          $project: {
+            _id: "$workingTime._id",
+            startTime: "$workingTime.startTime",
+            endTime: "$workingTime.endTime",
+          },
+        },
+      ]);
+
+      const isWithInWorkingHours = workTimings.some((workTime) => {
+        const { startTime, endTime } = workTime;
+
+        const [startHour, startMinute] = startTime.split(":").map(Number);
+        const [endHour, endMinute] = endTime.split(":").map(Number);
+
+        const start = new Date(now);
+        const end = new Date(now);
+
+        if (process.env.NODE_ENV === "production") {
+          start.setUTCHours(startHour, startMinute, 0, 0);
+          end.setUTCHours(endHour, endMinute, 0, 0);
+        } else {
+          start.setHours(startHour, startMinute, 0, 0);
+          end.setHours(endHour, endMinute, 0, 0);
+        }
+
+        return now >= start && now <= end;
+      });
+
+      if (!isWithInWorkingHours) {
+        res.status(400).json({
+          message: `Agent can go online during their working time only!`,
+        });
+
+        return;
+      }
+
       agentFound.status = "Free";
+
+      const data = {
+        status: "Online",
+      };
+
+      sendSocketData(agentFound._id, eventName, data);
+
+      // Set the start time when the agent goes online
+      agentFound.loginStartTime = new Date();
+      agentFound.activityLog.push({
+        date: new Date(),
+        description: "Agent status changed to ONLINE from panel",
+      });
     }
 
     await agentFound.save();
@@ -410,6 +502,18 @@ const approveAgentRegistrationController = async (req, res, next) => {
     }
 
     agentFound.isApproved = "Approved";
+
+    if (!agentFound.appDetail) {
+      agentFound.appDetail = {
+        totalEarning: 0,
+        orders: 0,
+        pendingOrders: 0,
+        totalDistance: 0,
+        cancelledOrders: 0,
+        loginDuration: 0,
+      };
+    }
+
     await agentFound.save();
 
     res.status(200).json({

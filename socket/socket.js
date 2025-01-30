@@ -33,6 +33,9 @@ const { formatDate, formatTime } = require("../utils/formatters");
 const Admin = require("../models/Admin");
 const ManagerRoles = require("../models/ManagerRoles");
 const Manager = require("../models/Manager");
+const mongoose = require("mongoose");
+const AgentAppCustomization = require("../models/AgentAppCustomization");
+const cron = require("node-cron");
 
 const serviceAccount1 = {
   type: process.env.TYPE_1,
@@ -741,6 +744,117 @@ const handleAgentNotificationLogs = async () => {
 };
 
 handleAgentNotificationLogs();
+
+const automaticStatusOfflineForAgent = async () => {
+  const now = new Date();
+
+  // Fetch all free and approved agents at once
+  const agents = await Agent.find({ isApproved: "Approved", status: "Free" });
+
+  if (!agents.length) return;
+
+  // Extract all workTiming IDs for batch processing
+  const workTimingIds = agents.flatMap(
+    (agent) => agent.workStructure?.workTimings || []
+  );
+
+  if (!workTimingIds.length) return;
+
+  // Fetch all work timings in **one query** instead of multiple
+  const workTimingsData = await AgentAppCustomization.aggregate([
+    { $unwind: "$workingTime" },
+    {
+      $match: {
+        "workingTime._id": {
+          $in: workTimingIds.map((id) =>
+            mongoose.Types.ObjectId.createFromHexString(id)
+          ),
+        },
+      },
+    },
+    {
+      $project: {
+        _id: "$workingTime._id",
+        startTime: "$workingTime.startTime",
+        endTime: "$workingTime.endTime",
+      },
+    },
+  ]);
+
+  // Map work timings for fast lookup
+  const workTimingsMap = new Map(
+    workTimingsData.map((workTime) => [workTime._id.toString(), workTime])
+  );
+
+  // Prepare bulk update operations
+  const bulkOps = [];
+
+  for (const agent of agents) {
+    const workTimings = agent.workStructure.workTimings
+      .map((id) => workTimingsMap.get(id.toString()))
+      .filter(Boolean);
+
+    const isWithinWorkingHours = workTimings.some(({ startTime, endTime }) => {
+      const [startHour, startMinute] = startTime.split(":").map(Number);
+      const [endHour, endMinute] = endTime.split(":").map(Number);
+
+      const start = new Date(now);
+      const end = new Date(now);
+
+      start.setHours(startHour, startMinute, 0, 0);
+      end.setHours(endHour, endMinute, 0, 0);
+
+      return now >= start && now <= end;
+    });
+
+    if (!isWithinWorkingHours) {
+      bulkOps.push({
+        updateOne: {
+          filter: { _id: agent._id },
+          update: {
+            $set: { status: "Inactive" },
+            $push: {
+              activityLog: {
+                date: new Date(),
+                description: "Agent automatically went OFFLINE",
+              },
+            },
+          },
+        },
+      });
+    }
+  }
+
+  // Execute bulk update if needed
+  if (bulkOps.length) {
+    await Agent.bulkWrite(bulkOps);
+  }
+};
+
+// **Trigger this function when work timings change**
+const watchAgentChanges = () => {
+  const changeStream = Agent.watch();
+
+  changeStream.on("change", async (change) => {
+    if (["insert", "update", "replace"].includes(change.operationType)) {
+      await automaticStatusOfflineForAgent();
+    }
+  });
+};
+
+// **Run on server start and schedule periodic runs as a backup**
+mongoose.connection.once("open", () => {
+  // Initial run
+  automaticStatusOfflineForAgent();
+
+  // Watch for live agent changes
+  watchAgentChanges();
+
+  // Backup check every 10 minutes (in case Mongo Change Streams miss anything)
+  cron.schedule("*/2 * * * *", async () => {
+    await automaticStatusOfflineForAgent();
+  });
+});
 
 const getPendingNotificationsWithTimers = async (agentId) => {
   try {
