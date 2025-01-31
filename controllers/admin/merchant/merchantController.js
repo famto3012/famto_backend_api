@@ -1866,10 +1866,10 @@ const downloadMerchantCSVController = async (req, res, next) => {
     const filter = {};
 
     if (serviceable && serviceable.toLowerCase() !== "all")
-      filter.isServiceableToday = serviceable?.trim();
+      filter.status = serviceable?.trim();
     if (geofence && geofence.toLowerCase() !== "all")
       filter["merchantDetail.geofenceId"] =
-        mongoose.Types.ObjectId.createFromHexString(geofenceId);
+        mongoose.Types.ObjectId.createFromHexString(geofence);
     if (businessCategory && businessCategory.toLowerCase() !== "all")
       filter["merchantDetail.businessCategoryId"] =
         mongoose.Types.ObjectId.createFromHexString(businessCategory);

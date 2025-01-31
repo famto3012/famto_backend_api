@@ -872,7 +872,11 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
                 businessCategoryName, // Ensure businessCategoryName is set correctly
                 categoryName,
                 type: row["Category Type*"]?.trim(),
-                status: true,
+                status:
+                  row["Category Status*"]?.trim() === "TRUE" ||
+                  row["Category Status*"]?.trim() === "true"
+                    ? true
+                    : false,
               },
               products: [], // Array to store products under this category
             });
@@ -925,7 +929,12 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
               description: row["Description"]?.trim() || "",
               longDescription: row["Long Description"]?.trim() || "",
               type: row["Product Type*"]?.trim(),
-              inventory: true,
+              inventory:
+                row["Inventory"]?.trim() === "TRUE" ||
+                row["Inventory"]?.trim() === "true"
+                  ? true
+                  : false,
+              productImageURL: row["Product Image"]?.trim() || "",
               availableQuantity:
                 parseInt(row["Available Quantity"]?.trim()) || 0,
               alert: parseInt(row["Alert"]?.trim()) || 0,

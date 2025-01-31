@@ -94,24 +94,36 @@ const automaticStatusToggleForMerchant = async () => {
     .toLocaleString("en-us", { weekday: "long" })
     .toLowerCase();
   const currentTime = new Date().toLocaleTimeString("en-US", {
+    timeZone: "Asia/Kolkata",
     hour12: false,
     hour: "2-digit",
     minute: "2-digit",
   });
+  //   console.log("currentTime", currentTime)
+  // console.log("current day", currentDay)
 
   // Fetch only relevant merchants
   const merchants = await Merchant.find({
     isApproved: "Approved",
     isBlocked: false,
     statusManualToggle: false,
-  }).select("_id merchantDetail.availability.specificDays");
+  }).select(
+    "_id merchantDetail.availability.type merchantDetail.availability.specificDays"
+  );
 
   let merchantsToOpen = [];
   let merchantsToClose = [];
+  //console.log("Merchant number", merchants.length)
 
   merchants.forEach((merchant) => {
+    const availabilityType = merchant?.merchantDetail?.availability?.type;
     const todayAvailability =
       merchant?.merchantDetail?.availability?.specificDays[currentDay];
+
+    if (availabilityType === "Full-time") {
+      merchantsToOpen.push(merchant._id);
+      return; // Skip further checks
+    }
 
     if (todayAvailability?.specificTime) {
       let { startTime, endTime } = todayAvailability;
@@ -159,8 +171,8 @@ const automaticStatusToggleForMerchant = async () => {
     );
   }
 
-  //   console.log("Merchants opened: ", merchantsToOpen.length, merchantsToOpen);
-  //   console.log("Merchants closed: ", merchantsToClose.length, merchantsToClose);
+  // console.log("Merchants opened: ", merchantsToOpen.length, merchantsToOpen);
+  // console.log("Merchants closed: ", merchantsToClose.length, merchantsToClose);
 };
 
 module.exports = {
