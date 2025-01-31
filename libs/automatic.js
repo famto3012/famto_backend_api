@@ -91,7 +91,7 @@ const automaticStatusOfflineForAgent = async () => {
 
 const automaticStatusToggleForMerchant = async () => {
   const currentDay = new Date()
-    .toLocaleString("en-us", { weekday: "long" })
+    .toLocaleString("en-us", { timeZone: "Asia/Kolkata", weekday: "long" })
     .toLowerCase();
   const currentTime = new Date().toLocaleTimeString("en-US", {
     timeZone: "Asia/Kolkata",
@@ -99,8 +99,15 @@ const automaticStatusToggleForMerchant = async () => {
     hour: "2-digit",
     minute: "2-digit",
   });
-  //   console.log("currentTime", currentTime)
-  // console.log("current day", currentDay)
+
+  const formattedTime = currentTime.startsWith("24")
+    ? `00${currentTime.slice(2)}`
+    : currentTime;
+
+  //console.log("currentTime", currentTime)
+  //console.log("formattedTime", formattedTime )
+
+  //console.log("current day", currentDay)
 
   // Fetch only relevant merchants
   const merchants = await Merchant.find({
@@ -141,10 +148,10 @@ const automaticStatusToggleForMerchant = async () => {
       // Handle past-midnight case
       if (
         (startTime <= endTime &&
-          currentTime >= startTime &&
-          currentTime <= endTime) ||
+          formattedTime >= startTime &&
+          formattedTime <= endTime) ||
         (startTime > endTime &&
-          (currentTime >= startTime || currentTime <= endTime))
+          (formattedTime >= startTime || formattedTime <= endTime))
       ) {
         merchantsToOpen.push(merchant._id);
       } else {
