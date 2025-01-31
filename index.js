@@ -202,6 +202,9 @@ cron.schedule("30 18 * * *", async () => {
     resetAllAgentTaskHelper(),
     deleteOldLoyaltyPoints(),
     deleteOldActivityLogs(),
+    removeExpiredMerchantDiscounts(),
+    removeExpiredProductDiscount(),
+    removeExpiredPromoCode(),
   ]);
 });
 
