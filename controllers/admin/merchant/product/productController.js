@@ -55,7 +55,8 @@ const addProductController = async (req, res, next) => {
     const category = await Category.findById(categoryId).populate(
       "businessCategoryId"
     );
-    const increasedPercentage = category.businessCategoryId.increasedPercentage;
+    const increasedPercentage =
+      category?.businessCategoryId?.increasedPercentage || 5;
 
     if (existingProduct) {
       formattedErrors.productName = "Product already exists";
@@ -193,7 +194,8 @@ const editProductController = async (req, res, next) => {
     const category = await Category.findById(
       productToUpdate.categoryId
     ).populate("businessCategoryId");
-    const increasedPercentage = category.businessCategoryId.increasedPercentage;
+    const increasedPercentage =
+      category?.businessCategoryId?.increasedPercentage || 5;
 
     if (!productToUpdate) {
       return next(appError("Product not found", 404));
@@ -429,7 +431,8 @@ const addVariantToProductController = async (req, res, next) => {
     const category = await Category.findById(product.categoryId).populate(
       "businessCategoryId"
     );
-    const increasedPercentage = category.businessCategoryId.increasedPercentage;
+    const increasedPercentage =
+      category?.businessCategoryId?.increasedPercentage || 5;
 
     // Adjust prices for variant types if user role is merchant
     const updatedVariantTypes = variantTypes.map((variant) => {
@@ -490,7 +493,8 @@ const editVariantController = async (req, res, next) => {
     const category = await Category.findById(product.categoryId).populate(
       "businessCategoryId"
     );
-    const increasedPercentage = category.businessCategoryId.increasedPercentage;
+    const increasedPercentage =
+      category?.businessCategoryId?.increasedPercentage || 5;
 
     const variant = product.variants.id(variantId);
     if (!variant) return next(appError("Variant not found", 404));
@@ -888,7 +892,7 @@ const addCategoryAndProductsFromCSVController = async (req, res, next) => {
 
           let increasedPercentage = 0; // Default 5% if no business category is found
           if (businessCategory) {
-            increasedPercentage = businessCategory.increasedPercentage;
+            increasedPercentage = businessCategory?.increasedPercentage || 5;
           }
 
           // Check if the product already exists in the category
