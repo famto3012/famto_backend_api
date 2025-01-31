@@ -125,6 +125,16 @@ const automaticStatusToggleForMerchant = async () => {
       return; // Skip further checks
     }
 
+    if (todayAvailability?.openAllDay) {
+      merchantsToOpen.push(merchant._id);
+      return; // Skip further checks
+    }
+
+    if (todayAvailability?.closedAllDay) {
+      merchantsToClose.push(merchant._id);
+      return; // Skip further checks
+    }
+
     if (todayAvailability?.specificTime) {
       let { startTime, endTime } = todayAvailability;
 
