@@ -30,7 +30,7 @@ const deleteExpiredSubscriptionPlans = async () => {
     }).lean();
 
     const bulkUpdates = [];
-    const bulkDeletions = [];
+    // const bulkDeletions = [];
 
     for (const subscriptionLog of subscriptionLogs) {
       const threeDaysBeforeEndDate = new Date(subscriptionLog.endDate);
@@ -177,14 +177,15 @@ const deleteExpiredSubscriptionPlans = async () => {
         }
 
         // Add to bulk deletion list
-        bulkDeletions.push(
-          SubscriptionLog.deleteOne({ _id: subscriptionLog._id })
-        );
+        // bulkDeletions.push(
+        //   SubscriptionLog.deleteOne({ _id: subscriptionLog._id })
+        // );
       }
     }
 
     // Perform all bulk updates and deletions in parallel
-    await Promise.all([...bulkUpdates, ...bulkDeletions]);
+    // await Promise.all([...bulkUpdates, ...bulkDeletions]);
+    await Promise.all([...bulkUpdates]);
     // console.log("Bulk operations completed successfully.");
   } catch (err) {
     console.error("Error processing expired subscription plans:", err);

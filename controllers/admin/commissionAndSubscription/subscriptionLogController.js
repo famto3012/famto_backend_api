@@ -541,7 +541,14 @@ const getMerchantSubscriptionLogsByStartDate = async (req, res, next) => {
 
 const fetchAllMerchantSubscriptionLogs = async (req, res, next) => {
   try {
-    let { page = 1, limit = 50, merchantId, merchantName, date } = req.query;
+    let {
+      page = 1,
+      limit = 50,
+      merchantId,
+      merchantName,
+      date,
+      status,
+    } = req.query;
 
     page = parseInt(page, 10);
     limit = parseInt(limit, 10);
@@ -576,6 +583,15 @@ const fetchAllMerchantSubscriptionLogs = async (req, res, next) => {
 
     if (merchantId && merchantId.toLowerCase() !== "all")
       filterCriteria.userId = merchantId.trim();
+
+    if (status && status.toLowerCase() !== "all") {
+      if (status.toLowerCase() === "active") {
+        filterCriteria.endDate = { $gt: new Date() };
+      }
+      if (status.toLowerCase() === "expired") {
+        filterCriteria.endDate = { $lt: new Date() };
+      }
+    }
 
     const [logs, totalDocuments] = await Promise.all([
       SubscriptionLog.find(filterCriteria)
