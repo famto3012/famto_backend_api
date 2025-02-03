@@ -213,8 +213,6 @@ cron.schedule("* * * * *", async () => {
   deleteExpiredConversationsAndMessages();
   populateUserSocketMap();
 
-  // await moveAppDetailToHistoryAndResetForAllAgents();
-
   const now = new Date();
 
   const fiveMinutesBefore = new Date(now.getTime() - 5 * 60 * 1000);

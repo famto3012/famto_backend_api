@@ -2201,14 +2201,15 @@ const getMerchantPayoutDetail = async (req, res, next) => {
 
     // Set hours to start and end of the day in local time
     const startOfDay = new Date(localDate);
-    startOfDay.setHours(0, 0, 0, 0);
-
     const endOfDay = new Date(localDate);
-    endOfDay.setHours(23, 59, 59, 999);
 
-    // Adjust by timezoneOffset to get correct UTC times
-    startOfDay.setMinutes(startOfDay.getMinutes() - timezoneOffset);
-    endOfDay.setMinutes(endOfDay.getMinutes() - timezoneOffset);
+    if (process.env.NODE_ENV === "production") {
+      startOfDay.setUTCHours(18, 30, 0, 0);
+      endOfDay.setUTCHours(18, 29, 59, 999);
+    } else {
+      startOfDay.setHours(0, 0, 0, 0);
+      endOfDay.setHours(23, 59, 59, 999);
+    }
 
     // Find all completed orders for the specified merchant on the given day
     const allOrders = await Order.find({
