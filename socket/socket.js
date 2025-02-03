@@ -539,14 +539,13 @@ const getRealTimeDataCountMerchant = async (data) => {
 
       const [active, notActive] = await Promise.all([
         Merchant.countDocuments({
-          "merchantDetail.pricing.0": { $exists: true },
-          "merchantDetail.pricing.modelType": { $exists: true }, // Ensures modelType exists
+          "merchantDetail.pricing": { $ne: [], $exists: true }, // Ensures pricing is not empty
+          "merchantDetail.pricing.modelType": { $exists: true },
           "merchantDetail.pricing.modelId": { $exists: true },
-        }), // active merchants
+        }), // Active merchants
+
         Merchant.countDocuments({
           "merchantDetail.pricing.0": { $exists: false },
-          "merchantDetail.pricing.modelType": { $exists: true }, // Ensures modelType exists
-          "merchantDetail.pricing.modelId": { $exists: true },
         }), // inactive merchants
       ]);
 
@@ -571,7 +570,7 @@ const getRealTimeDataCountMerchant = async (data) => {
         },
       };
 
-      // console.log("Emitting real-time data:", realTimeData);
+      //console.log("Emitting real-time data:", realTimeData);
       const admins = await Admin.find();
       admins.map((admin) => {
         const { socketId } = userSocketMap[admin._id];
@@ -639,8 +638,6 @@ const getRealTimeDataCount = async () => {
       }), // active merchants
       Merchant.countDocuments({
         "merchantDetail.pricing.0": { $exists: false },
-        "merchantDetail.pricing.modelType": { $exists: true }, // Ensures modelType exists
-        "merchantDetail.pricing.modelId": { $exists: true },
       }), // inactive merchants
     ]);
 
@@ -756,7 +753,6 @@ const watchAgentAndTaskChanges = () => {
 
   const handleChange = async (change, source) => {
     // console.log(`Change detected in ${source}:`, change);
-
     if (["insert", "update", "replace"].includes(change.operationType)) {
       await automaticStatusOfflineForAgent();
     }
