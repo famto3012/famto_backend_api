@@ -428,7 +428,7 @@ const getProductDiscountByIdController = async (req, res, next) => {
       discountId: discount._id,
       discountName: discount.discountName,
       discountType: discount.discountType,
-      value: discount.discountValue,
+      discountValue: discount.discountValue,
       maxAmount: discount.maxAmount,
       productId: discount.productId.map((product) => product._id),
       validFrom: discount.validFrom,

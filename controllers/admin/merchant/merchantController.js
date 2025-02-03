@@ -1914,7 +1914,9 @@ const downloadMerchantCSVController = async (req, res, next) => {
         description: merchant?.merchantDetail?.description || "",
         geofence: merchant?.merchantDetail?.geofenceId?.name || "",
         businessCategory:
-          merchant?.merchantDetail?.businessCategoryId?.title || "",
+          merchant?.merchantDetail?.businessCategoryId
+            ?.map((category) => category?.title)
+            .join(", ") || "",
         pancardNumber: merchant?.merchantDetail?.pancardNumber || "",
         pancardImageURL: merchant?.merchantDetail?.pancardImageURL || "",
         GSTINNumber: merchant?.merchantDetail?.GSTINNumber || "",
