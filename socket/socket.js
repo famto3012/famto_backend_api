@@ -755,7 +755,7 @@ const watchAgentAndTaskChanges = () => {
   const taskChangeStream = Task.watch();
 
   const handleChange = async (change, source) => {
-    console.log(`Change detected in ${source}:`, change);
+    // console.log(`Change detected in ${source}:`, change);
 
     if (["insert", "update", "replace"].includes(change.operationType)) {
       await automaticStatusOfflineForAgent();

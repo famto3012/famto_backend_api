@@ -12,13 +12,27 @@ const deleteExpiredSubscriptionPlans = async () => {
   threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
 
   try {
-    // Fetch logs where the endDate is within the next 3 days or has already passed
+    // Fetch subscription logs where the endDate is within the next 3 days or has already passed
     const subscriptionLogs = await SubscriptionLog.find({
       endDate: { $lte: threeDaysFromNow },
-    });
+    }).lean(); // Use lean to fetch raw data for faster performance
+
+    // Fetch merchant and customer notifications for today in bulk
+    const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(now.setHours(23, 59, 59, 999));
+
+    const existingMerchantNotifications = await MerchantNotificationLogs.find({
+      createdAt: { $gte: startOfDay, $lt: endOfDay },
+    }).lean();
+
+    const existingCustomerNotifications = await CustomerNotificationLogs.find({
+      createdAt: { $gte: startOfDay, $lt: endOfDay },
+    }).lean();
+
+    const bulkUpdates = [];
+    const bulkDeletions = [];
 
     for (const subscriptionLog of subscriptionLogs) {
-      // Calculate the date that is 3 days before the endDate
       const threeDaysBeforeEndDate = new Date(subscriptionLog.endDate);
       threeDaysBeforeEndDate.setDate(threeDaysBeforeEndDate.getDate() - 3);
 
@@ -27,25 +41,20 @@ const deleteExpiredSubscriptionPlans = async () => {
       );
       const description = `Your plan will expire in ${daysUntilExpiration} days. Recharge now to avoid disconnection.`;
 
-      // Check if a notification has already been sent today for this merchant/customer
+      // Check if notification has already been sent
       let notificationExists = false;
-
-      const startOfDay = new Date(now.setHours(0, 0, 0, 0));
-      const endOfDay = new Date(now.setHours(23, 59, 59, 999));
-      // Check if today is 3 days before the endDate or later
-
       if (subscriptionLog.typeOfUser === "Merchant") {
-        notificationExists = await MerchantNotificationLogs.findOne({
-          merchantId: subscriptionLog.userId,
-          description,
-          createdAt: { $gte: startOfDay, $lt: endOfDay },
-        });
+        notificationExists = existingMerchantNotifications.some(
+          (log) =>
+            log.merchantId === subscriptionLog.userId &&
+            log.description === description
+        );
       } else {
-        notificationExists = await CustomerNotificationLogs.findOne({
-          customerId: subscriptionLog.userId,
-          description,
-          createdAt: { $gte: startOfDay, $lt: endOfDay },
-        });
+        notificationExists = existingCustomerNotifications.some(
+          (log) =>
+            log.customerId === subscriptionLog.userId &&
+            log.description === description
+        );
       }
 
       if (
@@ -53,6 +62,9 @@ const deleteExpiredSubscriptionPlans = async () => {
         now < subscriptionLog.endDate &&
         !notificationExists
       ) {
+        // console.log(
+        //   `Sending notification to ${subscriptionLog.userId} for plan expiration.`
+        // );
         const data = {
           socket: {
             title: `Subscription plan`,
@@ -75,92 +87,105 @@ const deleteExpiredSubscriptionPlans = async () => {
           data,
           subscriptionLog.typeOfUser
         );
-
         sendNotification(
           process.env.ADMIN_ID,
           eventName,
           data,
           subscriptionLog.typeOfUser
         );
+      }
 
-        // Proceed with deletion if the plan has expired
-        if (now >= subscriptionLog.endDate) {
-          if (subscriptionLog.typeOfUser === "Merchant") {
-            // Remove the subscription log ID from the pricing array
-            await Merchant.updateOne(
-              { "merchantDetail.pricing": subscriptionLog._id },
-              { $pull: { "merchantDetail.pricing": subscriptionLog._id } }
-            );
-            const data = {
-              socket: {
-                title: `Subscription plan`,
-                description: `Your plan has expired.`,
-              },
-              fcm: {
-                title: `Subscription plan`,
-                body: `Your plan has expired.`,
-                image: "",
-                merchantId: subscriptionLog.userId,
-              },
-            };
+      // If the plan has expired, proceed with deletion
+      if (now >= subscriptionLog.endDate) {
+        // console.log(
+        //   `Subscription for ${subscriptionLog.userId} has expired. Proceeding with removal.`
+        // );
 
-            const eventName = "subscriptionPlanEnd";
+        // Prepare for bulk update or deletion
+        if (subscriptionLog.typeOfUser === "Merchant") {
+          bulkUpdates.push(
+            Merchant.updateOne(
+              { "merchantDetail.pricing.modelId": subscriptionLog._id },
+              {
+                $pull: {
+                  "merchantDetail.pricing": { modelId: subscriptionLog._id },
+                },
+              }
+            )
+          );
 
-            sendNotification(
-              subscriptionLog.userId,
-              eventName,
-              data,
-              subscriptionLog.typeOfUser
-            );
+          const data = {
+            socket: {
+              title: `Subscription plan`,
+              description: `Your plan has expired.`,
+            },
+            fcm: {
+              title: `Subscription plan`,
+              body: `Your plan has expired.`,
+              image: "",
+              merchantId: subscriptionLog.userId,
+            },
+          };
 
-            sendNotification(
-              process.env.ADMIN_ID,
-              eventName,
-              data,
-              subscriptionLog.typeOfUser
-            );
-          } else {
-            // Fetch customer with this subscription log ID in their pricing array
-            await Customer.updateOne(
+          const eventName = "subscriptionPlanEnd";
+          sendNotification(
+            subscriptionLog.userId,
+            eventName,
+            data,
+            subscriptionLog.typeOfUser
+          );
+          sendNotification(
+            process.env.ADMIN_ID,
+            eventName,
+            data,
+            subscriptionLog.typeOfUser
+          );
+        } else {
+          bulkUpdates.push(
+            Customer.updateOne(
               { "customerDetails.pricing": subscriptionLog._id },
               { $pull: { "customerDetails.pricing": subscriptionLog._id } }
-            );
+            )
+          );
 
-            const data = {
-              socket: {
-                title: `Subscription plan`,
-                description: `Your plan has expired.`,
-              },
-              fcm: {
-                title: `Subscription plan`,
-                body: `Your plan has expired.`,
-                image: "",
-                customerId: subscriptionLog.userId,
-              },
-            };
+          const data = {
+            socket: {
+              title: `Subscription plan`,
+              description: `Your plan has expired.`,
+            },
+            fcm: {
+              title: `Subscription plan`,
+              body: `Your plan has expired.`,
+              image: "",
+              customerId: subscriptionLog.userId,
+            },
+          };
 
-            const eventName = "subscriptionPlanEnd";
-
-            sendNotification(
-              subscriptionLog.userId,
-              eventName,
-              data,
-              subscriptionLog.typeOfUser
-            );
-
-            sendNotification(
-              process.env.ADMIN_ID,
-              eventName,
-              data,
-              subscriptionLog.typeOfUser
-            );
-          }
-
-          // Remove expired subscription log
-          await SubscriptionLog.deleteOne({ _id: subscriptionLog.id });
+          const eventName = "subscriptionPlanEnd";
+          sendNotification(
+            subscriptionLog.userId,
+            eventName,
+            data,
+            subscriptionLog.typeOfUser
+          );
+          sendNotification(
+            process.env.ADMIN_ID,
+            eventName,
+            data,
+            subscriptionLog.typeOfUser
+          );
         }
+
+        // Add to bulk deletion list
+        bulkDeletions.push(
+          SubscriptionLog.deleteOne({ _id: subscriptionLog._id })
+        );
       }
     }
+
+    // Perform all bulk updates and deletions in parallel
+    await Promise.all([...bulkUpdates, ...bulkDeletions]);
+    // console.log("Bulk operations completed successfully.");
   } catch (err) {
     console.error("Error processing expired subscription plans:", err);
   }
