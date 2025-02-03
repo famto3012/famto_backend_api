@@ -46,7 +46,7 @@ const uploadToFirebase = async (file, folderName, locationImage = false) => {
     try {
       fileBuffer = await sharp(file.buffer)
         .resize({ width: 800 })
-        .jpeg({ quality: 80 })
+        .jpeg({ quality: 100 })
         .toBuffer();
     } catch (err) {
       throw new Error("Image processing failed");
@@ -54,7 +54,8 @@ const uploadToFirebase = async (file, folderName, locationImage = false) => {
   } else if (
     file.mimetype === "text/csv" ||
     file.mimetype === "application/vnd.ms-excel" ||
-    file.mimetype.startsWith("audio/")
+    file.mimetype.startsWith("audio/") ||
+    file.mimetype.startsWith("application/pdf")
   ) {
     // If it's a CSV, skip sharp and use the original buffer
     fileBuffer = file.buffer;
