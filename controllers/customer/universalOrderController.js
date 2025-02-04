@@ -90,37 +90,37 @@ const getAllBusinessCategoryController = async (req, res, next) => {
 const homeSearchController = async (req, res, next) => {
   const { query } = req.query;
 
-  const errors = validationResult(req);
-
-  let formattedErrors = {};
-  if (!errors.isEmpty()) {
-    errors.array().forEach((error) => {
-      formattedErrors[error.path] = error.msg;
-    });
-    return res.status(500).json({ errors: formattedErrors });
-  }
-
   try {
+    const { latitude, longitude } = req.body;
+
+    if (!latitude || !longitude)
+      return next(appError("Latitude & Longitude are required", 400));
+
+    const geofence = await geoLocation(latitude, longitude);
+
+    if (!geofence)
+      return next(appError("Customer is outside the listed geofences", 500));
+
     // Search in BusinessCategory by title
     const businessCategories = await BusinessCategory.find({
       title: { $regex: query, $options: "i" },
+      status: true,
+      geofenceId: { $in: [geofence._id] },
     })
       .select("title bannerImageURL")
       .exec();
 
-    const formattedBusinessCategoryResponse = businessCategories?.map(
-      (category) => {
-        return {
-          id: category._id,
-          title: category.title,
-          bannerImageURL: category.bannerImageURL,
-        };
-      }
-    );
+    const formattedResponse = businessCategories?.map((category) => {
+      return {
+        id: category._id,
+        title: category.title,
+        bannerImageURL: category.bannerImageURL,
+      };
+    });
 
     res.status(200).json({
       message: "Search results",
-      data: formattedBusinessCategoryResponse,
+      data: formattedResponse,
     });
   } catch (err) {
     next(appError(err.message));
@@ -134,11 +134,15 @@ const listRestaurantsController = async (req, res, next) => {
   try {
     const customerId = req.userAuth;
 
-    const currentCustomer = await Customer.findById(customerId)
-      .select("customerDetails.favoriteMerchants")
-      .exec();
+    let currentCustomer;
 
-    if (!currentCustomer) return next(appError("Customer not found", 404));
+    if (customerId) {
+      currentCustomer = await Customer.findById(customerId)
+        .select("customerDetails.favoriteMerchants")
+        .exec();
+
+      if (!currentCustomer) return next(appError("Customer not found", 404));
+    }
 
     const customerLocation = [latitude, longitude];
 
@@ -179,11 +183,6 @@ const listRestaurantsController = async (req, res, next) => {
 
     const simplifiedMerchants = await Promise.all(
       openedMerchantsFirst.map(async (merchant) => {
-        const isFavorite =
-          currentCustomer?.customerDetails?.favoriteMerchants?.some(
-            (favorite) => favorite?.merchantId === merchant?._id
-          ) ?? false;
-
         return {
           id: merchant._id,
           merchantName: merchant?.merchantDetail?.merchantName || null,
@@ -196,7 +195,10 @@ const listRestaurantsController = async (req, res, next) => {
             "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/DefaultImages%2FMerchantDefaultImage.png?alt=media&token=a7a11e18-047c-43d9-89e3-8e35d0a4e231",
           displayAddress: merchant?.merchantDetail?.displayAddress || null,
           preOrderStatus: merchant?.merchantDetail?.preOrderStatus,
-          isFavorite,
+          isFavorite:
+            currentCustomer?.customerDetails?.favoriteMerchants?.some(
+              (favorite) => favorite?.merchantId === merchant?._id
+            ) ?? false,
         };
       })
     );
@@ -214,26 +216,35 @@ const listRestaurantsController = async (req, res, next) => {
 const getAllCategoriesOfMerchants = async (req, res, next) => {
   try {
     const { merchantId, businessCategoryId } = req.params;
+    const { latitude, longitude } = req.query;
+
+    const customerId = req.userAuth;
 
     const [merchantFound, customerFound] = await Promise.all([
       Merchant.findById(merchantId),
-      Customer.findById(req.userAuth),
+      Customer.findById(customerId),
     ]);
 
     if (!merchantFound) return next(appError("Merchant not found", 404));
-    if (!customerFound) return next(appError("Customer not found", 404));
+    if (customerId && !customerFound)
+      return next(appError("Customer not found", 404));
 
     const merchantLocation = merchantFound.merchantDetail.location;
-    const customerLocation = customerFound.customerDetails.location;
+    const customerLocation =
+      latitude && longitude
+        ? [latitude, longitude]
+        : customerFound.customerDetails.location;
 
     let distanceInKM;
 
-    const distance = await getDistanceFromPickupToDelivery(
-      merchantLocation,
-      customerLocation
-    );
+    if (merchantLocation.length) {
+      const distance = await getDistanceFromPickupToDelivery(
+        merchantLocation,
+        customerLocation
+      );
 
-    distanceInKM = distance.distanceInKM;
+      distanceInKM = distance.distanceInKM;
+    }
 
     let distanceWarning = false;
     if (distanceInKM > 12) distanceWarning = true;
@@ -241,6 +252,7 @@ const getAllCategoriesOfMerchants = async (req, res, next) => {
     let isFavourite = false;
 
     if (
+      customerId &&
       customerFound.customerDetails.favoriteMerchants.some(
         (favorite) => favorite.merchantId === merchantFound._id
       )
@@ -299,11 +311,13 @@ const getAllProductsOfMerchantController = async (req, res, next) => {
     const { categoryId } = req.params;
     const customerId = req.userAuth;
 
-    const currentCustomer = await Customer.findById(customerId)
-      .select("customerDetails.favoriteProducts")
-      .exec();
+    const currentCustomer =
+      (await Customer.findById(customerId)
+        .select("customerDetails.favoriteProducts")
+        .lean()) ?? null;
 
-    if (!currentCustomer) return next(appError("Customer not found", 404));
+    if (customerId && !currentCustomer)
+      return next(appError("Customer not found", 404));
 
     const allProducts = await Product.find({ categoryId, inventory: true })
       .populate(
@@ -464,23 +478,31 @@ const getProductVariantsByProductIdController = async (req, res, next) => {
 // Filter merchants based on (Pure veg, Rating, Nearby)
 const filterAndSearchMerchantController = async (req, res, next) => {
   try {
-    const { businessCategoryId, filterType, query = "" } = req.query;
+    const {
+      businessCategoryId,
+      filterType,
+      query = "",
+      latitude,
+      longitude,
+    } = req.query;
     const customerId = req.userAuth;
 
     // Validate required inputs
     if (!businessCategoryId)
       return next(appError("Business category is required", 400));
 
-    // Fetch customer and validate existence
-    const customer = await Customer.findById(customerId).select(
-      "customerDetails.location"
-    );
-    if (!customer) return next(appError("Customer not found", 404));
+    let customer;
 
-    const foundGeofence = await geoLocation(
-      customer.customerDetails.location[0],
-      customer.customerDetails.location[1]
-    );
+    if (customerId) {
+      // Fetch customer and validate existence
+      customer = await Customer.findById(customerId).select(
+        "customerDetails.location"
+      );
+
+      if (!customer) return next(appError("Customer not found", 404));
+    }
+
+    const foundGeofence = await geoLocation(latitude, longitude);
 
     if (!foundGeofence) return next(appError("Geofence not found", 404));
 
@@ -512,7 +534,7 @@ const filterAndSearchMerchantController = async (req, res, next) => {
     // Fetch merchants based on filter criteria
     let merchants = await Merchant.find(filterCriteria).lean();
 
-    const customerLocation = customer.customerDetails.location;
+    const customerLocation = [latitude, longitude];
     // Apply "Nearby" filter if required
     const turf = require("@turf/turf");
     if (filterType === "Nearby" && customerLocation) {
@@ -536,10 +558,6 @@ const filterAndSearchMerchantController = async (req, res, next) => {
 
     // Map sorted merchants to response format
     const responseMerchants = sortedMerchants.map((merchant) => {
-      const isFavorite =
-        customer?.customerDetails?.favoriteMerchants?.includes(merchant._id) ??
-        false;
-
       return {
         id: merchant._id,
         merchantName: merchant.merchantDetail.merchantName,
@@ -550,7 +568,10 @@ const filterAndSearchMerchantController = async (req, res, next) => {
         merchantImageURL: merchant.merchantDetail.merchantImageURL || null,
         displayAddress: merchant.merchantDetail.displayAddress || null,
         preOrderStatus: merchant?.merchantDetail?.preOrderStatus,
-        isFavorite,
+        isFavorite:
+          customer?.customerDetails?.favoriteMerchants?.includes(
+            merchant._id
+          ) ?? false,
       };
     });
 
@@ -708,11 +729,15 @@ const filterAndSortAndSearchProductsController = async (req, res, next) => {
 
     const customerId = req.userAuth;
 
-    const currentCustomer = await Customer.findById(customerId)
-      .select("customerDetails.favoriteProducts")
-      .exec();
+    let currentCustomer;
 
-    if (!currentCustomer) return next(appError("Customer not found", 404));
+    if (customerId) {
+      currentCustomer = await Customer.findById(customerId)
+        .select("customerDetails.favoriteProducts")
+        .lean();
+
+      if (!currentCustomer) return next(appError("Customer not found", 404));
+    }
 
     // Get category IDs associated with the merchant
     const categories = await Category.find({ merchantId }).select("_id");
@@ -754,11 +779,6 @@ const filterAndSortAndSearchProductsController = async (req, res, next) => {
     const currentDate = new Date();
 
     const formattedResponse = products?.map((product) => {
-      const isFavorite =
-        currentCustomer?.customerDetails?.favoriteProducts?.includes(
-          product._id
-        ) ?? false;
-
       const discount = product?.discountId;
       const validFrom = new Date(discount?.validFrom);
       const validTo = new Date(discount?.validTo);
@@ -794,7 +814,10 @@ const filterAndSortAndSearchProductsController = async (req, res, next) => {
         discountPrice: Math.round(discountPrice) || null,
         minQuantityToOrder: product.minQuantityToOrder || null,
         maxQuantityPerOrder: product.maxQuantityPerOrder || null,
-        isFavorite,
+        isFavorite:
+          currentCustomer?.customerDetails?.favoriteProducts?.includes(
+            product._id
+          ) ?? false,
         preparationTime: product?.preparationTime
           ? `${product.preparationTime} min`
           : null,
@@ -817,6 +840,35 @@ const filterAndSortAndSearchProductsController = async (req, res, next) => {
     next(appError(err.message));
   }
 };
+
+// Get average rating and total rating count of merchant
+const getTotalRatingOfMerchantController = async (req, res, next) => {
+  try {
+    const { merchantId } = req.params;
+
+    const merchantFound = await Merchant.findById(merchantId);
+
+    if (!merchantFound) {
+      return next(appError("Merchant not found", 404));
+    }
+
+    const totalReviews =
+      merchantFound?.merchantDetail?.ratingByCustomers?.length || 0;
+    const averageRating = merchantFound?.merchantDetail?.averageRating || 0;
+
+    res.status(200).json({
+      message: "Rating details of merchant",
+      totalReviews,
+      averageRating,
+    });
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
+// ========================
+// Protected Routes
+// ========================
 
 // Add or remove Products from favorite
 const toggleProductFavoriteController = async (req, res, next) => {
@@ -962,31 +1014,6 @@ const addRatingToMerchantController = async (req, res, next) => {
     await merchantFound.save();
 
     res.status(200).json({ message: "Rating submitted successfully" });
-  } catch (err) {
-    next(appError(err.message));
-  }
-};
-
-// Get average rating and total rating count of merchant
-const getTotalRatingOfMerchantController = async (req, res, next) => {
-  try {
-    const { merchantId } = req.params;
-
-    const merchantFound = await Merchant.findById(merchantId);
-
-    if (!merchantFound) {
-      return next(appError("Merchant not found", 404));
-    }
-
-    const totalReviews =
-      merchantFound?.merchantDetail?.ratingByCustomers?.length || 0;
-    const averageRating = merchantFound?.merchantDetail?.averageRating || 0;
-
-    res.status(200).json({
-      message: "Rating details of merchant",
-      totalReviews,
-      averageRating,
-    });
   } catch (err) {
     next(appError(err.message));
   }
@@ -1185,6 +1212,7 @@ const confirmOrderDetailController = async (req, res, next) => {
       instructionToMerchant,
       instructionToDeliveryAgent,
       ifScheduled,
+      isSuperMarketOrder = false,
     } = req.body;
 
     const { customer, cart, merchant } = await fetchCustomerAndMerchantAndCart(
@@ -1234,7 +1262,8 @@ const confirmOrderDetailController = async (req, res, next) => {
       customer,
       cartItems,
       scheduledDetails,
-      businessCategoryId
+      businessCategoryId,
+      isSuperMarketOrder
     );
 
     const merchantDiscountAmount = await applyDiscounts({
@@ -2495,6 +2524,44 @@ const getOrderTrackingStepper = async (req, res, next) => {
   }
 };
 
+const getSuperMarketMerchant = async (req, res, next) => {
+  try {
+    const customerId = req.userAuth;
+
+    const [merchant, customer] = await Promise.all([
+      Merchant.findOne({
+        fullName: "Supermarket",
+        isBlocked: false,
+        isApproved: "Approved",
+      }).select("status merchantDetail"),
+      Customer.findById(customerId)
+        .select("customerDetails.favoriteMerchants")
+        .lean(),
+    ]);
+
+    const formattedResponse = {
+      id: merchant._id,
+      merchantName: merchant?.merchantDetail?.merchantName || null,
+      description: merchant?.merchantDetail?.description || null,
+      averageRating: merchant?.merchantDetail?.averageRating,
+      status: merchant?.status,
+      restaurantType: merchant?.merchantDetail?.merchantFoodType || null,
+      merchantImageURL:
+        merchant?.merchantDetail?.merchantImageURL ||
+        "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/DefaultImages%2FMerchantDefaultImage.png?alt=media&token=a7a11e18-047c-43d9-89e3-8e35d0a4e231",
+      displayAddress: merchant?.merchantDetail?.displayAddress || null,
+      preOrderStatus: merchant?.merchantDetail?.preOrderStatus,
+      isFavorite:
+        customer?.customerDetails?.favoriteMerchants?.includes(merchant._id) ??
+        false,
+    };
+
+    res.status(200).json(formattedResponse);
+  } catch (err) {
+    next(appError(err.message));
+  }
+};
+
 module.exports = {
   getAllBusinessCategoryController,
   homeSearchController,
@@ -2521,4 +2588,5 @@ module.exports = {
   getOrderTrackingDetail,
   getOrderTrackingStepper,
   searchProductsInMerchantToOrderController,
+  getSuperMarketMerchant,
 };

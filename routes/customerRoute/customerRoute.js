@@ -70,6 +70,7 @@ const {
   getOrderTrackingStepper,
   filterAndSortAndSearchProductsController,
   searchProductsInMerchantToOrderController,
+  getSuperMarketMerchant,
 } = require("../../controllers/customer/universalOrderController");
 const {
   addPickUpAddressController,
@@ -95,6 +96,7 @@ const {
 const {
   getTimingsForCustomerApp,
 } = require("../../controllers/admin/appCustomization/customerAppCustomization");
+const isLooselyAuthenticated = require("../../middlewares/isLooselyAuthenticated");
 
 const customerRoute = express.Router();
 
@@ -140,64 +142,56 @@ customerRoute.get(
 // Get all business categories route
 customerRoute.post(
   "/all-business-categories",
-  isAuthenticated,
   getAllBusinessCategoryController
 );
 
 // Search in home
-customerRoute.get("/search-home", isAuthenticated, homeSearchController);
+customerRoute.get("/search-home", homeSearchController);
 
 // List all restaurants in customers geofence
 customerRoute.post(
   "/list-restaurants",
-  isAuthenticated,
+  isLooselyAuthenticated,
   listRestaurantsController
 );
-
-// // List all restaurants in customers geofence
-// customerRoute.get(
-//   "/search-merchant-or-product",
-//   isAuthenticated,
-//   searchMerchantsOrProducts
-// );
 
 // Get all categories a merchant
 customerRoute.get(
   "/:merchantId/:businessCategoryId/categories",
-  isAuthenticated,
+  isLooselyAuthenticated,
   getAllCategoriesOfMerchants
 );
 
 // Get all products a merchant
 customerRoute.get(
   "/merchant/:categoryId/products/:customerId",
-  isAuthenticated,
+  isLooselyAuthenticated,
   getAllProductsOfMerchantController
 );
 
 // Get variants of a product
 customerRoute.get(
   "/merchant/product/:productId/variants",
-  isAuthenticated,
+  isLooselyAuthenticated,
   getProductVariantsByProductIdController
 );
 
 // Filter ans search merchants by criteria (Pure veg, Rating, Nearby)
 customerRoute.get(
   "/filter-and-search-merchants",
-  isAuthenticated,
+  isLooselyAuthenticated,
   filterAndSearchMerchantController
 );
 
 customerRoute.get(
   "/search-products/:merchantId/:businessCategoryId",
-  isAuthenticated,
+  isLooselyAuthenticated,
   searchProductsInMerchantToOrderController
 );
 
 customerRoute.get(
   "/products/filter-and-sort/:merchantId",
-  isAuthenticated,
+  isLooselyAuthenticated,
   filterAndSortAndSearchProductsController
 );
 
@@ -226,7 +220,6 @@ customerRoute.post(
 // Get rating details of customer
 customerRoute.get(
   "/merchant-rating-details/:merchantId",
-  isAuthenticated,
   getTotalRatingOfMerchantController
 );
 
@@ -552,5 +545,7 @@ customerRoute.put(
   isAuthenticated,
   removeAppliedPromoCode
 );
+
+customerRoute.get("/get-super-market", isAuthenticated, getSuperMarketMerchant);
 
 module.exports = customerRoute;

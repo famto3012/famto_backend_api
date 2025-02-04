@@ -550,7 +550,8 @@ const calculateDeliveryChargesHelper = async (
   customer,
   items,
   scheduledDetails,
-  selectedBusinessCategory
+  selectedBusinessCategory,
+  isSuperMarketOrder
 ) => {
   let oneTimeDeliveryCharge = null;
   let surgeCharges = null;
@@ -564,21 +565,27 @@ const calculateDeliveryChargesHelper = async (
 
     if (!businessCategoryId) throw new Error("Business category not found");
 
-    const customerPricing = await CustomerPricing.findOne({
-      deliveryMode,
-      businessCategoryId,
-      geofenceId: customer.customerDetails.geofenceId,
-      status: true,
-    });
+    let customerPricing;
 
-    if (!customerPricing) throw new Error("Customer pricing not found");
+    if (!isSuperMarketOrder) {
+      customerPricing = await CustomerPricing.findOne({
+        deliveryMode,
+        businessCategoryId,
+        geofenceId: customer.customerDetails.geofenceId,
+        status: true,
+      });
 
-    oneTimeDeliveryCharge = calculateDeliveryCharges(
-      distanceInKM,
-      customerPricing.baseFare,
-      customerPricing.baseDistance,
-      customerPricing.fareAfterBaseDistance
-    );
+      if (!customerPricing) throw new Error("Customer pricing not found");
+
+      oneTimeDeliveryCharge = calculateDeliveryCharges(
+        distanceInKM,
+        customerPricing.baseFare,
+        customerPricing.baseDistance,
+        customerPricing.fareAfterBaseDistance
+      );
+    } else {
+      oneTimeDeliveryCharge = 40;
+    }
 
     const customerSurge = await CustomerSurge.findOne({
       geofenceId: customer.customerDetails.geofenceId,
@@ -1346,12 +1353,14 @@ const processHomeDeliveryDetailInApp = async (
       throw new Error("Incomplete address details");
     }
 
-    const { distanceInKM } = await getDistanceFromPickupToDelivery(
-      pickupLocation,
-      deliveryLocation
-    );
+    if (pickupLocation.length) {
+      const { distanceInKM } = await getDistanceFromPickupToDelivery(
+        pickupLocation,
+        deliveryLocation
+      );
 
-    distance = distanceInKM;
+      distance = distanceInKM;
+    }
   }
 
   return {
