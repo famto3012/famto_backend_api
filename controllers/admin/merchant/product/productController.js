@@ -176,8 +176,6 @@ const editProductController = async (req, res, next) => {
     alert,
   } = req.body;
 
-  console.log(req.body);
-
   const errors = validationResult(req);
 
   let formattedErrors = {};
