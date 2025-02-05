@@ -1,5 +1,12 @@
 const { validationResult } = require("express-validator");
 const bcrypt = require("bcryptjs");
+const mongoose = require("mongoose");
+const csvParser = require("csv-parser");
+const axios = require("axios");
+const { createObjectCsvWriter } = require("csv-writer");
+const { createTransport } = require("nodemailer");
+const ejs = require("ejs");
+const { v4: uuidv4 } = require("uuid");
 const appError = require("../../../utils/appError");
 const {
   uploadToFirebase,
@@ -15,28 +22,23 @@ const {
   getPlanAmount,
   calculateEndDate,
 } = require("../../../utils/sponsorshipHelpers");
-const mongoose = require("mongoose");
 const AccountLogs = require("../../../models/AccountLogs");
-const csvParser = require("csv-parser");
+
 const fs = require("fs").promises;
 const { Readable } = require("stream");
-const axios = require("axios");
+
 const path = require("path");
 const { sendNotification, sendSocketData } = require("../../../socket/socket");
 const NotificationSetting = require("../../../models/NotificationSetting");
-const csvWriter = require("csv-writer").createObjectCsvWriter;
-const { createTransport } = require("nodemailer");
+
 const { formatDate } = require("../../../utils/formatters");
 const Commission = require("../../../models/Commission");
 const SubscriptionLog = require("../../../models/SubscriptionLog");
 const Category = require("../../../models/Category");
 const Product = require("../../../models/Product");
-const sharp = require("sharp");
 const ActivityLog = require("../../../models/ActivityLog");
-const ejs = require("ejs");
 const MerchantSubscription = require("../../../models/MerchantSubscription");
 const Order = require("../../../models/Order");
-const { v4: uuidv4 } = require("uuid");
 
 // Helper function to handle null or empty string values
 const convertNullValues = (obj) => {
@@ -250,69 +252,29 @@ const changeMerchantStatusByMerchantController = async (req, res, next) => {
       return next(appError("Merchant not found", 404));
     }
 
-    // const currentDate = new Date();
-    // const currentDay = currentDate
-    //   .toLocaleString("en-us", { weekday: "long" })
-    //   .toLowerCase(); // get the current day in lowercase (e.g., 'monday')
-    // const currentTime = currentDate.toLocaleTimeString("en-GB", {
-    //   hour12: false,
-    //   hour: "2-digit",
-    //   minute: "2-digit",
-    // }); // 24-hour format time (e.g., '16:30')
-
-    // // Get today's availability
-    // const availability =
-    //   merchantFound.merchantDetail.availability?.specificDays?.[currentDay];
-
-    // if (!availability) {
-    //   return next(appError("Merchant availability not set for today", 400));
-    // }
-
-    // // Check if merchant is closed all day
-    // if (availability.closedAllDay) {
-    //   return next(appError("Merchant is closed all day.", 400));
-    // }
-
-    // // Check if merchant is open all day
-    // if (availability.openAllDay) {
-    //   merchantFound.status = !merchantFound.status;
-    //   merchantFound.openedToday = true;
-    //   await merchantFound.save();
-    //   return res
-    //     .status(200)
-    //     .json({ message: "Merchant status changed successfully." });
-    // }
-
-    // // Check specific time availability
-    // if (availability.specificTime) {
-    //   const { startTime, endTime } = availability;
-
-    //   if (currentTime >= startTime && currentTime <= endTime) {
-    //     // Toggle status as the current time falls within available hours
-    //     merchantFound.status = !merchantFound.status;
-    //     merchantFound.openedToday = true;
-    //     await merchantFound.save();
-    //     return res
-    //       .status(200)
-    //       .json({ message: "Merchant status changed successfully." });
-    //   } else {
-    //     return next(
-    //       appError("Merchant is not within the available hours.", 400)
-    //     );
-    //   }
-    // }
-
-    // // Default case: if no conditions match, assume not ready to open
-    // return next(
-    //   appError("Merchant is not ready to open at the current time.", 400)
-    // );
     if (merchantFound.isApproved === "Pending") {
       return next(appError("Please complete the registration", 400));
     }
 
     merchantFound.status = !merchantFound.status;
     merchantFound.statusManualToggle = true;
-    await merchantFound.save();
+
+    let message;
+
+    if (merchantFound.status) {
+      message = `${merchantFound.merchantDetail.merchantName} turned to OPEN`;
+    } else {
+      message = `${merchantFound.merchantDetail.merchantName} turned to CLOSED`;
+    }
+
+    await Promise.all([
+      merchantFound.save(),
+      ActivityLog.create({
+        userId: req.userAuth,
+        userType: req.userRole,
+        description: message,
+      }),
+    ]);
 
     res.status(200).json({ message: "Merchant status changed" });
   } catch (err) {
@@ -343,7 +305,22 @@ const changeMerchantStatusByMerchantControllerForToggle = async (
     }
     merchantFound.statusManualToggle = false;
 
-    await merchantFound.save();
+    let message;
+
+    if (merchantFound.status) {
+      message = `${merchantFound.merchantDetail.merchantName} turned to OPEN`;
+    } else {
+      message = `${merchantFound.merchantDetail.merchantName} turned to CLOSED`;
+    }
+
+    await Promise.all([
+      merchantFound.save(),
+      ActivityLog.create({
+        userId: req.userAuth,
+        userType: req.userRole,
+        description: message,
+      }),
+    ]);
 
     res.status(200).json({ message: "Merchant status changed" });
   } catch (err) {
@@ -866,7 +843,7 @@ const filterMerchantsController = async (req, res, next) => {
     if (businessCategory && businessCategory.toLowerCase() !== "all") {
       try {
         filterCriteria["merchantDetail.businessCategoryId"] =
-          new mongoose.Types.ObjectId(businessCategory.trim());
+          mongoose.Types.ObjectId.createFromHexString(businessCategory.trim());
       } catch (err) {
         return res
           .status(400)
@@ -877,7 +854,7 @@ const filterMerchantsController = async (req, res, next) => {
     if (geofence && geofence.toLowerCase() !== "all") {
       try {
         filterCriteria["merchantDetail.geofenceId"] =
-          new mongoose.Types.ObjectId(geofence.trim());
+          mongoose.Types.ObjectId.createFromHexString(geofence.trim());
       } catch (err) {
         return res.status(400).json({ message: "Invalid geofence ID" });
       }
@@ -1360,7 +1337,23 @@ const changeMerchantStatusController = async (req, res, next) => {
     }
 
     merchantFound.status = !merchantFound.status;
-    await merchantFound.save();
+
+    let message;
+
+    if (merchantFound.status) {
+      message = `${merchantFound.merchantDetail.merchantName} turned to OPEN by ${req.userRole} (${req.userAuth})`;
+    } else {
+      message = `${merchantFound.merchantDetail.merchantName} turned to CLOSED by ${req.userRole} (${req.userAuth})`;
+    }
+
+    await Promise.all([
+      merchantFound.save(),
+      ActivityLog.create({
+        userId: req.userAuth,
+        userType: req.userRole,
+        description: message,
+      }),
+    ]);
 
     res.status(200).json({ message: "Merchant status changed" });
   } catch (err) {
@@ -1834,7 +1827,7 @@ const downloadMerchantSampleCSVController = async (req, res, next) => {
     ];
 
     // Create a new CSV writer
-    const writer = csvWriter({
+    const writer = createObjectCsvWriter({
       path: filePath,
       header: csvHeaders,
     });
@@ -1971,7 +1964,7 @@ const downloadMerchantCSVController = async (req, res, next) => {
       { id: "servingRadius", title: "Serving Radius" },
     ];
 
-    const writer = csvWriter({
+    const writer = createObjectCsvWriter({
       path: filePath,
       header: csvHeaders,
     });
@@ -2427,7 +2420,7 @@ const downloadPayoutCSVController = async (req, res, next) => {
     }));
 
     const csvFilePath = path.join(__dirname, "../../../Merchant_payout.csv");
-    const writer = csvWriter({
+    const writer = createObjectCsvWriter({
       path: csvFilePath,
       header: [
         { id: "merchantId", title: "Merchant ID" },
