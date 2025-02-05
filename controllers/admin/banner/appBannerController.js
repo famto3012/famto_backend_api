@@ -24,7 +24,7 @@ const addAppBannerController = async (req, res, next) => {
 
     let imageUrl = "";
     if (req.file) {
-      imageUrl = await uploadToFirebase(req.file, "AppBannerImages");
+      imageUrl = await uploadToFirebase(req.file, "AppBannerImages", true);
     }
 
     let newAppBanner = await AppBanner.create({
@@ -62,7 +62,7 @@ const editAppBannerController = async (req, res, next) => {
       if (imageUrl) {
         await deleteFromFirebase(appBanner.imageUrl);
       }
-      imageUrl = await uploadToFirebase(req.file, "AppBannerImages");
+      imageUrl = await uploadToFirebase(req.file, "AppBannerImages", true);
     }
 
     // Find the banner by ID and update it with the new data

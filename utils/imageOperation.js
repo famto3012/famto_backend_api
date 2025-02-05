@@ -29,7 +29,7 @@ const upload = multer({
   },
 });
 
-const uploadToFirebase = async (file, folderName, locationImage = false) => {
+const uploadToFirebase = async (file, folderName, originalQuality = false) => {
   if (!file) {
     throw new Error("File not found");
   }
@@ -44,10 +44,14 @@ const uploadToFirebase = async (file, folderName, locationImage = false) => {
   if (file?.mimetype?.startsWith("image/")) {
     // If it's an image, process it with sharp
     try {
-      fileBuffer = await sharp(file.buffer)
-        .resize({ width: 800 })
-        .jpeg({ quality: 100 })
-        .toBuffer();
+      if (originalQuality) {
+        fileBuffer = file.buffer;
+      } else {
+        fileBuffer = await sharp(file.buffer)
+          .resize({ width: 800 })
+          .jpeg({ quality: 100 })
+          .toBuffer();
+      }
     } catch (err) {
       throw new Error("Image processing failed");
     }
