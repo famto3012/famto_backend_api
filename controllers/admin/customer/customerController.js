@@ -396,6 +396,7 @@ const getSingleCustomerController = async (req, res, next) => {
       phoneNumber: customerFound.phoneNumber,
       customerImageURL: customerFound?.customerDetails?.customerImageURL || "",
       lastPlatformUsed: customerFound.lastPlatformUsed,
+      location: customerFound.customerDetails.location || [],
       isBlocked: customerFound?.customerDetails?.isBlocked || false,
       registrationDate: formatDate(customerFound.createdAt),
       walletBalance: customerFound?.customerDetails?.walletBalance,

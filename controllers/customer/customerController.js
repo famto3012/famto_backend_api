@@ -59,7 +59,8 @@ const registerAndLoginController = async (req, res, next) => {
   }
 
   try {
-    const { phoneNumber, latitude, longitude, referralCode } = req.body;
+    const { phoneNumber, latitude, longitude, referralCode, platform } =
+      req.body;
     const location = [latitude, longitude];
     const geofence = await geoLocation(latitude, longitude, next);
 
@@ -74,7 +75,7 @@ const registerAndLoginController = async (req, res, next) => {
 
     const isNewCustomer = !customer;
     if (!customer) {
-      customer = new Customer({
+      customer = await Customer.create({
         phoneNumber,
         lastPlatformUsed: os.platform(),
         customerDetails: {
@@ -82,15 +83,15 @@ const registerAndLoginController = async (req, res, next) => {
           geofenceId: geofence._id,
         },
       });
-      await customer.save();
     } else {
-      customer.lastPlatformUsed = os.platform();
+      customer.lastPlatformUsed = platform ? platform : os.platform();
 
       customer.customerDetails = {
         ...customer.customerDetails,
         location,
         geofenceId: geofence._id,
       };
+
       await customer.save();
     }
 
@@ -237,18 +238,19 @@ const getCustomerProfileController = async (req, res, next) => {
 // Update profile details of customer
 const updateCustomerProfileController = async (req, res, next) => {
   const errors = validationResult(req);
+
   if (!errors.isEmpty()) {
-    const formattedErrors = errors.array().reduce((acc, error) => {
-      acc[error.path] = error.msg;
-      return acc;
-    }, {});
-    return res.status(500).json({ errors: formattedErrors });
+    return res.status(400).json({
+      errors: errors.array().reduce((acc, error) => {
+        acc[error.path] = error.msg;
+        return acc;
+      }, {}),
+    });
   }
 
   try {
     const { fullName, email } = req.body;
-    const normalizedEmail = email ? email.toLowerCase() : null;
-
+    const normalizedEmail = email?.toLowerCase();
     const currentCustomer = await Customer.findById(req.userAuth);
 
     if (!currentCustomer) return next(appError("Customer not found", 404));
@@ -275,12 +277,27 @@ const updateCustomerProfileController = async (req, res, next) => {
       customerImageURL = await uploadToFirebase(req.file, "CustomerImages");
     }
 
-    // Update customer details
-    currentCustomer.fullName = fullName;
-    currentCustomer.customerDetails.customerImageURL = customerImageURL;
-    if (normalizedEmail) currentCustomer.email = normalizedEmail;
+    // Prepare updates
+    const updates = {
+      ...(fullName && { fullName }),
+      ...(normalizedEmail && { email: normalizedEmail }),
+      "customerDetails.customerImageURL": customerImageURL,
+    };
 
-    await currentCustomer.save();
+    // Update customer
+    await Customer.findByIdAndUpdate(req.userAuth, updates, { new: true });
+
+    // Update Referral Code if necessary
+    if (fullName || normalizedEmail) {
+      await ReferralCode.findOneAndUpdate(
+        { customerId: req.userAuth },
+        {
+          ...(fullName && { name: fullName }),
+          ...(normalizedEmail && { email: normalizedEmail }),
+        },
+        { new: true }
+      );
+    }
 
     res.status(200).json({ message: "Customer updated successfully" });
   } catch (err) {
