@@ -413,7 +413,11 @@ const changeAgentStatusController = async (req, res, next) => {
       agentFound.loginStartTime = null;
     } else {
       const agentWorkTimings = agentFound.workStructure.workTimings || [];
-      const now = new Date();
+      const nowUTC = new Date();
+      const nowIST = new Date(
+        nowUTC.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+      );
+      console.log("Converted IST Time:", nowIST.toISOString());
 
       const objectIds = agentWorkTimings.map((id) =>
         mongoose.Types.ObjectId.createFromHexString(id)
@@ -437,8 +441,8 @@ const changeAgentStatusController = async (req, res, next) => {
         const [startHour, startMinute] = startTime.split(":").map(Number);
         const [endHour, endMinute] = endTime.split(":").map(Number);
 
-        const start = new Date(now);
-        const end = new Date(now);
+        const start = new Date(nowIST);
+        const end = new Date(nowIST);
 
         if (process.env.NODE_ENV === "production") {
           start.setUTCHours(startHour, startMinute, 0, 0);
@@ -448,7 +452,7 @@ const changeAgentStatusController = async (req, res, next) => {
           end.setHours(endHour, endMinute, 0, 0);
         }
 
-        return now >= start && now <= end;
+        return nowIST >= start && nowIST <= end;
       });
 
       if (!isWithInWorkingHours) {

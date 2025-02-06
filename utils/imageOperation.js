@@ -104,9 +104,36 @@ const changeBufferToImage = async (buffer, outputPath, newFormat) => {
   }
 };
 
+const uploadFileToFirebaseForWhatsapp = async (file, folderName, mimeType) => {
+  if (!file) {
+    throw new Error("File not found");
+  }
+
+  // if (
+  //   !file.mimetype.startsWith("image/") &&
+  //   file.mimetype !== "application/pdf"
+  // ) {
+  //   throw new Error("Only image and PDF files are allowed");
+  // }
+
+  const uniqueName = `${uuidv4()}-${file.originalname || file.name}`;
+  const storageRef = ref(storage, `${folderName}/${uniqueName}`);
+
+  const metadata = {
+    contentType: mimeType || file.mime_type,
+  };
+
+  // Upload file with metadata
+  await uploadBytes(storageRef, file, metadata);
+  const downloadURL = await getDownloadURL(storageRef);
+
+  return downloadURL;
+};
+
 module.exports = {
   upload,
   uploadToFirebase,
   deleteFromFirebase,
   changeBufferToImage,
+  uploadFileToFirebaseForWhatsapp,
 };

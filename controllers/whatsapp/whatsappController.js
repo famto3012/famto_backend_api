@@ -1,6 +1,12 @@
 const axios = require("axios");
 const WhatsApp = require("../../models/Whatsapp");
-const { uploadToFirebase } = require("../../utils/imageOperation");
+const {
+  uploadFileToFirebaseForWhatsapp,
+} = require("../../utils/imageOperation");
+const { timeAgo } = require("../../utils/formatters");
+const Admin = require("../../models/Admin");
+const Manager = require("../../models/Manager");
+const { sendSocketData, sendNotification } = require("../../socket/socket");
 
 const verifyWebhook = (req, res) => {
   if (
@@ -13,132 +19,8 @@ const verifyWebhook = (req, res) => {
   }
 };
 
-// const handleWebhook = (req, res) => {
-//   console.log("req.body", JSON.stringify(req.body));
-
-//   const messageEvent = req?.body?.entry?.[0]?.changes?.[0]?.value;
-//   if (!messageEvent?.messages) {
-//     console.log("No messages found in webhook, ignoring event.");
-//     return res.sendStatus(200); // Exit early
-//   }
-
-//   const displayPhoneNumber =
-//     req?.body?.entry?.[0]?.changes?.[0]?.value?.metadata?.display_phone_number;
-//   const waId = req?.body?.entry?.[0]?.changes?.[0]?.value?.contacts?.[0]?.wa_id;
-//   const phoneNumberId =
-//     req.body.entry?.[0].changes?.[0].value.metadata.phone_number_id;
-//   const name =
-//     req?.body?.entry?.[0]?.changes?.[0]?.value?.contacts?.[0]?.profile?.name;
-//   const messageBody =
-//     req?.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.text?.body;
-//   const messageType =
-//     req?.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.type;
-//   const location =
-//     req?.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.location;
-//   const image =
-//     req?.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.image;
-//   const imageCaption =
-//     req?.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.image?.caption;
-//   const message = messageEvent?.messages?.[0];
-
-//   if (message?.type === "audio") {
-//     const audioData = {
-//       mimeType: message.audio.mime_type,
-//       sha256: message.audio.sha256,
-//       audioId: message.audio.id,
-//       voice: message.audio.voice,
-//     };
-
-//     console.log("Audio Data:", audioData);
-//   }
-
-//   if (message?.type === "contacts") {
-//     const contact = message?.contacts?.[0];
-
-//     const contactData = {
-//       firstName: contact?.name?.first_name,
-//       middleName: contact?.name?.middle_name,
-//       lastName: contact?.name?.last_name,
-//       fullName: contact?.name?.formatted_name,
-//       company: contact?.org?.company,
-//       phone: contact?.phones?.[0]?.phone,
-//       waId: contact?.phones?.[0]?.wa_id,
-//       phoneType: contact?.phones?.[0]?.type,
-//     };
-
-//     console.log("Contact Data:", contactData);
-//   }
-
-//   if (message?.type === "document") {
-//     const documentData = {
-//       fileName: message?.document?.filename,
-//       mimeType: message?.document?.mime_type,
-//       sha256: message?.document?.sha256,
-//       documentId: message?.document?.id,
-//     };
-
-//     console.log("Document Data:", documentData);
-//   }
-
-//   console.log("displayPhoneNumber", displayPhoneNumber);
-//   console.log("waId", waId);
-//   console.log("name", name);
-//   console.log("messageBody", messageBody);
-//   console.log("messageType", messageType);
-//   console.log("image", image);
-//   console.log("imageCaption", imageCaption);
-//   console.log("location", location);
-
-//   const token =
-//     "EAAgZCQz0k7IUBO3OxWbZBMnCQ7iOB1k2AwET4gwKRRxFFVHl2CkFZCZC6IpZAujs9zwyhn1ZCaFPlhGhAVkvpiBNhzHnRe4ZCXTcrAdp5id7RdVTkuutQlQ1vmycBR4QEGXcmCUMS62omOiZBNOFZB4UkZArWzfUojCST2aeJGWnQgLlijxaqEeh4iJvds3BR0kzUoVAZDZD";
-
-//   const payload = {
-//     messaging_product: "whatsapp",
-//     recipient_type: "individual",
-//     to: waId,
-//     type: "text",
-//     text: {
-//       preview_url: false,
-//       body: `Hello ${name}, Your message received`,
-//     },
-//   };
-
-//   const headers = {
-//     "Content-Type": "application/json",
-//     Authorization: `Bearer ${token}`,
-//   };
-
-//   axios
-//     .post(
-//       `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
-//       payload,
-//       { headers }
-//     )
-//     .then((response) => {
-//       console.log("Message sent successfully:", response?.data);
-
-//       // Safely access the first contact in the contacts array
-//       const contact = response?.data?.contacts && response?.data?.contacts[0];
-
-//       if (contact) {
-//         console.log(`Message sent to: ${contact?.input}`);
-//         // Perform any other operations with contact here
-//       } else {
-//         console.error("No contacts returned in the response");
-//       }
-//     })
-//     .catch((error) => {
-//       console.error(
-//         "Error sending message:",
-//         error?.response ? error?.response.data : error.message
-//       );
-//     });
-
-//   res.sendStatus(200);
-// };
-
 const handleWebhook = async (req, res) => {
-  console.log("req.body", JSON.stringify(req.body));
+  // console.log("req.body", JSON.stringify(req.body));
 
   const messageEvent = req?.body?.entry?.[0]?.changes?.[0]?.value;
   if (!messageEvent?.messages) {
@@ -171,19 +53,25 @@ const handleWebhook = async (req, res) => {
 
     image: message?.image
       ? {
-          id: message.image.id,
-          mimeType: message.image.mime_type,
-          sha256: message.image.sha256,
+          // id: message.image.id,
+          // mimeType: message.image.mime_type,
+          // sha256: message.image.sha256,
           caption: message.image.caption,
+          link: await getAndDownloadMedia(message.image.id, phoneNumberId),
         }
       : undefined,
 
     audio: message?.audio
       ? {
-          id: message.audio.id,
+          // id: message.audio.id,
           mimeType: message.audio.mime_type,
-          sha256: message.audio.sha256,
-          voice: message.audio.voice,
+          // sha256: message.audio.sha256,
+          // voice: message.audio.voice,
+          link: await getAndDownloadMedia(
+            message.audio.id,
+            phoneNumberId,
+            message.audio.mime_type
+          ),
         }
       : undefined,
 
@@ -203,157 +91,106 @@ const handleWebhook = async (req, res) => {
 
     document: message?.document
       ? {
-          fileName: message.document.filename,
+          // fileName: message.document.filename,
           mimeType: message.document.mime_type,
-          sha256: message.document.sha256,
-          documentId: message.document.id,
+          // sha256: message.document.sha256,
+          // documentId: message.document.id,
+          link: await getAndDownloadMedia(
+            message.document.id,
+            phoneNumberId,
+            message.document.mime_type
+          ),
         }
       : undefined,
     received: true,
   };
 
-  // Save to MongoDB
+  let savedMessage;
   try {
-    const savedMessage = await WhatsApp.create(messageData);
-    console.log("Message stored in DB:", savedMessage);
+    savedMessage = await WhatsApp.create(messageData);
+    // console.log("Message stored in DB:", savedMessage);
   } catch (error) {
     console.error("Error saving message to DB:", error);
   }
 
-  // Sending response back to WhatsApp
-  const token = process.env.WHATSAPP_API_TOKEN;
+  const updatedMessageData = {
+    ...messageData, // Spread the existing object
+    timestamp: "now", // Update the timestamp field
+  };
 
-  const payload = {
-    messaging_product: "whatsapp",
-    recipient_type: "individual",
-    to: waId,
-    type: "text",
-    text: {
-      preview_url: false,
-      body: `Hello ${name}, Your message received`,
+  const admins = await Admin.find({}, "_id"); // Get only _id fields
+  const managers = await Manager.find({}, "_id"); // Get only _id fields
+  const eventName = "newMessage"; // Define your custom event name here
+
+  // Extract the IDs into a single array
+  const userIds = [
+    ...admins.map((admin) => admin._id),
+    ...managers.map((manager) => manager._id),
+  ];
+
+  const formattedWaId = (waId) => {
+    const waIdStr = waId.toString();
+    return `+${waIdStr.slice(0, 2)} ${waIdStr.slice(2)}`;
+  };
+
+  const data = {
+    fcm: {
+      title: "New Whatsapp Message",
+      body: `${messageData.name || formattedWaId(messageData.waId)}: ${
+        messageData.messageBody
+      }`,
     },
   };
 
-  const headers = {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  };
+  userIds.forEach((userId) => {
+    sendSocketData(userId, eventName, updatedMessageData);
+    sendNotification(userId, eventName, data);
+  });
+  // Call the function with all IDs
 
-  axios
-    .post(
-      `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
-      payload,
-      { headers }
-    )
-    .then((response) => {
-      console.log("Message sent successfully:", response?.data);
-    })
-    .catch((error) => {
-      console.error(
-        "Error sending message:",
-        error?.response ? error?.response.data : error.message
-      );
-    });
+  // Save to MongoDB
 
   res.sendStatus(200);
 };
 
-// const sendWhatsAppMessage = async (req, res) => {
-//   try {
-//     const { to, messageType, content, name, displayPhoneNumber } = req.body;
+const getAndDownloadMedia = async (mediaId, phoneNumberId, mimeType) => {
+  try {
+    const token = process.env.WHATSAPP_API_TOKEN;
 
-//     if (!to || !messageType || !content) {
-//       return res.status(400).json({ error: "Missing required fields" });
-//     }
+    // Step 1: Get media URL
+    const mediaResponse = await axios.get(
+      `https://graph.facebook.com/v21.0/${mediaId}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { phone_number_id: phoneNumberId },
+      }
+    );
 
-//     const token = process.env.WHATSAPP_API_TOKEN; // Store token in environment variables
-//     const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    if (!mediaResponse.data.url) throw new Error("Media URL not found");
 
-//     const headers = {
-//       "Content-Type": "application/json",
-//       Authorization: `Bearer ${token}`,
-//     };
+    const mediaUrl = mediaResponse.data.url;
 
-//     let payload = {
-//       messaging_product: "whatsapp",
-//       recipient_type: "individual",
-//       to,
-//     };
+    // Step 2: Download media file
+    const fileResponse = await axios.get(mediaUrl, {
+      headers: { Authorization: `Bearer ${token}` },
+      responseType: "arraybuffer", // To handle binary data
+    });
+    console.log("fileResponse", fileResponse.data);
+    const firebaseUrl = await uploadFileToFirebaseForWhatsapp(
+      fileResponse.data,
+      "whatsapp_media",
+      mimeType
+    );
 
-//     // Prepare message data to be saved in the WhatsApp model
-//     const messageData = {
-//       displayPhoneNumber,
-//       waId: to,
-//       phoneNumberId,
-//       name,
-//       messageBody: content,
-//       messageType,
-//       send: true, // Mark as sent initially
-//       timestamp: Date.now(),
-//     };
-
-//     // Handling different message types
-//     switch (messageType) {
-//       case "text":
-//         payload.type = "text";
-//         payload.text = { preview_url: false, body: content };
-//         messageData.messageBody = content; // Store the text message
-//         break;
-
-//       case "image":
-//         payload.type = "image";
-//         payload.image = { link: content }; // content should be an image URL
-//         messageData.image = { link: content }; // Store the image data
-//         break;
-
-//       case "document":
-//         payload.type = "document";
-//         payload.document = { link: content }; // content should be a document URL
-//         messageData.document = { link: content }; // Store the document data
-//         break;
-
-//       default:
-//         return res.status(400).json({ error: "Invalid message type" });
-//     }
-
-//     // Save the message data to the database
-//     const savedMessage = await WhatsApp.create(messageData);
-//     console.log("Message saved to database:", savedMessage);
-
-//     // Sending request to WhatsApp API
-//     const response = await axios.post(
-//       `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
-//       payload,
-//       { headers }
-//     );
-
-//     // Log the response from WhatsApp API
-//     console.log("Message sent successfully:", response.data);
-
-//     // Optionally update the message data in the database with the WhatsApp response (e.g., messageId, status)
-//     const updatedMessage = await WhatsApp.findByIdAndUpdate(
-//       savedMessage._id,
-//       {
-//         messageId: response.data.messages[0].id,
-//         deliveryStatus: "sent", // You can later update the status to delivered or read based on events
-//       },
-//       { new: true }
-//     );
-
-//     // Return the success response with saved and updated message data
-//     res.status(200).json({
-//       success: true,
-//       data: updatedMessage,
-//       message: "Message sent and saved successfully",
-//     });
-//   } catch (error) {
-//     console.error(
-//       "Error sending message:",
-//       error?.response ? error.response.data : error.message
-//     );
-//     res.status(500).json({ error: "Failed to send message" });
-//   }
-// };
+    return firebaseUrl; // Return the permanent Firebase URL
+  } catch (error) {
+    console.error(
+      "Error fetching or saving media:",
+      error.response?.data || error.message
+    );
+    return null;
+  }
+};
 
 const sendWhatsAppMessage = async (req, res) => {
   try {
@@ -400,8 +237,6 @@ const sendWhatsAppMessage = async (req, res) => {
         break;
 
       case "image":
-        // Check if an image file was uploaded
-        // console.log("req", req);
         if (req.files && req.files.image && req.files.image[0]) {
           const mimeType = req.files?.image[0]?.mimetype; // Get the mime type of the uploaded image
 
@@ -410,13 +245,13 @@ const sendWhatsAppMessage = async (req, res) => {
               error: "Invalid image format. Only JPEG and PNG are supported.",
             });
           }
-          console.log("Here");
-          const imageUrl = await uploadToFirebase(
-            req.files.image[0],
-            "Whatsapp Images"
+
+          const imageUrl = await uploadFileToFirebaseForWhatsapp(
+            req.files.image[0].buffer,
+            "Whatsapp Images",
+            mimeType
           );
-          console.log("ImageUrl", imageUrl);
-          // messageData.messageBody = imageUrl; // Assuming you're using a service like AWS S3 for file storage
+
           payload.type = "image";
           payload.image = { link: imageUrl }; // Image URL should be used for WhatsApp API
           messageData.image = { link: imageUrl }; // Store the image data in the database
@@ -428,13 +263,18 @@ const sendWhatsAppMessage = async (req, res) => {
       case "document":
         // Check if a document file was uploaded
         if (req.files && req.files.document && req.files.document[0]) {
-          const documentUrl = await uploadToFirebase(
-            req.files.document[0],
-            "Whatsapp Documents"
+          console.log("req.files", req.files.document[0]);
+          const documentUrl = await uploadFileToFirebaseForWhatsapp(
+            req.files.document[0].buffer,
+            "Whatsapp Documents",
+            req.files.document[0].mimetype
           ); // Assuming you're using a service like AWS S3 for file storage
           payload.type = "document";
           payload.document = { link: documentUrl }; // Document URL should be used for WhatsApp API
-          messageData.document = { link: documentUrl }; // Store the document data in the database
+          messageData.document = {
+            link: documentUrl,
+            mimeType: req.files.document[0].mimetype,
+          }; // Store the document data in the database
         } else {
           return res.status(400).json({ error: "No document file uploaded" });
         }
@@ -483,4 +323,109 @@ const sendWhatsAppMessage = async (req, res) => {
   }
 };
 
-module.exports = { verifyWebhook, handleWebhook, sendWhatsAppMessage };
+const getWhatsAppMessages = async (req, res) => {
+  try {
+    const messages = await WhatsApp.aggregate([
+      {
+        $sort: { timestamp: -1 }, // Sort messages by latest timestamp first
+      },
+      {
+        $group: {
+          _id: "$waId", // Group by unique waId
+          latestMessage: { $first: "$$ROOT" }, // Get the latest message for each user
+          receivedMessages: { $push: "$$ROOT" }, // Collect all messages for each user
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          waId: "$latestMessage.waId",
+          name: {
+            $cond: {
+              if: { $gt: [{ $size: "$receivedMessages" }, 0] }, // Check if there are any received messages
+              then: {
+                $let: {
+                  vars: {
+                    receivedMessage: {
+                      $arrayElemAt: [
+                        {
+                          $filter: {
+                            input: "$receivedMessages",
+                            as: "message",
+                            cond: { $eq: ["$$message.received", true] },
+                          },
+                        },
+                        0,
+                      ],
+                    },
+                  },
+                  in: "$$receivedMessage.name", // Use name from the first received message
+                },
+              },
+              else: { $concat: ["+", "$latestMessage.waId"] }, // Prepend '+' if no received message
+            },
+          },
+          lastMessage: "$latestMessage.messageBody",
+          timestamp: "$latestMessage.timestamp",
+        },
+      },
+      {
+        $sort: { timestamp: -1 }, // Sort final result by latest message time
+      },
+    ]);
+
+    const formattedMessages = messages.map((msg) => ({
+      waId: msg.waId,
+      name: msg.name,
+      lastMessage: msg.lastMessage,
+      timeAgo: timeAgo(msg.timestamp),
+    }));
+
+    res.status(200).json({ success: true, data: formattedMessages });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const getMessagesByWaId = async (req, res) => {
+  const { waId } = req.params; // Extract waId from request params
+
+  try {
+    // Fetch all messages by waId, sorted by timestamp in ascending order (oldest first)
+    const messages = await WhatsApp.find({ waId })
+      .sort({ createdAt: 1 }) // Sort by timestamp in ascending order
+      .exec();
+
+    // Check if messages are found
+    if (!messages || messages.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No messages found for this waId." });
+    }
+
+    const formattedMessages = messages.map((msg) => ({
+      ...msg.toObject(), // Convert Mongoose document to plain object
+      timestamp: timeAgo(new Date(msg.createdAt).getTime()),
+    }));
+
+    // Send the sorted messages as response
+    return res.status(200).json({
+      message: "Messages fetched successfully",
+      data: formattedMessages, // The sorted messages
+    });
+  } catch (error) {
+    console.error("Error fetching messages:", error);
+    return res.status(500).json({
+      message: "An error occurred while fetching messages",
+      error: error.message,
+    });
+  }
+};
+
+module.exports = {
+  verifyWebhook,
+  handleWebhook,
+  sendWhatsAppMessage,
+  getWhatsAppMessages,
+  getMessagesByWaId,
+};

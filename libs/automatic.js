@@ -4,7 +4,11 @@ const AgentAppCustomization = require("../models/AgentAppCustomization");
 const Merchant = require("../models/Merchant");
 
 const automaticStatusOfflineForAgent = async () => {
-  const now = new Date();
+  const nowUTC = new Date();
+  const nowIST = new Date(
+    nowUTC.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+  );
+  console.log("Converted IST Time:", nowIST.toISOString());
 
   // Fetch all free and approved agents at once
   const agents = await Agent.find({ isApproved: "Approved", status: "Free" });
@@ -56,13 +60,13 @@ const automaticStatusOfflineForAgent = async () => {
       const [startHour, startMinute] = startTime.split(":").map(Number);
       const [endHour, endMinute] = endTime.split(":").map(Number);
 
-      const start = new Date(now);
-      const end = new Date(now);
+      const start = new Date(nowIST);
+      const end = new Date(nowIST);
 
       start.setHours(startHour, startMinute, 0, 0);
       end.setHours(endHour, endMinute, 0, 0);
 
-      return now >= start && now <= end;
+      return nowIST >= start && nowIST <= end;
     });
 
     if (!isWithinWorkingHours) {
