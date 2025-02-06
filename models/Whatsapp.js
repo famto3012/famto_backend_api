@@ -17,19 +17,20 @@ const whatsappSchema = new mongoose.Schema(
 
     // Image Data (if available)
     image: {
-      id: String,
-      mimeType: String,
-      sha256: String,
-      caption: String,
+      // id: String,
+      // mimeType: String,
+      // sha256: String,
+      // caption: String,
       link: String,
     },
 
     // Audio Data (if available)
     audio: {
-      id: String,
+      // id: String,
       mimeType: String,
-      sha256: String,
-      voice: Boolean,
+      // sha256: String,
+      // voice: Boolean,
+      link: String,
     },
 
     // Contact Data (if available)
@@ -46,10 +47,10 @@ const whatsappSchema = new mongoose.Schema(
 
     // Document Data (if available)
     document: {
-      fileName: String,
+      // fileName: String,
       mimeType: String,
-      sha256: String,
-      documentId: String,
+      // sha256: String,
+      // documentId: String,
       link: String,
     },
 

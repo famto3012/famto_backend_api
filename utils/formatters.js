@@ -17,6 +17,17 @@ const formatTime = (createdAt) => {
   }
 };
 
+const timeAgo = (timestamp) => {
+  const now = Date.now();
+  const diffInSeconds = Math.floor((now - timestamp) / 1000);
+
+  if (diffInSeconds < 60) return "now";
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} min`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
+  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d`;
+  return new Date(timestamp * 1000).toLocaleDateString(); // Show full date if older than a week
+};
+
 // const convertToUTC = (date, time) => {
 //   // Combine date and time
 //   const localDateTime = momentTimezone.tz(
@@ -129,4 +140,5 @@ module.exports = {
   convertStartDateToUTC,
   convertEndDateToUTC,
   convertISTToUTC,
+  timeAgo,
 };
