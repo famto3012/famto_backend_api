@@ -194,7 +194,8 @@ const getAndDownloadMedia = async (mediaId, phoneNumberId, mimeType) => {
 
 const sendWhatsAppMessage = async (req, res) => {
   try {
-    const { to, messageType, content, name, displayPhoneNumber } = req.body;
+    const { to, messageType, content, name, displayPhoneNumber, template } =
+      req.body;
 
     // Check if required fields are present in the body
     if (!to || !messageType) {
@@ -278,6 +279,30 @@ const sendWhatsAppMessage = async (req, res) => {
         } else {
           return res.status(400).json({ error: "No document file uploaded" });
         }
+        break;
+
+      case "template":
+        payload.type = "template";
+        payload.template = {
+          name: template,
+          language: {
+            code: "en_US",
+          },
+          components: [
+            {
+              type: "header",
+              parameters: [
+                {
+                  type: "image",
+                  image: {
+                    link: "https://firebasestorage.googleapis.com/v0/b/famto-aa73e.appspot.com/o/admin_panel_assets%2FGroup%20427320606%201.png?alt=media&token=d673efb7-7881-4824-b310-4af91f12c6c7",
+                  }, // Ensure imageUrl is defined
+                },
+              ],
+            },
+          ],
+        };
+        messageData.messageBody = template;
         break;
 
       default:
